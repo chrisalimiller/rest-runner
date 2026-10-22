@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AuthEditor } from "./components/AuthEditor";
+import { BatchPane } from "./components/BatchPane";
 import { BodyEditor } from "./components/BodyEditor";
 import { countActive, KeyValueEditor } from "./components/KeyValueEditor";
 import { ResponsePane } from "./components/ResponsePane";
@@ -12,6 +13,7 @@ import { load, save } from "./lib/storage";
 import { HTTP_METHODS, type HistoryEntry, type HttpMethod, type RequestDef, type SendOutcome } from "./lib/types";
 
 type RequestTab = "params" | "auth" | "headers" | "body";
+type LowerPane = "response" | "batch";
 
 const DRAFT_KEY = "rest-runner.draft";
 const HISTORY_KEY = "rest-runner.history";
@@ -22,6 +24,8 @@ export default function App() {
   const [tab, setTab] = useState<RequestTab>("params");
   const [outcome, setOutcome] = useState<SendOutcome | null>(null);
   const [sending, setSending] = useState(false);
+  const [pane, setPane] = useState<LowerPane>("response");
+  const [batchRunning, setBatchRunning] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>(() => load(HISTORY_KEY, []));
   const abortRef = useRef<AbortController | null>(null);
 
@@ -32,6 +36,7 @@ export default function App() {
 
   const send = useCallback(async () => {
     if (sending || def.url.trim() === "") return;
+    setPane("response");
     const prepared = prepareRequest(def);
     const controller = new AbortController();
     abortRef.current = controller;
@@ -127,7 +132,7 @@ export default function App() {
           )}
         </div>
 
-        <section className="request-config">
+        <section className={`request-config ${pane === "batch" ? "compact" : ""}`}>
           <div className="tabs">
             <button className={tab === "params" ? "active" : ""} onClick={() => setTab("params")}>
               {tabLabel("Params", countActive(def.params))}
@@ -165,7 +170,22 @@ export default function App() {
           </div>
         </section>
 
-        <ResponsePane outcome={outcome} sending={sending} />
+        <section className="lower">
+          <div className="pane-switch tabs">
+            <button className={pane === "response" ? "active" : ""} onClick={() => setPane("response")}>
+              Response
+            </button>
+            <button className={pane === "batch" ? "active" : ""} onClick={() => setPane("batch")}>
+              Batch run (CSV){batchRunning ? " ●" : ""}
+            </button>
+          </div>
+          <div className="lower-body" hidden={pane !== "response"}>
+            <ResponsePane outcome={outcome} sending={sending} />
+          </div>
+          <div className="lower-body" hidden={pane !== "batch"}>
+            <BatchPane def={def} onRunningChange={setBatchRunning} />
+          </div>
+        </section>
       </main>
     </div>
   );

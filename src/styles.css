@@ -111,6 +111,7 @@ button:disabled {
   display: grid;
   grid-template-columns: 240px 1fr;
   height: 100%;
+  overflow: hidden;
 }
 
 .sidebar {
@@ -203,7 +204,9 @@ button:disabled {
   display: flex;
   flex-direction: column;
   min-width: 0;
+  min-height: 0;
   height: 100%;
+  overflow: hidden;
   padding: 12px 16px;
   gap: 10px;
 }
@@ -272,6 +275,10 @@ button:disabled {
   flex-direction: column;
   flex: 0 0 40%;
   min-height: 160px;
+}
+
+.request-config.compact {
+  flex-basis: 30%;
 }
 
 .tab-panel {
@@ -400,8 +407,6 @@ textarea.code {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-top: 1px solid var(--border);
-  padding-top: 6px;
 }
 
 .response.empty {
@@ -466,4 +471,245 @@ textarea.code {
 .error-box pre {
   font-family: var(--mono);
   white-space: pre-wrap;
+}
+
+/* Lower pane: response or batch run */
+.lower {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 1px solid var(--border);
+  padding-top: 4px;
+}
+
+.pane-switch button {
+  font-weight: 600;
+}
+
+.lower-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  padding-top: 6px;
+}
+
+.lower-body[hidden] {
+  display: none;
+}
+
+.secondary {
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  border-radius: 4px;
+  padding: 6px 12px;
+}
+
+/* Batch run */
+.batch {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.batch-setup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.batch-file {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.batch-setup p {
+  margin: 0;
+}
+
+.placeholder-check {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+}
+
+.chip {
+  display: inline-block;
+  font-family: var(--mono);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0 7px;
+  margin-right: 4px;
+}
+
+.chip.ok {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.chip.bad {
+  border-color: var(--bad);
+  color: var(--bad);
+}
+
+.batch-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+}
+
+.batch-options label {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--muted);
+}
+
+.batch-options input[type="number"] {
+  width: 80px;
+}
+
+.batch-options .send {
+  padding: 7px 18px;
+}
+
+.batch-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 40%;
+  overflow: auto;
+}
+
+.batch-preview p {
+  margin: 0;
+}
+
+.batch-preview .code-view {
+  flex: none;
+}
+
+.progress-bar {
+  height: 6px;
+  background: var(--bg-soft);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: var(--ok);
+  transition: width 0.15s;
+}
+
+.progress-fill.has-failures {
+  background: linear-gradient(90deg, var(--ok), var(--warn));
+}
+
+.progress-stats {
+  display: flex;
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.batch-results {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(320px, 45%) 1fr;
+  grid-template-rows: minmax(0, 1fr);
+  gap: 12px;
+}
+
+.batch-results > * {
+  min-height: 0;
+}
+
+.run-actions {
+  display: flex;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.results-list {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.results-toolbar {
+  display: flex;
+  gap: 14px;
+  padding-bottom: 4px;
+}
+
+.results-scroll {
+  flex: 1;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+
+table.results {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+}
+
+table.results th {
+  position: sticky;
+  top: 0;
+  background: var(--bg-soft);
+  text-align: left;
+  font-weight: 500;
+  color: var(--muted);
+  padding: 4px 6px;
+}
+
+table.results th:nth-child(1) { width: 52px; }
+table.results th:nth-child(2) { width: 60px; }
+table.results th:nth-child(3) { width: 70px; }
+
+table.results td {
+  padding: 3px 6px;
+  border-top: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+table.results tr {
+  cursor: pointer;
+}
+
+table.results tbody tr:hover {
+  background: var(--bg-soft);
+}
+
+table.results tr.selected {
+  background: color-mix(in srgb, var(--accent) 15%, transparent);
+}
+
+.url-cell {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.result-detail {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+}
+
+.show-more {
+  display: block;
+  width: 100%;
+  padding: 8px;
 }
