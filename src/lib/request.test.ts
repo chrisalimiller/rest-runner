@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { newRequest } from "./defaults";
-import { appendQuery, normalizeUrl, prepareRequest } from "./request";
+import { appendQuery, normalizeUrl, prepareRequest, requestPlaceholders } from "./request";
 import type { KeyValue, RequestDef } from "./types";
 
 const row = (key: string, value: string, enabled = true): KeyValue => ({ id: key, key, value, enabled });
@@ -87,5 +87,22 @@ describe("prepareRequest", () => {
   it("lets a manual Authorization header win over auth settings", () => {
     const p = prepareRequest(req({ url: "a.com", headers: [row("Authorization", "Custom x")], auth: { type: "bearer", token: "t" } }));
     expect(p.headers).toEqual([["Authorization", "Custom x"]]);
+  });
+});
+
+describe("requestPlaceholders", () => {
+  it("collects placeholders from sent parts only", () => {
+    const def = req({
+      method: "POST",
+      url: "https://a.com/{{id}}",
+      params: [row("q", "{{q}}"), row("off", "{{disabled}}", false)],
+      headers: [row("X-T", "{{tenant}}")],
+      bodyMode: "json",
+      body: '{"n":"{{name}}","id":"{{id}}"}',
+      formBody: [row("f", "{{notUsed}}")],
+      auth: { type: "bearer", token: "{{token}}" },
+    });
+    expect(requestPlaceholders(def).sort()).toEqual(["id", "name", "q", "tenant", "token"]);
+    expect(requestPlaceholders({ ...def, method: "GET" })).not.toContain("name");
   });
 });

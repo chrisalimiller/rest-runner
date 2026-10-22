@@ -1,4 +1,4 @@
-import { applyTemplate, type Vars } from "./template";
+import { applyJsonTemplate, applyTemplate, findPlaceholders, type Vars } from "./template";
 import type { KeyValue, PreparedRequest, RequestDef } from "./types";
 
 function activeRows(rows: KeyValue[], vars: Vars): [string, string][] {
@@ -77,7 +77,7 @@ export function prepareRequest(def: RequestDef, vars: Vars = {}): PreparedReques
   const allowsBody = def.method !== "GET" && def.method !== "HEAD";
   if (allowsBody) {
     if (def.bodyMode === "json" || def.bodyMode === "text") {
-      body = applyTemplate(def.body, vars);
+      body = def.bodyMode === "json" ? applyJsonTemplate(def.body, vars) : applyTemplate(def.body, vars);
       if (!hasHeader(headers, "Content-Type")) {
         headers.push(["Content-Type", def.bodyMode === "json" ? "application/json" : "text/plain"]);
       }
@@ -91,4 +91,22 @@ export function prepareRequest(def: RequestDef, vars: Vars = {}): PreparedReques
 
   const url = appendQuery(normalizeUrl(applyTemplate(def.url, vars)), query);
   return { method: def.method, url, headers, body };
+}
+
+/** Lists the {{placeholders}} a request uses in the parts that will actually be sent. */
+export function requestPlaceholders(def: RequestDef): string[] {
+  const parts: string[] = [def.url];
+  const addRows = (rows: KeyValue[]) => {
+    for (const r of rows) if (r.enabled && r.key.trim() !== "") parts.push(r.key, r.value);
+  };
+  addRows(def.params);
+  addRows(def.headers);
+  const allowsBody = def.method !== "GET" && def.method !== "HEAD";
+  if (allowsBody && (def.bodyMode === "json" || def.bodyMode === "text")) parts.push(def.body);
+  if (allowsBody && def.bodyMode === "urlencoded") addRows(def.formBody);
+  const a = def.auth;
+  if (a.type === "bearer") parts.push(a.token);
+  if (a.type === "basic") parts.push(a.username, a.password);
+  if (a.type === "apikey") parts.push(a.key, a.value);
+  return [...new Set(parts.flatMap(findPlaceholders))];
 }

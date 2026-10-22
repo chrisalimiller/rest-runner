@@ -9,7 +9,7 @@ Runs on macOS and Windows from one codebase, built with [Tauri 2](https://tauri.
 | Step | What | State |
 | --- | --- | --- |
 | 1 | App shell, single request editor, Mac/Windows builds | Done |
-| 2 | CSV batches with `{{column}}` placeholders, live progress | Planned |
+| 2 | CSV batches with `{{column}}` placeholders, live progress | Done |
 | 3 | Run explorer, HTML and CSV reports, saved collections and environments | Planned |
 | 4 | Extras: Postman import, retries, OAuth, chaining values between requests | Optional |
 
@@ -19,11 +19,28 @@ Runs on macOS and Windows from one codebase, built with [Tauri 2](https://tauri.
 - Query params, headers and form fields as tables with on/off checkboxes
 - Body: raw JSON (with validation and Format), raw text, or x-www-form-urlencoded
 - Auth: bearer token, basic auth, or API key (header or query)
-- `{{placeholder}}` syntax is already understood by the request builder, ready for CSV batches
 - Response viewer: status, time, size, pretty or raw body, headers, and the exact request that was sent
 - History of the last 50 requests; your current request is kept between launches
 - Send with the button, Enter in the URL box, or Ctrl/Cmd + Enter
 - Requests are sent from the Rust side, so browser CORS rules do not apply
+
+## Batch runs from a CSV
+
+1. Write the request with `{{column name}}` placeholders anywhere: URL, params, headers, body, form fields or auth.
+2. Open the **Batch run (CSV)** tab under the request and choose a CSV file. The first line must be the column names. Comma, semicolon, tab and pipe separators are detected automatically.
+3. Check the placeholder list: green ones are filled from the CSV, red ones have no matching column and are sent as written.
+4. Click **Preview** to see the first three requests exactly as they will be sent, then **Run**.
+
+Each row becomes one request. Options:
+
+- **Concurrent requests:** how many run at the same time (1 to 50).
+- **Delay between requests:** a pause before each request, useful for rate-limited APIs. Use it with 1 concurrent request for a steady pace.
+- **Count 4xx/5xx as failures:** connection errors always count as failures.
+- **Stop on first failure:** no new requests start after a failure.
+
+In a raw JSON body, a placeholder inside quotes (`"name": "{{name}}"`) is escaped, so quotes or line breaks in the CSV keep the JSON valid. Outside quotes (`"age": {{age}}`) the value is inserted as is, so numbers, `true`/`false`, and `null` work.
+
+Results appear as they come in. Click a row to see its full request and response, or filter to failures only.
 
 ## Getting the app
 

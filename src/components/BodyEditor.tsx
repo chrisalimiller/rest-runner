@@ -1,3 +1,4 @@
+import { applyJsonTemplate, findPlaceholders } from "../lib/template";
 import type { BodyMode, KeyValue } from "../lib/types";
 import { KeyValueEditor } from "./KeyValueEditor";
 
@@ -20,8 +21,9 @@ const MODES: [BodyMode, string][] = [
 
 function jsonError(body: string): string | null {
   if (body.trim() === "") return null;
-  // Placeholders like {{id}} are not valid JSON until filled in, so swap them for a dummy value first.
-  const probe = body.replace(/"?\{\{[^{}]+\}\}"?/g, '"x"');
+  // Placeholders are not valid JSON until filled in, so fill each with 0 first
+  // (valid both inside a string and as a bare value).
+  const probe = applyJsonTemplate(body, Object.fromEntries(findPlaceholders(body).map((n) => [n, "0"])));
   try {
     JSON.parse(probe);
     return null;
