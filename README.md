@@ -23,9 +23,10 @@ Runs on macOS and Windows from one codebase, built with [Tauri 2](https://tauri.
 - GitHub dark theme, with JetBrains Mono (bundled, works offline) for all code
 - Auth: bearer token, basic auth, or API key (header or query)
 - Response viewer: status, time, size, pretty or raw body, headers, and the exact request that was sent
-- Saved requests in the sidebar (Save button or Ctrl/Cmd + S), with an unsaved-changes marker
+- Collections in the sidebar with nested folders (Save button or Ctrl/Cmd + S), with an unsaved-changes marker. Right-click or use the ⋯ button to add, rename, duplicate, move or delete. Requests saved before collections existed are moved into a "My requests" collection automatically
+- Examples: each saved request can keep any number of named sample payloads (Save as example), optionally with the response they got
 - Environments: named sets of variables such as `baseUrl` and `token`, picked at the top right
-- Export and import saved requests and environments as one JSON file, to back up or move between computers
+- Export and import collections (with folders and examples) and environments as one JSON file (older export files still import), to back up or move between computers
 - History of the last 50 requests; your current request is kept between launches
 - Send with the button, Enter in the URL box, or Ctrl/Cmd + Enter
 - Requests are sent from the Rust side, so browser CORS rules do not apply

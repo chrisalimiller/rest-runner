@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { listRequests, newCollection, requestNode } from "./collections";
 import { newRequest } from "./defaults";
 import { environmentVars, newEnvironment } from "./environments";
-import { importWorkspaceFile, toWorkspaceFile } from "./workspace";
+import { IMPORTED_COLLECTION_NAME, importWorkspaceFile, toWorkspaceFile } from "./workspace";
 
 describe("environmentVars", () => {
   it("uses enabled rows with a name", () => {
@@ -17,15 +18,32 @@ describe("environmentVars", () => {
 });
 
 describe("workspace export and import", () => {
-  it("round-trips and merges by id", () => {
+  it("round-trips collections and merges by id", () => {
     const a = { ...newRequest(), name: "A" };
     const b = { ...newRequest(), name: "B" };
+    const col = { ...newCollection("API"), items: [requestNode(a), requestNode(b)] };
+    const other = newCollection("Other");
     const dev = newEnvironment("Dev");
-    const text = toWorkspaceFile([a, b], [dev]);
-    const result = importWorkspaceFile(text, [{ ...a, name: "old A" }], []);
-    expect(result.savedRequests.map((r) => r.name)).toEqual(["A", "B"]);
+    const text = toWorkspaceFile([col], [dev]);
+    const result = importWorkspaceFile(text, [{ ...col, name: "old" }, other], []);
+    expect(result.collections.map((c) => c.name)).toEqual(["API", "Other"]);
+    expect(listRequests(result.collections).map((r) => r.request.name)).toEqual(["A", "B"]);
     expect(result.environments.map((e) => e.name)).toEqual(["Dev"]);
-    expect([result.added, result.replaced]).toEqual([2, 1]);
+    expect([result.added, result.replaced]).toEqual([1, 1]);
+  });
+
+  it("imports version 1 files", () => {
+    const a = { ...newRequest(), name: "A" };
+    const b = { ...newRequest(), name: "B" };
+    const col = { ...newCollection("Mine"), items: [requestNode({ ...a, name: "old A" })] };
+    const text = JSON.stringify({ app: "rest-runner", version: 1, savedRequests: [a, b], environments: [] });
+    const result = importWorkspaceFile(text, [col], []);
+    expect(result.collections.map((c) => c.name)).toEqual(["Mine", IMPORTED_COLLECTION_NAME]);
+    expect(listRequests(result.collections).map((r) => `${r.collectionName}:${r.request.name}`)).toEqual([
+      "Mine:A",
+      `${IMPORTED_COLLECTION_NAME}:B`,
+    ]);
+    expect([result.added, result.replaced]).toEqual([1, 1]);
   });
 
   it("rejects other files", () => {
@@ -36,7 +54,10 @@ describe("workspace export and import", () => {
   it("skips malformed entries", () => {
     const text = JSON.stringify({ app: "rest-runner", version: 1, savedRequests: [{ id: 1 }, newRequest()], environments: [{ name: "x" }] });
     const r = importWorkspaceFile(text, [], []);
-    expect(r.savedRequests).toHaveLength(1);
+    expect(listRequests(r.collections)).toHaveLength(1);
     expect(r.environments).toHaveLength(0);
+    const v2 = JSON.stringify({ app: "rest-runner", version: 2, collections: [{ id: "c", name: "C", items: [{ kind: "request", request: { id: 2 } }, { kind: "folder", id: "f", name: "F", items: [] }] }] });
+    const r2 = importWorkspaceFile(v2, [], []);
+    expect(r2.collections[0].items).toHaveLength(1);
   });
 });
