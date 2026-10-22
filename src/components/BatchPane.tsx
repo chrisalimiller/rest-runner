@@ -8,11 +8,14 @@ import { buildRun } from "../lib/run";
 import { saveRun } from "../lib/runStore";
 import { prepareRequest, requestPlaceholders } from "../lib/request";
 import { load, save } from "../lib/storage";
+import type { Vars } from "../lib/template";
 import type { RequestDef } from "../lib/types";
 import { ResponsePane } from "./ResponsePane";
 
 interface Props {
   def: RequestDef;
+  envVars: Vars;
+  envName?: string;
   onRunningChange: (running: boolean) => void;
   onRunSaved: (id: string) => void;
   onOpenRun: (id: string) => void;
@@ -40,7 +43,7 @@ function formatElapsed(ms: number): string {
   return s < 60 ? `${s.toFixed(1)} s` : `${Math.floor(s / 60)} m ${Math.round(s % 60)} s`;
 }
 
-export function BatchPane({ def, onRunningChange, onRunSaved, onOpenRun }: Props) {
+export function BatchPane({ def, envVars, envName, onRunningChange, onRunSaved, onOpenRun }: Props) {
   const [file, setFile] = useState<LoadedFile | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [options, setOptions] = useState<BatchOptions>(() => ({ ...DEFAULT_BATCH_OPTIONS, ...load(OPTIONS_KEY, {}) }));
@@ -78,7 +81,8 @@ export function BatchPane({ def, onRunningChange, onRunSaved, onOpenRun }: Props
 
   const placeholders = useMemo(() => requestPlaceholders(def), [def]);
   const columns = file?.data.headers ?? [];
-  const missing = placeholders.filter((p) => !columns.includes(p));
+  const fromEnv = placeholders.filter((p) => !columns.includes(p) && Object.prototype.hasOwnProperty.call(envVars, p));
+  const missing = placeholders.filter((p) => !columns.includes(p) && !fromEnv.includes(p));
   const matched = placeholders.filter((p) => columns.includes(p));
   const unused = columns.filter((c) => !placeholders.includes(c));
   const rows = file?.data.rows ?? [];
@@ -128,6 +132,7 @@ export function BatchPane({ def, onRunningChange, onRunSaved, onOpenRun }: Props
         bufferRef.current.push(r);
       },
       controller.signal,
+      envVars,
     );
     const rest = bufferRef.current;
     bufferRef.current = [];
@@ -145,6 +150,7 @@ export function BatchPane({ def, onRunningChange, onRunSaved, onOpenRun }: Props
         end: result,
         results: all,
         missingPlaceholders: missing,
+        environmentName: envName,
       });
       try {
         await saveRun(run);
@@ -221,9 +227,19 @@ export function BatchPane({ def, onRunningChange, onRunSaved, onOpenRun }: Props
                 ))}
               </span>
             )}
+            {fromEnv.length > 0 && (
+              <span>
+                From {envName ?? "environment"}:{" "}
+                {fromEnv.map((p) => (
+                  <code key={p} className="chip env">
+                    {p}
+                  </code>
+                ))}
+              </span>
+            )}
             {missing.length > 0 && (
               <span className="warning">
-                No matching column (sent as written):{" "}
+                No column or environment value (sent as written):{" "}
                 {missing.map((p) => (
                   <code key={p} className="chip bad">
                     {p}
@@ -306,7 +322,7 @@ export function BatchPane({ def, onRunningChange, onRunSaved, onOpenRun }: Props
         <div className="batch-preview">
           <p className="muted small">The first {Math.min(3, rows.length)} requests as they will be sent:</p>
           {rows.slice(0, 3).map((vars, i) => {
-            const p = prepareRequest(def, vars);
+            const p = prepareRequest(def, { ...envVars, ...vars });
             return (
               <pre key={i} className="code-view">
                 <span className="muted">Row {i + 1}</span>

@@ -107,7 +107,8 @@ export function RunExplorer({ runId, onBack, onDelete }: Props) {
           </button>
           <h2>{run.requestName}</h2>
           <p className="muted small">
-            {new Date(run.startedAt).toLocaleString()} · {run.method} <span className="mono">{run.urlTemplate}</span> · {run.csvName} · {endLabel}
+            {new Date(run.startedAt).toLocaleString()} · {run.method} <span className="mono">{run.urlTemplate}</span> · {run.csvName}
+            {run.environmentName ? ` · ${run.environmentName}` : ""} · {endLabel}
           </p>
         </div>
         <div className="explorer-actions">

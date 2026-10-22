@@ -61,6 +61,8 @@ export async function runBatch(
   send: SendFn,
   onResult: (result: BatchItemResult) => void,
   signal: AbortSignal,
+  /** Environment variables. A CSV column with the same name takes priority. */
+  baseVars: Vars = {},
 ): Promise<BatchEnd> {
   let next = 0;
   let stoppedOnFailure = false;
@@ -76,7 +78,7 @@ export async function runBatch(
       first = false;
       const index = next++;
       const vars = rows[index];
-      const outcome = await send(prepareRequest(def, vars), signal);
+      const outcome = await send(prepareRequest(def, { ...baseVars, ...vars }), signal);
       // A request cut off by Stop is not a result.
       if (signal.aborted && !outcome.ok) break;
       const failed = isFailure(outcome, options.httpErrorsFail);

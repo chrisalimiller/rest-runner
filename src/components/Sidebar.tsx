@@ -1,8 +1,14 @@
 import { statusClass } from "../lib/format";
 import type { RunSummary } from "../lib/run";
-import type { HistoryEntry } from "../lib/types";
+import type { HistoryEntry, RequestDef } from "../lib/types";
 
 interface Props {
+  saved: RequestDef[];
+  activeRequestId: string;
+  onOpenSaved: (def: RequestDef) => void;
+  onDeleteSaved: (id: string) => void;
+  onExport: () => void;
+  onImport: (file: File) => void;
   history: HistoryEntry[];
   runs: RunSummary[];
   activeRunId: string | null;
@@ -22,13 +28,71 @@ function when(iso: string): string {
   return sameDay ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : d.toLocaleDateString();
 }
 
-export function Sidebar({ history, runs, activeRunId, onOpenRun, onNew, onOpen, onClear }: Props) {
+export function Sidebar({
+  saved,
+  activeRequestId,
+  onOpenSaved,
+  onDeleteSaved,
+  onExport,
+  onImport,
+  history,
+  runs,
+  activeRunId,
+  onOpenRun,
+  onNew,
+  onOpen,
+  onClear,
+}: Props) {
   return (
     <aside className="sidebar">
       <div className="brand">REST Runner</div>
       <button className="primary-outline" onClick={onNew}>
         + New request
       </button>
+      <div className="sidebar-section">
+        <div className="sidebar-title">
+          <span>Saved requests</span>
+          <span className="sidebar-actions">
+            <label className="link-btn" title="Import saved requests and environments from a file">
+              Import
+              <input
+                type="file"
+                accept=".json,application/json"
+                hidden
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) onImport(f);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            <button className="link-btn" onClick={onExport} title="Export saved requests and environments to a file">
+              Export
+            </button>
+          </span>
+        </div>
+        {saved.length === 0 && <p className="muted small">Click Save next to Send to keep a request here.</p>}
+        <ul className="history saved">
+          {saved.map((r) => (
+            <li key={r.id} className="saved-item">
+              <button className={activeRequestId === r.id && activeRunId === null ? "active" : ""} onClick={() => onOpenSaved(r)} title={r.url}>
+                <span className={`method m-${r.method.toLowerCase()}`}>{r.method}</span>
+                <span className="history-url">{r.name}</span>
+              </button>
+              <button
+                className="icon-btn saved-delete"
+                aria-label={`Delete ${r.name}`}
+                title="Delete"
+                onClick={() => {
+                  if (window.confirm(`Delete the saved request "${r.name}"?`)) onDeleteSaved(r.id);
+                }}
+              >
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
       <div className="sidebar-section">
         <div className="sidebar-title">
           <span>Batch runs</span>

@@ -26,6 +26,8 @@ export interface RunSummary {
   method: string;
   urlTemplate: string;
   csvName: string;
+  /** Name of the environment used, if any. */
+  environmentName?: string;
   totalRows: number;
   startedAt: string;
   finishedAt: string;
@@ -159,8 +161,9 @@ export interface RunInput {
   finishedAt: string;
   end: BatchEnd;
   results: BatchItemResult[];
-  /** Placeholders the request uses that are not CSV columns. */
+  /** Placeholders the request uses that neither the CSV nor the environment fills. */
   missingPlaceholders: string[];
+  environmentName?: string;
 }
 
 function describeOptions(o: BatchOptions): string {
@@ -183,11 +186,15 @@ export function buildRun(input: RunInput): Run {
   const log: RunLogLine[] = [
     { at: input.startedAt, message: `Started ${input.request.method} ${input.request.url} with ${input.totalRows} rows from ${input.csvName}.` },
     { at: input.startedAt, message: `Settings: ${describeOptions(input.options)}.` },
+    {
+      at: input.startedAt,
+      message: input.environmentName ? `Environment: ${input.environmentName}.` : "No environment selected.",
+    },
   ];
   if (input.missingPlaceholders.length) {
     log.push({
       at: input.startedAt,
-      message: `No CSV column for ${input.missingPlaceholders.map((p) => `{{${p}}}`).join(", ")}; these were sent as written.`,
+      message: `No CSV column or environment variable for ${input.missingPlaceholders.map((p) => `{{${p}}}`).join(", ")}; these were sent as written.`,
     });
   }
   const firstFailure = entries.filter((e) => e.failed).sort((a, b) => a.outcome.sentAt.localeCompare(b.outcome.sentAt))[0];
@@ -212,6 +219,7 @@ export function buildRun(input: RunInput): Run {
     method: input.request.method,
     urlTemplate: input.request.url,
     csvName: input.csvName,
+    environmentName: input.environmentName,
     totalRows: input.totalRows,
     startedAt: input.startedAt,
     finishedAt: input.finishedAt,
