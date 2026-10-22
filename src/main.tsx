@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import Root from "./Root";
-import "@fontsource-variable/jetbrains-mono";
+import "./assets/fonts/jetbrains-mono/jetbrains-mono.css";
 import "./styles.css";
 import "./components/testing/testing.css";
 
