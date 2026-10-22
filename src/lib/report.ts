@@ -140,12 +140,12 @@ ${headerTable(res.headers)}
 <title>${esc(title)}</title>
 <style>
 :root { --bg:#fff; --soft:#f6f7f9; --border:#e1e4e8; --text:#1f2328; --muted:#6b7280; --ok:#16a34a; --bad:#dc2626; --redir:#2563eb; --accent:#ff6c37; color-scheme: light dark; }
-@media (prefers-color-scheme: dark) { :root { --bg:#1e1f22; --soft:#26272b; --border:#3a3c42; --text:#e6e6e6; --muted:#9aa0a6; --ok:#4ade80; --bad:#f87171; --redir:#60a5fa; } }
+@media (prefers-color-scheme: dark) { :root { --bg:#0d1117; --soft:#161b22; --border:#30363d; --text:#e6edf3; --muted:#7d8590; --ok:#3fb950; --bad:#f85149; --redir:#58a6ff; --accent:#d29922; } }
 * { box-sizing: border-box; }
 body { margin: 0; padding: 24px; background: var(--bg); color: var(--text); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
 main { max-width: 1100px; margin: 0 auto; }
 h1 { font-size: 22px; margin: 0 0 4px; } h2 { font-size: 16px; margin: 28px 0 8px; } h4 { margin: 14px 0 6px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
-.muted { color: var(--muted); } .mono, pre, .url, .kv td { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+.muted { color: var(--muted); } .mono, pre, .url, .kv td { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 16px; }
 .card { background: var(--soft); border-radius: 6px; padding: 10px 12px; } .card b { display: block; font-size: 20px; } .card span { color: var(--muted); font-size: 12px; }
 table { border-collapse: collapse; } .info td, .info th { text-align: left; padding: 3px 14px 3px 0; vertical-align: top; } .info th { color: var(--muted); font-weight: 500; }

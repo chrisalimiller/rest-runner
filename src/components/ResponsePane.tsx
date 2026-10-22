@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { formatBytes, prettyBody, statusClass } from "../lib/format";
+import { formatBytes, statusClass } from "../lib/format";
+import { BodyView } from "./BodyView";
 import type { SendOutcome } from "../lib/types";
 
 interface Props {
@@ -30,7 +31,6 @@ export function ResponsePane({ outcome, sending }: Props) {
   }
 
   const res = outcome.ok ? outcome.response : null;
-  const body = res ? (pretty ? prettyBody(res.body).text : res.body) : "";
 
   return (
     <section className="response">
@@ -76,7 +76,7 @@ export function ResponsePane({ outcome, sending }: Props) {
                   Copy
                 </button>
               </div>
-              <pre className="code-view">{body || <span className="muted">(empty body)</span>}</pre>
+              <BodyView body={res.body} pretty={pretty} />
             </>
           ) : (
             <div className="error-box">

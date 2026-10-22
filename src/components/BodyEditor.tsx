@@ -1,5 +1,6 @@
-import { applyJsonTemplate, findPlaceholders } from "../lib/template";
+import { findJsonProblem, formatJson } from "../lib/jsonFormat";
 import type { BodyMode, KeyValue } from "../lib/types";
+import { CodeEditor } from "./CodeEditor";
 import { KeyValueEditor } from "./KeyValueEditor";
 
 interface Props {
@@ -19,28 +20,20 @@ const MODES: [BodyMode, string][] = [
   ["urlencoded", "x-www-form-urlencoded"],
 ];
 
-function jsonError(body: string): string | null {
-  if (body.trim() === "") return null;
-  // Placeholders are not valid JSON until filled in, so fill each with 0 first
-  // (valid both inside a string and as a bare value).
-  const probe = applyJsonTemplate(body, Object.fromEntries(findPlaceholders(body).map((n) => [n, "0"])));
-  try {
-    JSON.parse(probe);
-    return null;
-  } catch (e) {
-    return e instanceof Error ? e.message : "Invalid JSON";
-  }
+/** Converts a character offset into "line X, column Y" for the error message. */
+function lineCol(text: string, offset: number): string {
+  const before = text.slice(0, offset);
+  const line = before.split("\n").length;
+  const col = offset - before.lastIndexOf("\n");
+  return `line ${line}, column ${col}`;
 }
 
 export function BodyEditor({ mode, body, formBody, methodAllowsBody, onModeChange, onBodyChange, onFormChange }: Props) {
-  const error = mode === "json" ? jsonError(body) : null;
+  const problem = mode === "json" ? findJsonProblem(body) : null;
 
   const format = () => {
-    try {
-      onBodyChange(JSON.stringify(JSON.parse(body), null, 2));
-    } catch {
-      // leave as is
-    }
+    const formatted = formatJson(body);
+    if (formatted !== null) onBodyChange(formatted);
   };
 
   return (
@@ -53,9 +46,14 @@ export function BodyEditor({ mode, body, formBody, methodAllowsBody, onModeChang
           </label>
         ))}
         {mode === "json" && (
-          <button className="link-btn" onClick={format} disabled={error !== null}>
-            Format
-          </button>
+          <>
+            <span className={`json-status ${problem ? "bad" : body.trim() ? "ok" : ""}`}>
+              {problem ? "Invalid JSON" : body.trim() ? "Valid JSON" : ""}
+            </span>
+            <button className="link-btn" onClick={format} disabled={problem !== null || body.trim() === ""} title="Format (Shift+Alt+F)">
+              Format
+            </button>
+          </>
         )}
       </div>
 
@@ -67,14 +65,20 @@ export function BodyEditor({ mode, body, formBody, methodAllowsBody, onModeChang
 
       {(mode === "json" || mode === "text") && (
         <>
-          <textarea
-            className="code"
-            value={body}
-            onChange={(e) => onBodyChange(e.target.value)}
-            spellCheck={false}
-            placeholder={mode === "json" ? '{\n  "name": "{{name}}"\n}' : ""}
-          />
-          {error && <p className="warning small">JSON problem: {error}</p>}
+          <div className="code-editor-frame">
+            <CodeEditor
+              value={body}
+              onChange={onBodyChange}
+              json={mode === "json"}
+              ariaLabel="Request body"
+              placeholder={mode === "json" ? 'Paste or type JSON, e.g. {"name": "{{name}}"}' : ""}
+            />
+          </div>
+          {problem && (
+            <p className="warning small">
+              JSON problem at {lineCol(body, problem.from)}: {problem.message}
+            </p>
+          )}
         </>
       )}
 
