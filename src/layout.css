@@ -190,21 +190,26 @@ body.dragging-split {
   z-index: 5;
 }
 
-.topbar .brand {
+.brand-lockup {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 600;
-  font-size: 14px;
+  gap: 9px;
+  flex: none;
   white-space: nowrap;
 }
 
-.topbar .brand::before {
-  display: none;
+.brand-mark {
+  display: block;
+  flex: none;
 }
 
-.brand-icon {
-  color: var(--ok);
+.brand-name {
+  font: 600 14px var(--mono);
+  color: var(--text);
+}
+
+.brand-hyphen {
+  color: var(--brand);
 }
 
 .topbar-title {

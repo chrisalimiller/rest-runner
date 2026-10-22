@@ -34,6 +34,9 @@
   --other: #7d8590;
   --placeholder-fg: #ffa657;
   --placeholder-bg: rgba(255, 166, 87, 0.12);
+  /* Brand: braces, hyphen and accents; solid fills. Keep apart from --patch. */
+  --brand: #bc8cff;
+  --brand-strong: #8957e5;
   --mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
   --radius: 6px;
@@ -126,11 +129,6 @@ button:disabled {
   gap: 12px;
   padding: 12px;
   overflow: hidden;
-}
-
-.brand {
-  font-weight: 600;
-  font-size: 15px;
 }
 
 .primary-outline {
@@ -1229,21 +1227,6 @@ select {
   border-right-color: var(--border-muted);
 }
 
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  letter-spacing: -0.01em;
-}
-
-.brand::before {
-  content: "";
-  width: 18px;
-  height: 18px;
-  border-radius: 5px;
-  background: linear-gradient(135deg, #2f81f7, #a371f7);
-  box-shadow: inset 0 0 0 1px rgba(240, 246, 252, 0.15);
-}
 
 .sidebar-title {
   color: var(--muted);
