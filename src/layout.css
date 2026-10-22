@@ -2036,3 +2036,8 @@ details.case-try .call-detail {
 .response-col .response-body .code-view-frame {
   padding: 8px 10px;
 }
+
+.body-note {
+  padding: 16px;
+  margin: 0;
+}
