@@ -4,11 +4,14 @@ import { BatchPane } from "./components/BatchPane";
 import { BodyEditor } from "./components/BodyEditor";
 import { countActive, KeyValueEditor } from "./components/KeyValueEditor";
 import { ResponsePane } from "./components/ResponsePane";
+import { RunExplorer } from "./components/RunExplorer";
 import { Sidebar } from "./components/Sidebar";
 import { newRequest } from "./lib/defaults";
 import { sendRequest } from "./lib/http";
 import { newId } from "./lib/ids";
 import { prepareRequest } from "./lib/request";
+import type { RunSummary } from "./lib/run";
+import { deleteRun, listRuns } from "./lib/runStore";
 import { load, save } from "./lib/storage";
 import { HTTP_METHODS, type HistoryEntry, type HttpMethod, type RequestDef, type SendOutcome } from "./lib/types";
 
@@ -27,7 +30,16 @@ export default function App() {
   const [pane, setPane] = useState<LowerPane>("response");
   const [batchRunning, setBatchRunning] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>(() => load(HISTORY_KEY, []));
+  const [runs, setRuns] = useState<RunSummary[]>([]);
+  const [openRun, setOpenRun] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  const refreshRuns = useCallback(() => {
+    listRuns()
+      .then(setRuns)
+      .catch(() => setRuns([]));
+  }, []);
+  useEffect(refreshRuns, [refreshRuns]);
 
   useEffect(() => save(DRAFT_KEY, def), [def]);
   useEffect(() => save(HISTORY_KEY, history), [history]);
@@ -64,14 +76,14 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && openRun === null) {
         e.preventDefault();
         void send();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [send]);
+  }, [send, openRun]);
 
   const methodAllowsBody = def.method !== "GET" && def.method !== "HEAD";
   const tabLabel = (name: string, count: number) => (count > 0 ? `${name} (${count})` : name);
@@ -80,18 +92,36 @@ export default function App() {
     <div className="app">
       <Sidebar
         history={history}
+        runs={runs}
+        activeRunId={openRun}
+        onOpenRun={setOpenRun}
         onNew={() => {
           setDef(newRequest());
           setOutcome(null);
+          setOpenRun(null);
         }}
         onOpen={(h) => {
           setDef(structuredClone(h.def));
           setOutcome(null);
+          setOpenRun(null);
         }}
         onClear={() => setHistory([])}
       />
 
-      <main className="workspace">
+      {openRun !== null && (
+        <main className="workspace">
+          <RunExplorer
+            runId={openRun}
+            onBack={() => setOpenRun(null)}
+            onDelete={(id) => {
+              void deleteRun(id).finally(refreshRuns);
+              setOpenRun(null);
+            }}
+          />
+        </main>
+      )}
+
+      <main className="workspace" hidden={openRun !== null}>
         <input
           className="request-name"
           value={def.name}
@@ -183,7 +213,7 @@ export default function App() {
             <ResponsePane outcome={outcome} sending={sending} />
           </div>
           <div className="lower-body" hidden={pane !== "batch"}>
-            <BatchPane def={def} onRunningChange={setBatchRunning} />
+            <BatchPane def={def} onRunningChange={setBatchRunning} onRunSaved={refreshRuns} onOpenRun={setOpenRun} />
           </div>
         </section>
       </main>
