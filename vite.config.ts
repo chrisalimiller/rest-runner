@@ -11,6 +11,10 @@ export default defineConfig({
     strictPort: true,
     watch: { ignored: ["**/src-tauri/**"] },
   },
+  build: {
+    // Everything is loaded from disk inside the desktop app, so one larger bundle is fine.
+    chunkSizeWarningLimit: 1000,
+  },
   test: {
     environment: "node",
   },

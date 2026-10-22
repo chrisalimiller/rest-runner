@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { formatBytes, prettyBody, statusClass } from "../lib/format";
+import { formatBytes, statusClass } from "../lib/format";
+import { BodyView } from "./BodyView";
 import type { RunEntry } from "../lib/run";
 
 type Tab = "overview" | "request" | "response" | "headers";
@@ -84,12 +85,12 @@ export function CallDetail({ entry }: { entry: RunEntry }) {
             <h4>Headers</h4>
             <HeaderTable headers={o.request.headers} />
             <h4>Body</h4>
-            {o.request.body ? <pre className="code-view">{prettyBody(o.request.body).text}</pre> : <p className="muted small">No body</p>}
+            {o.request.body ? <BodyView body={o.request.body} /> : <p className="muted small">No body</p>}
           </>
         )}
         {tab === "response" &&
           (res ? (
-            <pre className="code-view">{res.body ? prettyBody(res.body).text : <span className="muted">(empty body)</span>}</pre>
+            <BodyView body={res.body} />
           ) : (
             <div className="error-box">
               <strong>No response.</strong>

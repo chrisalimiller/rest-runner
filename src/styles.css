@@ -1,45 +1,43 @@
+/* GitHub dark (Primer) colors */
 :root {
-  --bg: #ffffff;
-  --bg-soft: #f6f7f9;
-  --bg-input: #ffffff;
-  --border: #e1e4e8;
-  --text: #1f2328;
-  --muted: #6b7280;
-  --accent: #ff6c37;
+  --bg: #0d1117;
+  --bg-soft: #161b22;
+  --bg-inset: #010409;
+  --bg-input: #0d1117;
+  --bg-overlay: #161b22;
+  --bg-hover: #1c2128;
+  --border: #30363d;
+  --border-muted: #21262d;
+  --text: #e6edf3;
+  --muted: #7d8590;
+  --accent: #2f81f7;
+  --accent-fg: #4493f8;
+  --accent-subtle: rgba(56, 139, 253, 0.15);
   --accent-text: #ffffff;
-  --ok: #16a34a;
-  --redirect: #2563eb;
-  --bad: #dc2626;
-  --warn: #b45309;
-  --get: #16a34a;
-  --post: #d97706;
-  --put: #2563eb;
-  --patch: #7c3aed;
-  --delete: #dc2626;
-  --other: #6b7280;
-  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  color-scheme: light dark;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #1e1f22;
-    --bg-soft: #26272b;
-    --bg-input: #2b2d31;
-    --border: #3a3c42;
-    --text: #e6e6e6;
-    --muted: #9aa0a6;
-    --ok: #4ade80;
-    --redirect: #60a5fa;
-    --bad: #f87171;
-    --warn: #fbbf24;
-    --get: #4ade80;
-    --post: #fbbf24;
-    --put: #60a5fa;
-    --patch: #a78bfa;
-    --delete: #f87171;
-    --other: #9aa0a6;
-  }
+  --tab-underline: #f78166;
+  --btn-bg: #21262d;
+  --btn-hover: #30363d;
+  --btn-border: rgba(240, 246, 252, 0.1);
+  --primary: #238636;
+  --primary-hover: #2ea043;
+  --danger: #f85149;
+  --danger-bg: #da3633;
+  --ok: #3fb950;
+  --redirect: #58a6ff;
+  --bad: #f85149;
+  --warn: #d29922;
+  --get: #3fb950;
+  --post: #d29922;
+  --put: #58a6ff;
+  --patch: #a371f7;
+  --delete: #f85149;
+  --other: #7d8590;
+  --placeholder-fg: #ffa657;
+  --placeholder-bg: rgba(255, 166, 87, 0.12);
+  --mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  --radius: 6px;
+  color-scheme: dark;
 }
 
 * {
@@ -56,7 +54,8 @@ body,
 body {
   background: var(--bg);
   color: var(--text);
-  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 13px/1.5 var(--sans);
+  -webkit-font-smoothing: antialiased;
 }
 
 input,
@@ -1088,4 +1087,538 @@ button.chip.active {
 .env-edit-head input {
   flex: 1;
   font-weight: 600;
+}
+
+/* ===================================================================
+   GitHub dark polish. Visual only: these rules restyle existing
+   elements and do not change layout behavior.
+   =================================================================== */
+
+::selection {
+  background: rgba(56, 139, 253, 0.4);
+}
+
+/* Scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #30363d transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #30363d;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #484f58;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Form controls */
+input,
+select,
+textarea {
+  border-radius: var(--radius);
+  border-color: var(--border);
+  transition: border-color 0.12s, box-shadow 0.12s;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #6e7681;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #1f6feb;
+  box-shadow: inset 0 0 0 1px #1f6feb;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--accent);
+}
+
+select {
+  cursor: pointer;
+}
+
+/* Buttons */
+.secondary,
+.primary-outline {
+  background: var(--btn-bg);
+  border: 1px solid var(--btn-border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-weight: 500;
+  transition: background-color 0.12s, border-color 0.12s;
+}
+
+.secondary:hover:not(:disabled),
+.primary-outline:hover {
+  background: var(--btn-hover);
+  border-color: #8b949e;
+}
+
+.primary-outline {
+  padding: 6px 10px;
+}
+
+.secondary.danger {
+  color: var(--danger);
+}
+
+.secondary.danger:hover:not(:disabled) {
+  background: var(--danger-bg);
+  border-color: var(--danger-bg);
+  color: #ffffff;
+}
+
+.send {
+  background: var(--primary);
+  border: 1px solid var(--btn-border);
+  border-radius: var(--radius);
+  color: #ffffff;
+  transition: background-color 0.12s;
+}
+
+.send:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+.send.cancel {
+  background: var(--danger-bg);
+}
+
+.send.cancel:hover {
+  background: #f85149;
+}
+
+.link-btn {
+  color: var(--accent-fg);
+}
+
+.link-btn:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.icon-btn {
+  border-radius: var(--radius);
+}
+
+/* Sidebar */
+.sidebar {
+  background: var(--bg-inset);
+  border-right-color: var(--border-muted);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: -0.01em;
+}
+
+.brand::before {
+  content: "";
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  background: linear-gradient(135deg, #2f81f7, #a371f7);
+  box-shadow: inset 0 0 0 1px rgba(240, 246, 252, 0.15);
+}
+
+.sidebar-title {
+  color: var(--muted);
+  letter-spacing: 0.04em;
+}
+
+.history button {
+  border-radius: var(--radius);
+  color: var(--text);
+}
+
+.history button:hover {
+  background: var(--bg-hover);
+}
+
+.runs button.active,
+.saved .active {
+  background: var(--bg-hover);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* Workspace */
+.workspace {
+  background: var(--bg);
+}
+
+.request-name {
+  color: var(--text);
+}
+
+.request-name:hover {
+  border-color: var(--border);
+}
+
+.request-name:focus {
+  background: var(--bg-input);
+}
+
+.url-input,
+.kv td input:not([type="checkbox"]),
+.mono,
+code,
+pre,
+textarea {
+  font-family: var(--mono);
+}
+
+.url-input {
+  font-size: 13px;
+}
+
+.method-select {
+  background-color: var(--bg-soft);
+}
+
+.notice {
+  color: var(--accent-fg);
+}
+
+/* Tabs */
+.tabs {
+  border-bottom-color: var(--border-muted);
+  gap: 2px;
+}
+
+.tabs button {
+  color: var(--muted);
+  border-radius: var(--radius) var(--radius) 0 0;
+  margin-bottom: -1px;
+  transition: color 0.12s;
+}
+
+.tabs button:hover {
+  color: var(--text);
+}
+
+.tabs button.active {
+  color: var(--text);
+  font-weight: 600;
+  border-bottom-color: var(--tab-underline);
+}
+
+/* Key/value tables */
+.kv th {
+  border-bottom-color: var(--border);
+  font-size: 12px;
+}
+
+.kv td {
+  border-bottom-color: var(--border-muted);
+}
+
+.kv tbody tr:hover {
+  background: var(--bg-hover);
+}
+
+.kv td input:not([type="checkbox"]):focus {
+  background: var(--bg-input);
+}
+
+.kv.readonly td {
+  font-size: 12px;
+}
+
+/* Code views and editors */
+.code-view {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+.code-editor-frame,
+.code-view-frame {
+  flex: 1;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-inset);
+  display: flex;
+  flex-direction: column;
+}
+
+.code-view-frame {
+  border-color: var(--border-muted);
+}
+
+.code-editor-frame {
+  min-height: 120px;
+}
+
+.code-editor-frame:focus-within {
+  border-color: #1f6feb;
+  box-shadow: inset 0 0 0 1px #1f6feb;
+}
+
+.code-editor {
+  flex: 1;
+  min-height: 0;
+}
+
+.cm-template-var {
+  color: var(--placeholder-fg) !important;
+  background: var(--placeholder-bg);
+  border-radius: 3px;
+}
+
+.cm-template-var * {
+  color: var(--placeholder-fg) !important;
+}
+
+.json-status {
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.json-status.ok {
+  color: var(--ok);
+}
+
+.json-status.bad {
+  color: var(--danger);
+}
+
+.json-status:not(:empty)::before {
+  content: "●";
+  font-size: 9px;
+  margin-right: 5px;
+  vertical-align: 1px;
+}
+
+.call-detail-body .code-view-frame,
+.response-body .code-view-frame {
+  min-height: 160px;
+}
+
+/* Response */
+.response-meta {
+  font-size: 12px;
+}
+
+.response-meta .status {
+  padding: 1px 8px;
+  border-radius: 2em;
+  background: rgba(110, 118, 129, 0.15);
+}
+
+.response-meta .status.ok {
+  background: rgba(46, 160, 67, 0.15);
+}
+
+.response-meta .status.bad {
+  background: rgba(248, 81, 73, 0.15);
+}
+
+.response-meta .status.redirect {
+  background: rgba(56, 139, 253, 0.15);
+}
+
+.error-box {
+  background: rgba(248, 81, 73, 0.1);
+  border: 1px solid rgba(248, 81, 73, 0.4);
+  border-radius: var(--radius);
+  padding: 10px 12px;
+}
+
+/* Chips and pills */
+.chip {
+  background: rgba(110, 118, 129, 0.1);
+  border-color: var(--border);
+  border-radius: 2em;
+  font-size: 11.5px;
+  padding: 1px 8px;
+}
+
+.chip.ok {
+  background: rgba(46, 160, 67, 0.15);
+  border-color: rgba(63, 185, 80, 0.4);
+  color: var(--ok);
+}
+
+.chip.bad {
+  background: rgba(248, 81, 73, 0.1);
+  border-color: rgba(248, 81, 73, 0.4);
+  color: var(--danger);
+}
+
+.chip.env {
+  background: rgba(56, 139, 253, 0.1);
+  border-color: rgba(56, 139, 253, 0.4);
+  color: var(--accent-fg);
+}
+
+button.chip:hover {
+  border-color: #8b949e;
+}
+
+button.chip.active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+
+.pill.ok {
+  background: var(--primary);
+}
+
+.pill.bad {
+  background: var(--danger-bg);
+}
+
+/* Batch run and results */
+.progress-bar {
+  background: var(--border-muted);
+  height: 8px;
+  border-radius: 4px;
+}
+
+.progress-fill {
+  background: var(--ok);
+  border-radius: 4px;
+}
+
+.progress-fill.has-failures {
+  background: linear-gradient(90deg, var(--ok), var(--warn));
+}
+
+.results-scroll {
+  border-color: var(--border);
+  border-radius: var(--radius);
+  background: var(--bg);
+}
+
+table.results th {
+  background: var(--bg-soft);
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+
+table.results td {
+  border-top-color: var(--border-muted);
+}
+
+table.results tbody tr:hover {
+  background: var(--bg-hover);
+}
+
+table.results tr.selected {
+  background: var(--accent-subtle);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.url-cell {
+  color: #c9d1d9;
+}
+
+.batch-preview .code-view {
+  white-space: pre-wrap;
+}
+
+/* Run explorer */
+.stat {
+  background: var(--bg-soft);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius);
+}
+
+.stat b {
+  font-variant-numeric: tabular-nums;
+}
+
+.run-log {
+  background: var(--bg-inset);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.note-dot {
+  color: var(--warn);
+}
+
+.call-detail-head {
+  border-bottom: none;
+}
+
+/* Modal */
+.modal-backdrop {
+  background: rgba(1, 4, 9, 0.7);
+}
+
+.modal {
+  background: var(--bg-overlay);
+  border-color: var(--border);
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px var(--border), 0 16px 32px rgba(1, 4, 9, 0.85);
+}
+
+.modal-head {
+  border-bottom-color: var(--border-muted);
+}
+
+.env-list {
+  border-right-color: var(--border-muted);
+  background: var(--bg);
+}
+
+.env-list button {
+  color: var(--text);
+}
+
+.env-list button:hover {
+  background: var(--bg-hover);
+}
+
+.env-list button.active {
+  background: var(--bg-hover);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* Status colors for method labels in selects */
+.method-select option {
+  color: var(--text);
+  background: var(--bg-soft);
+}
+
+.env-list .link-btn {
+  color: var(--accent-fg);
+}
+
+/* Same dropdown look on macOS and Windows */
+select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Cpath fill='%237d8590' d='M4.427 7.427l3.396 3.396a.25.25 0 00.354 0l3.396-3.396A.25.25 0 0011.396 7H4.604a.25.25 0 00-.177.427z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 6px center;
+  padding-right: 26px;
 }
