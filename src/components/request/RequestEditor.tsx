@@ -7,9 +7,10 @@ import { HTTP_METHODS, type BodyMode, type HttpMethod, type RequestDef } from ".
 import { AuthEditor } from "../AuthEditor";
 import { BodyEditor } from "../BodyEditor";
 import { KeyValueEditor } from "../KeyValueEditor";
+import { ScriptEditor } from "../testing/ScriptEditor";
 import { Section } from "./Section";
 
-type SectionId = "params" | "auth" | "headers" | "body";
+type SectionId = "params" | "auth" | "headers" | "body" | "scripts";
 type OpenState = Partial<Record<SectionId, boolean>>;
 
 interface Props {
@@ -23,6 +24,56 @@ interface Props {
   /** Where the open/closed sections are remembered. */
   sectionsKey: string;
   urlPlaceholder?: string;
+  /** Variables set by scripts on earlier sends, shown under the script editor. */
+  scriptVars?: Vars;
+  onClearScriptVars?: () => void;
+  /** Extra line under the script editor, e.g. how request scripts mix with a test case's. */
+  scriptsNote?: string;
+}
+
+/** The Scripts section: Pre-request / Post-response switch, the editor, and the variables scripts have set. */
+function ScriptsPanel({ def, onChange, scriptVars, onClearScriptVars, scriptsNote }: Pick<Props, "def" | "onChange" | "scriptVars" | "onClearScriptVars" | "scriptsNote">) {
+  const [phase, setPhase] = useState<"pre" | "post">(() => ((def.preScript ?? "").trim() === "" && (def.postScript ?? "").trim() !== "" ? "post" : "pre"));
+  const varNames = Object.keys(scriptVars ?? {});
+  // An emptied script is removed so the request matches its saved copy again.
+  const set = (key: "preScript" | "postScript", value: string) => onChange({ [key]: value.trim() === "" ? undefined : value });
+  return (
+    <div className="req-scripts">
+      <div className="segmented" role="tablist" aria-label="Script">
+        <button role="tab" aria-selected={phase === "pre"} className={phase === "pre" ? "on" : ""} onClick={() => setPhase("pre")}>
+          Pre-request{(def.preScript ?? "").trim() ? " •" : ""}
+        </button>
+        <button role="tab" aria-selected={phase === "post"} className={phase === "post" ? "on" : ""} onClick={() => setPhase("post")}>
+          Post-response{(def.postScript ?? "").trim() ? " •" : ""}
+        </button>
+      </div>
+      {phase === "pre" ? (
+        <ScriptEditor key="pre" context="request" phase="pre" value={def.preScript ?? ""} onChange={(v) => set("preScript", v)} />
+      ) : (
+        <ScriptEditor key="post" context="request" phase="post" value={def.postScript ?? ""} onChange={(v) => set("postScript", v)} />
+      )}
+      {scriptsNote && <p className="muted small">{scriptsNote}</p>}
+      {scriptVars && (
+        <div className="script-vars small">
+          <span className="muted">Script variables:</span>
+          {varNames.length === 0 ? (
+            <span className="muted">none yet</span>
+          ) : (
+            varNames.map((n) => (
+              <code key={n} className="chip" title={scriptVars[n]}>
+                {n}
+              </code>
+            ))
+          )}
+          {varNames.length > 0 && onClearScriptVars && (
+            <button className="link-btn small" onClick={onClearScriptVars} title="Forget every variable scripts have set">
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 /** Text with {{placeholders}} drawn in the placeholder style. */
@@ -55,10 +106,10 @@ const BODY_MODES: BodyMode[] = ["none", "json", "text", "urlencoded"];
 
 /**
  * The request column of layout A: URL bar, the resolved URL, and Params / Auth /
- * Headers / Body as collapsible sections. Requests mode and the Testing "Edit request"
+ * Headers / Body / Scripts as collapsible sections. Requests mode and the Testing "Edit request"
  * dialog both use it.
  */
-export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectionsKey, urlPlaceholder }: Props) {
+export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectionsKey, urlPlaceholder, scriptVars, onClearScriptVars, scriptsNote }: Props) {
   const [openState, setOpenState] = useState<OpenState>(() => load<OpenState>(sectionsKey, {}));
   useEffect(() => {
     save(sectionsKey, openState);
@@ -76,6 +127,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
   const auth = authSummary(def.auth);
   const body = bodySummary(def);
   const problem = def.bodyMode === "json" ? findJsonProblem(def.body) : null;
+  const scriptNames = [(def.preScript ?? "").trim() && "Pre-request", (def.postScript ?? "").trim() && "Post-response"].filter(Boolean).join(" · ");
 
   return (
     <>
@@ -213,6 +265,16 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
             onBodyChange={(b) => onChange({ body: b })}
             onFormChange={(formBody) => onChange({ formBody })}
           />
+        </Section>
+
+        <Section
+          id="scripts"
+          label="Scripts"
+          open={isOpen("scripts")}
+          onToggle={() => toggle("scripts")}
+          summary={scriptNames ? <span className="mono">{scriptNames}</span> : <span className="muted">None</span>}
+        >
+          <ScriptsPanel def={def} onChange={onChange} scriptVars={scriptVars} onClearScriptVars={onClearScriptVars} scriptsNote={scriptsNote} />
         </Section>
       </div>
     </>

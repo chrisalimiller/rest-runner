@@ -1,3 +1,5 @@
+import type { ScriptOutput } from "./testing/types";
+
 export const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"] as const;
 export type HttpMethod = (typeof HTTP_METHODS)[number];
 
@@ -28,6 +30,10 @@ export interface RequestDef {
   body: string;
   formBody: KeyValue[];
   auth: AuthConfig;
+  /** JavaScript run before the request is sent (same `rr` API as test cases). Missing on older saved requests. */
+  preScript?: string;
+  /** JavaScript run after the response arrives. */
+  postScript?: string;
 }
 
 /** A request with placeholders filled in and auth applied, ready to send. */
@@ -64,4 +70,7 @@ export interface HistoryEntry {
   response?: ResponseResult;
   /** Why no response came back. */
   error?: string;
+  /** What the request's scripts did on this send. */
+  preScript?: ScriptOutput;
+  postScript?: ScriptOutput;
 }

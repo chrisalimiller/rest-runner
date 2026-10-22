@@ -7,6 +7,8 @@ interface Props {
   phase: "pre" | "post";
   value: string;
   onChange: (value: string) => void;
+  /** Where the script lives; changes the help line. */
+  context?: "case" | "request";
 }
 
 function rrCompletions(phase: "pre" | "post") {
@@ -21,7 +23,18 @@ function rrCompletions(phase: "pre" | "post") {
   };
 }
 
-export function ScriptEditor({ phase, value, onChange }: Props) {
+const HELP = {
+  case: {
+    pre: "Runs before the request is sent. Set variables with rr.vars.set(); the request then uses them as {{name}}.",
+    post: "Runs after the response arrives. Add checks with rr.test() and pass values to later cases with rr.vars.set().",
+  },
+  request: {
+    pre: "Runs before every send, and before each row of a CSV run. Set variables with rr.vars.set(); the request then uses them as {{name}}.",
+    post: "Runs after the response arrives. Add checks with rr.test(); a failing check fails the send. Values saved with rr.vars.set() are used by later sends.",
+  },
+};
+
+export function ScriptEditor({ phase, value, onChange, context = "case" }: Props) {
   const completions = useMemo(() => rrCompletions(phase), [phase]);
   const snippets = SNIPPETS.filter((s) => s.phase === phase || s.phase === "both");
   const insert = (code: string) => onChange(value.trim() === "" ? `${code}\n` : `${value.replace(/\s*$/, "")}\n\n${code}\n`);
@@ -29,11 +42,7 @@ export function ScriptEditor({ phase, value, onChange }: Props) {
   return (
     <div className="script-editor">
       <div className="script-main">
-        <p className="muted small">
-          {phase === "pre"
-            ? "Runs before the request is sent. Set variables with rr.vars.set(); the request then uses them as {{name}}."
-            : "Runs after the response arrives. Add checks with rr.test() and pass values to later cases with rr.vars.set()."}
-        </p>
+        <p className="muted small">{HELP[context][phase]}</p>
         <div className="code-editor-frame">
           <CodeEditor
             value={value}

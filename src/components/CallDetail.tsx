@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { formatBytes, statusClass } from "../lib/format";
 import { BodyView } from "./BodyView";
+import { ScriptResults, scriptsTabLabel } from "./ScriptResults";
 import type { RunEntry } from "../lib/run";
 
-type Tab = "overview" | "request" | "response" | "headers";
+type Tab = "overview" | "request" | "response" | "headers" | "scripts";
 
 function HeaderTable({ headers }: { headers: [string, string][] }) {
   if (!headers.length) return <p className="muted small">None</p>;
@@ -26,6 +27,7 @@ export function CallDetail({ entry }: { entry: RunEntry }) {
   const [tab, setTab] = useState<Tab>("overview");
   const o = entry.outcome;
   const res = o.ok ? o.response : null;
+  const scripts = entry.preScript || entry.postScript ? { pre: entry.preScript, post: entry.postScript } : null;
 
   return (
     <div className="call-detail">
@@ -36,7 +38,7 @@ export function CallDetail({ entry }: { entry: RunEntry }) {
             {res.status} {res.statusText}
           </span>
         ) : (
-          <span className="status bad">No response</span>
+          <span className="status bad">{entry.sent === false ? "Not sent" : "No response"}</span>
         )}
         <span className="muted">{res ? res.durationMs : o.ok ? 0 : o.durationMs} ms</span>
         {res && <span className="muted">{formatBytes(res.sizeBytes)}</span>}
@@ -55,6 +57,11 @@ export function CallDetail({ entry }: { entry: RunEntry }) {
         <button className={tab === "headers" ? "active" : ""} onClick={() => setTab("headers")}>
           Response headers{res ? ` (${res.headers.length})` : ""}
         </button>
+        {scripts && (
+          <button className={tab === "scripts" ? "active" : ""} onClick={() => setTab("scripts")}>
+            {scriptsTabLabel(scripts)}
+          </button>
+        )}
       </div>
       <div className="call-detail-body">
         {tab === "overview" && (
@@ -98,6 +105,7 @@ export function CallDetail({ entry }: { entry: RunEntry }) {
             </div>
           ))}
         {tab === "headers" && (res ? <HeaderTable headers={res.headers} /> : <p className="muted small">No response.</p>)}
+        {tab === "scripts" && scripts && <ScriptResults run={scripts} vars={entry.scriptVars} />}
       </div>
     </div>
   );

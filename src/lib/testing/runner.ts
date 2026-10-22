@@ -1,5 +1,6 @@
 import type { SendFn } from "../batch";
 import { prepareRequest } from "../request";
+import { combineScripts } from "../requestScripts";
 import { findPlaceholders, type Vars } from "../template";
 import { evaluateAssertion } from "./assertions";
 import type { ScriptContext } from "./sandbox";
@@ -92,6 +93,9 @@ export async function runCase(run: CaseRun, options: SuiteRunOptions, ctx: Omit<
   const start = Date.now();
   const notes: string[] = [];
   const def = tc.request;
+  // A request's own scripts run first, then the case's, so a request behaves the same here as in Requests.
+  const preCode = combineScripts(def.preScript, tc.preScript);
+  const postCode = combineScripts(def.postScript, tc.postScript);
   const scriptCtx = (phase: "pre" | "post"): ScriptContext => ({
     phase,
     vars: { ...runVars },
@@ -117,8 +121,8 @@ export async function runCase(run: CaseRun, options: SuiteRunOptions, ctx: Omit<
   };
 
   let preScript: ScriptOutput | undefined;
-  if (tc.preScript.trim() !== "") {
-    preScript = await ctx.scripts(tc.preScript, scriptCtx("pre"), options.scriptTimeoutMs);
+  if (preCode.trim() !== "") {
+    preScript = await ctx.scripts(preCode, scriptCtx("pre"), options.scriptTimeoutMs);
     replaceVars(runVars, preScript.vars);
     if (preScript.error) {
       notes.push(`Pre-request script failed, so the request was not sent: ${preScript.error}`);
@@ -154,11 +158,11 @@ export async function runCase(run: CaseRun, options: SuiteRunOptions, ctx: Omit<
   }
 
   let postScript: ScriptOutput | undefined;
-  if (tc.postScript.trim() !== "") {
+  if (postCode.trim() !== "") {
     const c = scriptCtx("post");
     c.request = { method: prepared.method, url: prepared.url, headers: prepared.headers, body: prepared.body };
     c.response = outcome.response;
-    postScript = await ctx.scripts(tc.postScript, c, options.scriptTimeoutMs);
+    postScript = await ctx.scripts(postCode, c, options.scriptTimeoutMs);
     replaceVars(runVars, postScript.vars);
   }
 

@@ -1,5 +1,7 @@
 import type { BatchEnd, BatchItemResult, BatchOptions } from "./batch";
+import { scriptNotes } from "./requestScripts";
 import { findPlaceholders, type Vars } from "./template";
+import type { ScriptOutput } from "./testing/types";
 import type { RequestDef, SendOutcome } from "./types";
 
 /** Response bodies above this size are cut short when a run is saved. */
@@ -13,6 +15,12 @@ export interface RunEntry {
   failed: boolean;
   /** Plain-language notes about this call, for the explorer and reports. */
   notes: string[];
+  /** False when the pre-request script failed and nothing was sent. Missing means sent. */
+  sent?: boolean;
+  /** What the request's scripts did for this row. Runs saved before scripts existed don't have these. */
+  preScript?: ScriptOutput;
+  postScript?: ScriptOutput;
+  scriptVars?: Vars;
 }
 
 export interface RunLogLine {
@@ -103,9 +111,11 @@ function looksJson(contentType: string | undefined): boolean {
 }
 
 /** Writes the per-call notes that explain what happened with one request. */
-export function entryNotes(result: BatchItemResult, options: BatchOptions): string[] {
+export function entryNotes(result: BatchItemResult, options: BatchOptions, def?: RequestDef): string[] {
   const notes: string[] = [];
   const { outcome } = result;
+  const fromScripts = scriptNotes(result, (def?.postScript ?? "").trim() !== "", outcome.ok);
+  if (result.sent === false) return fromScripts;
   const req = outcome.request;
 
   const unfilled = new Set([
@@ -119,7 +129,7 @@ export function entryNotes(result: BatchItemResult, options: BatchOptions): stri
 
   if (!outcome.ok) {
     notes.push(`No response: ${outcome.error}. Counted as a failure.`);
-    return notes;
+    return [...notes, ...fromScripts];
   }
 
   const res = outcome.response;
@@ -144,7 +154,7 @@ export function entryNotes(result: BatchItemResult, options: BatchOptions): stri
   if (res.sizeBytes > MAX_SAVED_BODY) {
     notes.push(`Response body is ${res.sizeBytes.toLocaleString()} bytes; only the first ${MAX_SAVED_BODY.toLocaleString()} characters were saved.`);
   }
-  return notes;
+  return [...notes, ...fromScripts];
 }
 
 function trimBody(outcome: SendOutcome): SendOutcome {
@@ -181,7 +191,7 @@ function describeOptions(o: BatchOptions): string {
 export function buildRun(input: RunInput): Run {
   const entries: RunEntry[] = [...input.results]
     .sort((a, b) => a.index - b.index)
-    .map((r) => ({ ...r, outcome: trimBody(r.outcome), notes: entryNotes(r, input.options) }));
+    .map((r) => ({ ...r, outcome: trimBody(r.outcome), notes: entryNotes(r, input.options, input.request) }));
   const passed = entries.filter((e) => !e.failed).length;
   const failed = entries.length - passed;
 
@@ -193,6 +203,12 @@ export function buildRun(input: RunInput): Run {
       message: input.environmentName ? `Environment: ${input.environmentName}.` : "No environment selected.",
     },
   ];
+  const pre = (input.request.preScript ?? "").trim() !== "";
+  const post = (input.request.postScript ?? "").trim() !== "";
+  if (pre || post) {
+    const which = pre && post ? "Pre-request and post-response scripts" : pre ? "Pre-request script" : "Post-response script";
+    log.push({ at: input.startedAt, message: `${which} ran for each row; each row starts with its own copy of the script variables.` });
+  }
   if (input.missingPlaceholders.length) {
     log.push({
       at: input.startedAt,
@@ -203,6 +219,8 @@ export function buildRun(input: RunInput): Run {
   if (firstFailure) {
     log.push({ at: firstFailure.outcome.sentAt, message: `First failure on row ${firstFailure.index + 1} (${statusLabel(firstFailure.outcome)}).` });
   }
+  const scriptFailures = entries.filter((e) => e.preScript?.error || e.postScript?.error || [...(e.preScript?.tests ?? []), ...(e.postScript?.tests ?? [])].some((t) => !t.passed)).length;
+  if (scriptFailures) log.push({ at: input.finishedAt, message: `Scripts failed or had failing tests on ${scriptFailures} ${scriptFailures === 1 ? "row" : "rows"}.` });
   const endMessage =
     input.end === "cancelled"
       ? "Stopped by you before all rows were sent."

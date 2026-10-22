@@ -1,5 +1,7 @@
-import { prepareRequest } from "./request";
+import { sendWithScripts } from "./requestScripts";
 import type { Vars } from "./template";
+import { inlineScriptRunner, type ScriptRunner } from "./testing/scriptRunner";
+import type { ScriptOutput } from "./testing/types";
 import type { PreparedRequest, RequestDef, SendOutcome } from "./types";
 
 export interface BatchOptions {
@@ -26,11 +28,31 @@ export interface BatchItemResult {
   vars: Vars;
   outcome: SendOutcome;
   failed: boolean;
+  /** False when the pre-request script failed and the request was not sent. Missing means sent. */
+  sent?: boolean;
+  preScript?: ScriptOutput;
+  postScript?: ScriptOutput;
+  /** Script variables after this row's scripts ran, when the request has scripts. */
+  scriptVars?: Vars;
+}
+
+export interface BatchScripts {
+  runner: ScriptRunner;
+  /** Variables each row's scripts start with (for example ones set by earlier single sends). Rows do not share changes. */
+  vars?: Vars;
+  timeoutMs?: number;
 }
 
 export type BatchEnd = "completed" | "cancelled" | "stopped-on-failure";
 
 export type SendFn = (req: PreparedRequest, signal?: AbortSignal) => Promise<SendOutcome>;
+
+/** Leftover script variables give way to the row's own CSV columns; the row's scripts can still override them. */
+function withoutColumns(vars: Vars, row: Vars): Vars {
+  const out: Vars = {};
+  for (const [k, v] of Object.entries(vars)) if (!Object.prototype.hasOwnProperty.call(row, k)) out[k] = v;
+  return out;
+}
 
 export function isFailure(outcome: SendOutcome, httpErrorsFail: boolean): boolean {
   if (!outcome.ok) return true;
@@ -63,6 +85,8 @@ export async function runBatch(
   signal: AbortSignal,
   /** Environment variables. A CSV column with the same name takes priority. */
   baseVars: Vars = {},
+  /** How to run the request's pre/post scripts. */
+  scripts: BatchScripts = { runner: inlineScriptRunner },
 ): Promise<BatchEnd> {
   let next = 0;
   let stoppedOnFailure = false;
@@ -78,12 +102,24 @@ export async function runBatch(
       first = false;
       const index = next++;
       const vars = rows[index];
-      const outcome = await send(prepareRequest(def, { ...baseVars, ...vars }), signal);
+      const r = await sendWithScripts({
+        def,
+        env: baseVars,
+        data: vars,
+        vars: withoutColumns(scripts.vars ?? {}, vars),
+        iteration: index,
+        send,
+        scripts: scripts.runner,
+        signal,
+        timeoutMs: scripts.timeoutMs,
+      });
       // A request cut off by Stop is not a result.
-      if (signal.aborted && !outcome.ok) break;
-      const failed = isFailure(outcome, options.httpErrorsFail);
+      if (!r) break;
+      const { outcome } = r;
+      const failed = isFailure(outcome, options.httpErrorsFail) || r.scriptFailed;
       if (failed && options.stopOnFailure) stoppedOnFailure = true;
-      onResult({ index, vars, outcome, failed });
+      const scripted = r.preScript || r.postScript ? { sent: r.sent, preScript: r.preScript, postScript: r.postScript, scriptVars: r.vars } : {};
+      onResult({ index, vars, outcome, failed, ...scripted });
     }
   };
 

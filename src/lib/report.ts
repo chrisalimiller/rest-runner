@@ -1,4 +1,24 @@
-import { durationOf, runStats, statusLabel, type Run } from "./run";
+import { durationOf, runStats, statusLabel, type Run, type RunEntry } from "./run";
+import type { ScriptOutput } from "./testing/types";
+
+function scriptParts(e: RunEntry): { label: string; output: ScriptOutput }[] {
+  const parts: { label: string; output: ScriptOutput }[] = [];
+  if (e.preScript) parts.push({ label: "pre", output: e.preScript });
+  if (e.postScript) parts.push({ label: "post", output: e.postScript });
+  return parts;
+}
+
+function scriptTestsText(e: RunEntry): string {
+  return scriptParts(e)
+    .flatMap(({ output }) => output.tests.map((t) => `${t.passed ? "PASS" : "FAIL"} ${t.name}${t.error ? `: ${t.error}` : ""}`))
+    .join("\n");
+}
+
+function scriptLogText(e: RunEntry): string {
+  return scriptParts(e)
+    .flatMap(({ label, output }) => [...output.logs.map((l) => `[${label}] ${l}`), ...(output.error ? [`[${label}] ERROR ${output.error}`] : [])])
+    .join("\n");
+}
 
 /* ---------- CSV ---------- */
 
@@ -29,6 +49,8 @@ export function toCsvReport(run: Run): string {
     "response_size_bytes",
     "error",
     "notes",
+    "script_tests",
+    "script_log",
     ...run.columns.map((c) => `var:${c}`),
   ];
   const lines = [head.map(csvCell).join(",")];
@@ -51,6 +73,8 @@ export function toCsvReport(run: Run): string {
       res?.sizeBytes ?? "",
       o.ok ? "" : o.error,
       e.notes.join("\n"),
+      scriptTestsText(e),
+      scriptLogText(e),
       ...run.columns.map((c) => e.vars[c] ?? ""),
     ];
     lines.push(cells.map(csvCell).join(","));
@@ -99,6 +123,22 @@ function formatDuration(ms: number): string {
   return s < 60 ? `${s.toFixed(1)} s` : `${Math.floor(s / 60)} m ${Math.round(s % 60)} s`;
 }
 
+function scriptsHtml(e: RunEntry): string {
+  const parts = scriptParts(e);
+  if (!parts.length) return "";
+  const block = ({ label, output }: { label: string; output: ScriptOutput }) => {
+    const title = label === "pre" ? "Pre-request script" : "Post-response script";
+    const tests = output.tests.length
+      ? `<ul class="tests">${output.tests.map((t) => `<li class="status ${t.passed ? "ok" : "bad"}">${t.passed ? "PASS" : "FAIL"} <span>${esc(t.name)}${t.error ? ` · ${esc(t.error)}` : ""}</span></li>`).join("")}</ul>`
+      : "";
+    const error = output.error ? `<p class="status bad">Script error: ${esc(output.error)}</p>` : "";
+    const logs = output.logs.length ? `<pre>${esc(output.logs.join("\n"))}</pre>` : `<p class="muted">No console output.</p>`;
+    return `<h4>${title} <span class="muted">(${output.durationMs} ms)</span></h4>${error}${tests}${logs}`;
+  };
+  const vars = e.scriptVars && Object.keys(e.scriptVars).length ? `<h4>Script variables after this row</h4>${headerTable(Object.entries(e.scriptVars))}` : "";
+  return parts.map(block).join("\n") + vars;
+}
+
 /** A single self-contained HTML file: summary, run log, and every call with its full request and response. */
 export function toHtmlReport(run: Run): string {
   const st = runStats(run);
@@ -108,12 +148,13 @@ export function toHtmlReport(run: Run): string {
     .map((e) => {
       const o = e.outcome;
       const res = o.ok ? o.response : null;
-      const search = `${e.index + 1} ${statusLabel(o)} ${o.request.url} ${Object.values(e.vars).join(" ")}`.toLowerCase();
+      const search = `${e.index + 1} ${statusLabel(o)} ${o.request.url} ${Object.values(e.vars).join(" ")} ${scriptLogText(e)}`.toLowerCase();
       return `<details class="call ${e.failed ? "failed" : "passed"}" data-search="${esc(search)}">
 <summary><span class="row">#${e.index + 1}</span><span class="status ${statusClass(e)}">${esc(statusLabel(o))}</span><span class="ms">${durationOf(o)} ms</span><span class="url">${esc(o.request.method)} ${esc(o.request.url)}</span>${e.notes.length ? `<span class="note-flag" title="Has notes">●</span>` : ""}</summary>
 <div class="call-body">
 ${e.notes.length ? `<h4>Notes</h4><ul class="notes">${e.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
 <h4>CSV values</h4>${headerTable(Object.entries(e.vars))}
+${scriptsHtml(e)}
 <h4>Request</h4>
 <p class="mono">${esc(o.request.method)} ${esc(o.request.url)}</p>
 <p class="muted">Sent ${esc(formatTime(o.sentAt))}</p>
@@ -161,6 +202,7 @@ summary .row { width: 56px; color: var(--muted); } summary .status { width: 48px
 .call-body { padding: 0 12px 12px; border-top: 1px solid var(--border); }
 pre { background: var(--soft); padding: 10px; border-radius: 4px; white-space: pre-wrap; word-break: break-word; max-height: 480px; overflow: auto; }
 .notes { margin: 0; padding-left: 18px; }
+.tests { list-style: none; margin: 0 0 6px; padding: 0; } .tests span { color: var(--text); font-weight: 400; }
 .bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: var(--soft); margin-top: 14px; } .bar .p { background: var(--ok); } .bar .f { background: var(--bad); }
 @media print { .toolbar { display: none; } details.call { break-inside: avoid; } }
 </style>
