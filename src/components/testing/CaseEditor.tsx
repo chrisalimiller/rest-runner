@@ -184,6 +184,7 @@ export function CaseEditor(props: Props) {
                 envName={props.envName}
                 sectionsKey="rest-runner.case-request-sections"
                 urlPlaceholder="Enter URL, e.g. {{baseUrl}}/users/{{id}}"
+                scriptsNote="In a test run, the request's scripts run first, then this case's own Pre-request and Post-response scripts."
               />
               <div className="action-footer">
                 <button className="send" onClick={() => setEditing(false)}>

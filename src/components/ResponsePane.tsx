@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { formatMs, statusTone } from "../lib/earlierSends";
 import { formatBytes } from "../lib/format";
 import { BodyView } from "./BodyView";
+import { ScriptResults, scriptsTabLabel, scriptTestCounts, type ScriptRun } from "./ScriptResults";
 import { AlertIcon, PlayIcon } from "./shell/Icons";
 import { MOD_KEY } from "./shell/TopBar";
 import type { SendOutcome } from "../lib/types";
@@ -15,9 +16,13 @@ interface Props {
   sampleLabel?: string;
   /** One line of advice under an error, e.g. which environment was used. */
   errorHint?: string;
+  /** What the request's pre/post scripts did on this send, if it has any. */
+  scripts?: ScriptRun | null;
+  /** Script variables after the send, shown with the script results (batch rows). */
+  scriptVars?: Record<string, string>;
 }
 
-type Tab = "body" | "headers" | "request";
+type Tab = "body" | "headers" | "request" | "scripts";
 
 function timeOfDay(iso: string): string {
   if (!iso) return "";
@@ -27,7 +32,7 @@ function timeOfDay(iso: string): string {
 }
 
 /** Status hero, Body / Headers / Sent request switch, and the body. Also draws the empty, sending and error states. */
-export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, errorHint }: Props) {
+export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, errorHint, scripts, scriptVars }: Props) {
   const [chosenTab, setTab] = useState<Tab>("body");
   const [pretty, setPretty] = useState(true);
   const [now, setNow] = useState(Date.now());
@@ -65,7 +70,10 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
   }
 
   const res = outcome.ok ? outcome.response : null;
-  const tab: Tab = (isSample && chosenTab === "request") || (!res && chosenTab === "headers") ? "body" : chosenTab;
+  const hasScripts = !!(scripts && (scripts.pre || scripts.post));
+  const notSent = !!scripts?.pre?.error && !res;
+  const tab: Tab =
+    (isSample && chosenTab === "request") || (!res && chosenTab === "headers") || (!hasScripts && chosenTab === "scripts") ? "body" : chosenTab;
   const tone = statusTone(res ? res.status : null);
 
   return (
@@ -99,7 +107,18 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
             </button>
             {!isSample && (
               <button role="tab" aria-selected={tab === "request"} className={tab === "request" ? "on" : ""} onClick={() => setTab("request")}>
-                Sent request
+                {notSent ? "Request" : "Sent request"}
+              </button>
+            )}
+            {hasScripts && (
+              <button
+                role="tab"
+                aria-selected={tab === "scripts"}
+                className={`${tab === "scripts" ? "on" : ""} ${scriptTestCounts(scripts).failed ? "has-failures" : ""}`}
+                onClick={() => setTab("scripts")}
+                title="Pre-request and post-response script output"
+              >
+                {scriptsTabLabel(scripts)}
               </button>
             )}
           </div>
@@ -125,10 +144,19 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
             <div className="error-box">
               <div className="error-title">
                 <AlertIcon />
-                <strong>Could not get a response.</strong>
+                <strong>{notSent ? "The request was not sent." : "Could not get a response."}</strong>
               </div>
               <pre>{outcome.ok ? "" : outcome.error}</pre>
-              <p className="small">{errorHint ?? "Check that the server is reachable from this computer, or switch environments."}</p>
+              {notSent ? (
+                <p className="small">
+                  Fix the pre-request script and send again.{" "}
+                  <button className="link-btn small" onClick={() => setTab("scripts")}>
+                    See script output
+                  </button>
+                </p>
+              ) : (
+                <p className="small">{errorHint ?? "Check that the server is reachable from this computer, or switch environments."}</p>
+              )}
             </div>
           ))}
 
@@ -144,6 +172,8 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
             </tbody>
           </table>
         )}
+
+        {tab === "scripts" && scripts && <ScriptResults run={scripts} vars={scriptVars} />}
 
         {tab === "request" && (
           <pre className="code-view">

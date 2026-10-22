@@ -7,6 +7,8 @@ import { newId } from "../lib/ids";
 import { buildRun } from "../lib/run";
 import { saveRun } from "../lib/runStore";
 import { prepareRequest, requestPlaceholders } from "../lib/request";
+import { requestScriptRunner } from "../lib/requestScripts";
+import { detectVarSets } from "../lib/testing/varsDetect";
 import { load, save } from "../lib/storage";
 import type { Vars } from "../lib/template";
 import type { RequestDef } from "../lib/types";
@@ -15,6 +17,8 @@ import { ResponsePane } from "./ResponsePane";
 interface Props {
   def: RequestDef;
   envVars: Vars;
+  /** Variables set by request scripts on earlier sends. Each row's scripts start with a copy. */
+  scriptVars?: Vars;
   envName?: string;
   onRunningChange: (running: boolean) => void;
   onRunSaved: (id: string) => void;
@@ -43,7 +47,9 @@ function formatElapsed(ms: number): string {
   return s < 60 ? `${s.toFixed(1)} s` : `${Math.floor(s / 60)} m ${Math.round(s % 60)} s`;
 }
 
-export function BatchPane({ def, envVars, envName, onRunningChange, onRunSaved, onOpenRun }: Props) {
+const NO_VARS: Vars = {};
+
+export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunningChange, onRunSaved, onOpenRun }: Props) {
   const [file, setFile] = useState<LoadedFile | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [options, setOptions] = useState<BatchOptions>(() => ({ ...DEFAULT_BATCH_OPTIONS, ...load(OPTIONS_KEY, {}) }));
@@ -84,7 +90,11 @@ export function BatchPane({ def, envVars, envName, onRunningChange, onRunSaved, 
   const placeholders = useMemo(() => requestPlaceholders(def), [def]);
   const columns = file?.data.headers ?? [];
   const fromEnv = placeholders.filter((p) => !columns.includes(p) && Object.prototype.hasOwnProperty.call(envVars, p));
-  const missing = placeholders.filter((p) => !columns.includes(p) && !fromEnv.includes(p));
+  // Names the pre-request script sets, or that earlier sends' scripts left behind.
+  const scriptSet = useMemo(() => new Set([...Object.keys(scriptVars), ...detectVarSets(def.preScript ?? "").map((v) => v.name)]), [scriptVars, def.preScript]);
+  const fromScripts = placeholders.filter((p) => !columns.includes(p) && !fromEnv.includes(p) && scriptSet.has(p));
+  const missing = placeholders.filter((p) => !columns.includes(p) && !fromEnv.includes(p) && !fromScripts.includes(p));
+  const scriptLabel = [(def.preScript ?? "").trim() && "pre-request", (def.postScript ?? "").trim() && "post-response"].filter(Boolean).join(" and ");
   const matched = placeholders.filter((p) => columns.includes(p));
   const unused = columns.filter((c) => !placeholders.includes(c));
   const rows = file?.data.rows ?? [];
@@ -123,6 +133,7 @@ export function BatchPane({ def, envVars, envName, onRunningChange, onRunSaved, 
     setRunning(true);
     const snapshot = structuredClone(def);
     const runOptions = { ...options };
+    const startVars = { ...scriptVars };
     const all: BatchItemResult[] = [];
     const result = await runBatch(
       snapshot,
@@ -135,6 +146,7 @@ export function BatchPane({ def, envVars, envName, onRunningChange, onRunSaved, 
       },
       controller.signal,
       envVars,
+      { runner: requestScriptRunner(), vars: startVars },
     );
     const rest = bufferRef.current;
     bufferRef.current = [];
@@ -239,6 +251,17 @@ export function BatchPane({ def, envVars, envName, onRunningChange, onRunSaved, 
                 ))}
               </span>
             )}
+            {fromScripts.length > 0 && (
+              <span>
+                From scripts:{" "}
+                {fromScripts.map((p) => (
+                  <code key={p} className="chip env">
+                    {p}
+                  </code>
+                ))}
+              </span>
+            )}
+            {scriptLabel && <span className="muted">The {scriptLabel} {scriptLabel.includes(" and ") ? "scripts run" : "script runs"} for every row.</span>}
             {missing.length > 0 && (
               <span className="warning">
                 No column or environment value (sent as written):{" "}
@@ -322,9 +345,12 @@ export function BatchPane({ def, envVars, envName, onRunningChange, onRunSaved, 
 
       {showPreview && file && (
         <div className="batch-preview">
-          <p className="muted small">The first {Math.min(3, rows.length)} requests as they will be sent:</p>
+          <p className="muted small">
+            The first {Math.min(3, rows.length)} requests as they will be sent
+            {(def.preScript ?? "").trim() ? " (before the pre-request script runs, so values it sets are not filled in yet)" : ""}:
+          </p>
           {rows.slice(0, 3).map((vars, i) => {
-            const p = prepareRequest(def, { ...envVars, ...vars });
+            const p = prepareRequest(def, { ...envVars, ...scriptVars, ...vars });
             return (
               <pre key={i} className="code-view">
                 <span className="muted">Row {i + 1}</span>
@@ -394,7 +420,9 @@ export function BatchPane({ def, envVars, envName, onRunningChange, onRunSaved, 
                         {r.outcome.ok ? (
                           <span className={`status ${statusClass(r.outcome.response.status)}`}>{r.outcome.response.status}</span>
                         ) : (
-                          <span className="status bad">Error</span>
+                          <span className="status bad" title={r.outcome.error}>
+                            {r.sent === false ? "Not sent" : "Error"}
+                          </span>
                         )}
                       </td>
                       <td>{r.outcome.ok ? r.outcome.response.durationMs : r.outcome.durationMs} ms</td>
@@ -414,7 +442,12 @@ export function BatchPane({ def, envVars, envName, onRunningChange, onRunSaved, 
           </div>
           <div className="result-detail">
             {selectedResult ? (
-              <ResponsePane outcome={selectedResult.outcome} sending={false} />
+              <ResponsePane
+                outcome={selectedResult.outcome}
+                sending={false}
+                scripts={selectedResult.preScript || selectedResult.postScript ? { pre: selectedResult.preScript, post: selectedResult.postScript } : null}
+                scriptVars={selectedResult.scriptVars}
+              />
             ) : (
               <p className="muted small">Click a row to see its request and response.</p>
             )}

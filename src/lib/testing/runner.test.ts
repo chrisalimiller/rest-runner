@@ -204,3 +204,17 @@ describe("buildTestRun", () => {
     expect(t.log[t.log.length - 1].message).toMatch(/4 of 4 cases ran, 2 passed, 2 failed/);
   });
 });
+
+describe("request scripts in test runs", () => {
+  it("runs the request's own scripts before the case's scripts", async () => {
+    const server = fakeServer(() => ({ status: 200, body: '{"v":"1"}' }));
+    const tc = makeCase("A", "https://{{host}}/x?a={{a}}&b={{b}}", {
+      preScript: `const x = "case"; rr.vars.set("b", rr.vars.get("a") + "-" + x)`,
+      postScript: `rr.test("case saw request var", () => rr.expect(rr.vars.get("fromRequest")).toBe("1"))`,
+    });
+    tc.request = { ...tc.request, preScript: `const x = "req"; rr.vars.set("a", x)`, postScript: `rr.vars.set("fromRequest", rr.response.json().v)` };
+    const { results } = await run(suiteOf([tc]), server.send);
+    expect(server.sent[0].url).toBe("https://api.test/x?a=req&b=req-case");
+    expect(results[0].passed).toBe(true);
+  });
+});

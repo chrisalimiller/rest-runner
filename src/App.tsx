@@ -39,6 +39,9 @@ import { environmentVars, type Environment } from "./lib/environments";
 import { sendRequest } from "./lib/http";
 import { newId } from "./lib/ids";
 import { prepareRequest } from "./lib/request";
+import { hasScripts, requestScriptRunner, sendWithScripts } from "./lib/requestScripts";
+import type { Vars } from "./lib/template";
+import type { ScriptOutput } from "./lib/testing/types";
 import type { RunSummary } from "./lib/run";
 import type { QuickItem } from "./lib/quickOpen";
 import { deleteRun, listRuns } from "./lib/runStore";
@@ -60,6 +63,8 @@ const ENVIRONMENTS_KEY = "rest-runner.environments";
 const ACTIVE_ENV_KEY = "rest-runner.active-environment";
 const SECTIONS_KEY = "rest-runner.request-sections";
 const SPLIT_KEY = "rest-runner.split";
+/** Variables set by request scripts (rr.vars.set), kept between sends. */
+const SCRIPT_VARS_KEY = "rest-runner.script-vars";
 /** Response bodies kept with each history entry, so an earlier send can be shown again. */
 const MAX_HISTORY_BODY = 32 * 1024;
 const MIN_COLUMN = 380;
@@ -102,6 +107,8 @@ interface Props {
 export default function App({ active = true, shell, command }: Props) {
   const [def, setDef] = useState<RequestDef>(() => load(DRAFT_KEY, newRequest()));
   const [outcome, setOutcome] = useState<SendOutcome | null>(null);
+  const [scriptRun, setScriptRun] = useState<{ pre?: ScriptOutput; post?: ScriptOutput } | null>(null);
+  const [scriptVars, setScriptVars] = useState<Vars>(() => load<Vars>(SCRIPT_VARS_KEY, {}));
   const [sending, setSending] = useState(false);
   const [pane, setPane] = useState<LowerPane>("response");
   const [batchVisited, setBatchVisited] = useState(false);
@@ -133,6 +140,8 @@ export default function App({ active = true, shell, command }: Props) {
 
   const activeEnv = environments.find((e) => e.id === activeEnvId) ?? null;
   const envVars = useMemo(() => environmentVars(activeEnv), [activeEnv]);
+  /** What placeholders resolve against: environment, then variables scripts have set. */
+  const sendVars = useMemo(() => ({ ...envVars, ...scriptVars }), [envVars, scriptVars]);
   const located = useMemo(() => locate(collections, def.id), [collections, def.id]);
   const savedVersion = located?.kind === "request" ? located.node.request : located?.kind === "example" ? located.example.request : undefined;
   const isDirty = !savedVersion || JSON.stringify(savedVersion) !== JSON.stringify(def);
@@ -156,6 +165,9 @@ export default function App({ active = true, shell, command }: Props) {
   useEffect(() => {
     save(SPLIT_KEY, split);
   }, [split]);
+  useEffect(() => {
+    save(SCRIPT_VARS_KEY, scriptVars);
+  }, [scriptVars]);
   useEffect(() => {
     if (!notice) return;
     const t = setTimeout(() => setNotice(null), 5000);
@@ -182,13 +194,33 @@ export default function App({ active = true, shell, command }: Props) {
   const send = useCallback(async () => {
     if (sending || def.url.trim() === "") return;
     setPane("response");
-    const prepared = prepareRequest(def, envVars);
     const controller = new AbortController();
     abortRef.current = controller;
     setSending(true);
-    const result = await sendRequest(prepared, controller.signal);
+    const scripted = await sendWithScripts({
+      def,
+      env: envVars,
+      data: {},
+      vars: scriptVars,
+      iteration: 0,
+      send: sendRequest,
+      scripts: requestScriptRunner(),
+      signal: controller.signal,
+    });
     abortRef.current = null;
     setSending(false);
+    // Cancelled before a response came back: show the cancellation like before.
+    const result: SendOutcome = scripted?.outcome ?? {
+      ok: false,
+      request: prepareRequest(def, sendVars),
+      error: "Request cancelled",
+      durationMs: 0,
+      sentAt: new Date().toISOString(),
+    };
+    const prepared = result.request;
+    const scripts = scripted && (scripted.preScript || scripted.postScript) ? { pre: scripted.preScript, post: scripted.postScript } : null;
+    if (scripted && hasScripts(def)) setScriptVars(scripted.vars);
+    setScriptRun(scripts);
     setOutcome(result);
     setOutcomeIsSample(false);
     setSampleLabel(undefined);
@@ -207,11 +239,12 @@ export default function App({ active = true, shell, command }: Props) {
           ...(result.ok
             ? { response: { ...result.response, body: result.response.body.slice(0, MAX_HISTORY_BODY) } }
             : { error: result.error }),
+          ...(scripts ? { preScript: scripts.pre, postScript: scripts.post } : {}),
         },
         ...h,
       ].slice(0, MAX_HISTORY),
     );
-  }, [def, sending, envVars]);
+  }, [def, sending, envVars, scriptVars, sendVars]);
 
   const cancel = () => abortRef.current?.abort();
 
@@ -246,6 +279,7 @@ export default function App({ active = true, shell, command }: Props) {
   const openDef = (d: RequestDef) => {
     setDef(structuredClone(d));
     setOutcome(null);
+    setScriptRun(null);
     setOutcomeIsSample(false);
     setSampleLabel(undefined);
     setShownHistoryId(null);
@@ -267,6 +301,7 @@ export default function App({ active = true, shell, command }: Props) {
     setShownHistoryId(h.id);
     if (o) {
       setOutcome(o);
+      setScriptRun(h.preScript || h.postScript ? { pre: h.preScript, post: h.postScript } : null);
       setOutcomeIsSample(true);
       const cut = h.response && h.response.sizeBytes > MAX_HISTORY_BODY ? " · body cut to 32 KB" : "";
       setSampleLabel(`Sent ${whenLabel(h.sentAt)}${h.durationMs !== undefined ? ` · ${h.durationMs} ms` : ""}${cut}`);
@@ -562,7 +597,16 @@ export default function App({ active = true, shell, command }: Props) {
         style={{ "--split-a": `${split}fr`, "--split-b": `${1 - split}fr` } as React.CSSProperties}
       >
         <section className="request-col" aria-label="Request">
-          <RequestEditor def={def} onChange={patch} envVars={envVars} envName={activeEnv?.name} onEnter={() => void send()} sectionsKey={SECTIONS_KEY} />
+          <RequestEditor
+            def={def}
+            onChange={patch}
+            envVars={sendVars}
+            envName={activeEnv?.name}
+            onEnter={() => void send()}
+            sectionsKey={SECTIONS_KEY}
+            scriptVars={scriptVars}
+            onClearScriptVars={() => setScriptVars({})}
+          />
           <div className="action-footer">
             {sending ? (
               <button className="send cancel" onClick={cancel}>
@@ -639,6 +683,7 @@ export default function App({ active = true, shell, command }: Props) {
               sending={sending}
               isSample={outcomeIsSample}
               sampleLabel={sampleLabel}
+              scripts={scriptRun}
               errorHint={
                 activeEnv
                   ? `Check that the server is reachable from this computer, or switch environments (using ${activeEnv.name || "an unnamed environment"}).`
@@ -668,7 +713,7 @@ export default function App({ active = true, shell, command }: Props) {
             )}
           </div>
           <div className="batch-main" hidden={pane !== "batch"}>
-            <BatchPane def={def} envVars={envVars} envName={activeEnv?.name} onRunningChange={setBatchRunning} onRunSaved={refreshRuns} onOpenRun={setOpenRun} />
+            <BatchPane def={def} envVars={envVars} scriptVars={scriptVars} envName={activeEnv?.name} onRunningChange={setBatchRunning} onRunSaved={refreshRuns} onOpenRun={setOpenRun} />
           </div>
         </section>
       </div>

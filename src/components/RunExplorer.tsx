@@ -56,7 +56,7 @@ export function RunExplorer({ runId, onBack, onDelete }: Props) {
       if (filter === "failed" && !e.failed) return false;
       if (status && statusLabel(e.outcome) !== status) return false;
       if (!q) return true;
-      const hay = `${e.index + 1} ${statusLabel(e.outcome)} ${e.outcome.request.url} ${Object.values(e.vars).join(" ")} ${e.notes.join(" ")}`;
+      const hay = `${e.index + 1} ${statusLabel(e.outcome)} ${e.outcome.request.url} ${Object.values(e.vars).join(" ")} ${e.notes.join(" ")} ${[...(e.preScript?.logs ?? []), ...(e.postScript?.logs ?? [])].join(" ")}`;
       return hay.toLowerCase().includes(q);
     });
   }, [run, filter, status, query]);
