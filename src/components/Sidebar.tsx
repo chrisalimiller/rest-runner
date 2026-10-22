@@ -1,8 +1,12 @@
 import { statusClass } from "../lib/format";
+import type { RunSummary } from "../lib/run";
 import type { HistoryEntry } from "../lib/types";
 
 interface Props {
   history: HistoryEntry[];
+  runs: RunSummary[];
+  activeRunId: string | null;
+  onOpenRun: (id: string) => void;
   onNew: () => void;
   onOpen: (entry: HistoryEntry) => void;
   onClear: () => void;
@@ -12,13 +16,39 @@ function shortUrl(url: string): string {
   return url.replace(/^https?:\/\//, "");
 }
 
-export function Sidebar({ history, onNew, onOpen, onClear }: Props) {
+function when(iso: string): string {
+  const d = new Date(iso);
+  const sameDay = d.toDateString() === new Date().toDateString();
+  return sameDay ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : d.toLocaleDateString();
+}
+
+export function Sidebar({ history, runs, activeRunId, onOpenRun, onNew, onOpen, onClear }: Props) {
   return (
     <aside className="sidebar">
       <div className="brand">REST Runner</div>
       <button className="primary-outline" onClick={onNew}>
         + New request
       </button>
+      <div className="sidebar-section">
+        <div className="sidebar-title">
+          <span>Batch runs</span>
+        </div>
+        {runs.length === 0 && <p className="muted small">Finished batch runs show up here.</p>}
+        <ul className="history runs">
+          {runs.map((r) => (
+            <li key={r.id}>
+              <button className={activeRunId === r.id ? "active" : ""} onClick={() => onOpenRun(r.id)} title={`${r.method} ${r.urlTemplate}\n${r.csvName}`}>
+                <span className="run-name">{r.requestName}</span>
+                <span className="run-meta">
+                  <span className="muted">{when(r.startedAt)}</span>
+                  <span className="status ok">{r.passed}</span>
+                  {r.failed > 0 && <span className="status bad">{r.failed}✕</span>}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
       <div className="sidebar-section">
         <div className="sidebar-title">
           <span>History</span>

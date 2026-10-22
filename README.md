@@ -10,7 +10,8 @@ Runs on macOS and Windows from one codebase, built with [Tauri 2](https://tauri.
 | --- | --- | --- |
 | 1 | App shell, single request editor, Mac/Windows builds | Done |
 | 2 | CSV batches with `{{column}}` placeholders, live progress | Done |
-| 3 | Run explorer, HTML and CSV reports, saved collections and environments | Planned |
+| 3a | Run explorer, HTML and CSV reports | Done |
+| 3b | Saved requests and environments | Planned |
 | 4 | Extras: Postman import, retries, OAuth, chaining values between requests | Optional |
 
 ## Features so far
@@ -41,6 +42,23 @@ Each row becomes one request. Options:
 In a raw JSON body, a placeholder inside quotes (`"name": "{{name}}"`) is escaped, so quotes or line breaks in the CSV keep the JSON valid. Outside quotes (`"age": {{age}}`) the value is inserted as is, so numbers, `true`/`false`, and `null` work.
 
 Results appear as they come in. Click a row to see its full request and response, or filter to failures only.
+
+## Run explorer and reports
+
+Every batch run is saved when it finishes (the last 30 runs are kept) and listed under **Batch runs** in the sidebar. Opening one shows:
+
+- Totals: sent, passed, failed, total time, average and 95th percentile response time
+- Status code counts; click one to filter the list to that code
+- The run log: start, settings, missing placeholders, first failure, why it stopped, and the final count
+- Every call, searchable by row, URL, CSV value or note, with its notes, CSV values, full request, response body and response headers. Use the arrow keys to move through calls.
+
+Each call gets plain-language notes when something is worth knowing, such as a placeholder with no value, an HTTP error and whether it counted as a failure, no response, or a JSON response that does not parse.
+
+**Export HTML report** saves one self-contained file with the summary, run log and every call (expandable, with filters and search). It opens in any browser and prints cleanly.
+
+**Export CSV report** saves one line per call with the result, status, timing, full request and response headers and bodies, error, notes, and each CSV value in its own `var:` column. It opens in Excel with UTF-8 intact.
+
+Response bodies over 1 MB are cut to 1 MB when a run is saved, and the call's notes say so.
 
 ## Getting the app
 

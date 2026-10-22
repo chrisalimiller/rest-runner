@@ -3,6 +3,9 @@ import { DEFAULT_BATCH_OPTIONS, runBatch, type BatchEnd, type BatchItemResult, t
 import { parseCsv, type CsvData } from "../lib/csv";
 import { statusClass } from "../lib/format";
 import { sendRequest } from "../lib/http";
+import { newId } from "../lib/ids";
+import { buildRun } from "../lib/run";
+import { saveRun } from "../lib/runStore";
 import { prepareRequest, requestPlaceholders } from "../lib/request";
 import { load, save } from "../lib/storage";
 import type { RequestDef } from "../lib/types";
@@ -11,6 +14,8 @@ import { ResponsePane } from "./ResponsePane";
 interface Props {
   def: RequestDef;
   onRunningChange: (running: boolean) => void;
+  onRunSaved: (id: string) => void;
+  onOpenRun: (id: string) => void;
 }
 
 interface LoadedFile {
@@ -35,7 +40,7 @@ function formatElapsed(ms: number): string {
   return s < 60 ? `${s.toFixed(1)} s` : `${Math.floor(s / 60)} m ${Math.round(s % 60)} s`;
 }
 
-export function BatchPane({ def, onRunningChange }: Props) {
+export function BatchPane({ def, onRunningChange, onRunSaved, onOpenRun }: Props) {
   const [file, setFile] = useState<LoadedFile | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [options, setOptions] = useState<BatchOptions>(() => ({ ...DEFAULT_BATCH_OPTIONS, ...load(OPTIONS_KEY, {}) }));
@@ -48,6 +53,8 @@ export function BatchPane({ def, onRunningChange }: Props) {
   const [filter, setFilter] = useState<Filter>("all");
   const [selected, setSelected] = useState<number | null>(null);
   const [limit, setLimit] = useState(PAGE_SIZE);
+  const [savedRunId, setSavedRunId] = useState<string | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const bufferRef = useRef<BatchItemResult[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -102,15 +109,51 @@ export function BatchPane({ def, onRunningChange }: Props) {
     setSelected(null);
     setLimit(PAGE_SIZE);
     setShowPreview(false);
+    setSavedRunId(null);
+    setSaveError(null);
     const t0 = Date.now();
     setStartedAt(t0);
     setElapsed(0);
     setRunning(true);
     const snapshot = structuredClone(def);
-    const result = await runBatch(snapshot, rows, options, sendRequest, (r) => bufferRef.current.push(r), controller.signal);
+    const runOptions = { ...options };
+    const all: BatchItemResult[] = [];
+    const result = await runBatch(
+      snapshot,
+      rows,
+      runOptions,
+      sendRequest,
+      (r) => {
+        all.push(r);
+        bufferRef.current.push(r);
+      },
+      controller.signal,
+    );
     const rest = bufferRef.current;
     bufferRef.current = [];
     setResults((r) => r.concat(rest));
+    if (all.length > 0) {
+      const run = buildRun({
+        id: newId(),
+        request: snapshot,
+        csvName: file.name,
+        columns,
+        totalRows: rows.length,
+        options: runOptions,
+        startedAt: new Date(t0).toISOString(),
+        finishedAt: new Date().toISOString(),
+        end: result,
+        results: all,
+        missingPlaceholders: missing,
+      });
+      try {
+        await saveRun(run);
+        setSavedRunId(run.id);
+        onRunSaved(run.id);
+      } catch (e) {
+        setSaveError(`The run finished but could not be saved: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
     setElapsed(Date.now() - t0);
     setEnd(result);
     setRunning(false);
@@ -290,7 +333,13 @@ export function BatchPane({ def, onRunningChange }: Props) {
             <span className={failed ? "status bad" : "muted"}>{failed} failed</span>
             <span className="muted">{formatElapsed(elapsed)}</span>
             <span className="muted">avg {avgMs} ms</span>
+            {savedRunId && !running && (
+              <button className="link-btn" onClick={() => onOpenRun(savedRunId)}>
+                Open in run explorer and export reports →
+              </button>
+            )}
           </div>
+          {saveError && <p className="warning small">{saveError}</p>}
         </div>
       )}
 
