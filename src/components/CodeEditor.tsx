@@ -1,4 +1,5 @@
-import { closeBrackets, closeBracketsKeymap } from "@codemirror/autocomplete";
+import { autocompletion, closeBrackets, closeBracketsKeymap, type CompletionSource } from "@codemirror/autocomplete";
+import { javascript } from "@codemirror/lang-javascript";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { json } from "@codemirror/lang-json";
 import { bracketMatching, HighlightStyle, syntaxHighlighting } from "@codemirror/language";
@@ -25,6 +26,10 @@ const githubDarkHighlight = HighlightStyle.define([
   { tag: [t.number, t.bool, t.null], color: "#79c0ff" },
   { tag: [t.brace, t.squareBracket, t.separator, t.punctuation], color: "#e6edf3" },
   { tag: t.invalid, color: "#f85149" },
+  { tag: [t.keyword, t.operatorKeyword, t.modifier, t.controlKeyword], color: "#ff7b72" },
+  { tag: [t.function(t.variableName), t.function(t.propertyName)], color: "#d2a8ff" },
+  { tag: [t.lineComment, t.blockComment], color: "#8b949e", fontStyle: "italic" },
+  { tag: t.regexp, color: "#7ee787" },
 ]);
 
 const editorTheme = EditorView.theme(
@@ -112,6 +117,9 @@ interface Props {
   onChange?: (value: string) => void;
   /** JSON mode adds highlighting, error marks, and format on paste. */
   json?: boolean;
+  /** JavaScript mode adds highlighting, plus the given autocomplete source when there is one. */
+  javascript?: boolean;
+  completions?: CompletionSource;
   readOnly?: boolean;
   placeholder?: string;
   ariaLabel?: string;
@@ -120,15 +128,32 @@ interface Props {
 // Mod-Enter is left to the app (Send), so the editor does not also insert a line.
 const editorKeys = defaultKeymap.filter((k) => k.key !== "Mod-Enter");
 
-export function CodeEditor({ value, onChange, json: isJson = false, readOnly = false, placeholder, ariaLabel }: Props) {
+export function CodeEditor({
+  value,
+  onChange,
+  json: isJson = false,
+  javascript: isJs = false,
+  completions,
+  readOnly = false,
+  placeholder,
+  ariaLabel,
+}: Props) {
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
   const modeCompartment = useRef(new Compartment());
 
-  const modeExtensions = (): Extension[] =>
-    isJson ? [json(), syntaxHighlighting(githubDarkHighlight), readOnly ? [] : [jsonLinter, formatOnPaste]] : [];
+  const modeExtensions = (): Extension[] => {
+    if (isJs) {
+      return [
+        javascript(),
+        syntaxHighlighting(githubDarkHighlight),
+        completions && !readOnly ? autocompletion({ override: [completions] }) : [],
+      ];
+    }
+    return isJson ? [json(), syntaxHighlighting(githubDarkHighlight), readOnly ? [] : [jsonLinter, formatOnPaste]] : [];
+  };
 
   useEffect(() => {
     if (!host.current) return;
@@ -147,7 +172,7 @@ export function CodeEditor({ value, onChange, json: isJson = false, readOnly = f
         history(),
         closeBrackets(),
         keymap.of([
-          { key: "Shift-Alt-f", run: formatEditorJson },
+          ...(isJs ? [] : [{ key: "Shift-Alt-f", run: formatEditorJson }]),
           ...closeBracketsKeymap,
           ...editorKeys,
           ...historyKeymap,
@@ -179,7 +204,7 @@ export function CodeEditor({ value, onChange, json: isJson = false, readOnly = f
   useEffect(() => {
     view.current?.dispatch({ effects: modeCompartment.current.reconfigure(modeExtensions()) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isJson]);
+  }, [isJson, isJs]);
 
   return <div ref={host} className={`code-editor ${readOnly ? "readonly" : ""}`} />;
 }
