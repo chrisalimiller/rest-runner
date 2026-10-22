@@ -2114,3 +2114,8 @@ details.case-try .call-detail {
   flex-wrap: wrap;
   max-width: 100%;
 }
+
+.body-note {
+  padding: 16px;
+  margin: 0;
+}

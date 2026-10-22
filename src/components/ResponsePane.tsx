@@ -20,6 +20,8 @@ interface Props {
   scripts?: ScriptRun | null;
   /** Script variables after the send, shown with the script results (batch rows). */
   scriptVars?: Record<string, string>;
+  /** Shown in place of the body when the sample kept no body, e.g. an older history entry. */
+  bodyNote?: string;
 }
 
 type Tab = "body" | "headers" | "request" | "scripts";
@@ -32,7 +34,7 @@ function timeOfDay(iso: string): string {
 }
 
 /** Status hero, Body / Headers / Sent request switch, and the body. Also draws the empty, sending and error states. */
-export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, errorHint, scripts, scriptVars }: Props) {
+export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, errorHint, scripts, scriptVars, bodyNote }: Props) {
   const [chosenTab, setTab] = useState<Tab>("body");
   const [pretty, setPretty] = useState(true);
   const [now, setNow] = useState(Date.now());
@@ -73,7 +75,7 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
   const hasScripts = !!(scripts && (scripts.pre || scripts.post));
   const notSent = !!scripts?.pre?.error && !res;
   const tab: Tab =
-    (isSample && chosenTab === "request") || (!res && chosenTab === "headers") || (!hasScripts && chosenTab === "scripts") ? "body" : chosenTab;
+    (isSample && chosenTab === "request") || ((!res || bodyNote) && chosenTab === "headers") || (!hasScripts && chosenTab === "scripts") ? "body" : chosenTab;
   const tone = statusTone(res ? res.status : null);
 
   return (
@@ -90,7 +92,7 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
               <span className="mono">{outcome.ok ? outcome.response.durationMs : outcome.durationMs}</span> ms
             </span>
           )}
-          {res && (
+          {res && !bodyNote && (
             <span className="hero-meta">
               <span className="mono">{formatBytes(res.sizeBytes).replace(/ [KM]?B$/, "")}</span> {formatBytes(res.sizeBytes).replace(/^[\d.]+ /, "")}
             </span>
@@ -102,7 +104,7 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
             <button role="tab" aria-selected={tab === "body"} className={tab === "body" ? "on" : ""} onClick={() => setTab("body")}>
               Body
             </button>
-            <button role="tab" aria-selected={tab === "headers"} className={tab === "headers" ? "on" : ""} onClick={() => setTab("headers")} disabled={!res}>
+            <button role="tab" aria-selected={tab === "headers"} className={tab === "headers" ? "on" : ""} onClick={() => setTab("headers")} disabled={!res || !!bodyNote}>
               Headers{res ? ` ${res.headers.length}` : ""}
             </button>
             {!isSample && (
@@ -123,7 +125,7 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
             )}
           </div>
           <span className="hero-gap" />
-          {tab === "body" && res && (
+          {tab === "body" && res && !bodyNote && (
             <>
               <button className="link-btn muted-link small" onClick={() => setPretty((p) => !p)} aria-pressed={!pretty} title={pretty ? "Show the body as received" : "Pretty-print JSON"}>
                 {pretty ? "Raw" : "Pretty"}
@@ -138,7 +140,9 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
 
       <div className="response-body">
         {tab === "body" &&
-          (res ? (
+          (res && bodyNote ? (
+            <p className="muted small body-note">{bodyNote}</p>
+          ) : res ? (
             <BodyView body={res.body} pretty={pretty} />
           ) : (
             <div className="error-box">

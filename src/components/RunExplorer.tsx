@@ -10,6 +10,8 @@ interface Props {
   runId: string;
   onBack: () => void;
   onDelete: (id: string) => void;
+  /** Loads the request this run was made from into the editor. */
+  onLoadRequest?: (run: Run) => void;
 }
 
 type ResultFilter = "all" | "passed" | "failed";
@@ -21,7 +23,7 @@ function formatDuration(ms: number): string {
   return s < 60 ? `${s.toFixed(1)} s` : `${Math.floor(s / 60)} m ${Math.round(s % 60)} s`;
 }
 
-export function RunExplorer({ runId, onBack, onDelete }: Props) {
+export function RunExplorer({ runId, onBack, onDelete, onLoadRequest }: Props) {
   const [run, setRun] = useState<Run | null | undefined>(undefined);
   const [filter, setFilter] = useState<ResultFilter>("all");
   const [status, setStatus] = useState<string | null>(null);
@@ -112,6 +114,11 @@ export function RunExplorer({ runId, onBack, onDelete }: Props) {
           </p>
         </div>
         <div className="explorer-actions">
+          {onLoadRequest && (
+            <button className="secondary" onClick={() => onLoadRequest(run)} title="Open the request as it was when this run started">
+              Load this request
+            </button>
+          )}
           <button className="secondary" onClick={() => void exportReport("html")}>
             Export HTML report
           </button>

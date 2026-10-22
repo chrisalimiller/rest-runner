@@ -35,6 +35,7 @@ import {
 } from "./lib/collections";
 import { newRequest } from "./lib/defaults";
 import { earlierSendLabel, earlierSends, earlierSendTone, whenLabel } from "./lib/earlierSends";
+import { fitHistory, historyLabel, historyOutcome, MAX_HISTORY_BODY, responseNotKept } from "./lib/history";
 import { environmentVars, type Environment } from "./lib/environments";
 import { sendRequest } from "./lib/http";
 import { newId } from "./lib/ids";
@@ -65,8 +66,6 @@ const SECTIONS_KEY = "rest-runner.request-sections";
 const SPLIT_KEY = "rest-runner.split";
 /** Variables set by request scripts (rr.vars.set), kept between sends. */
 const SCRIPT_VARS_KEY = "rest-runner.script-vars";
-/** Response bodies kept with each history entry, so an earlier send can be shown again. */
-const MAX_HISTORY_BODY = 32 * 1024;
 const MIN_COLUMN = 380;
 
 function loadCollections(): Collection[] {
@@ -87,14 +86,6 @@ function sampleOutcome(example: RequestExample, response: SampleResponse, envVar
     response: { ...response, sizeBytes: new TextEncoder().encode(response.body).length, durationMs: 0 },
     sentAt: "",
   };
-}
-
-/** An earlier send from history, shown again as a read-only sample. Older entries kept no response, so they show nothing. */
-function historyOutcome(h: HistoryEntry): SendOutcome | null {
-  const request = { method: h.method, url: h.url, headers: [] as [string, string][] };
-  if (h.response) return { ok: true, request, response: h.response, sentAt: h.sentAt };
-  if (h.error !== undefined) return { ok: false, request, error: h.error, durationMs: h.durationMs ?? 0, sentAt: h.sentAt };
-  return null;
 }
 
 interface Props {
@@ -185,8 +176,8 @@ export default function App({ active = true, shell, command }: Props) {
     save(DRAFT_KEY, def);
   }, [def]);
   useEffect(() => {
-    // Responses make history larger; if storage is full, keep the list without them.
-    if (!save(HISTORY_KEY, history)) save(HISTORY_KEY, history.map(({ response: _r, ...h }) => h));
+    // Responses make history larger; if storage is full, drop the oldest responses until it fits.
+    fitHistory(history, (h) => save(HISTORY_KEY, h));
   }, [history]);
 
   const patch = (p: Partial<RequestDef>) => setDef((d) => ({ ...d, ...p }));
@@ -297,16 +288,21 @@ export default function App({ active = true, shell, command }: Props) {
 
   const openHistory = (h: HistoryEntry) => {
     openDef(h.def);
-    const o = historyOutcome(h);
     setShownHistoryId(h.id);
-    if (o) {
-      setOutcome(o);
-      setScriptRun(h.preScript || h.postScript ? { pre: h.preScript, post: h.postScript } : null);
-      setOutcomeIsSample(true);
-      const cut = h.response && h.response.sizeBytes > MAX_HISTORY_BODY ? " · body cut to 32 KB" : "";
-      setSampleLabel(`Sent ${whenLabel(h.sentAt)}${h.durationMs !== undefined ? ` · ${h.durationMs} ms` : ""}${cut}`);
-      setPane("response");
-    }
+    setOutcome(historyOutcome(h));
+    setScriptRun(h.preScript || h.postScript ? { pre: h.preScript, post: h.postScript } : null);
+    setOutcomeIsSample(true);
+    setSampleLabel(historyLabel(h));
+    setPane("response");
+    setNotice(`Loaded the request as sent ${whenLabel(h.sentAt) === "now" ? "just now" : `at ${whenLabel(h.sentAt) || "an earlier time"}`}.`);
+  };
+
+  /** Loads the request a batch run was made from, and shows the Batch run pane. */
+  const openRunRequest = (request: RequestDef, runLabel: string) => {
+    openDef(request);
+    setPane("batch");
+    setBatchVisited(true);
+    setNotice(`Loaded the request from the batch run of ${runLabel}.`);
   };
 
   /** Resolves a destination choice, creating a new collection if asked. */
@@ -489,6 +485,7 @@ export default function App({ active = true, shell, command }: Props) {
   };
 
   const sends = earlierSends(history, runs, def);
+  const shownEntry = outcomeIsSample && shownHistoryId ? history.find((h) => h.id === shownHistoryId) : undefined;
   const openBatch = () => {
     setPane("batch");
     setBatchVisited(true);
@@ -582,6 +579,7 @@ export default function App({ active = true, shell, command }: Props) {
           <RunExplorer
             runId={openRun}
             onBack={() => setOpenRun(null)}
+            onLoadRequest={(run) => openRunRequest(run.request, run.csvName)}
             onDelete={(id) => {
               void deleteRun(id).finally(refreshRuns);
               setOpenRun(null);
@@ -684,6 +682,11 @@ export default function App({ active = true, shell, command }: Props) {
               isSample={outcomeIsSample}
               sampleLabel={sampleLabel}
               scripts={scriptRun}
+              bodyNote={
+                shownEntry && responseNotKept(shownEntry)
+                  ? "This send's response body and headers were not kept. Sends made before this version, or dropped when storage was full, keep only their status."
+                  : undefined
+              }
               errorHint={
                 activeEnv
                   ? `Check that the server is reachable from this computer, or switch environments (using ${activeEnv.name || "an unnamed environment"}).`
