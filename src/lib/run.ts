@@ -22,6 +22,8 @@ export interface RunLogLine {
 
 export interface RunSummary {
   id: string;
+  /** Id of the request the run was made from. Runs saved before this field existed don't have it. */
+  requestId?: string;
   requestName: string;
   method: string;
   urlTemplate: string;
@@ -215,6 +217,7 @@ export function buildRun(input: RunInput): Run {
 
   return {
     id: input.id,
+    requestId: input.request.id,
     requestName: input.request.name,
     method: input.request.method,
     urlTemplate: input.request.url,

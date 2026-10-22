@@ -12,9 +12,15 @@ import { buildTestRun, type TestRunSummary } from "../../lib/testing/testRun";
 import { deleteTestRun, listTestRuns, saveTestRun } from "../../lib/testing/testRunStore";
 import { importSuitesFile, toSuitesFile } from "../../lib/testing/suiteFile";
 import type { CaseResult, TestCase, TestSuite } from "../../lib/testing/types";
+import type { QuickItem } from "../../lib/quickOpen";
+import { getTestRun } from "../../lib/testing/testRunStore";
+import type { TestRun } from "../../lib/testing/testRun";
+import type { ShellCommand, ShellProps } from "../../Root";
+import { TopBar } from "../shell/TopBar";
+import { LastRunPanel } from "./LastRunPanel";
 import type { LiveRunState } from "./LiveRun";
-import { SuiteEditor, type SuitePanel } from "./SuiteEditor";
-import { MAX_SAVED_CSV } from "./SuiteSettings";
+import { SuiteEditor } from "./SuiteEditor";
+import { MAX_SAVED_CSV, SuiteSettings } from "./SuiteSettings";
 import { TestingSidebar } from "./TestingSidebar";
 import { TestRunExplorer } from "./TestRunExplorer";
 
@@ -38,17 +44,31 @@ function persistSuites(suites: TestSuite[]): boolean {
 interface Props {
   /** True when the Testing section is on screen. */
   active: boolean;
+  shell: ShellProps;
+  command: ShellCommand | null;
+}
+
+/** A saved test run to show full width, optionally filtered to one case. */
+interface OpenReport {
+  id: string;
+  caseId?: string;
+  index?: number;
 }
 
 /** The Testing section: suites of test cases, running them, and their reports. */
-export function TestingApp({ active }: Props) {
+export function TestingApp({ active, shell, command }: Props) {
   const [suites, setSuites] = useState<TestSuite[]>(() => cleanSuites(load(SUITES_KEY, [])));
   const [openSuiteId, setOpenSuiteId] = useState<string | null>(() => load(OPEN_SUITE_KEY, null));
-  const [panels, setPanels] = useState<Record<string, SuitePanel>>({});
+  /** The open case of each suite; null means all collapsed. Missing means the first case. */
+  const [openCases, setOpenCases] = useState<Record<string, string | null>>({});
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [latestRun, setLatestRun] = useState<TestRun | null>(null);
   const [environments, setEnvironments] = useState<Environment[]>(() => load(ENVIRONMENTS_KEY, []));
   const [envId, setEnvId] = useState<string | null>(() => load(TEST_ENV_KEY, null));
   const [runs, setRuns] = useState<TestRunSummary[]>([]);
-  const [openRunId, setOpenRunId] = useState<string | null>(null);
+  const [report, setReport] = useState<OpenReport | null>(null);
+  const openRunId = report?.id ?? null;
+  const setOpenRunId = (id: string | null) => setReport(id ? { id } : null);
   const [live, setLive] = useState<LiveRunState | null>(null);
   const [tryingCaseId, setTryingCaseId] = useState<string | null>(null);
   const [tryResults, setTryResults] = useState<Record<string, CaseResult>>({});
@@ -61,8 +81,12 @@ export function TestingApp({ active }: Props) {
   useEffect(() => {
     if (!persistSuites(suites)) setNotice("Could not save suites: local storage is full. Try removing large CSV files from suites.");
   }, [suites]);
-  useEffect(() => save(OPEN_SUITE_KEY, openSuiteId), [openSuiteId]);
-  useEffect(() => save(TEST_ENV_KEY, envId), [envId]);
+  useEffect(() => {
+    save(OPEN_SUITE_KEY, openSuiteId);
+  }, [openSuiteId]);
+  useEffect(() => {
+    save(TEST_ENV_KEY, envId);
+  }, [envId]);
   useEffect(() => {
     if (!notice) return;
     const t = setTimeout(() => setNotice(null), 6000);
@@ -84,7 +108,23 @@ export function TestingApp({ active }: Props) {
   const env = environments.find((e) => e.id === envId) ?? null;
   const envVars = useMemo(() => environmentVars(env), [env]);
   const suite = suites.find((s) => s.id === openSuiteId) ?? null;
-  const panel: SuitePanel = (suite && panels[suite.id]) || (suite?.cases[0] ? { kind: "case", id: suite.cases[0].id } : { kind: "settings" });
+  const openCaseId = suite ? (suite.id in openCases ? openCases[suite.id] : (suite.cases[0]?.id ?? null)) : null;
+  const latestRunId = suite ? (runs.find((r) => r.suiteId === suite.id)?.id ?? null) : null;
+
+  // Load the latest saved run of the open suite, for the Last run panel and Last result values.
+  useEffect(() => {
+    let live = true;
+    if (!latestRunId) {
+      setLatestRun(null);
+      return;
+    }
+    getTestRun(latestRunId)
+      .then((r) => live && setLatestRun(r ?? null))
+      .catch(() => live && setLatestRun(null));
+    return () => {
+      live = false;
+    };
+  }, [latestRunId]);
 
   const updateSuite = (next: TestSuite) => setSuites((list) => list.map((s) => (s.id === next.id ? next : s)));
 
@@ -118,7 +158,8 @@ export function TestingApp({ active }: Props) {
     const startedAt = new Date();
     const all: CaseResult[] = [];
     setLive({ suiteId: s.id, running: true, planned, results: [], startedAt: startedAt.getTime() });
-    setPanels((p) => ({ ...p, [s.id]: { kind: "run" } }));
+    // Fresh run results replace earlier Try case results for this suite's cases.
+    setTryResults((t) => Object.fromEntries(Object.entries(t).filter(([id]) => !s.cases.some((c) => c.id === id))));
 
     const end = await runSuite(snapshot, {
       rows,
@@ -195,89 +236,151 @@ export function TestingApp({ active }: Props) {
     }
   };
 
+  const createSuite = () => {
+    const s = newSuite();
+    setSuites((list) => [...list, s]);
+    setOpenSuiteId(s.id);
+    setOpenRunId(null);
+  };
+
+  const openItem = (item: QuickItem) => {
+    if (item.kind === "suite" || item.kind === "case") {
+      const suiteId = item.kind === "suite" ? item.id : item.parentId;
+      if (!suiteId || !suites.some((x) => x.id === suiteId)) {
+        setNotice("That suite no longer exists.");
+        return;
+      }
+      setOpenSuiteId(suiteId);
+      setOpenRunId(null);
+      if (item.kind === "case") setOpenCases((o) => ({ ...o, [suiteId]: item.id }));
+    } else if (item.kind === "test-run") {
+      setOpenRunId(item.id);
+    }
+  };
+
+  const lastCommand = useRef<number | null>(null);
+  useEffect(() => {
+    if (!command || lastCommand.current === command.nonce) return;
+    lastCommand.current = command.nonce;
+    if (command.type === "open") openItem(command.item);
+  }, [command]);
+
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setSettingsOpen(false);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [settingsOpen]);
+
+  const suiteLive = live && suite && live.suiteId === suite.id ? live : null;
+
   return (
-    <div className="app">
-      <TestingSidebar
-        suites={suites}
-        activeSuiteId={openSuiteId}
-        onOpenSuite={(id) => {
-          setOpenSuiteId(id);
-          setOpenRunId(null);
-        }}
-        onNewSuite={() => {
-          const s = newSuite();
-          setSuites((list) => [...list, s]);
-          setOpenSuiteId(s.id);
-          setOpenRunId(null);
-        }}
-        onExport={() => void exportSuites()}
-        onImport={(f) => void importSuites(f)}
-        runs={runs}
-        activeRunId={openRunId}
-        onOpenRun={setOpenRunId}
-        runningSuiteId={live?.running ? live.suiteId : null}
+    <div className="mode testing-mode">
+      <TopBar
+        mode="testing"
+        onMode={shell.onMode}
+        onQuickOpen={shell.onQuickOpen}
+        searchPlaceholder="Jump to a suite, case or test run…"
+        switcher={suite && openRunId === null ? <span className="topbar-title" title={suite.name}>{suite.name || "(unnamed)"}</span> : undefined}
+        environments={environments}
+        activeEnvId={envId}
+        onEnvChange={setEnvId}
+        envTitle="Environments are edited in Requests mode"
       />
-      {openRunId !== null ? (
-        <main className="workspace">
-          <TestRunExplorer
-            runId={openRunId}
-            onBack={() => setOpenRunId(null)}
-            onDelete={(id) => {
-              void deleteTestRun(id).finally(refreshRuns);
-              setOpenRunId(null);
-            }}
-          />
-        </main>
-      ) : suite ? (
-        <SuiteEditor
-          suite={suite}
-          onChange={updateSuite}
-          onDelete={() => {
-            setSuites((list) => list.filter((s) => s.id !== suite.id));
-            setOpenSuiteId(null);
+      <div className={`runbook ${openRunId !== null ? "with-report" : ""}`}>
+        <TestingSidebar
+          suites={suites}
+          activeSuiteId={openSuiteId}
+          onOpenSuite={(id) => {
+            setOpenSuiteId(id);
+            setOpenRunId(null);
           }}
-          onDuplicate={() => {
-            const copy = { ...structuredClone(suite), id: newId(), name: `${suite.name} copy` };
-            setSuites((list) => [...list, copy]);
-            setOpenSuiteId(copy.id);
-          }}
-          panel={panel}
-          onPanel={(p) => setPanels((all) => ({ ...all, [suite.id]: p }))}
-          environments={environments}
-          envId={envId}
-          onEnvChange={setEnvId}
-          envVarNames={Object.keys(envVars)}
-          live={live}
-          anyRunning={!!live?.running}
-          onRun={() => void run(suite)}
-          onStop={() => abortRef.current?.abort()}
-          onOpenReport={setOpenRunId}
-          onTryCase={(tc) => void tryCase(suite, tc)}
-          tryingCaseId={tryingCaseId}
-          tryResults={tryResults}
-          notice={notice}
+          onNewSuite={createSuite}
+          onExport={() => void exportSuites()}
+          onImport={(f) => void importSuites(f)}
+          runs={runs}
+          activeRunId={openRunId}
+          onOpenRun={setOpenRunId}
+          runningSuiteId={live?.running ? live.suiteId : null}
         />
-      ) : (
-        <main className="workspace testing-empty">
-          <div>
-            <h2>Testing</h2>
-            <p className="muted">
-              Build suites of test cases from your saved requests, add assertions and scripts, and run them in order, in parallel, or once per CSV row.
-            </p>
-            {notice && <p className="small notice">{notice}</p>}
-            <button
-              className="send"
-              onClick={() => {
-                const s = newSuite();
-                setSuites((list) => [...list, s]);
-                setOpenSuiteId(s.id);
+        {report !== null ? (
+          <main className="workspace full-view">
+            <TestRunExplorer
+              runId={report.id}
+              initialCaseId={report.caseId}
+              initialIndex={report.index}
+              onBack={() => setOpenRunId(null)}
+              onDelete={(id) => {
+                void deleteTestRun(id).finally(refreshRuns);
+                setOpenRunId(null);
               }}
-            >
-              Create a test suite
-            </button>
-          </div>
-        </main>
-      )}
+            />
+          </main>
+        ) : suite ? (
+          <>
+            <SuiteEditor
+              suite={suite}
+              onChange={updateSuite}
+              onDelete={() => {
+                setSuites((list) => list.filter((s) => s.id !== suite.id));
+                setOpenSuiteId(null);
+              }}
+              onDuplicate={() => {
+                const copy = { ...structuredClone(suite), id: newId(), name: `${suite.name} copy` };
+                setSuites((list) => [...list, copy]);
+                setOpenSuiteId(copy.id);
+              }}
+              openCaseId={openCaseId}
+              onOpenCase={(id) => setOpenCases((o) => ({ ...o, [suite.id]: id }))}
+              onOpenSettings={() => setSettingsOpen(true)}
+              running={!!suiteLive?.running}
+              anyRunning={!!live?.running}
+              onRun={() => void run(suite)}
+              onStop={() => abortRef.current?.abort()}
+              onTryCase={(tc) => void tryCase(suite, tc)}
+              tryingCaseId={tryingCaseId}
+              tryResults={tryResults}
+              latestRun={latestRun && latestRun.suiteId === suite.id ? latestRun : null}
+              envVars={envVars}
+              envName={env?.name}
+              notice={notice}
+            />
+            <LastRunPanel
+              live={suiteLive}
+              run={latestRun && latestRun.suiteId === suite.id ? latestRun : null}
+              onOpenReport={(id, caseId, index) => setReport({ id, caseId, index })}
+            />
+            {settingsOpen && (
+              <div className="sheet-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setSettingsOpen(false)}>
+                <div className="sheet" role="dialog" aria-label="Run settings and data">
+                  <div className="modal-head">
+                    <h3>Run settings &amp; data</h3>
+                    <button className="icon-btn" onClick={() => setSettingsOpen(false)} aria-label="Close">
+                      ×
+                    </button>
+                  </div>
+                  <div className="sheet-body">
+                    <SuiteSettings suite={suite} onChange={updateSuite} envVarNames={Object.keys(envVars)} />
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
+        ) : (
+          <main className="suite-doc testing-empty">
+            <div>
+              <h2>Testing</h2>
+              <p className="muted">
+                Build suites of test cases from your saved requests, add assertions and scripts, and run them in order, in parallel, or once per CSV row.
+              </p>
+              {notice && <p className="small notice">{notice}</p>}
+              <button className="send" onClick={createSuite}>
+                Create a test suite
+              </button>
+            </div>
+          </main>
+        )}
+      </div>
     </div>
   );
 }

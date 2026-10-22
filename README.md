@@ -1,6 +1,6 @@
 # REST Runner
 
-A lightweight desktop app for running REST requests, and (soon) batches of them driven by CSV files. The layout follows Postman: a request editor on top, the response below, and history on the left.
+A lightweight desktop app for running REST requests, and (soon) batches of them driven by CSV files. The Requests screen puts the request on the left and the response on the right, with one top bar for switching requests, environments and modes.
 
 Runs on macOS and Windows from one codebase, built with [Tauri 2](https://tauri.app), React and TypeScript.
 
@@ -23,24 +23,26 @@ Runs on macOS and Windows from one codebase, built with [Tauri 2](https://tauri.
 - GitHub dark theme, with JetBrains Mono for all code (font files live in `src/assets/fonts`, so it works offline and needs no package)
 - Auth: bearer token, basic auth, or API key (header or query)
 - Response viewer: status, time, size, pretty or raw body, headers, and the exact request that was sent
-- Collections in the sidebar with nested folders (Save button or Ctrl/Cmd + S), with an unsaved-changes marker. Right-click or use the ⋯ button to add, rename, duplicate, move or delete. Requests saved before collections existed are moved into a "My requests" collection automatically
+- Collections with nested folders, opened from the request switcher in the top bar (Save button or Ctrl/Cmd + S), with an unsaved-changes dot. Right-click or use the ⋯ button to add, rename, duplicate, move or delete. Click the request name in the switcher, or press F2, to rename it. Requests saved before collections existed are moved into a "My requests" collection automatically
 - Examples: each saved request can keep any number of named sample payloads (Save as example), optionally with the response they got
-- Environments: named sets of variables such as `baseUrl` and `token`, picked at the top right
+- Environments: named sets of variables such as `baseUrl` and `token`, picked from the switch in the top bar. The line under the URL shows the final URL with environment values and query params filled in
+- Params, Auth, Headers and Body are collapsible sections; closed, each shows a one-line summary. Open sections and the width of the two columns (drag the divider) are remembered
+- Quick open (Ctrl/Cmd + K): fuzzy search over requests, examples, history, batch runs, suites, test cases and test runs
 - Export and import collections (with folders and examples) and environments as one JSON file (older export files still import), to back up or move between computers
-- History of the last 50 requests; your current request is kept between launches
+- History of the last 50 requests, in quick open and in the **Earlier sends of this request** strip under the response (click one to see that response again); your current request is kept between launches
 - Send with the button, Enter in the URL box, or Ctrl/Cmd + Enter
 - Requests are sent from the Rust side, so browser CORS rules do not apply
 
 ## Environments
 
-Click **Environments** at the top right to add sets of variables, for example Dev and Prod, each with its own `baseUrl` and `token`. Pick one from the list next to it, and `{{baseUrl}}` or `{{token}}` anywhere in a request is filled from it. This works for single requests and batch runs. In a batch run, a CSV column with the same name takes priority over the environment.
+Click the pencil next to the environment switch in the top bar to add sets of variables, for example Dev and Prod, each with its own `baseUrl` and `token`. Pick one on the switch, and `{{baseUrl}}` or `{{token}}` anywhere in a request is filled from it. This works for single requests and batch runs. In a batch run, a CSV column with the same name takes priority over the environment.
 
 Environment values are stored on this computer only, in the app's local storage. They are included in exports, so treat an export file that holds tokens like a password.
 
 ## Batch runs from a CSV
 
 1. Write the request with `{{column name}}` placeholders anywhere: URL, params, headers, body, form fields or auth.
-2. Open the **Batch run (CSV)** tab under the request and choose a CSV file. The first line must be the column names. Comma, semicolon, tab and pipe separators are detected automatically.
+2. Click **Run with CSV…** under the request (the response column turns into the batch view; switch back with **Response**) and choose a CSV file. The first line must be the column names. Comma, semicolon, tab and pipe separators are detected automatically.
 3. Check the placeholder list: green ones are filled from the CSV, blue ones from the selected environment, and red ones have no value and are sent as written.
 4. Click **Preview** to see the first three requests exactly as they will be sent, then **Run**.
 
@@ -57,7 +59,7 @@ Results appear as they come in. Click a row to see its full request and response
 
 ## Run explorer and reports
 
-Every batch run is saved when it finishes (the last 30 runs are kept) and listed under **Batch runs** in the sidebar. Opening one shows:
+Every batch run is saved when it finishes (the last 30 runs are kept) and can be opened from quick open or from the **Earlier sends** strip of its request. Opening one shows:
 
 - Totals: sent, passed, failed, total time, average and 95th percentile response time
 - Status code counts; click one to filter the list to that code
@@ -74,7 +76,7 @@ Response bodies over 1 MB are cut to 1 MB when a run is saved, and the call's no
 
 ## Testing
 
-Switch to **Testing** in the narrow bar on the far left. A **test suite** is an ordered list of **test cases**; a case is a request plus checks.
+Switch to **Testing** at the top right. Suites and test runs are listed on the left, the open suite reads as a runbook in the middle (one step per case, with a pass/fail disc), and the latest run is summarized on the right. A **test suite** is an ordered list of **test cases**; a case is a request plus checks.
 
 - **Add cases** from your saved requests (each case gets its own copy, and **Update from saved request** pulls in later changes) or start a blank one. Reorder with the arrows, untick a case to skip it, or duplicate it.
 - **Assertions** are a no-code table: status code (exact, or a class like `2xx`), response time, response size, a header, the body text, or a JSON path such as `$.data[0].id` or `$.items.length`. Conditions include equals, contains, less/greater than, exists, matches regex and is of type. Expected values can use `{{variables}}`.
@@ -83,7 +85,9 @@ Switch to **Testing** in the narrow bar on the far left. A **test suite** is an 
   - `rr.vars.set("token", rr.response.json().token)` passes a value to later cases, which use it as `{{token}}`. `rr.vars.get(name)` reads run variables, then the CSV row, then the environment.
   - `rr.response` has `status`, `time`, `size`, `body`, `json()`, `header(name)`; `rr.data` is the CSV row; `console.log` output is kept with the result.
   - Scripts run in a background worker and are stopped after the suite's time limit (5 s by default), so a bad loop cannot freeze the app. Snippets next to the editor insert common checks.
-- **Try case** sends one case on its own and shows its checks, without running the whole suite.
+- **Try case** sends one case on its own and shows its checks, without running the whole suite. The assertions table's **Last result** column shows each check's outcome and the value seen, from the last Try case or else the latest run.
+- **Passes on:** when a post-response script calls `rr.vars.set("name", …)`, the case shows which variables it hands to later cases, with the last value set.
+- **Edit request** opens the case's request in the same editor as the Requests screen.
 
 **Run settings & data** sets how the suite runs:
 
@@ -95,7 +99,7 @@ Switch to **Testing** in the narrow bar on the far left. A **test suite** is an 
 
 A case passes when every check passes: its enabled assertions, every `rr.test`, both scripts finishing without an error, and a response arriving.
 
-Finished runs are saved (the last 50) under **Test runs**. The report shows cases and checks passed, timing, a per-case table (click a case to filter), the run log, and every result with its checks, notes, variables, request, response and script output. **Export HTML report** and **Export CSV report** work like the batch reports, with one line or section per case per iteration. Suites can be exported and imported as a JSON file from the sidebar.
+Finished runs are saved (the last 50) under **Test runs**. The report shows cases and checks passed, timing, a per-case table (click a case to filter), the run log, and every result with its checks, notes, variables, request, response and script output. **Export HTML report** and **Export CSV report** work like the batch reports, with one line or section per case per iteration. Suites can be exported and imported as a JSON file from the Suites list.
 
 ## Getting the app
 

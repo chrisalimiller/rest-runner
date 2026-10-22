@@ -58,4 +58,10 @@ export interface HistoryEntry {
   status: number | null;
   sentAt: string;
   def: RequestDef;
+  /** Added later; older entries don't have these. */
+  durationMs?: number;
+  /** The response, with its body cut to a size local storage can hold. */
+  response?: ResponseResult;
+  /** Why no response came back. */
+  error?: string;
 }

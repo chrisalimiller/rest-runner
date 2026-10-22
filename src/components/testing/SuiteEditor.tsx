@@ -1,44 +1,61 @@
-import { useState } from "react";
-import type { Environment } from "../../lib/environments";
-import { duplicateCase, newTestCase } from "../../lib/testing/suites";
+import { useMemo, useState } from "react";
+import { parseCsv } from "../../lib/csv";
+import type { Vars } from "../../lib/template";
+import { checkCounts, failureLine, latestCaseResult } from "../../lib/testing/caseStatus";
 import { listPickableRequests } from "../../lib/testing/requestSources";
-import type { CaseResult, TestCase, TestSuite } from "../../lib/testing/types";
+import { duplicateCase, newTestCase } from "../../lib/testing/suites";
+import type { TestRun } from "../../lib/testing/testRun";
+import type { CaseResult, RunMode, TestCase, TestSuite } from "../../lib/testing/types";
+import { detectVarSets } from "../../lib/testing/varsDetect";
+import { WithPlaceholders } from "../request/RequestEditor";
+import { CheckIcon, CrossIcon, PlayFilledIcon, SlidersIcon } from "../shell/Icons";
 import { CaseEditor } from "./CaseEditor";
-import { LiveRun, type LiveRunState } from "./LiveRun";
 import { RequestPicker } from "./RequestPicker";
-import { SuiteSettings } from "./SuiteSettings";
 
-/** What the right-hand side shows: a case, the run settings, or the current run. */
-export type SuitePanel = { kind: "settings" } | { kind: "case"; id: string } | { kind: "run" };
+const MODE_LABELS: Record<RunMode, string> = {
+  sequential: "Sequential",
+  "parallel-iterations": "Iterations in parallel",
+  "parallel-cases": "Cases in parallel",
+};
 
 interface Props {
   suite: TestSuite;
   onChange: (suite: TestSuite) => void;
   onDelete: () => void;
   onDuplicate: () => void;
-  panel: SuitePanel;
-  onPanel: (p: SuitePanel) => void;
-  environments: Environment[];
-  envId: string | null;
-  onEnvChange: (id: string | null) => void;
-  envVarNames: string[];
-  live: LiveRunState | null;
+  openCaseId: string | null;
+  onOpenCase: (id: string | null) => void;
+  onOpenSettings: () => void;
+  running: boolean;
   /** True while any suite is running (only one runs at a time). */
   anyRunning: boolean;
   onRun: () => void;
   onStop: () => void;
-  onOpenReport: (runId: string) => void;
   onTryCase: (tc: TestCase) => void;
   tryingCaseId: string | null;
   tryResults: Record<string, CaseResult>;
+  latestRun: TestRun | null;
+  envVars: Vars;
+  envName?: string;
   notice: string | null;
 }
 
+/** A case's path for the collapsed card: the URL without its {{baseUrl}} or host. */
+function shortPath(url: string): string {
+  const path = url.replace(/^\s*\{\{[^{}]+\}\}/, "").replace(/^https?:\/\/[^/]+/i, "");
+  return path || url;
+}
+
+type Disc = "passed" | "failed" | "skipped" | "running" | "none";
+
+/** The suite as a runbook: a header with run controls, then every case as a step on a timeline. */
 export function SuiteEditor(props: Props) {
-  const { suite, onChange, panel, onPanel, live } = props;
+  const { suite, onChange, openCaseId, onOpenCase } = props;
   const [picking, setPicking] = useState(false);
-  const running = live?.suiteId === suite.id && live.running;
   const enabledCount = suite.cases.filter((c) => c.enabled).length;
+  const rows = useMemo(() => (suite.data ? parseCsv(suite.data.text).rows.length : 0), [suite.data]);
+  // Re-read saved requests when a different case opens, to pick up edits made in Requests mode.
+  const sources = useMemo(() => listPickableRequests(), [openCaseId]);
 
   const setCases = (cases: TestCase[]) => onChange({ ...suite, cases });
   const updateCase = (tc: TestCase) => setCases(suite.cases.map((c) => (c.id === tc.id ? tc : c)));
@@ -53,159 +70,138 @@ export function SuiteEditor(props: Props) {
   const addCases = (list: TestCase[]) => {
     if (!list.length) return;
     setCases([...suite.cases, ...list]);
-    onPanel({ kind: "case", id: list[0].id });
+    onOpenCase(list[0].id);
   };
 
-  const selectedCase = panel.kind === "case" ? suite.cases.find((c) => c.id === panel.id) : undefined;
-  const sources = selectedCase?.sourceRequestId ? listPickableRequests().find((r) => r.id === selectedCase.sourceRequestId) : undefined;
+  const summary = [
+    `${suite.cases.length} case${suite.cases.length === 1 ? "" : "s"} (${enabledCount} on)`,
+    MODE_LABELS[suite.options.mode],
+    suite.data ? `${suite.data.name}, ${rows} row${rows === 1 ? "" : "s"}` : "no CSV",
+    suite.options.repeat > 1 ? `repeat ${suite.options.repeat}×` : null,
+    `${suite.options.scriptTimeoutMs / 1000} s script limit`,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
-    <main className="workspace suite-workspace">
-      <div className="workspace-head">
-        <input className="request-name" value={suite.name} onChange={(e) => onChange({ ...suite, name: e.target.value })} aria-label="Suite name" />
-        {props.notice && <span className="small notice">{props.notice}</span>}
-        <span className="env-picker">
-          <select value={props.envId ?? ""} onChange={(e) => props.onEnvChange(e.target.value || null)} aria-label="Environment" title="Environments are edited in the Requests section">
-            <option value="">No environment</option>
-            {props.environments.map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.name || "(unnamed)"}
-              </option>
-            ))}
-          </select>
-          {running ? (
-            <button className="send cancel" onClick={props.onStop}>
-              Stop
-            </button>
-          ) : (
-            <button
-              className="send"
-              onClick={props.onRun}
-              disabled={enabledCount === 0 || props.anyRunning}
-              title={props.anyRunning ? "Another suite is running" : enabledCount === 0 ? "Add or enable a test case first" : "Run every enabled case"}
-            >
-              Run suite
-            </button>
-          )}
-        </span>
-      </div>
-      <input
-        className="suite-description"
-        value={suite.description}
-        onChange={(e) => onChange({ ...suite, description: e.target.value })}
-        placeholder="Description (optional)"
-        aria-label="Suite description"
-      />
-
-      <div className="suite-body">
-        <div className="case-list">
-          <button className={`case-list-item special ${panel.kind === "settings" ? "active" : ""}`} onClick={() => onPanel({ kind: "settings" })}>
-            ⚙ Run settings &amp; data
-            <span className="muted small">{suite.data ? suite.data.name : "no CSV"}</span>
+    <main className="suite-doc" aria-label="Suite">
+      <div className="suite-head">
+        <div className="suite-title">
+          <input className="suite-name" value={suite.name} onChange={(e) => onChange({ ...suite, name: e.target.value })} aria-label="Suite name" />
+          <span className="muted small">{summary}</span>
+          <input
+            className="suite-description"
+            value={suite.description}
+            onChange={(e) => onChange({ ...suite, description: e.target.value })}
+            placeholder="Add a description"
+            aria-label="Suite description"
+          />
+        </div>
+        <span className="flex-gap" />
+        {props.notice && (
+          <span className="small notice" role="status">
+            {props.notice}
+          </span>
+        )}
+        <button className="secondary icon-label" onClick={props.onOpenSettings}>
+          <SlidersIcon />
+          Run settings &amp; data
+        </button>
+        {props.running ? (
+          <button className="send cancel icon-label" onClick={props.onStop}>
+            Stop
           </button>
-          {live?.suiteId === suite.id && (
-            <button className={`case-list-item special ${panel.kind === "run" ? "active" : ""}`} onClick={() => onPanel({ kind: "run" })}>
-              {running ? "● Running…" : "▶ Last run"}
-              <span className="muted small">
-                {live.results.length}/{live.planned}
-              </span>
-            </button>
-          )}
-          <div className="sidebar-title case-list-title">
-            <span>Cases ({suite.cases.length})</span>
-          </div>
-          <ol className="cases">
-            {suite.cases.map((c, i) => {
-              const tried = props.tryResults[c.id];
-              return (
-                <li key={c.id} className={`${panel.kind === "case" && panel.id === c.id ? "active" : ""} ${c.enabled ? "" : "disabled"}`}>
-                  <input type="checkbox" checked={c.enabled} onChange={(e) => updateCase({ ...c, enabled: e.target.checked })} title="Include in runs" aria-label={`Include ${c.name}`} />
-                  <button className="case-pick" onClick={() => onPanel({ kind: "case", id: c.id })} title={c.request.url}>
-                    <span className="case-num muted">{i + 1}</span>
-                    <span className={`method m-${c.request.method.toLowerCase()}`}>{c.request.method}</span>
-                    <span className="history-url">{c.name}</span>
-                    {tried && <span className={`status ${tried.passed ? "ok" : "bad"}`}>{tried.passed ? "✓" : "✕"}</span>}
-                  </button>
-                  <span className="case-actions">
-                    <button className="icon-btn" onClick={() => move(i, -1)} disabled={i === 0} title="Move up" aria-label="Move up">
-                      ↑
-                    </button>
-                    <button className="icon-btn" onClick={() => move(i, 1)} disabled={i === suite.cases.length - 1} title="Move down" aria-label="Move down">
-                      ↓
-                    </button>
-                    <button
-                      className="icon-btn"
-                      onClick={() => {
+        ) : (
+          <button
+            className="send icon-label"
+            onClick={props.onRun}
+            disabled={enabledCount === 0 || props.anyRunning}
+            title={props.anyRunning ? "Another suite is running" : enabledCount === 0 ? "Add or enable a test case first" : "Run every enabled case"}
+          >
+            <PlayFilledIcon />
+            Run suite
+          </button>
+        )}
+      </div>
+
+      <div className="suite-steps">
+        <div className="suite-steps-inner">
+          {suite.cases.length === 0 && <p className="muted pad">No cases yet. Add saved requests, or start a blank case.</p>}
+          {suite.cases.map((c, i) => {
+            const latest = latestCaseResult(c.id, props.tryResults[c.id], props.latestRun);
+            const disc: Disc = !c.enabled ? "skipped" : props.running ? "running" : latest ? (latest.passed ? "passed" : "failed") : "none";
+            const open = openCaseId === c.id;
+            const source = c.sourceRequestId ? sources.find((r) => r.id === c.sourceRequestId) : undefined;
+            return (
+              <section key={c.id} className="step" aria-label={`Case ${i + 1}: ${c.name}`}>
+                <div className="step-rail">
+                  <StatusDisc disc={disc} n={i + 1} />
+                  <span className="step-line" />
+                </div>
+                <div className="step-body">
+                  {open ? (
+                    <CaseEditor
+                      key={c.id}
+                      testCase={c}
+                      index={i}
+                      count={suite.cases.length}
+                      onChange={updateCase}
+                      onMove={(by) => move(i, by)}
+                      onDuplicate={() => {
                         const copy = duplicateCase(c);
                         const cases = [...suite.cases];
                         cases.splice(i + 1, 0, copy);
                         setCases(cases);
-                        onPanel({ kind: "case", id: copy.id });
+                        onOpenCase(copy.id);
                       }}
-                      title="Duplicate"
-                      aria-label="Duplicate"
-                    >
-                      ⧉
-                    </button>
-                    <button
-                      className="icon-btn"
-                      onClick={() => {
+                      onDelete={() => {
                         if (!window.confirm(`Delete the test case "${c.name}"?`)) return;
                         setCases(suite.cases.filter((x) => x.id !== c.id));
-                        if (panel.kind === "case" && panel.id === c.id) onPanel({ kind: "settings" });
+                        onOpenCase(null);
                       }}
-                      title="Delete"
-                      aria-label="Delete"
-                    >
-                      ×
-                    </button>
-                  </span>
-                </li>
-              );
-            })}
-          </ol>
-          {suite.cases.length === 0 && <p className="muted small pad">No cases yet. Add saved requests, or start a blank case.</p>}
-          <div className="case-add">
-            <button className="secondary" onClick={() => setPicking(true)}>
-              + From saved requests
-            </button>
-            <button className="link-btn" onClick={() => addCases([newTestCase()])}>
-              + Blank case
-            </button>
-          </div>
-          <div className="case-list-foot">
-            <button className="link-btn" onClick={props.onDuplicate}>
-              Duplicate suite
-            </button>
-            <button
-              className="link-btn danger-link"
-              onClick={() => {
-                if (window.confirm(`Delete the suite "${suite.name}" and its ${suite.cases.length} cases? Saved test runs are kept.`)) props.onDelete();
-              }}
-            >
-              Delete suite
-            </button>
-          </div>
-        </div>
+                      onCollapse={() => onOpenCase(null)}
+                      onTry={() => props.onTryCase(c)}
+                      trying={props.tryingCaseId === c.id}
+                      tryResult={props.tryResults[c.id] ?? null}
+                      latest={latest}
+                      sourceName={source?.path.join(" › ")}
+                      onRefreshFromSource={source ? () => updateCase({ ...c, request: { ...structuredClone(source.request), id: c.request.id } }) : undefined}
+                      envVars={props.envVars}
+                      envName={props.envName}
+                    />
+                  ) : (
+                    <CaseSummary testCase={c} latest={latest} onOpen={() => onOpenCase(c.id)} onToggle={(enabled) => updateCase({ ...c, enabled })} />
+                  )}
+                </div>
+              </section>
+            );
+          })}
 
-        <div className="suite-panel">
-          {panel.kind === "settings" && <SuiteSettings suite={suite} onChange={onChange} envVarNames={props.envVarNames} />}
-          {panel.kind === "case" && selectedCase && (
-            <CaseEditor
-              key={selectedCase.id}
-              testCase={selectedCase}
-              onChange={updateCase}
-              onTry={() => props.onTryCase(selectedCase)}
-              trying={props.tryingCaseId === selectedCase.id}
-              tryResult={props.tryResults[selectedCase.id] ?? null}
-              sourceName={sources?.path.join(" › ")}
-              onRefreshFromSource={
-                sources ? () => updateCase({ ...selectedCase, request: { ...structuredClone(sources.request), id: selectedCase.request.id } }) : undefined
-              }
-            />
-          )}
-          {panel.kind === "case" && !selectedCase && <p className="muted pad">This case no longer exists.</p>}
-          {panel.kind === "run" && live?.suiteId === suite.id && <LiveRun live={live} onOpenReport={props.onOpenReport} />}
+          <div className="step add-step">
+            <div className="step-rail">
+              <span className="disc dashed" aria-hidden />
+            </div>
+            <div className="step-body add-buttons">
+              <button className="dashed-btn" onClick={() => setPicking(true)}>
+                + From saved request
+              </button>
+              <button className="dashed-btn" onClick={() => addCases([newTestCase()])}>
+                + Blank case
+              </button>
+              <span className="flex-gap" />
+              <button className="link-btn small" onClick={props.onDuplicate}>
+                Duplicate suite
+              </button>
+              <button
+                className="link-btn small danger-link"
+                onClick={() => {
+                  if (window.confirm(`Delete the suite "${suite.name}" and its ${suite.cases.length} cases? Saved test runs are kept.`)) props.onDelete();
+                }}
+              >
+                Delete suite
+              </button>
+            </div>
+          </div>
         </div>
       </div>
       {picking && (
@@ -218,5 +214,78 @@ export function SuiteEditor(props: Props) {
         />
       )}
     </main>
+  );
+}
+
+function StatusDisc({ disc, n }: { disc: Disc; n: number }) {
+  if (disc === "passed")
+    return (
+      <span className="disc passed" title="Passed">
+        <CheckIcon />
+        <span className="visually-hidden">Passed</span>
+      </span>
+    );
+  if (disc === "failed")
+    return (
+      <span className="disc failed" title="Failed">
+        <CrossIcon />
+        <span className="visually-hidden">Failed</span>
+      </span>
+    );
+  if (disc === "running")
+    return (
+      <span className="disc running" title="Running">
+        <span className="spinner" aria-hidden />
+        <span className="visually-hidden">Running</span>
+      </span>
+    );
+  return (
+    <span className={`disc ${disc === "skipped" ? "skipped" : "idle"}`} title={disc === "skipped" ? "Skipped" : "Not run yet"}>
+      {n}
+    </span>
+  );
+}
+
+/** A closed case: one line with its checkbox, name, method, path, checks and the variables it sets. */
+function CaseSummary({ testCase: c, latest, onOpen, onToggle }: { testCase: TestCase; latest: CaseResult | null; onOpen: () => void; onToggle: (enabled: boolean) => void }) {
+  const counts = latest ? checkCounts(latest) : null;
+  const sets = latest?.passed ? detectVarSets(c.postScript) : [];
+  const failed = c.enabled && latest && !latest.passed;
+  return (
+    <div className={`case-card ${failed ? "failed" : ""} ${c.enabled ? "" : "skipped"}`}>
+      <div className="case-card-head">
+        <input type="checkbox" checked={c.enabled} onChange={(e) => onToggle(e.target.checked)} aria-label={`Include ${c.name}`} title="Include in runs" />
+        <button className="case-open" onClick={onOpen} title={`Open ${c.name}`}>
+          <span className="case-name">{c.name}</span>
+          <span className={`method m-${c.request.method.toLowerCase()}`}>{c.request.method}</span>
+          <span className="case-path mono">
+            <WithPlaceholders text={shortPath(c.request.url)} />
+          </span>
+          <span className="flex-gap" />
+          {!c.enabled ? (
+            <span className="small muted">Skipped</span>
+          ) : (
+            <>
+              {counts && counts.total > 0 && (
+                <span className={`small ${latest?.passed ? "tone-ok" : "tone-bad"}`}>
+                  {counts.passed}/{counts.total} checks
+                </span>
+              )}
+              {sets.length > 0 && (
+                <>
+                  <span className="small muted">sets</span>
+                  {sets.map((v) => (
+                    <span key={v.name} className="var-chip mono">
+                      {v.name}
+                    </span>
+                  ))}
+                </>
+              )}
+            </>
+          )}
+        </button>
+      </div>
+      {failed && latest && <div className="case-failure mono">{failureLine(latest)}</div>}
+    </div>
   );
 }

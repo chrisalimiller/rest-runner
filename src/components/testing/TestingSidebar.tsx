@@ -1,3 +1,4 @@
+import { whenLabel } from "../../lib/earlierSends";
 import type { TestRunSummary } from "../../lib/testing/testRun";
 import type { TestSuite } from "../../lib/testing/types";
 
@@ -14,74 +15,109 @@ interface Props {
   runningSuiteId: string | null;
 }
 
-function when(iso: string): string {
-  const d = new Date(iso);
-  const sameDay = d.toDateString() === new Date().toDateString();
-  return sameDay ? d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : d.toLocaleDateString();
-}
-
+/** Suites and test runs on the left of Testing. Below 800px wide it turns into a select at the top. */
 export function TestingSidebar({ suites, activeSuiteId, onOpenSuite, onNewSuite, onExport, onImport, runs, activeRunId, onOpenRun, runningSuiteId }: Props) {
+  const importLink = (
+    <label className="link-btn" title="Import test suites from a file">
+      Import
+      <input
+        type="file"
+        accept=".json,application/json"
+        hidden
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onImport(f);
+          e.target.value = "";
+        }}
+      />
+    </label>
+  );
+
   return (
-    <aside className="sidebar">
-      <div className="brand">REST Runner</div>
-      <button className="primary-outline" onClick={onNewSuite}>
-        + New test suite
-      </button>
-      <div className="sidebar-section">
-        <div className="sidebar-title">
-          <span>Test suites</span>
-          <span className="sidebar-actions">
-            <label className="link-btn" title="Import test suites from a file">
-              Import
-              <input
-                type="file"
-                accept=".json,application/json"
-                hidden
-                onChange={(e) => {
-                  const f = e.target.files?.[0];
-                  if (f) onImport(f);
-                  e.target.value = "";
-                }}
-              />
-            </label>
-            <button className="link-btn" onClick={onExport} disabled={suites.length === 0} title="Export all test suites to a file">
-              Export
-            </button>
-          </span>
-        </div>
-        {suites.length === 0 && <p className="muted small">A suite is an ordered list of test cases you run together.</p>}
-        <ul className="history saved">
+    <>
+      <div className="runbook-nav-compact">
+        <select
+          value={activeRunId ? `run:${activeRunId}` : activeSuiteId ? `suite:${activeSuiteId}` : ""}
+          onChange={(e) => {
+            const [kind, id] = e.target.value.split(":");
+            if (kind === "suite") onOpenSuite(id);
+            if (kind === "run") onOpenRun(id);
+          }}
+          aria-label="Suite or test run"
+        >
+          {!activeSuiteId && !activeRunId && <option value="">Pick a suite…</option>}
+          <optgroup label="Suites">
+            {suites.map((s) => (
+              <option key={s.id} value={`suite:${s.id}`}>
+                {s.name || "(unnamed)"} ({s.cases.length})
+              </option>
+            ))}
+          </optgroup>
+          {runs.length > 0 && (
+            <optgroup label="Test runs">
+              {runs.map((r) => (
+                <option key={r.id} value={`run:${r.id}`}>
+                  {r.suiteName} · {whenLabel(r.startedAt)} · {r.passed} passed{r.failed ? `, ${r.failed} failed` : ""}
+                </option>
+              ))}
+            </optgroup>
+          )}
+        </select>
+        <button className="link-btn small" onClick={onNewSuite}>
+          New
+        </button>
+        {importLink}
+      </div>
+
+      <nav className="runbook-nav" aria-label="Suites and test runs">
+        <div className="nav-group">
+          <div className="nav-group-head">
+            <span className="section-title">Suites</span>
+            <span className="sidebar-actions">
+              <button className="link-btn" onClick={onNewSuite} title="Add a test suite">
+                New
+              </button>
+              {importLink}
+              <button className="link-btn" onClick={onExport} disabled={suites.length === 0} title="Export all test suites to a file">
+                Export
+              </button>
+            </span>
+          </div>
+          {suites.length === 0 && <p className="muted small nav-empty">A suite is an ordered list of test cases you run together.</p>}
           {suites.map((s) => (
-            <li key={s.id}>
-              <button className={activeSuiteId === s.id && activeRunId === null ? "active" : ""} onClick={() => onOpenSuite(s.id)} title={s.description || s.name}>
-                <span className="suite-icon">{runningSuiteId === s.id ? "●" : "▤"}</span>
-                <span className="history-url">{s.name || "(unnamed)"}</span>
-                <span className="muted small">{s.cases.length}</span>
-              </button>
-            </li>
+            <button
+              key={s.id}
+              className={`nav-row ${activeSuiteId === s.id && activeRunId === null ? "active" : ""}`}
+              aria-current={activeSuiteId === s.id && activeRunId === null ? "page" : undefined}
+              onClick={() => onOpenSuite(s.id)}
+              title={s.description || s.name}
+            >
+              {runningSuiteId === s.id && <span className="pulse-dot" aria-label="Running" />}
+              <span className="nav-row-name">{s.name || "(unnamed)"}</span>
+              <span className="nav-row-count">{s.cases.length}</span>
+            </button>
           ))}
-        </ul>
-      </div>
-      <div className="sidebar-section">
-        <div className="sidebar-title">
-          <span>Test runs</span>
         </div>
-        {runs.length === 0 && <p className="muted small">Finished test runs show up here.</p>}
-        <ul className="history runs">
+        <div className="nav-group">
+          <div className="nav-group-head">
+            <span className="section-title">Test runs</span>
+          </div>
+          {runs.length === 0 && <p className="muted small nav-empty">Finished test runs show up here.</p>}
           {runs.map((r) => (
-            <li key={r.id}>
-              <button className={activeRunId === r.id ? "active" : ""} onClick={() => onOpenRun(r.id)} title={`${r.suiteName}${r.csvName ? `\n${r.csvName}` : ""}`}>
-                <span className="run-name">{r.suiteName}</span>
-                <span className="run-meta">
-                  <span className="muted">{when(r.startedAt)}</span>
-                  <span className="status ok">{r.passed}</span>
-                  {r.failed > 0 && <span className="status bad">{r.failed}✕</span>}
-                </span>
-              </button>
-            </li>
+            <button
+              key={r.id}
+              className={`nav-row run-row ${activeRunId === r.id ? "active" : ""}`}
+              onClick={() => onOpenRun(r.id)}
+              title={`${r.suiteName}${r.csvName ? `\n${r.csvName}` : ""}`}
+            >
+              <span className="nav-row-name">{r.suiteName}</span>
+              <span className="muted">{whenLabel(r.startedAt)}</span>
+              <span className="mono tone-ok">{r.passed}</span>
+              {r.failed > 0 && <span className="mono tone-bad">{r.failed}✕</span>}
+            </button>
           ))}
-        </ul>
-      </div>
-    </aside>
+        </div>
+      </nav>
+    </>
   );
 }

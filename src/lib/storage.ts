@@ -8,10 +8,12 @@ export function load<T>(key: string, fallback: T): T {
   }
 }
 
-export function save(key: string, value: unknown): void {
+/** Returns false when storage refused the value (for example when it is full). */
+export function save(key: string, value: unknown): boolean {
   try {
     localStorage.setItem(key, JSON.stringify(value));
+    return true;
   } catch {
-    // ignore
+    return false;
   }
 }
