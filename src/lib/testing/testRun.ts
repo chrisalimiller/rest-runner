@@ -158,3 +158,21 @@ export function testRunSummary(run: TestRun): TestRunSummary {
   const { suite: _s, columns: _c, log: _l, results: _r, ...summary } = run;
   return summary;
 }
+
+export interface TestRunTimes {
+  wallMs: number;
+  avgMs: number;
+  p95Ms: number;
+  maxMs: number;
+}
+
+export function testRunTimes(run: TestRun): TestRunTimes {
+  const sorted = run.results.filter((r) => r.outcome).map(requestMs).sort((a, b) => a - b);
+  const p95 = sorted.length ? sorted[Math.min(sorted.length - 1, Math.max(0, Math.ceil(0.95 * sorted.length) - 1))] : 0;
+  return {
+    wallMs: Math.max(0, Date.parse(run.finishedAt) - Date.parse(run.startedAt)),
+    avgMs: sorted.length ? Math.round(sorted.reduce((s, d) => s + d, 0) / sorted.length) : 0,
+    p95Ms: p95,
+    maxMs: sorted[sorted.length - 1] ?? 0,
+  };
+}

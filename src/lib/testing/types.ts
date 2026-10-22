@@ -85,6 +85,13 @@ export interface TestSuite {
   description: string;
   cases: TestCase[];
   options: SuiteRunOptions;
+  /** CSV data saved with the suite. Each row runs the whole suite once. */
+  data?: SuiteData;
+}
+
+export interface SuiteData {
+  name: string;
+  text: string;
 }
 
 /** One pass/fail check: an assertion row or an rr.test() call in a script. */

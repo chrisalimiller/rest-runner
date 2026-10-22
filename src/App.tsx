@@ -29,7 +29,8 @@ const SAVED_KEY = "rest-runner.saved";
 const ENVIRONMENTS_KEY = "rest-runner.environments";
 const ACTIVE_ENV_KEY = "rest-runner.active-environment";
 
-export default function App() {
+/** `active` is false while another section (Testing) is on screen, so keyboard shortcuts stay out of its way. */
+export default function App({ active = true }: { active?: boolean }) {
   const [def, setDef] = useState<RequestDef>(() => load(DRAFT_KEY, newRequest()));
   const [tab, setTab] = useState<RequestTab>("params");
   const [outcome, setOutcome] = useState<SendOutcome | null>(null);
@@ -128,7 +129,7 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (openRun !== null || showEnvEditor) return;
+      if (!active || openRun !== null || showEnvEditor) return;
       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         void send();
@@ -140,7 +141,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [send, saveCurrent, openRun, showEnvEditor]);
+  }, [send, saveCurrent, openRun, showEnvEditor, active]);
 
   const methodAllowsBody = def.method !== "GET" && def.method !== "HEAD";
   const tabLabel = (name: string, count: number) => (count > 0 ? `${name} (${count})` : name);

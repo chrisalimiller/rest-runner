@@ -71,6 +71,31 @@ Each call gets plain-language notes when something is worth knowing, such as a p
 
 Response bodies over 1 MB are cut to 1 MB when a run is saved, and the call's notes say so.
 
+## Testing
+
+Switch to **Testing** in the narrow bar on the far left. A **test suite** is an ordered list of **test cases**; a case is a request plus checks.
+
+- **Add cases** from your saved requests (each case gets its own copy, and **Update from saved request** pulls in later changes) or start a blank one. Reorder with the arrows, untick a case to skip it, or duplicate it.
+- **Assertions** are a no-code table: status code (exact, or a class like `2xx`), response time, response size, a header, the body text, or a JSON path such as `$.data[0].id` or `$.items.length`. Conditions include equals, contains, less/greater than, exists, matches regex and is of type. Expected values can use `{{variables}}`.
+- **Scripts** are JavaScript run before the request (**Pre-request**) or after the response (**Post-response**). They get an `rr` object:
+  - `rr.test("name", () => rr.expect(value).toBe(...))` adds a check. `expect` also has `toEqual`, `toContain`, `toBeLessThan`, `toBeGreaterThan`, `toBeDefined`, `toMatch`, `toHaveProperty`, `toHaveLength`, and `.not`.
+  - `rr.vars.set("token", rr.response.json().token)` passes a value to later cases, which use it as `{{token}}`. `rr.vars.get(name)` reads run variables, then the CSV row, then the environment.
+  - `rr.response` has `status`, `time`, `size`, `body`, `json()`, `header(name)`; `rr.data` is the CSV row; `console.log` output is kept with the result.
+  - Scripts run in a background worker and are stopped after the suite's time limit (5 s by default), so a bad loop cannot freeze the app. Snippets next to the editor insert common checks.
+- **Try case** sends one case on its own and shows its checks, without running the whole suite.
+
+**Run settings & data** sets how the suite runs:
+
+- **Sequential:** one case at a time, in order. Variables set by a case carry to the next case in the same iteration.
+- **Iterations in parallel:** several CSV rows (or repeats) at once, each running its cases in order.
+- **Cases in parallel:** all cases of an iteration start together (they cannot pass variables to each other).
+- Concurrency, a delay between cases, **Repeat** (go through the data N times), stop on first failed case, and whether a 4xx/5xx fails a case that has no status assertion of its own.
+- **CSV data:** the whole suite runs once per row, with `{{column}}` filled from that row. The file is saved with the suite (up to 2 MB). Each iteration starts with fresh run variables.
+
+A case passes when every check passes: its enabled assertions, every `rr.test`, both scripts finishing without an error, and a response arriving.
+
+Finished runs are saved (the last 50) under **Test runs**. The report shows cases and checks passed, timing, a per-case table (click a case to filter), the run log, and every result with its checks, notes, variables, request, response and script output. **Export HTML report** and **Export CSV report** work like the batch reports, with one line or section per case per iteration. Suites can be exported and imported as a JSON file from the sidebar.
+
 ## Getting the app
 
 Every push builds installers in GitHub Actions. Open the latest run on the **Actions** tab and download:
