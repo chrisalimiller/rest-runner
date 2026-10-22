@@ -2,11 +2,37 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AuthEditor } from "./components/AuthEditor";
 import { BatchPane } from "./components/BatchPane";
 import { BodyEditor } from "./components/BodyEditor";
+import { ExampleDialog, MoveDialog, SaveRequestDialog, type DestinationChoice } from "./components/CollectionDialogs";
+import { CollectionTree, type TreeAction } from "./components/CollectionTree";
 import { EnvironmentEditor } from "./components/EnvironmentEditor";
 import { countActive, KeyValueEditor } from "./components/KeyValueEditor";
 import { ResponsePane } from "./components/ResponsePane";
 import { RunExplorer } from "./components/RunExplorer";
 import { Sidebar } from "./components/Sidebar";
+import {
+  addExample,
+  canMove,
+  cleanCollections,
+  duplicate,
+  insertAt,
+  isRequestDef,
+  locate,
+  migrateSavedRequests,
+  move,
+  newCollection,
+  newFolder,
+  remove,
+  rename,
+  requestNode,
+  sampleFromResponse,
+  setExampleResponse,
+  updateExample,
+  updateRequest,
+  type Collection,
+  type Destination,
+  type RequestExample,
+  type SampleResponse,
+} from "./lib/collections";
 import { newRequest } from "./lib/defaults";
 import { environmentVars, type Environment } from "./lib/environments";
 import { sendRequest } from "./lib/http";
@@ -25,9 +51,32 @@ type LowerPane = "response" | "batch";
 const DRAFT_KEY = "rest-runner.draft";
 const HISTORY_KEY = "rest-runner.history";
 const MAX_HISTORY = 50;
+/** Old flat list of saved requests; read once to migrate into collections. */
 const SAVED_KEY = "rest-runner.saved";
+const COLLECTIONS_KEY = "rest-runner.collections";
+const EXPANDED_KEY = "rest-runner.expanded";
 const ENVIRONMENTS_KEY = "rest-runner.environments";
 const ACTIVE_ENV_KEY = "rest-runner.active-environment";
+
+function loadCollections(): Collection[] {
+  const stored = load<unknown>(COLLECTIONS_KEY, null);
+  if (stored !== null) return cleanCollections(stored);
+  return migrateSavedRequests(load<unknown[]>(SAVED_KEY, []).filter(isRequestDef));
+}
+
+type Dialog =
+  | { type: "save"; dest: Destination | null }
+  | { type: "move"; id: string; name: string }
+  | { type: "example"; requestId: string; requestName: string; exampleName: string; base: RequestDef; response: SampleResponse | null; responseLabel: string | null };
+
+function sampleOutcome(example: RequestExample, response: SampleResponse, envVars: Record<string, string>): SendOutcome {
+  return {
+    ok: true,
+    request: prepareRequest(example.request, envVars),
+    response: { ...response, sizeBytes: new TextEncoder().encode(response.body).length, durationMs: 0 },
+    sentAt: "",
+  };
+}
 
 export default function App() {
   const [def, setDef] = useState<RequestDef>(() => load(DRAFT_KEY, newRequest()));
@@ -39,7 +88,13 @@ export default function App() {
   const [history, setHistory] = useState<HistoryEntry[]>(() => load(HISTORY_KEY, []));
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [openRun, setOpenRun] = useState<string | null>(null);
-  const [saved, setSaved] = useState<RequestDef[]>(() => load(SAVED_KEY, []));
+  const [collections, setCollections] = useState<Collection[]>(loadCollections);
+  const [expanded, setExpanded] = useState<Set<string>>(
+    () => new Set(load<string[] | null>(EXPANDED_KEY, null) ?? collections.map((c) => c.id)),
+  );
+  const [renamingId, setRenamingId] = useState<string | null>(null);
+  const [dialog, setDialog] = useState<Dialog | null>(null);
+  const [outcomeIsSample, setOutcomeIsSample] = useState(false);
   const [environments, setEnvironments] = useState<Environment[]>(() => load(ENVIRONMENTS_KEY, []));
   const [activeEnvId, setActiveEnvId] = useState<string | null>(() => load(ACTIVE_ENV_KEY, null));
   const [showEnvEditor, setShowEnvEditor] = useState(false);
@@ -48,10 +103,16 @@ export default function App() {
 
   const activeEnv = environments.find((e) => e.id === activeEnvId) ?? null;
   const envVars = useMemo(() => environmentVars(activeEnv), [activeEnv]);
-  const savedVersion = saved.find((r) => r.id === def.id);
+  const located = useMemo(() => locate(collections, def.id), [collections, def.id]);
+  const savedVersion = located?.kind === "request" ? located.node.request : located?.kind === "example" ? located.example.request : undefined;
   const isDirty = !savedVersion || JSON.stringify(savedVersion) !== JSON.stringify(def);
+  const crumbs =
+    located?.kind === "request" || located?.kind === "example"
+      ? [located.collection.name, ...located.path.map((f) => f.name), ...(located.kind === "example" ? [located.node.request.name] : [])]
+      : [];
 
-  useEffect(() => save(SAVED_KEY, saved), [saved]);
+  useEffect(() => save(COLLECTIONS_KEY, collections), [collections]);
+  useEffect(() => save(EXPANDED_KEY, [...expanded]), [expanded]);
   useEffect(() => save(ENVIRONMENTS_KEY, environments), [environments]);
   useEffect(() => save(ACTIVE_ENV_KEY, activeEnvId), [activeEnvId]);
   useEffect(() => {
@@ -83,6 +144,7 @@ export default function App() {
     abortRef.current = null;
     setSending(false);
     setOutcome(result);
+    setOutcomeIsSample(false);
     setHistory((h) =>
       [
         {
@@ -102,13 +164,125 @@ export default function App() {
 
   const saveCurrent = useCallback(() => {
     const copy = structuredClone(def);
-    setSaved((list) => (list.some((r) => r.id === copy.id) ? list.map((r) => (r.id === copy.id ? copy : r)) : [...list, copy]));
-    setNotice(`Saved "${copy.name}".`);
-  }, [def]);
+    if (located?.kind === "request") {
+      setCollections((c) => updateRequest(c, copy));
+      setNotice(`Saved "${copy.name}".`);
+    } else if (located?.kind === "example") {
+      setCollections((c) => updateExample(c, copy));
+      setNotice(`Saved example "${copy.name}".`);
+    } else {
+      setDialog({ type: "save", dest: null });
+    }
+  }, [def, located]);
+
+  const expand = (...ids: (string | null | undefined)[]) =>
+    setExpanded((set) => {
+      const next = new Set(set);
+      for (const id of ids) if (id) next.add(id);
+      return next;
+    });
+
+  const toggle = (id: string) =>
+    setExpanded((set) => {
+      const next = new Set(set);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const openDef = (d: RequestDef) => {
+    setDef(structuredClone(d));
+    setOutcome(null);
+    setOutcomeIsSample(false);
+    setOpenRun(null);
+  };
+
+  const openExample = (ex: RequestExample) => {
+    openDef(ex.request);
+    if (ex.response) {
+      setOutcome(sampleOutcome(ex, ex.response, envVars));
+      setOutcomeIsSample(true);
+      setPane("response");
+    }
+  };
+
+  /** Resolves a destination choice, creating a new collection if asked. */
+  const resolveDest = (cols: Collection[], choice: DestinationChoice): { cols: Collection[]; dest: Destination } => {
+    if ("dest" in choice) return { cols, dest: choice.dest };
+    const c = newCollection(choice.newCollection);
+    return { cols: [...cols, c], dest: { collectionId: c.id, folderId: null } };
+  };
+
+  const liveResponse = outcome?.ok && !outcomeIsSample ? outcome.response : null;
+
+  const startExample = (requestId: string) => {
+    const found = locate(collections, requestId);
+    if (found?.kind !== "request") return;
+    const fromEditor = def.id === requestId || (located?.kind === "example" && located.node.id === requestId);
+    const base = fromEditor ? def : found.node.request;
+    const res = fromEditor ? liveResponse : null;
+    setDialog({
+      type: "example",
+      requestId,
+      requestName: found.node.request.name,
+      exampleName: `Example ${found.node.examples.length + 1}`,
+      base,
+      response: res ? sampleFromResponse(res) : null,
+      responseLabel: res ? `${res.status} ${res.statusText}`.trim() : null,
+    });
+  };
+
+  const onTreeAction = (a: TreeAction) => {
+    switch (a.type) {
+      case "new-request": {
+        const r = newRequest();
+        setCollections((c) => insertAt(c, a.dest, [requestNode(r)]));
+        expand(a.dest.collectionId, a.dest.folderId);
+        openDef(r);
+        setRenamingId(r.id);
+        break;
+      }
+      case "new-folder": {
+        const f = newFolder("New folder");
+        setCollections((c) => insertAt(c, a.dest, [f]));
+        expand(a.dest.collectionId, a.dest.folderId);
+        setRenamingId(f.id);
+        break;
+      }
+      case "add-example":
+        startExample(a.requestId);
+        break;
+      case "rename":
+        setCollections((c) => rename(c, a.id, a.name));
+        if (def.id === a.id) setDef((d) => ({ ...d, name: a.name }));
+        break;
+      case "duplicate": {
+        const r = duplicate(collections, a.id);
+        setCollections(r.collections);
+        break;
+      }
+      case "move": {
+        const found = locate(collections, a.id);
+        const name = found?.kind === "folder" ? found.folder.name : found?.kind === "request" ? found.node.request.name : "";
+        setDialog({ type: "move", id: a.id, name });
+        break;
+      }
+      case "delete":
+        if (window.confirm(`Delete ${a.label}?`)) setCollections((c) => remove(c, a.id));
+        break;
+    }
+  };
+
+  const addCollection = () => {
+    const c = newCollection("New collection");
+    setCollections((list) => [...list, c]);
+    expand(c.id);
+    setRenamingId(c.id);
+  };
 
   const exportWorkspace = async () => {
     try {
-      const result = await saveTextFile("rest-runner-export.json", toWorkspaceFile(saved, environments), "REST Runner export", "json");
+      const result = await saveTextFile("rest-runner-export.json", toWorkspaceFile(collections, environments), "REST Runner export", "json");
       if (result.saved) setNotice(result.path ? `Exported to ${result.path}` : "Export downloaded.");
     } catch (e) {
       setNotice(`Could not export: ${e instanceof Error ? e.message : String(e)}`);
@@ -117,8 +291,9 @@ export default function App() {
 
   const importWorkspace = async (file: File) => {
     try {
-      const result = importWorkspaceFile(await file.text(), saved, environments);
-      setSaved(result.savedRequests);
+      const result = importWorkspaceFile(await file.text(), collections, environments);
+      setCollections(result.collections);
+      expand(...result.collections.filter((c) => !collections.some((x) => x.id === c.id)).map((c) => c.id));
       setEnvironments(result.environments);
       setNotice(`Imported ${file.name}: ${result.added} added, ${result.replaced} updated.`);
     } catch (e) {
@@ -128,7 +303,7 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (openRun !== null || showEnvEditor) return;
+      if (openRun !== null || showEnvEditor || dialog !== null) return;
       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         void send();
@@ -140,7 +315,7 @@ export default function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [send, saveCurrent, openRun, showEnvEditor]);
+  }, [send, saveCurrent, openRun, showEnvEditor, dialog]);
 
   const methodAllowsBody = def.method !== "GET" && def.method !== "HEAD";
   const tabLabel = (name: string, count: number) => (count > 0 ? `${name} (${count})` : name);
@@ -148,30 +323,29 @@ export default function App() {
   return (
     <div className="app">
       <Sidebar
-        saved={saved}
-        activeRequestId={def.id}
-        onOpenSaved={(r) => {
-          setDef(structuredClone(r));
-          setOutcome(null);
-          setOpenRun(null);
-        }}
-        onDeleteSaved={(id) => setSaved((list) => list.filter((r) => r.id !== id))}
+        collections={
+          <CollectionTree
+            collections={collections}
+            activeId={openRun === null ? def.id : null}
+            expanded={expanded}
+            onToggle={toggle}
+            renamingId={renamingId}
+            onRenamingChange={setRenamingId}
+            onOpenRequest={(node) => openDef(node.request)}
+            onOpenExample={(_node, ex) => openExample(ex)}
+            onAction={onTreeAction}
+          />
+        }
+        hasCollections={collections.length > 0}
+        onNewCollection={addCollection}
         onExport={() => void exportWorkspace()}
         onImport={(f) => void importWorkspace(f)}
         history={history}
         runs={runs}
         activeRunId={openRun}
         onOpenRun={setOpenRun}
-        onNew={() => {
-          setDef(newRequest());
-          setOutcome(null);
-          setOpenRun(null);
-        }}
-        onOpen={(h) => {
-          setDef(structuredClone(h.def));
-          setOutcome(null);
-          setOpenRun(null);
-        }}
+        onNew={() => openDef(newRequest())}
+        onOpen={(h) => openDef(h.def)}
         onClear={() => setHistory([])}
       />
 
@@ -190,6 +364,17 @@ export default function App() {
 
       <main className="workspace" hidden={openRun !== null}>
         <div className="workspace-head">
+          {crumbs.length > 0 && (
+            <span className="crumbs small" title={crumbs.join(" / ")}>
+              {crumbs.map((c, i) => (
+                <span key={i}>
+                  {c}
+                  <span className="crumb-sep">/</span>
+                </span>
+              ))}
+            </span>
+          )}
+          {located?.kind === "example" && <span className="chip example-chip">Example</span>}
           <input
             className="request-name"
             value={def.name}
@@ -197,6 +382,23 @@ export default function App() {
             aria-label="Request name"
           />
           <span className="muted small save-state">{savedVersion ? (isDirty ? "Unsaved changes" : "Saved") : "Not saved"}</span>
+          {(located?.kind === "request" || located?.kind === "example") && (
+            <button className="link-btn small" onClick={() => startExample(located.node.id)} title="Keep the current payload as a named example of this request">
+              Save as example
+            </button>
+          )}
+          {located?.kind === "example" && liveResponse && (
+            <button
+              className="link-btn small"
+              title="Keep the last response as this example's sample response"
+              onClick={() => {
+                setCollections((c) => setExampleResponse(c, def.id, sampleFromResponse(liveResponse)));
+                setNotice("Saved the response as the sample.");
+              }}
+            >
+              Set sample response
+            </button>
+          )}
           {notice && <span className="small notice">{notice}</span>}
           <span className="env-picker">
             <select value={activeEnvId ?? ""} onChange={(e) => setActiveEnvId(e.target.value || null)} aria-label="Environment">
@@ -297,7 +499,7 @@ export default function App() {
             </button>
           </div>
           <div className="lower-body" hidden={pane !== "response"}>
-            <ResponsePane outcome={outcome} sending={sending} />
+            <ResponsePane outcome={outcome} sending={sending} isSample={outcomeIsSample} />
           </div>
           <div className="lower-body" hidden={pane !== "batch"}>
             <BatchPane
@@ -311,6 +513,57 @@ export default function App() {
           </div>
         </section>
       </main>
+      {dialog?.type === "save" && (
+        <SaveRequestDialog
+          collections={collections}
+          initialName={def.name}
+          initialDest={dialog.dest}
+          onClose={() => setDialog(null)}
+          onSave={(name, choice) => {
+            const { cols, dest } = resolveDest(collections, choice);
+            const copy = { ...structuredClone(def), name };
+            setCollections(insertAt(cols, dest, [requestNode(copy)]));
+            setDef(copy);
+            expand(dest.collectionId, dest.folderId);
+            setDialog(null);
+            setNotice(`Saved "${name}".`);
+          }}
+        />
+      )}
+      {dialog?.type === "move" && (
+        <MoveDialog
+          collections={collections}
+          itemName={dialog.name}
+          allow={(d) => canMove(collections, dialog.id, d)}
+          onClose={() => setDialog(null)}
+          onMove={(choice) => {
+            const { cols, dest } = resolveDest(collections, choice);
+            setCollections(move(cols, dialog.id, dest));
+            expand(dest.collectionId, dest.folderId);
+            setDialog(null);
+          }}
+        />
+      )}
+      {dialog?.type === "example" && (
+        <ExampleDialog
+          requestName={dialog.requestName}
+          initialName={dialog.exampleName}
+          responseLabel={dialog.responseLabel}
+          onClose={() => setDialog(null)}
+          onSave={(name, includeResponse) => {
+            const r = addExample(collections, dialog.requestId, name, dialog.base, includeResponse && dialog.response ? dialog.response : undefined);
+            setCollections(r.collections);
+            expand(dialog.requestId);
+            setDef(structuredClone(r.example.request));
+            setOpenRun(null);
+            // With a sample kept, the response on screen is that sample; otherwise clear it.
+            if (!includeResponse) setOutcome(null);
+            setOutcomeIsSample(false);
+            setDialog(null);
+            setNotice(`Saved example "${name}".`);
+          }}
+        />
+      )}
       {showEnvEditor && (
         <EnvironmentEditor
           environments={environments}

@@ -1,12 +1,12 @@
 import { statusClass } from "../lib/format";
 import type { RunSummary } from "../lib/run";
-import type { HistoryEntry, RequestDef } from "../lib/types";
+import type { HistoryEntry } from "../lib/types";
 
 interface Props {
-  saved: RequestDef[];
-  activeRequestId: string;
-  onOpenSaved: (def: RequestDef) => void;
-  onDeleteSaved: (id: string) => void;
+  /** The collections tree, rendered by the app. */
+  collections: React.ReactNode;
+  hasCollections: boolean;
+  onNewCollection: () => void;
   onExport: () => void;
   onImport: (file: File) => void;
   history: HistoryEntry[];
@@ -29,10 +29,9 @@ function when(iso: string): string {
 }
 
 export function Sidebar({
-  saved,
-  activeRequestId,
-  onOpenSaved,
-  onDeleteSaved,
+  collections,
+  hasCollections,
+  onNewCollection,
   onExport,
   onImport,
   history,
@@ -49,11 +48,14 @@ export function Sidebar({
       <button className="primary-outline" onClick={onNew}>
         + New request
       </button>
-      <div className="sidebar-section">
+      <div className="sidebar-section collections-section">
         <div className="sidebar-title">
-          <span>Saved requests</span>
+          <span>Collections</span>
           <span className="sidebar-actions">
-            <label className="link-btn" title="Import saved requests and environments from a file">
+            <button className="link-btn" onClick={onNewCollection} title="Add a collection">
+              New
+            </button>
+            <label className="link-btn" title="Import collections and environments from a file">
               Import
               <input
                 type="file"
@@ -66,32 +68,13 @@ export function Sidebar({
                 }}
               />
             </label>
-            <button className="link-btn" onClick={onExport} title="Export saved requests and environments to a file">
+            <button className="link-btn" onClick={onExport} title="Export collections and environments to a file">
               Export
             </button>
           </span>
         </div>
-        {saved.length === 0 && <p className="muted small">Click Save next to Send to keep a request here.</p>}
-        <ul className="history saved">
-          {saved.map((r) => (
-            <li key={r.id} className="saved-item">
-              <button className={activeRequestId === r.id && activeRunId === null ? "active" : ""} onClick={() => onOpenSaved(r)} title={r.url}>
-                <span className={`method m-${r.method.toLowerCase()}`}>{r.method}</span>
-                <span className="history-url">{r.name}</span>
-              </button>
-              <button
-                className="icon-btn saved-delete"
-                aria-label={`Delete ${r.name}`}
-                title="Delete"
-                onClick={() => {
-                  if (window.confirm(`Delete the saved request "${r.name}"?`)) onDeleteSaved(r.id);
-                }}
-              >
-                ×
-              </button>
-            </li>
-          ))}
-        </ul>
+        {!hasCollections && <p className="muted small">Click Save next to Send to keep a request in a collection.</p>}
+        <div className="tree-scroll">{collections}</div>
       </div>
       <div className="sidebar-section">
         <div className="sidebar-title">
