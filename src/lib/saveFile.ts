@@ -18,7 +18,8 @@ export async function saveTextFile(defaultName: string, contents: string, filter
     await invoke("write_text_file", { path, contents });
     return { saved: true, path };
   }
-  const blob = new Blob([contents], { type: extension === "html" ? "text/html" : "text/csv" });
+  const types: Record<string, string> = { html: "text/html", csv: "text/csv", json: "application/json" };
+  const blob = new Blob([contents], { type: types[extension] ?? "text/plain" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;

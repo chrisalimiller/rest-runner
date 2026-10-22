@@ -11,7 +11,7 @@ Runs on macOS and Windows from one codebase, built with [Tauri 2](https://tauri.
 | 1 | App shell, single request editor, Mac/Windows builds | Done |
 | 2 | CSV batches with `{{column}}` placeholders, live progress | Done |
 | 3a | Run explorer, HTML and CSV reports | Done |
-| 3b | Saved requests and environments | Planned |
+| 3b | Saved requests and environments | Done |
 | 4 | Extras: Postman import, retries, OAuth, chaining values between requests | Optional |
 
 ## Features so far
@@ -21,15 +21,24 @@ Runs on macOS and Windows from one codebase, built with [Tauri 2](https://tauri.
 - Body: raw JSON (with validation and Format), raw text, or x-www-form-urlencoded
 - Auth: bearer token, basic auth, or API key (header or query)
 - Response viewer: status, time, size, pretty or raw body, headers, and the exact request that was sent
+- Saved requests in the sidebar (Save button or Ctrl/Cmd + S), with an unsaved-changes marker
+- Environments: named sets of variables such as `baseUrl` and `token`, picked at the top right
+- Export and import saved requests and environments as one JSON file, to back up or move between computers
 - History of the last 50 requests; your current request is kept between launches
 - Send with the button, Enter in the URL box, or Ctrl/Cmd + Enter
 - Requests are sent from the Rust side, so browser CORS rules do not apply
+
+## Environments
+
+Click **Environments** at the top right to add sets of variables, for example Dev and Prod, each with its own `baseUrl` and `token`. Pick one from the list next to it, and `{{baseUrl}}` or `{{token}}` anywhere in a request is filled from it. This works for single requests and batch runs. In a batch run, a CSV column with the same name takes priority over the environment.
+
+Environment values are stored on this computer only, in the app's local storage. They are included in exports, so treat an export file that holds tokens like a password.
 
 ## Batch runs from a CSV
 
 1. Write the request with `{{column name}}` placeholders anywhere: URL, params, headers, body, form fields or auth.
 2. Open the **Batch run (CSV)** tab under the request and choose a CSV file. The first line must be the column names. Comma, semicolon, tab and pipe separators are detected automatically.
-3. Check the placeholder list: green ones are filled from the CSV, red ones have no matching column and are sent as written.
+3. Check the placeholder list: green ones are filled from the CSV, blue ones from the selected environment, and red ones have no value and are sent as written.
 4. Click **Preview** to see the first three requests exactly as they will be sent, then **Run**.
 
 Each row becomes one request. Options:

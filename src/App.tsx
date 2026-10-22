@@ -1,17 +1,21 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AuthEditor } from "./components/AuthEditor";
 import { BatchPane } from "./components/BatchPane";
 import { BodyEditor } from "./components/BodyEditor";
+import { EnvironmentEditor } from "./components/EnvironmentEditor";
 import { countActive, KeyValueEditor } from "./components/KeyValueEditor";
 import { ResponsePane } from "./components/ResponsePane";
 import { RunExplorer } from "./components/RunExplorer";
 import { Sidebar } from "./components/Sidebar";
 import { newRequest } from "./lib/defaults";
+import { environmentVars, type Environment } from "./lib/environments";
 import { sendRequest } from "./lib/http";
 import { newId } from "./lib/ids";
 import { prepareRequest } from "./lib/request";
 import type { RunSummary } from "./lib/run";
 import { deleteRun, listRuns } from "./lib/runStore";
+import { saveTextFile } from "./lib/saveFile";
+import { importWorkspaceFile, toWorkspaceFile } from "./lib/workspace";
 import { load, save } from "./lib/storage";
 import { HTTP_METHODS, type HistoryEntry, type HttpMethod, type RequestDef, type SendOutcome } from "./lib/types";
 
@@ -21,6 +25,9 @@ type LowerPane = "response" | "batch";
 const DRAFT_KEY = "rest-runner.draft";
 const HISTORY_KEY = "rest-runner.history";
 const MAX_HISTORY = 50;
+const SAVED_KEY = "rest-runner.saved";
+const ENVIRONMENTS_KEY = "rest-runner.environments";
+const ACTIVE_ENV_KEY = "rest-runner.active-environment";
 
 export default function App() {
   const [def, setDef] = useState<RequestDef>(() => load(DRAFT_KEY, newRequest()));
@@ -32,7 +39,26 @@ export default function App() {
   const [history, setHistory] = useState<HistoryEntry[]>(() => load(HISTORY_KEY, []));
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [openRun, setOpenRun] = useState<string | null>(null);
+  const [saved, setSaved] = useState<RequestDef[]>(() => load(SAVED_KEY, []));
+  const [environments, setEnvironments] = useState<Environment[]>(() => load(ENVIRONMENTS_KEY, []));
+  const [activeEnvId, setActiveEnvId] = useState<string | null>(() => load(ACTIVE_ENV_KEY, null));
+  const [showEnvEditor, setShowEnvEditor] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  const activeEnv = environments.find((e) => e.id === activeEnvId) ?? null;
+  const envVars = useMemo(() => environmentVars(activeEnv), [activeEnv]);
+  const savedVersion = saved.find((r) => r.id === def.id);
+  const isDirty = !savedVersion || JSON.stringify(savedVersion) !== JSON.stringify(def);
+
+  useEffect(() => save(SAVED_KEY, saved), [saved]);
+  useEffect(() => save(ENVIRONMENTS_KEY, environments), [environments]);
+  useEffect(() => save(ACTIVE_ENV_KEY, activeEnvId), [activeEnvId]);
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 5000);
+    return () => clearTimeout(t);
+  }, [notice]);
 
   const refreshRuns = useCallback(() => {
     listRuns()
@@ -49,7 +75,7 @@ export default function App() {
   const send = useCallback(async () => {
     if (sending || def.url.trim() === "") return;
     setPane("response");
-    const prepared = prepareRequest(def);
+    const prepared = prepareRequest(def, envVars);
     const controller = new AbortController();
     abortRef.current = controller;
     setSending(true);
@@ -70,20 +96,51 @@ export default function App() {
         ...h,
       ].slice(0, MAX_HISTORY),
     );
-  }, [def, sending]);
+  }, [def, sending, envVars]);
 
   const cancel = () => abortRef.current?.abort();
 
+  const saveCurrent = useCallback(() => {
+    const copy = structuredClone(def);
+    setSaved((list) => (list.some((r) => r.id === copy.id) ? list.map((r) => (r.id === copy.id ? copy : r)) : [...list, copy]));
+    setNotice(`Saved "${copy.name}".`);
+  }, [def]);
+
+  const exportWorkspace = async () => {
+    try {
+      const result = await saveTextFile("rest-runner-export.json", toWorkspaceFile(saved, environments), "REST Runner export", "json");
+      if (result.saved) setNotice(result.path ? `Exported to ${result.path}` : "Export downloaded.");
+    } catch (e) {
+      setNotice(`Could not export: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
+  const importWorkspace = async (file: File) => {
+    try {
+      const result = importWorkspaceFile(await file.text(), saved, environments);
+      setSaved(result.savedRequests);
+      setEnvironments(result.environments);
+      setNotice(`Imported ${file.name}: ${result.added} added, ${result.replaced} updated.`);
+    } catch (e) {
+      setNotice(`Could not import ${file.name}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Enter" && (e.metaKey || e.ctrlKey) && openRun === null) {
+      if (openRun !== null || showEnvEditor) return;
+      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         void send();
+      }
+      if (e.key.toLowerCase() === "s" && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        saveCurrent();
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [send, openRun]);
+  }, [send, saveCurrent, openRun, showEnvEditor]);
 
   const methodAllowsBody = def.method !== "GET" && def.method !== "HEAD";
   const tabLabel = (name: string, count: number) => (count > 0 ? `${name} (${count})` : name);
@@ -91,6 +148,16 @@ export default function App() {
   return (
     <div className="app">
       <Sidebar
+        saved={saved}
+        activeRequestId={def.id}
+        onOpenSaved={(r) => {
+          setDef(structuredClone(r));
+          setOutcome(null);
+          setOpenRun(null);
+        }}
+        onDeleteSaved={(id) => setSaved((list) => list.filter((r) => r.id !== id))}
+        onExport={() => void exportWorkspace()}
+        onImport={(f) => void importWorkspace(f)}
         history={history}
         runs={runs}
         activeRunId={openRun}
@@ -122,12 +189,29 @@ export default function App() {
       )}
 
       <main className="workspace" hidden={openRun !== null}>
-        <input
-          className="request-name"
-          value={def.name}
-          onChange={(e) => patch({ name: e.target.value })}
-          aria-label="Request name"
-        />
+        <div className="workspace-head">
+          <input
+            className="request-name"
+            value={def.name}
+            onChange={(e) => patch({ name: e.target.value })}
+            aria-label="Request name"
+          />
+          <span className="muted small save-state">{savedVersion ? (isDirty ? "Unsaved changes" : "Saved") : "Not saved"}</span>
+          {notice && <span className="small notice">{notice}</span>}
+          <span className="env-picker">
+            <select value={activeEnvId ?? ""} onChange={(e) => setActiveEnvId(e.target.value || null)} aria-label="Environment">
+              <option value="">No environment</option>
+              {environments.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.name || "(unnamed)"}
+                </option>
+              ))}
+            </select>
+            <button className="secondary" onClick={() => setShowEnvEditor(true)} title="Add or edit environments">
+              Environments
+            </button>
+          </span>
+        </div>
 
         <div className="request-bar">
           <select
@@ -160,6 +244,9 @@ export default function App() {
               Send
             </button>
           )}
+          <button className="secondary save-btn" onClick={saveCurrent} title="Save (Ctrl/Cmd + S)">
+            Save{savedVersion && isDirty ? " •" : ""}
+          </button>
         </div>
 
         <section className={`request-config ${pane === "batch" ? "compact" : ""}`}>
@@ -213,10 +300,28 @@ export default function App() {
             <ResponsePane outcome={outcome} sending={sending} />
           </div>
           <div className="lower-body" hidden={pane !== "batch"}>
-            <BatchPane def={def} onRunningChange={setBatchRunning} onRunSaved={refreshRuns} onOpenRun={setOpenRun} />
+            <BatchPane
+              def={def}
+              envVars={envVars}
+              envName={activeEnv?.name}
+              onRunningChange={setBatchRunning}
+              onRunSaved={refreshRuns}
+              onOpenRun={setOpenRun}
+            />
           </div>
         </section>
       </main>
+      {showEnvEditor && (
+        <EnvironmentEditor
+          environments={environments}
+          activeId={activeEnvId}
+          onChange={(envs) => {
+            setEnvironments(envs);
+            if (activeEnvId && !envs.some((e) => e.id === activeEnvId)) setActiveEnvId(null);
+          }}
+          onClose={() => setShowEnvEditor(false)}
+        />
+      )}
     </div>
   );
 }

@@ -66,7 +66,8 @@ describe("buildRun and runStats", () => {
   it("writes a run log", () => {
     const text = run.log.map((l) => l.message).join("\n");
     expect(text).toMatch(/Started POST https:\/\/a.test\/u\/\{\{id\}\} with 5 rows from users.csv/);
-    expect(text).toMatch(/No CSV column for \{\{token\}\}/);
+    expect(text).toMatch(/No CSV column or environment variable for \{\{token\}\}/);
+    expect(text).toMatch(/No environment selected/);
     expect(text).toMatch(/First failure on row 2 \(Error\)/);
     expect(text).toMatch(/Stopped by you/);
     expect(text).toMatch(/3 of 5 sent, 2 passed, 1 failed/);

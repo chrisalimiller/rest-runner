@@ -184,6 +184,7 @@ pre { background: var(--soft); padding: 10px; border-radius: 4px; white-space: p
 <table class="info">
 <tr><th>Request</th><td class="mono">${esc(run.method)} ${esc(run.urlTemplate)}</td></tr>
 <tr><th>Data file</th><td>${esc(run.csvName)} (${run.totalRows} rows; columns: ${esc(run.columns.join(", "))})</td></tr>
+<tr><th>Environment</th><td>${run.environmentName ? esc(run.environmentName) : '<span class="muted">None</span>'}</td></tr>
 <tr><th>Started</th><td>${esc(formatTime(run.startedAt))}</td></tr>
 <tr><th>Finished</th><td>${esc(formatTime(run.finishedAt))}</td></tr>
 <tr><th>Settings</th><td>${run.options.concurrency} concurrent · ${run.options.delayMs} ms delay · 4xx/5xx ${run.options.httpErrorsFail ? "count" : "do not count"} as failures · ${run.options.stopOnFailure ? "stop on first failure" : "continue after failures"}</td></tr>

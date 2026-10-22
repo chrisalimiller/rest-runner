@@ -79,6 +79,15 @@ describe("runBatch", () => {
     expect(Date.now() - start).toBeGreaterThanOrEqual(85);
   });
 
+  it("fills environment variables, with CSV columns taking priority", async () => {
+    const f = fakeSend(() => 200, 0);
+    const results: BatchItemResult[] = [];
+    const envDef = { ...def, url: "{{base}}/items/{{id}}" };
+    await runBatch(envDef, [{ id: "1" }, { id: "2", base: "https://override" }], opts, f.send, (r) => results.push(r), new AbortController().signal, { base: "https://env", id: "x" });
+    expect(results.map((r) => r.outcome.request.url).sort()).toEqual(["https://env/items/1", "https://override/items/2"]);
+    expect(results.find((r) => r.index === 0)?.vars).toEqual({ id: "1" });
+  });
+
   it("handles zero rows", async () => {
     const f = fakeSend(() => 200);
     expect(await runBatch(def, [], opts, f.send, () => {}, new AbortController().signal)).toBe("completed");
