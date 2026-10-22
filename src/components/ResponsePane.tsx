@@ -6,12 +6,14 @@ import type { SendOutcome } from "../lib/types";
 interface Props {
   outcome: SendOutcome | null;
   sending: boolean;
+  /** The outcome is an example's saved sample response, not a live call. */
+  isSample?: boolean;
 }
 
 type Tab = "body" | "headers" | "request";
 
-export function ResponsePane({ outcome, sending }: Props) {
-  const [tab, setTab] = useState<Tab>("body");
+export function ResponsePane({ outcome, sending, isSample = false }: Props) {
+  const [chosenTab, setTab] = useState<Tab>("body");
   const [pretty, setPretty] = useState(true);
 
   if (sending) {
@@ -31,6 +33,7 @@ export function ResponsePane({ outcome, sending }: Props) {
   }
 
   const res = outcome.ok ? outcome.response : null;
+  const tab: Tab = isSample && chosenTab === "request" ? "body" : chosenTab;
 
   return (
     <section className="response">
@@ -42,9 +45,11 @@ export function ResponsePane({ outcome, sending }: Props) {
           <button className={tab === "headers" ? "active" : ""} onClick={() => setTab("headers")}>
             Headers{res ? ` (${res.headers.length})` : ""}
           </button>
-          <button className={tab === "request" ? "active" : ""} onClick={() => setTab("request")}>
-            Sent request
-          </button>
+          {!isSample && (
+            <button className={tab === "request" ? "active" : ""} onClick={() => setTab("request")}>
+              Sent request
+            </button>
+          )}
         </div>
         <div className="response-meta">
           {res ? (
@@ -52,7 +57,7 @@ export function ResponsePane({ outcome, sending }: Props) {
               <span className={`status ${statusClass(res.status)}`}>
                 {res.status} {res.statusText}
               </span>
-              <span>{res.durationMs} ms</span>
+              {isSample ? <span className="chip example-chip">Sample response</span> : <span>{res.durationMs} ms</span>}
               <span>{formatBytes(res.sizeBytes)}</span>
             </>
           ) : (
