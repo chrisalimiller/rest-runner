@@ -112,10 +112,18 @@ export default function App({ active = true }: { active?: boolean }) {
       ? [located.collection.name, ...located.path.map((f) => f.name), ...(located.kind === "example" ? [located.node.request.name] : [])]
       : [];
 
-  useEffect(() => save(COLLECTIONS_KEY, collections), [collections]);
-  useEffect(() => save(EXPANDED_KEY, [...expanded]), [expanded]);
-  useEffect(() => save(ENVIRONMENTS_KEY, environments), [environments]);
-  useEffect(() => save(ACTIVE_ENV_KEY, activeEnvId), [activeEnvId]);
+  useEffect(() => {
+    save(COLLECTIONS_KEY, collections);
+  }, [collections]);
+  useEffect(() => {
+    save(EXPANDED_KEY, [...expanded]);
+  }, [expanded]);
+  useEffect(() => {
+    save(ENVIRONMENTS_KEY, environments);
+  }, [environments]);
+  useEffect(() => {
+    save(ACTIVE_ENV_KEY, activeEnvId);
+  }, [activeEnvId]);
   useEffect(() => {
     if (!notice) return;
     const t = setTimeout(() => setNotice(null), 5000);
@@ -129,8 +137,12 @@ export default function App({ active = true }: { active?: boolean }) {
   }, []);
   useEffect(refreshRuns, [refreshRuns]);
 
-  useEffect(() => save(DRAFT_KEY, def), [def]);
-  useEffect(() => save(HISTORY_KEY, history), [history]);
+  useEffect(() => {
+    save(DRAFT_KEY, def);
+  }, [def]);
+  useEffect(() => {
+    save(HISTORY_KEY, history);
+  }, [history]);
 
   const patch = (p: Partial<RequestDef>) => setDef((d) => ({ ...d, ...p }));
 

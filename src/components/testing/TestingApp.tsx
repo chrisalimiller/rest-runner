@@ -61,8 +61,12 @@ export function TestingApp({ active }: Props) {
   useEffect(() => {
     if (!persistSuites(suites)) setNotice("Could not save suites: local storage is full. Try removing large CSV files from suites.");
   }, [suites]);
-  useEffect(() => save(OPEN_SUITE_KEY, openSuiteId), [openSuiteId]);
-  useEffect(() => save(TEST_ENV_KEY, envId), [envId]);
+  useEffect(() => {
+    save(OPEN_SUITE_KEY, openSuiteId);
+  }, [openSuiteId]);
+  useEffect(() => {
+    save(TEST_ENV_KEY, envId);
+  }, [envId]);
   useEffect(() => {
     if (!notice) return;
     const t = setTimeout(() => setNotice(null), 6000);

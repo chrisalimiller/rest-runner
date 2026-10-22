@@ -9,7 +9,9 @@ const SECTION_KEY = "rest-runner.section";
 /** The left rail switches between Requests and Testing. Both stay mounted so a running batch or suite keeps going. */
 export default function Root() {
   const [section, setSection] = useState<Section>(() => load(SECTION_KEY, "requests"));
-  useEffect(() => save(SECTION_KEY, section), [section]);
+  useEffect(() => {
+    save(SECTION_KEY, section);
+  }, [section]);
 
   return (
     <div className="app-shell">

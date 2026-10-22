@@ -62,7 +62,9 @@ export function BatchPane({ def, envVars, envName, onRunningChange, onRunSaved, 
   const bufferRef = useRef<BatchItemResult[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => save(OPTIONS_KEY, options), [options]);
+  useEffect(() => {
+    save(OPTIONS_KEY, options);
+  }, [options]);
   useEffect(() => onRunningChange(running), [running, onRunningChange]);
 
   // While running, move buffered results into state a few times a second instead of on every response.
