@@ -133,5 +133,6 @@ src/                 React UI
   components/        Editors and panes
   lib/               Request building, templates, sending (no UI code)
 src-tauri/           Rust shell, app config, icons, permissions
+brand/               Logo and app icon sources (see BRAND.md)
 .github/workflows/   Test and build pipeline
 ```

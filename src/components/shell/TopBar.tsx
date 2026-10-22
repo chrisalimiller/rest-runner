@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import type { Environment } from "../../lib/environments";
-import { PencilIcon, PlayIcon, SearchIcon } from "./Icons";
+import { BrandLockup } from "../BrandMark";
+import { PencilIcon, SearchIcon } from "./Icons";
 
 export type Mode = "requests" | "testing";
 
@@ -26,10 +27,7 @@ export const MOD_KEY = isMac ? "⌘" : "Ctrl";
 export function TopBar(props: Props) {
   return (
     <header className="topbar">
-      <div className="brand" aria-label="REST Runner">
-        <PlayIcon className="brand-icon" />
-        <span>REST Runner</span>
-      </div>
+      <BrandLockup />
       {props.switcher}
       <button className="quick-open-field" onClick={props.onQuickOpen} aria-label="Quick open" aria-keyshortcuts="Control+K Meta+K">
         <SearchIcon />
