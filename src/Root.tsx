@@ -12,7 +12,7 @@ export default function Root() {
   useEffect(() => save(SECTION_KEY, section), [section]);
 
   return (
-    <div className="root">
+    <div className="app-shell">
       <nav className="rail" aria-label="Sections">
         <button className={section === "requests" ? "active" : ""} onClick={() => setSection("requests")} title="Requests">
           <svg viewBox="0 0 16 16" aria-hidden="true">
