@@ -1,59 +1,5 @@
 /* Section rail and Testing section. Uses the color tokens from styles.css. */
 
-.app-shell {
-  display: grid;
-  grid-template-columns: 64px 1fr;
-  height: 100%;
-  overflow: hidden;
-}
-
-.root-section {
-  min-width: 0;
-  min-height: 0;
-  height: 100%;
-}
-
-.root-section[hidden] {
-  display: none;
-}
-
-.rail {
-  background: var(--bg-inset);
-  border-right: 1px solid var(--border);
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 4px;
-  padding: 10px 4px;
-}
-
-.rail button {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  padding: 8px 0 6px;
-  border-radius: 6px;
-  color: var(--muted);
-  font-size: 10.5px;
-}
-
-.rail button svg {
-  width: 18px;
-  height: 18px;
-}
-
-.rail button:hover {
-  color: var(--text);
-  background: var(--bg-hover);
-}
-
-.rail button.active {
-  color: var(--text);
-  background: var(--bg-soft);
-  box-shadow: inset 2px 0 0 var(--tab-underline);
-}
-
 /* Empty state */
 .testing-empty {
   align-items: center;
@@ -262,14 +208,7 @@ ol.cases li.active .case-actions {
   margin: 6px 6px;
 }
 
-.case-try {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  border-top: 1px solid var(--border);
-  padding-top: 8px;
-}
+
 
 /* Scripts */
 .script-editor {
@@ -324,11 +263,11 @@ ol.cases li.active .case-actions {
 }
 
 .assertion-table td:nth-child(2) {
-  width: 170px;
+  width: 150px;
 }
 
 .assertion-table td:nth-child(4) {
-  width: 160px;
+  width: 140px;
 }
 
 .assertion-add {

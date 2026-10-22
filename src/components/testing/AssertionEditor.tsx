@@ -1,10 +1,13 @@
 import { OP_LABELS, OPS_FOR_SOURCE, opNeedsValue, SOURCE_LABELS } from "../../lib/testing/assertions";
+import type { AssertionResult } from "../../lib/testing/caseStatus";
 import { newAssertion } from "../../lib/testing/suites";
 import type { Assertion, AssertionSource } from "../../lib/testing/types";
 
 interface Props {
   assertions: Assertion[];
   onChange: (assertions: Assertion[]) => void;
+  /** Pass/fail and the value seen, per assertion id, from the latest Try case or run. */
+  results?: Map<string, AssertionResult>;
 }
 
 const SOURCES = Object.keys(SOURCE_LABELS) as AssertionSource[];
@@ -21,7 +24,7 @@ const EXPECTED_HINT: Partial<Record<AssertionSource, string>> = {
 };
 
 /** A table of no-code checks, each one row: source, property, operator, expected value. */
-export function AssertionEditor({ assertions, onChange }: Props) {
+export function AssertionEditor({ assertions, onChange, results }: Props) {
   const update = (id: string, patch: Partial<Assertion>) =>
     onChange(
       assertions.map((a) => {
@@ -34,10 +37,7 @@ export function AssertionEditor({ assertions, onChange }: Props) {
 
   return (
     <div className="assertions">
-      <p className="muted small">
-        Each enabled row must pass for the case to pass. Expected values can use {"{{variables}}"}. JSON values compare loosely, so 42 matches
-        "42".
-      </p>
+      <div className="table-scroll">
       <table className="kv assertion-table">
         <thead>
           <tr>
@@ -46,6 +46,7 @@ export function AssertionEditor({ assertions, onChange }: Props) {
             <th>Property</th>
             <th>Condition</th>
             <th>Expected</th>
+            {results && <th>Last result</th>}
             <th className="kv-del" />
           </tr>
         </thead>
@@ -88,11 +89,25 @@ export function AssertionEditor({ assertions, onChange }: Props) {
                     placeholder={a.op === "isType" ? "string, number, boolean, array, object, null" : (EXPECTED_HINT[a.source] ?? "Value")}
                     spellCheck={false}
                     aria-label="Expected"
+                    className={/\{\{[^{}]+\}\}/.test(a.expected) ? "has-ph" : undefined}
                   />
                 ) : (
                   <span className="muted small">—</span>
                 )}
               </td>
+              {results && (
+                <td className="last-result">
+                  {(() => {
+                    const r = a.enabled ? results.get(a.id) : undefined;
+                    if (!r) return <span className="muted">—</span>;
+                    return (
+                      <span className={r.passed ? "tone-ok" : "tone-bad"} title={r.actual}>
+                        {r.passed ? "✓" : "✕"} {r.actual}
+                      </span>
+                    );
+                  })()}
+                </td>
+              )}
               <td className="kv-del">
                 <button className="icon-btn" onClick={() => onChange(assertions.filter((x) => x.id !== a.id))} aria-label="Remove assertion" title="Remove">
                   ×
@@ -102,6 +117,7 @@ export function AssertionEditor({ assertions, onChange }: Props) {
           ))}
         </tbody>
       </table>
+      </div>
       <div className="assertion-add">
         <button className="link-btn" onClick={() => onChange([...assertions, newAssertion()])}>
           + Status
@@ -119,6 +135,9 @@ export function AssertionEditor({ assertions, onChange }: Props) {
           + Body text
         </button>
       </div>
+      <p className="muted small">
+        Each enabled row must pass for the case to pass. Expected values can use {"{{variables}}"}. JSON values compare loosely, so 42 matches "42".
+      </p>
     </div>
   );
 }

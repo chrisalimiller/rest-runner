@@ -71,7 +71,8 @@ export function failureReason(result: CaseResult): string {
   if (!check) return "failed";
   if (check.source === "status") return String(o.response.status);
   const seen = (check.message ?? "").replace(/^Got /, "");
-  const text = seen || check.name;
+  const unit = seen && /^Response time/i.test(check.name) && /^\d+$/.test(seen) ? " ms" : "";
+  const text = seen ? seen + unit : check.name;
   return text.length > 28 ? `${text.slice(0, 27)}…` : text;
 }
 
@@ -87,7 +88,7 @@ export interface FailureItem {
 export function runFailures(run: TestRun, limit = 50): FailureItem[] {
   const out: FailureItem[] = [];
   run.results.forEach((r, index) => {
-    if (!r.passed && out.length < limit) out.push({ index, where: whereLabel(r) || `#${index + 1}`, caseId: r.caseId, caseName: r.caseName, reason: failureReason(r) });
+    if (!r.passed && out.length < limit) out.push({ index, where: r.rowIndex !== null ? `row ${r.rowIndex + 1}` : `iter ${r.iteration + 1}`, caseId: r.caseId, caseName: r.caseName, reason: failureReason(r) });
   });
   return out;
 }

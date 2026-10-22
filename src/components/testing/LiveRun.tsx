@@ -24,7 +24,7 @@ function elapsed(ms: number): string {
 }
 
 /** Progress and results of the run in progress (or the one that just finished). */
-export function LiveRun({ live, onOpenReport }: { live: LiveRunState; onOpenReport: (runId: string) => void }) {
+export function LiveRun({ live, onOpenReport, compact = false }: { live: LiveRunState; onOpenReport: (runId: string) => void; compact?: boolean }) {
   const [now, setNow] = useState(Date.now());
   const [selected, setSelected] = useState<number | null>(null);
   useEffect(() => {
@@ -38,6 +38,45 @@ export function LiveRun({ live, onOpenReport }: { live: LiveRunState; onOpenRepo
   const pct = live.planned ? Math.min(100, Math.round((done / live.planned) * 100)) : 0;
   const recent = live.results.slice(-SHOWN).reverse();
   const picked = selected !== null ? live.results[selected] : null;
+
+  if (compact) {
+    const latest = live.results.slice(-6).reverse();
+    return (
+      <div className="live-run compact">
+        <div className="last-run-big">
+          <span className={`mono big-num ${failed ? "tone-bad" : "tone-ok"}`}>{done - failed}</span>
+          <span className="muted">
+            passed of {done} done · {live.planned} planned
+          </span>
+        </div>
+        <div className="progress-bar">
+          <div className={`progress-fill ${failed ? "has-failures" : ""}`} style={{ width: `${pct}%` }} />
+        </div>
+        <div className="progress-stats small">
+          <span className={failed ? "status bad" : "muted"}>{failed} failed</span>
+          <span className="muted">{elapsed((live.finishedAt ?? now) - live.startedAt)}</span>
+          {!live.running && live.end && <span>{live.end === "cancelled" ? "Stopped" : live.end === "stopped-on-failure" ? "Stopped after a failure" : "Finished"}</span>}
+        </div>
+        {latest.length > 0 && (
+          <ul className="live-recent small">
+            {latest.map((r, i) => (
+              <li key={i} className={r.passed ? "ok" : "bad"}>
+                <span className="check-mark">{r.passed ? "✓" : "✕"}</span>
+                <span className="live-recent-name">{r.caseName}</span>
+                <span className="muted mono">{r.iteration + 1}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+        {live.runId && (
+          <button className="link-btn small" onClick={() => onOpenReport(live.runId!)}>
+            Open report →
+          </button>
+        )}
+        {live.saveError && <span className="warning small">Could not save the run: {live.saveError}</span>}
+      </div>
+    );
+  }
 
   return (
     <div className="live-run">

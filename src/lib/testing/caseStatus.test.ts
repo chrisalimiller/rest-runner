@@ -79,7 +79,7 @@ describe("failure text", () => {
 
   it("names the first failing check and the CSV row", () => {
     expect(failureLine(failed)).toBe("✕ Response time less than 300 — got 412 (row 17)");
-    expect(failureReason(failed)).toBe("412");
+    expect(failureReason(failed)).toBe("412 ms");
   });
 
   it("uses the status code for status failures and says when nothing came back", () => {
@@ -89,6 +89,7 @@ describe("failure text", () => {
 
   it("lists a run's failures in order", () => {
     const list = runFailures(runOf([result(), failed]));
-    expect(list).toEqual([{ index: 1, where: "row 17", caseId: "c1", caseName: "Get ticket", reason: "412" }]);
+    expect(runFailures(runOf([result({ passed: false, iteration: 2 })]))[0].where).toBe("iter 3");
+    expect(list).toEqual([{ index: 1, where: "row 17", caseId: "c1", caseName: "Get ticket", reason: "412 ms" }]);
   });
 });

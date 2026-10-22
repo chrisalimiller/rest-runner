@@ -11,6 +11,8 @@ interface Props {
   onModeChange: (mode: BodyMode) => void;
   onBodyChange: (body: string) => void;
   onFormChange: (rows: KeyValue[]) => void;
+  /** Show the mode choice, JSON status and Format link. Off when a section header shows them instead. */
+  toolbar?: boolean;
 }
 
 const MODES: [BodyMode, string][] = [
@@ -28,7 +30,7 @@ function lineCol(text: string, offset: number): string {
   return `line ${line}, column ${col}`;
 }
 
-export function BodyEditor({ mode, body, formBody, methodAllowsBody, onModeChange, onBodyChange, onFormChange }: Props) {
+export function BodyEditor({ mode, body, formBody, methodAllowsBody, onModeChange, onBodyChange, onFormChange, toolbar = true }: Props) {
   const problem = mode === "json" ? findJsonProblem(body) : null;
 
   const format = () => {
@@ -38,6 +40,7 @@ export function BodyEditor({ mode, body, formBody, methodAllowsBody, onModeChang
 
   return (
     <div className="body-editor">
+      {toolbar && (
       <div className="body-modes">
         {MODES.map(([value, label]) => (
           <label key={value} className="radio">
@@ -56,12 +59,13 @@ export function BodyEditor({ mode, body, formBody, methodAllowsBody, onModeChang
           </>
         )}
       </div>
+      )}
 
       {!methodAllowsBody && mode !== "none" && (
         <p className="warning small">GET and HEAD requests are sent without a body.</p>
       )}
 
-      {mode === "none" && <p className="muted">This request does not have a body.</p>}
+      {mode === "none" && <p className="muted small">This request does not have a body.</p>}
 
       {(mode === "json" || mode === "text") && (
         <>

@@ -11,6 +11,9 @@ interface Props {
   runId: string;
   onBack: () => void;
   onDelete: (id: string) => void;
+  /** Open with the list filtered to this case, and this result selected (an index into the run's results). */
+  initialCaseId?: string;
+  initialIndex?: number;
 }
 
 type Filter = "all" | "passed" | "failed";
@@ -23,7 +26,7 @@ function formatDuration(ms: number): string {
 }
 
 /** A saved test run: summary, per-case breakdown, run log, and every case result. */
-export function TestRunExplorer({ runId, onBack, onDelete }: Props) {
+export function TestRunExplorer({ runId, onBack, onDelete, initialCaseId, initialIndex }: Props) {
   const [run, setRun] = useState<TestRun | null | undefined>(undefined);
   const [filter, setFilter] = useState<Filter>("all");
   const [caseFilter, setCaseFilter] = useState<string | null>(null);
@@ -36,19 +39,20 @@ export function TestRunExplorer({ runId, onBack, onDelete }: Props) {
   useEffect(() => {
     let live = true;
     setRun(undefined);
-    setCaseFilter(null);
+    setCaseFilter(initialCaseId ?? null);
     getTestRun(runId)
       .then((r) => {
         if (!live) return;
         setRun(r ?? null);
         const firstFail = r?.results.findIndex((x) => !x.passed) ?? -1;
-        setSelected(r && r.results.length ? Math.max(0, firstFail) : null);
+        const wanted = initialIndex !== undefined && r && initialIndex < r.results.length ? initialIndex : null;
+        setSelected(r && r.results.length ? (wanted ?? Math.max(0, firstFail)) : null);
       })
       .catch(() => live && setRun(null));
     return () => {
       live = false;
     };
-  }, [runId]);
+  }, [runId, initialCaseId, initialIndex]);
 
   const perCase = useMemo(() => (run ? caseStats(run) : []), [run]);
   const times = useMemo(() => (run ? testRunTimes(run) : null), [run]);

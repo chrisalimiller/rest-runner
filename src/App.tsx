@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AuthEditor } from "./components/AuthEditor";
 import { BatchPane } from "./components/BatchPane";
-import { BodyEditor } from "./components/BodyEditor";
 import { ExampleDialog, MoveDialog, SaveRequestDialog, type DestinationChoice } from "./components/CollectionDialogs";
 import { CollectionTree, type TreeAction } from "./components/CollectionTree";
 import { EnvironmentEditor } from "./components/EnvironmentEditor";
-import { countActive, KeyValueEditor } from "./components/KeyValueEditor";
+import { RequestEditor } from "./components/request/RequestEditor";
+import { RequestSwitcher } from "./components/request/RequestSwitcher";
 import { ResponsePane } from "./components/ResponsePane";
 import { RunExplorer } from "./components/RunExplorer";
-import { Sidebar } from "./components/Sidebar";
+import { TopBar } from "./components/shell/TopBar";
+import type { ShellCommand, ShellProps } from "./Root";
 import {
   addExample,
   canMove,
@@ -34,18 +34,19 @@ import {
   type SampleResponse,
 } from "./lib/collections";
 import { newRequest } from "./lib/defaults";
+import { earlierSendLabel, earlierSends, earlierSendTone, whenLabel } from "./lib/earlierSends";
 import { environmentVars, type Environment } from "./lib/environments";
 import { sendRequest } from "./lib/http";
 import { newId } from "./lib/ids";
 import { prepareRequest } from "./lib/request";
 import type { RunSummary } from "./lib/run";
+import type { QuickItem } from "./lib/quickOpen";
 import { deleteRun, listRuns } from "./lib/runStore";
 import { saveTextFile } from "./lib/saveFile";
 import { importWorkspaceFile, toWorkspaceFile } from "./lib/workspace";
 import { load, save } from "./lib/storage";
-import { HTTP_METHODS, type HistoryEntry, type HttpMethod, type RequestDef, type SendOutcome } from "./lib/types";
+import type { HistoryEntry, RequestDef, SendOutcome } from "./lib/types";
 
-type RequestTab = "params" | "auth" | "headers" | "body";
 type LowerPane = "response" | "batch";
 
 const DRAFT_KEY = "rest-runner.draft";
@@ -57,6 +58,11 @@ const COLLECTIONS_KEY = "rest-runner.collections";
 const EXPANDED_KEY = "rest-runner.expanded";
 const ENVIRONMENTS_KEY = "rest-runner.environments";
 const ACTIVE_ENV_KEY = "rest-runner.active-environment";
+const SECTIONS_KEY = "rest-runner.request-sections";
+const SPLIT_KEY = "rest-runner.split";
+/** Response bodies kept with each history entry, so an earlier send can be shown again. */
+const MAX_HISTORY_BODY = 32 * 1024;
+const MIN_COLUMN = 380;
 
 function loadCollections(): Collection[] {
   const stored = load<unknown>(COLLECTIONS_KEY, null);
@@ -78,13 +84,27 @@ function sampleOutcome(example: RequestExample, response: SampleResponse, envVar
   };
 }
 
-/** `active` is false while another section (Testing) is on screen, so keyboard shortcuts stay out of its way. */
-export default function App({ active = true }: { active?: boolean }) {
+/** An earlier send from history, shown again as a read-only sample. Older entries kept no response, so they show nothing. */
+function historyOutcome(h: HistoryEntry): SendOutcome | null {
+  const request = { method: h.method, url: h.url, headers: [] as [string, string][] };
+  if (h.response) return { ok: true, request, response: h.response, sentAt: h.sentAt };
+  if (h.error !== undefined) return { ok: false, request, error: h.error, durationMs: h.durationMs ?? 0, sentAt: h.sentAt };
+  return null;
+}
+
+interface Props {
+  /** False while Testing (or quick open) is on screen, so keyboard shortcuts stay out of its way. */
+  active?: boolean;
+  shell: ShellProps;
+  command: ShellCommand | null;
+}
+
+export default function App({ active = true, shell, command }: Props) {
   const [def, setDef] = useState<RequestDef>(() => load(DRAFT_KEY, newRequest()));
-  const [tab, setTab] = useState<RequestTab>("params");
   const [outcome, setOutcome] = useState<SendOutcome | null>(null);
   const [sending, setSending] = useState(false);
   const [pane, setPane] = useState<LowerPane>("response");
+  const [batchVisited, setBatchVisited] = useState(false);
   const [batchRunning, setBatchRunning] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>(() => load(HISTORY_KEY, []));
   const [runs, setRuns] = useState<RunSummary[]>([]);
@@ -96,11 +116,20 @@ export default function App({ active = true }: { active?: boolean }) {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [outcomeIsSample, setOutcomeIsSample] = useState(false);
+  const [sampleLabel, setSampleLabel] = useState<string | undefined>(undefined);
+  const [shownHistoryId, setShownHistoryId] = useState<string | null>(null);
   const [environments, setEnvironments] = useState<Environment[]>(() => load(ENVIRONMENTS_KEY, []));
   const [activeEnvId, setActiveEnvId] = useState<string | null>(() => load(ACTIVE_ENV_KEY, null));
   const [showEnvEditor, setShowEnvEditor] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [renamingName, setRenamingName] = useState(false);
+  const [split, setSplit] = useState<number>(() => {
+    const v = load<number>(SPLIT_KEY, 0.55);
+    return typeof v === "number" && v > 0.1 && v < 0.9 ? v : 0.55;
+  });
   const abortRef = useRef<AbortController | null>(null);
+  const inspectorRef = useRef<HTMLDivElement>(null);
 
   const activeEnv = environments.find((e) => e.id === activeEnvId) ?? null;
   const envVars = useMemo(() => environmentVars(activeEnv), [activeEnv]);
@@ -125,6 +154,9 @@ export default function App({ active = true }: { active?: boolean }) {
     save(ACTIVE_ENV_KEY, activeEnvId);
   }, [activeEnvId]);
   useEffect(() => {
+    save(SPLIT_KEY, split);
+  }, [split]);
+  useEffect(() => {
     if (!notice) return;
     const t = setTimeout(() => setNotice(null), 5000);
     return () => clearTimeout(t);
@@ -141,7 +173,8 @@ export default function App({ active = true }: { active?: boolean }) {
     save(DRAFT_KEY, def);
   }, [def]);
   useEffect(() => {
-    save(HISTORY_KEY, history);
+    // Responses make history larger; if storage is full, keep the list without them.
+    if (!save(HISTORY_KEY, history)) save(HISTORY_KEY, history.map(({ response: _r, ...h }) => h));
   }, [history]);
 
   const patch = (p: Partial<RequestDef>) => setDef((d) => ({ ...d, ...p }));
@@ -158,15 +191,22 @@ export default function App({ active = true }: { active?: boolean }) {
     setSending(false);
     setOutcome(result);
     setOutcomeIsSample(false);
+    setSampleLabel(undefined);
+    const entryId = newId();
+    setShownHistoryId(entryId);
     setHistory((h) =>
       [
         {
-          id: newId(),
+          id: entryId,
           method: prepared.method,
           url: prepared.url,
           status: result.ok ? result.response.status : null,
           sentAt: result.sentAt,
           def: structuredClone(def),
+          durationMs: result.ok ? result.response.durationMs : result.durationMs,
+          ...(result.ok
+            ? { response: { ...result.response, body: result.response.body.slice(0, MAX_HISTORY_BODY) } }
+            : { error: result.error }),
         },
         ...h,
       ].slice(0, MAX_HISTORY),
@@ -207,6 +247,8 @@ export default function App({ active = true }: { active?: boolean }) {
     setDef(structuredClone(d));
     setOutcome(null);
     setOutcomeIsSample(false);
+    setSampleLabel(undefined);
+    setShownHistoryId(null);
     setOpenRun(null);
   };
 
@@ -215,6 +257,19 @@ export default function App({ active = true }: { active?: boolean }) {
     if (ex.response) {
       setOutcome(sampleOutcome(ex, ex.response, envVars));
       setOutcomeIsSample(true);
+      setPane("response");
+    }
+  };
+
+  const openHistory = (h: HistoryEntry) => {
+    openDef(h.def);
+    const o = historyOutcome(h);
+    setShownHistoryId(h.id);
+    if (o) {
+      setOutcome(o);
+      setOutcomeIsSample(true);
+      const cut = h.response && h.response.sizeBytes > MAX_HISTORY_BODY ? " · body cut to 32 KB" : "";
+      setSampleLabel(`Sent ${whenLabel(h.sentAt)}${h.durationMs !== undefined ? ` · ${h.durationMs} ms` : ""}${cut}`);
       setPane("response");
     }
   };
@@ -263,6 +318,7 @@ export default function App({ active = true }: { active?: boolean }) {
         break;
       }
       case "add-example":
+        setSwitcherOpen(false);
         startExample(a.requestId);
         break;
       case "rename":
@@ -277,6 +333,7 @@ export default function App({ active = true }: { active?: boolean }) {
       case "move": {
         const found = locate(collections, a.id);
         const name = found?.kind === "folder" ? found.folder.name : found?.kind === "request" ? found.node.request.name : "";
+        setSwitcherOpen(false);
         setDialog({ type: "move", id: a.id, name });
         break;
       }
@@ -314,6 +371,40 @@ export default function App({ active = true }: { active?: boolean }) {
     }
   };
 
+  /** Opens what quick open picked. */
+  const openItem = (item: QuickItem) => {
+    switch (item.kind) {
+      case "request":
+      case "example": {
+        const found = locate(collections, item.id);
+        if (found?.kind === "request") {
+          expand(found.collection.id, ...found.path.map((f) => f.id));
+          openDef(found.node.request);
+        } else if (found?.kind === "example") {
+          expand(found.collection.id, ...found.path.map((f) => f.id), found.node.id);
+          openExample(found.example);
+        } else setNotice("That item no longer exists.");
+        break;
+      }
+      case "history": {
+        const h = history.find((x) => x.id === item.id);
+        if (h) openHistory(h);
+        break;
+      }
+      case "batch-run":
+        setOpenRun(item.id);
+        break;
+    }
+  };
+
+  const lastCommand = useRef<number | null>(null);
+  useEffect(() => {
+    if (!command || lastCommand.current === command.nonce) return;
+    lastCommand.current = command.nonce;
+    if (command.type === "clear-history") setHistory([]);
+    else openItem(command.item);
+  }, [command]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (!active || openRun !== null || showEnvEditor || dialog !== null) return;
@@ -325,45 +416,134 @@ export default function App({ active = true }: { active?: boolean }) {
         e.preventDefault();
         saveCurrent();
       }
+      if (e.key === "F2" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+        e.preventDefault();
+        setRenamingName(true);
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [send, saveCurrent, openRun, showEnvEditor, dialog, active]);
 
-  const methodAllowsBody = def.method !== "GET" && def.method !== "HEAD";
-  const tabLabel = (name: string, count: number) => (count > 0 ? `${name} (${count})` : name);
+  const startSplitDrag = (e: React.PointerEvent) => {
+    const el = inspectorRef.current;
+    if (!el) return;
+    e.preventDefault();
+    const rect = el.getBoundingClientRect();
+    if (rect.width < MIN_COLUMN * 2) return;
+    const onMove = (ev: PointerEvent) => {
+      const x = Math.min(rect.width - MIN_COLUMN, Math.max(MIN_COLUMN, ev.clientX - rect.left));
+      setSplit(x / rect.width);
+    };
+    const onUp = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      document.body.classList.remove("dragging-split");
+    };
+    document.body.classList.add("dragging-split");
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
+
+  const onSplitKey = (e: React.KeyboardEvent) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    const width = inspectorRef.current?.getBoundingClientRect().width ?? 1200;
+    const min = MIN_COLUMN / width;
+    setSplit((s) => Math.min(1 - min, Math.max(min, s + (e.key === "ArrowLeft" ? -0.02 : 0.02))));
+  };
+
+  const sends = earlierSends(history, runs, def);
+  const openBatch = () => {
+    setPane("batch");
+    setBatchVisited(true);
+  };
+
+  const switcher = (
+    <RequestSwitcher
+      crumbs={crumbs}
+      method={def.method}
+      name={def.name}
+      isExample={located?.kind === "example"}
+      unsaved={!savedVersion ? "Not saved" : isDirty ? "Unsaved changes" : null}
+      open={switcherOpen}
+      onOpenChange={setSwitcherOpen}
+      renaming={renamingName}
+      onRenamingChange={setRenamingName}
+      onRename={(name) => patch({ name })}
+    >
+      <div className="popover-head">
+        <span className="section-title">Collections</span>
+        <span className="sidebar-actions">
+          <button className="link-btn" onClick={addCollection} title="Add a collection">
+            New
+          </button>
+          <label className="link-btn" title="Import collections and environments from a file">
+            Import
+            <input
+              type="file"
+              accept=".json,application/json"
+              hidden
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void importWorkspace(f);
+                e.target.value = "";
+              }}
+            />
+          </label>
+          <button className="link-btn" onClick={() => void exportWorkspace()} title="Export collections and environments to a file">
+            Export
+          </button>
+        </span>
+      </div>
+      <button
+        className="primary-outline popover-new"
+        onClick={() => {
+          openDef(newRequest());
+          setSwitcherOpen(false);
+        }}
+      >
+        + New request
+      </button>
+      {collections.length === 0 && <p className="muted small pad">Click Save in the footer to keep a request in a collection.</p>}
+      <div className="tree-scroll">
+        <CollectionTree
+          collections={collections}
+          activeId={openRun === null ? def.id : null}
+          expanded={expanded}
+          onToggle={toggle}
+          renamingId={renamingId}
+          onRenamingChange={setRenamingId}
+          onOpenRequest={(node) => {
+            openDef(node.request);
+            setSwitcherOpen(false);
+          }}
+          onOpenExample={(_node, ex) => {
+            openExample(ex);
+            setSwitcherOpen(false);
+          }}
+          onAction={onTreeAction}
+        />
+      </div>
+    </RequestSwitcher>
+  );
 
   return (
-    <div className="app">
-      <Sidebar
-        collections={
-          <CollectionTree
-            collections={collections}
-            activeId={openRun === null ? def.id : null}
-            expanded={expanded}
-            onToggle={toggle}
-            renamingId={renamingId}
-            onRenamingChange={setRenamingId}
-            onOpenRequest={(node) => openDef(node.request)}
-            onOpenExample={(_node, ex) => openExample(ex)}
-            onAction={onTreeAction}
-          />
-        }
-        hasCollections={collections.length > 0}
-        onNewCollection={addCollection}
-        onExport={() => void exportWorkspace()}
-        onImport={(f) => void importWorkspace(f)}
-        history={history}
-        runs={runs}
-        activeRunId={openRun}
-        onOpenRun={setOpenRun}
-        onNew={() => openDef(newRequest())}
-        onOpen={(h) => openDef(h.def)}
-        onClear={() => setHistory([])}
+    <div className="mode requests-mode">
+      <TopBar
+        mode="requests"
+        onMode={shell.onMode}
+        onQuickOpen={shell.onQuickOpen}
+        searchPlaceholder="Jump to a request, example, run or history…"
+        switcher={switcher}
+        environments={environments}
+        activeEnvId={activeEnvId}
+        onEnvChange={setActiveEnvId}
+        onEditEnvironments={() => setShowEnvEditor(true)}
       />
 
       {openRun !== null && (
-        <main className="workspace">
+        <main className="workspace full-view">
           <RunExplorer
             runId={openRun}
             onBack={() => setOpenRun(null)}
@@ -375,157 +555,124 @@ export default function App({ active = true }: { active?: boolean }) {
         </main>
       )}
 
-      <main className="workspace" hidden={openRun !== null}>
-        <div className="workspace-head">
-          {crumbs.length > 0 && (
-            <span className="crumbs small" title={crumbs.join(" / ")}>
-              {crumbs.map((c, i) => (
-                <span key={i}>
-                  {c}
-                  <span className="crumb-sep">/</span>
-                </span>
-              ))}
-            </span>
-          )}
-          {located?.kind === "example" && <span className="chip example-chip">Example</span>}
-          <input
-            className="request-name"
-            value={def.name}
-            onChange={(e) => patch({ name: e.target.value })}
-            aria-label="Request name"
-          />
-          <span className="muted small save-state">{savedVersion ? (isDirty ? "Unsaved changes" : "Saved") : "Not saved"}</span>
-          {(located?.kind === "request" || located?.kind === "example") && (
-            <button className="link-btn small" onClick={() => startExample(located.node.id)} title="Keep the current payload as a named example of this request">
-              Save as example
-            </button>
-          )}
-          {located?.kind === "example" && liveResponse && (
-            <button
-              className="link-btn small"
-              title="Keep the last response as this example's sample response"
-              onClick={() => {
-                setCollections((c) => setExampleResponse(c, def.id, sampleFromResponse(liveResponse)));
-                setNotice("Saved the response as the sample.");
-              }}
-            >
-              Set sample response
-            </button>
-          )}
-          {notice && <span className="small notice">{notice}</span>}
-          <span className="env-picker">
-            <select value={activeEnvId ?? ""} onChange={(e) => setActiveEnvId(e.target.value || null)} aria-label="Environment">
-              <option value="">No environment</option>
-              {environments.map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name || "(unnamed)"}
-                </option>
-              ))}
-            </select>
-            <button className="secondary" onClick={() => setShowEnvEditor(true)} title="Add or edit environments">
-              Environments
-            </button>
-          </span>
-        </div>
-
-        <div className="request-bar">
-          <select
-            className={`method-select m-${def.method.toLowerCase()}`}
-            value={def.method}
-            onChange={(e) => patch({ method: e.target.value as HttpMethod })}
-            aria-label="Method"
-          >
-            {HTTP_METHODS.map((m) => (
-              <option key={m}>{m}</option>
-            ))}
-          </select>
-          <input
-            className="url-input"
-            value={def.url}
-            onChange={(e) => patch({ url: e.target.value })}
-            placeholder="Enter URL, e.g. https://api.example.com/users"
-            spellCheck={false}
-            aria-label="URL"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.metaKey && !e.ctrlKey) void send();
-            }}
-          />
-          {sending ? (
-            <button className="send cancel" onClick={cancel}>
-              Cancel
-            </button>
-          ) : (
-            <button className="send" onClick={() => void send()} disabled={def.url.trim() === ""} title="Send (Ctrl/Cmd + Enter)">
-              Send
-            </button>
-          )}
-          <button className="secondary save-btn" onClick={saveCurrent} title="Save (Ctrl/Cmd + S)">
-            Save{savedVersion && isDirty ? " •" : ""}
-          </button>
-        </div>
-
-        <section className={`request-config ${pane === "batch" ? "compact" : ""}`}>
-          <div className="tabs">
-            <button className={tab === "params" ? "active" : ""} onClick={() => setTab("params")}>
-              {tabLabel("Params", countActive(def.params))}
-            </button>
-            <button className={tab === "auth" ? "active" : ""} onClick={() => setTab("auth")}>
-              Authorization{def.auth.type !== "none" ? " •" : ""}
-            </button>
-            <button className={tab === "headers" ? "active" : ""} onClick={() => setTab("headers")}>
-              {tabLabel("Headers", countActive(def.headers))}
-            </button>
-            <button className={tab === "body" ? "active" : ""} onClick={() => setTab("body")}>
-              Body{def.bodyMode !== "none" ? " •" : ""}
-            </button>
-          </div>
-          <div className="tab-panel">
-            {tab === "params" && (
-              <>
-                <p className="muted small">Query parameters are added to the end of the URL when the request is sent.</p>
-                <KeyValueEditor rows={def.params} onChange={(params) => patch({ params })} />
-              </>
+      <div
+        className="inspector"
+        hidden={openRun !== null}
+        ref={inspectorRef}
+        style={{ "--split-a": `${split}fr`, "--split-b": `${1 - split}fr` } as React.CSSProperties}
+      >
+        <section className="request-col" aria-label="Request">
+          <RequestEditor def={def} onChange={patch} envVars={envVars} envName={activeEnv?.name} onEnter={() => void send()} sectionsKey={SECTIONS_KEY} />
+          <div className="action-footer">
+            {sending ? (
+              <button className="send cancel" onClick={cancel}>
+                Cancel
+              </button>
+            ) : (
+              <button className="send" onClick={() => void send()} disabled={def.url.trim() === ""} title="Send (Ctrl/Cmd + Enter)">
+                Send
+              </button>
             )}
-            {tab === "auth" && <AuthEditor auth={def.auth} onChange={(auth) => patch({ auth })} />}
-            {tab === "headers" && <KeyValueEditor rows={def.headers} onChange={(headers) => patch({ headers })} />}
-            {tab === "body" && (
-              <BodyEditor
-                mode={def.bodyMode}
-                body={def.body}
-                formBody={def.formBody}
-                methodAllowsBody={methodAllowsBody}
-                onModeChange={(bodyMode) => patch({ bodyMode })}
-                onBodyChange={(body) => patch({ body })}
-                onFormChange={(formBody) => patch({ formBody })}
-              />
+            <button className="secondary" onClick={saveCurrent} title="Save (Ctrl/Cmd + S)">
+              Save{savedVersion && isDirty ? " •" : ""}
+            </button>
+            <button className={`secondary ghost ${pane === "batch" ? "active" : ""}`} onClick={openBatch} title="Send this request once per CSV row">
+              Run with CSV…
+            </button>
+            <span className="footer-gap" />
+            {notice && (
+              <span className="small notice" role="status">
+                {notice}
+              </span>
+            )}
+            {located?.kind === "example" && liveResponse && (
+              <button
+                className="link-btn small"
+                title="Keep the last response as this example's sample response"
+                onClick={() => {
+                  setCollections((c) => setExampleResponse(c, def.id, sampleFromResponse(liveResponse)));
+                  setNotice("Saved the response as the sample.");
+                }}
+              >
+                Set sample response
+              </button>
+            )}
+            {(located?.kind === "request" || located?.kind === "example") && (
+              <button className="link-btn small" onClick={() => startExample(located.node.id)} title="Keep the current payload as a named example of this request">
+                Save as example
+              </button>
             )}
           </div>
         </section>
 
-        <section className="lower">
-          <div className="pane-switch tabs">
-            <button className={pane === "response" ? "active" : ""} onClick={() => setPane("response")}>
-              Response
-            </button>
-            <button className={pane === "batch" ? "active" : ""} onClick={() => setPane("batch")}>
-              Batch run (CSV){batchRunning ? " ●" : ""}
-            </button>
-          </div>
-          <div className="lower-body" hidden={pane !== "response"}>
-            <ResponsePane outcome={outcome} sending={sending} isSample={outcomeIsSample} />
-          </div>
-          <div className="lower-body" hidden={pane !== "batch"}>
-            <BatchPane
-              def={def}
-              envVars={envVars}
-              envName={activeEnv?.name}
-              onRunningChange={setBatchRunning}
-              onRunSaved={refreshRuns}
-              onOpenRun={setOpenRun}
+        <div
+          className="splitter"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize request and response columns"
+          aria-valuenow={Math.round(split * 100)}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          tabIndex={0}
+          onPointerDown={startSplitDrag}
+          onKeyDown={onSplitKey}
+          onDoubleClick={() => setSplit(0.55)}
+        />
+
+        <section className="response-col" aria-label="Response">
+          {(batchVisited || batchRunning) && (
+            <div className="pane-switch">
+              <div className="segmented" role="tablist" aria-label="Response or batch run">
+                <button role="tab" aria-selected={pane === "response"} className={pane === "response" ? "on" : ""} onClick={() => setPane("response")}>
+                  Response
+                </button>
+                <button role="tab" aria-selected={pane === "batch"} className={pane === "batch" ? "on" : ""} onClick={openBatch}>
+                  {batchRunning && <span className="pulse-dot" aria-label="Running" />}
+                  Batch run
+                </button>
+              </div>
+            </div>
+          )}
+          <div className="response-main" hidden={pane !== "response"}>
+            <ResponsePane
+              outcome={outcome}
+              sending={sending}
+              isSample={outcomeIsSample}
+              sampleLabel={sampleLabel}
+              errorHint={
+                activeEnv
+                  ? `Check that the server is reachable from this computer, or switch environments (using ${activeEnv.name || "an unnamed environment"}).`
+                  : undefined
+              }
             />
+            {sends.length > 0 && (
+              <div className="earlier-sends">
+                <span className="section-title">Earlier sends of this request</span>
+                <div className="earlier-list">
+                  {sends.map((item) => {
+                    const key = item.kind === "send" ? item.entry.id : item.run.id;
+                    const current = item.kind === "send" && item.entry.id === shownHistoryId;
+                    return (
+                      <button
+                        key={key}
+                        className={`send-pill tone-${earlierSendTone(item)} ${current ? "current" : ""}`}
+                        onClick={() => (item.kind === "send" ? openHistory(item.entry) : setOpenRun(item.run.id))}
+                        title={item.kind === "send" ? `${item.entry.method} ${item.entry.url}` : `Open the batch run from ${item.run.csvName}`}
+                      >
+                        {earlierSendLabel(item)}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="batch-main" hidden={pane !== "batch"}>
+            <BatchPane def={def} envVars={envVars} envName={activeEnv?.name} onRunningChange={setBatchRunning} onRunSaved={refreshRuns} onOpenRun={setOpenRun} />
           </div>
         </section>
-      </main>
+      </div>
+
       {dialog?.type === "save" && (
         <SaveRequestDialog
           collections={collections}
