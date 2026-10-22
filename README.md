@@ -20,7 +20,7 @@ Runs on macOS and Windows from one codebase, built with [Tauri 2](https://tauri.
 - Query params, headers and form fields as tables with on/off checkboxes
 - Body: raw JSON, raw text, or x-www-form-urlencoded
 - JSON editor with GitHub-style syntax highlighting, `{{placeholders}}` highlighted, errors underlined with line and column, and **format on paste** (pasting that leaves valid JSON re-indents the whole body; Ctrl/Cmd + Z undoes it). Format button or Shift + Alt + F formats any time, keeping placeholders as written
-- GitHub dark theme, with JetBrains Mono (bundled, works offline) for all code
+- GitHub dark theme, with JetBrains Mono for all code (font files live in `src/assets/fonts`, so it works offline and needs no package)
 - Auth: bearer token, basic auth, or API key (header or query)
 - Response viewer: status, time, size, pretty or raw body, headers, and the exact request that was sent
 - Collections in the sidebar with nested folders (Save button or Ctrl/Cmd + S), with an unsaved-changes marker. Right-click or use the ⋯ button to add, rename, duplicate, move or delete. Requests saved before collections existed are moved into a "My requests" collection automatically
