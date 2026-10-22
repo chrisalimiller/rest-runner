@@ -1,6 +1,6 @@
 /* Section rail and Testing section. Uses the color tokens from styles.css. */
 
-.root {
+.app-shell {
   display: grid;
   grid-template-columns: 64px 1fr;
   height: 100%;
