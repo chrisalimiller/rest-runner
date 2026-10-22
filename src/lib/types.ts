@@ -1,0 +1,61 @@
+export const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"] as const;
+export type HttpMethod = (typeof HTTP_METHODS)[number];
+
+export interface KeyValue {
+  id: string;
+  key: string;
+  value: string;
+  enabled: boolean;
+}
+
+export type BodyMode = "none" | "json" | "text" | "urlencoded";
+
+export type AuthConfig =
+  | { type: "none" }
+  | { type: "bearer"; token: string }
+  | { type: "basic"; username: string; password: string }
+  | { type: "apikey"; key: string; value: string; addTo: "header" | "query" };
+
+/** A request as the user edits it. Values may contain {{placeholders}}. */
+export interface RequestDef {
+  id: string;
+  name: string;
+  method: HttpMethod;
+  url: string;
+  params: KeyValue[];
+  headers: KeyValue[];
+  bodyMode: BodyMode;
+  body: string;
+  formBody: KeyValue[];
+  auth: AuthConfig;
+}
+
+/** A request with placeholders filled in and auth applied, ready to send. */
+export interface PreparedRequest {
+  method: HttpMethod;
+  url: string;
+  headers: [string, string][];
+  body?: string;
+}
+
+export interface ResponseResult {
+  status: number;
+  statusText: string;
+  headers: [string, string][];
+  body: string;
+  sizeBytes: number;
+  durationMs: number;
+}
+
+export type SendOutcome =
+  | { ok: true; request: PreparedRequest; response: ResponseResult; sentAt: string }
+  | { ok: false; request: PreparedRequest; error: string; durationMs: number; sentAt: string };
+
+export interface HistoryEntry {
+  id: string;
+  method: HttpMethod;
+  url: string;
+  status: number | null;
+  sentAt: string;
+  def: RequestDef;
+}

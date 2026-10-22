@@ -1,0 +1,60 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            name: macos-universal
+            args: --target universal-apple-darwin
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+            bundle-dir: src-tauri/target/universal-apple-darwin/release/bundle
+          - platform: windows-latest
+            name: windows-x64
+            args: ""
+            rust-targets: ""
+            bundle-dir: src-tauri/target/release/bundle
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.rust-targets }}
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri -> target
+      - run: npm ci
+      - run: npm run tauri build -- ${{ matrix.args }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: rest-runner-${{ matrix.name }}
+          path: |
+            ${{ matrix.bundle-dir }}/dmg/*.dmg
+            ${{ matrix.bundle-dir }}/msi/*.msi
+            ${{ matrix.bundle-dir }}/nsis/*.exe
+          if-no-files-found: error
