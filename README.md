@@ -1,5 +1,7 @@
 # REST Runner
 
+**Documentation:** the [user guide](docs/README.md) covers every feature, including the [`rr` scripting reference](docs/scripting.md) for pre-request and post-response scripts.
+
 A lightweight desktop app for running REST requests, and (soon) batches of them driven by CSV files. The Requests screen puts the request on the left and the response on the right, with one top bar for switching requests, environments and modes.
 
 Runs on macOS and Windows from one codebase, built with [Tauri 2](https://tauri.app), React and TypeScript.
@@ -30,6 +32,7 @@ Runs on macOS and Windows from one codebase, built with [Tauri 2](https://tauri.
 - Quick open (Ctrl/Cmd + K): fuzzy search over requests, examples, history, batch runs, suites, test cases and test runs
 - Export and import collections (with folders and examples) and environments as one JSON file (older export files still import), to back up or move between computers
 - History of the last 50 requests, in quick open and in the **Earlier sends of this request** strip under the response (click one to see that response again); your current request is kept between launches
+- Scripts: each request can have a pre-request and a post-response JavaScript script (`rr` API) for setting variables and checking responses. See [docs/scripting.md](docs/scripting.md)
 - Send with the button, Enter in the URL box, or Ctrl/Cmd + Enter
 - Requests are sent from the Rust side, so browser CORS rules do not apply
 
@@ -134,5 +137,6 @@ src/                 React UI
   lib/               Request building, templates, sending (no UI code)
 src-tauri/           Rust shell, app config, icons, permissions
 brand/               Logo and app icon sources (see BRAND.md)
+docs/                User guide (start at docs/README.md)
 .github/workflows/   Test and build pipeline
 ```
