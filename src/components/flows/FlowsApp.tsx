@@ -34,7 +34,7 @@ function viewOf(run: FlowRun): FlowRunView {
     flowId: run.flowId,
     running: false,
     steps: run.stepList,
-    currentNodeId: null,
+    runningNodeIds: [],
     startedAt: Date.parse(run.startedAt),
     finishedAt: Date.parse(run.finishedAt),
     end: run.end,
@@ -48,8 +48,8 @@ function viewOf(run: FlowRun): FlowRunView {
 function runStateOf(view: FlowRunView | null): Map<string, NodeRunState> {
   const map = new Map<string, NodeRunState>();
   if (!view) return map;
-  for (const s of view.steps) map.set(s.nodeId, { status: s.status, runs: (map.get(s.nodeId)?.runs ?? 0) + 1 });
-  if (view.running && view.currentNodeId) map.set(view.currentNodeId, { status: "running", runs: map.get(view.currentNodeId)?.runs ?? 0 });
+  for (const s of [...view.steps].sort((a, b) => a.index - b.index)) map.set(s.nodeId, { status: s.status, runs: (map.get(s.nodeId)?.runs ?? 0) + 1 });
+  if (view.running) for (const id of view.runningNodeIds) map.set(id, { status: "running", runs: map.get(id)?.runs ?? 0 });
   return map;
 }
 
@@ -172,7 +172,7 @@ export function FlowsApp({ active, shell }: Props) {
     const controller = new AbortController();
     abortRef.current = controller;
     setSelectedId(null);
-    setLive({ flowId: f.id, running: true, steps: [], currentNodeId: null, startedAt: Date.now() });
+    setLive({ flowId: f.id, running: true, steps: [], runningNodeIds: [], startedAt: Date.now() });
     try {
       const result = await runFlow(f, {
         suites: fresh.suites,
@@ -183,15 +183,20 @@ export function FlowsApp({ active, shell }: Props) {
         scripts: scripts.run,
         signal: controller.signal,
         trigger: "manual",
-        onStepStart: (nodeId) => setLive((l) => (l ? { ...l, currentNodeId: nodeId } : l)),
-        onStep: (step) => setLive((l) => (l ? { ...l, steps: [...l.steps, step] } : l)),
+        onStepStart: (nodeId) => setLive((l) => (l ? { ...l, runningNodeIds: [...l.runningNodeIds, nodeId] } : l)),
+        onStep: (step) =>
+          setLive((l) => {
+            if (!l) return l;
+            const i = l.runningNodeIds.indexOf(step.nodeId);
+            return { ...l, steps: [...l.steps, { ...step }], runningNodeIds: i === -1 ? l.runningNodeIds : l.runningNodeIds.filter((_, j) => j !== i) };
+          }),
       });
       setLive((l) =>
         l
           ? {
               ...l,
               running: false,
-              currentNodeId: null,
+              runningNodeIds: [],
               finishedAt: Date.parse(result.finishedAt),
               end: result.end,
               endReason: result.endReason,

@@ -1,3 +1,4 @@
+import { parseCsv } from "../csv";
 import { load } from "../storage";
 import { listPickableRequests, type PickableRequest } from "../testing/requestSources";
 import { cleanSuites } from "../testing/suites";
@@ -44,6 +45,15 @@ export function nodeDetail(node: FlowNode, items: FlowItems): string {
     }
     case "if":
       return describeCondition(node.condition);
+    case "parallel":
+      return "Starts every branch at once";
+    case "join":
+      return "Waits for every branch";
+    case "loop": {
+      if (!node.data) return "No CSV loaded";
+      const rows = parseCsv(node.data.text).rows.length;
+      return `${rows} row${rows === 1 ? "" : "s"} · ${node.data.name}`;
+    }
     case "wait":
       return formatMs(node.ms);
     case "set-var":

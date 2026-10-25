@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { parseCsv } from "../../lib/csv";
 import { CONDITION_SOURCE_LABELS, OPS_FOR_CONDITION } from "../../lib/flows/conditions";
 import { formatMs, NODE_TYPE_LABELS, nodeLabel } from "../../lib/flows/flows";
 import type { FlowItems } from "../../lib/flows/items";
-import type { ConditionSource, FlowCondition, FlowNode, RetrySettings } from "../../lib/flows/types";
+import type { ConditionSource, FlowCondition, FlowNode, LoopNode, RetrySettings } from "../../lib/flows/types";
 import type { FlowProblem } from "../../lib/flows/validate";
 import { OP_LABELS, opNeedsValue } from "../../lib/testing/assertions";
 
@@ -143,6 +144,65 @@ function RequestSelect({ items, value, onChange }: { items: FlowItems; value: st
   );
 }
 
+/** Loop over CSV: load a file; the rows and columns are shown. */
+function LoopEditor({ node, onChange }: { node: LoopNode; onChange: (n: LoopNode) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [error, setError] = useState<string | null>(null);
+  const csv = useMemo(() => (node.data ? parseCsv(node.data.text) : null), [node.data]);
+  const load = async (file: File) => {
+    setError(null);
+    const text = await file.text();
+    if (parseCsv(text).headers.length === 0) {
+      setError(`${file.name} has no header row.`);
+      return;
+    }
+    if (text.length > MAX_LOOP_CSV) setError(`${file.name} is large and may not fit in local storage with your other flows.`);
+    onChange({ ...node, data: { name: file.name, text } });
+  };
+  return (
+    <fieldset className="flow-fieldset">
+      <legend className="section-title">CSV data</legend>
+      {csv && node.data ? (
+        <p className="small">
+          <strong>{node.data.name}</strong>: {csv.rows.length} row{csv.rows.length === 1 ? "" : "s"}, columns{" "}
+          <span className="mono">{csv.headers.map((h) => `{{${h}}}`).join(" ")}</span>
+        </p>
+      ) : (
+        <p className="muted small">No CSV loaded yet.</p>
+      )}
+      {csv && csv.warnings.length > 0 && <p className="small warning">{csv.warnings.join(" ")}</p>}
+      {error && <p className="small warning">{error}</p>}
+      <span className="flow-field-row">
+        <button className="secondary" onClick={() => inputRef.current?.click()}>
+          {node.data ? "Replace CSV…" : "Load CSV…"}
+        </button>
+        {node.data && (
+          <button className="link-btn" onClick={() => onChange({ ...node, data: null })}>
+            Remove
+          </button>
+        )}
+      </span>
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".csv,.tsv,.txt,text/csv"
+        hidden
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) void load(f);
+          e.target.value = "";
+        }}
+      />
+      <p className="muted small">
+        The steps wired to "each row" run once per row, one row at a time. Their requests, scripts and Set variable steps can use the columns as {"{{column}}"} and rr.data. Flow variables carry from one row to the next. When every row has run, the flow continues from "done"; if a row failed with nothing wired to handle it, the flow stops as failed instead.
+      </p>
+    </fieldset>
+  );
+}
+
+/** CSV files above this size may not fit in local storage. */
+const MAX_LOOP_CSV = 2 * 1024 * 1024;
+
 /** Settings for the selected node, in the right-hand panel. */
 export function NodeSettings({ node, items, problems, onChange, onDelete, onClose }: Props) {
   const mine = problems.filter((p) => p.nodeId === node.id);
@@ -217,6 +277,18 @@ export function NodeSettings({ node, items, problems, onChange, onDelete, onClos
       {(node.type === "run-case" || node.type === "run-suite" || node.type === "run-request") && <RetryEditor retry={node.retry} onChange={(retry) => onChange({ ...node, retry })} />}
 
       {node.type === "if" && <ConditionEditor condition={node.condition} onChange={(condition) => onChange({ ...node, condition })} />}
+
+      {node.type === "parallel" && (
+        <p className="muted small">
+          Wire two or more steps from "branches". They all start at once, each with its own copy of the flow variables. Wire the end of every branch into one Join to wait for them and carry on.
+        </p>
+      )}
+      {node.type === "join" && (
+        <p className="muted small">
+          Waits until every branch of the Parallel before it has finished, then continues from "passed", or from "failed" if any branch failed. Variables set in the branches are merged; when two branches set the same one, the branch that finished last wins.
+        </p>
+      )}
+      {node.type === "loop" && <LoopEditor node={node} onChange={onChange} />}
 
       {node.type === "wait" && <NumberField label="Wait" value={node.ms} onChange={(ms) => onChange({ ...node, ms })} suffix={`ms (${formatMs(node.ms)})`} />}
 

@@ -1,6 +1,7 @@
 import type { TestSuite } from "../testing/types";
 import { nodeLabel, type RequestLookup } from "./flows";
-import { NODE_OUTPUTS, type Flow, type FlowNode } from "./types";
+import { parseCsv } from "../csv";
+import { MULTI_WIRE_OUTPUTS, NODE_OUTPUTS, type Flow, type FlowNode } from "./types";
 
 export interface FlowProblem {
   /** error: the flow cannot start. warning: it can, but something looks wrong. */
@@ -45,6 +46,11 @@ function itemProblems(node: FlowNode, suites: TestSuite[], findRequest: RequestL
       return [];
     case "set-var":
       return node.name.trim() === "" ? ["Enter a variable name."] : [];
+    case "loop": {
+      if (!node.data) return ["Load a CSV file for the loop to go through."];
+      if (parseCsv(node.data.text).headers.length === 0) return [`${node.data.name} has no header row.`];
+      return [];
+    }
     default:
       return [];
   }
@@ -92,6 +98,7 @@ export function validateFlow(flow: Flow, suites: TestSuite[], findRequest: Reque
 
   for (const node of flow.nodes) {
     for (const output of NODE_OUTPUTS[node.type]) {
+      if (MULTI_WIRE_OUTPUTS.includes(output)) continue;
       const count = flow.edges.filter((e) => e.source === node.id && e.sourceHandle === output).length;
       if (count > 1) {
         problems.push({
@@ -100,6 +107,21 @@ export function validateFlow(flow: Flow, suites: TestSuite[], findRequest: Reque
           message: `The "${output}" output of "${nodeLabel(node, suites, findRequest)}" has ${count} wires. Wire it to one step.`,
         });
       }
+    }
+  }
+
+  for (const node of flow.nodes) {
+    const label = () => nodeLabel(node, suites, findRequest);
+    const out = flow.edges.filter((e) => e.source === node.id);
+    const into = flow.edges.filter((e) => e.target === node.id);
+    if (node.type === "parallel" && out.length < 2) {
+      problems.push({ level: "warning", nodeId: node.id, message: `"${label()}" has ${out.length === 0 ? "no branches" : "one branch"}. Wire two or more steps from it to run them at the same time.` });
+    }
+    if (node.type === "join" && into.length < 2) {
+      problems.push({ level: "warning", nodeId: node.id, message: `"${label()}" has ${into.length === 0 ? "nothing" : "one wire"} coming in. Wire the end of each parallel branch into it.` });
+    }
+    if (node.type === "loop" && !out.some((e) => e.sourceHandle === "row")) {
+      problems.push({ level: "warning", nodeId: node.id, message: `Nothing is wired to the "each row" output of "${label()}", so it does nothing per row.` });
     }
   }
 
