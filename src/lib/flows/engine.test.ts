@@ -7,6 +7,7 @@ import { DEFAULT_SUITE_OPTIONS, type TestCase, type TestSuite } from "../testing
 import type { PreparedRequest, RequestDef, SendOutcome } from "../types";
 import { FlowNotRunnableError, runFlow, type FlowRunContext } from "./engine";
 import { newEdge, newFlow, newNode } from "./flows";
+import { validateFlow } from "./validate";
 import type { Flow, FlowNode, FlowOutput, FlowStep } from "./types";
 
 type Reply = { status: number; body?: string } | "error";
@@ -278,5 +279,179 @@ describe("runFlow", () => {
     const a = runRequestNode(savedRequest("Gone", "https://x"));
     await expect(runFlow(flowOf([a], []), ctxOf(server.send))).rejects.toThrow(FlowNotRunnableError);
     await expect(runFlow(flowOf([a], []), ctxOf(server.send))).rejects.toThrow(/saved request this step runs was deleted/);
+  });
+});
+
+function node<T extends FlowNode["type"]>(type: T, extra: Partial<Extract<FlowNode, { type: T }>> = {}): FlowNode {
+  return { ...newNode(type), ...extra } as FlowNode;
+}
+
+describe("Parallel and Join", () => {
+  it("starts branches at once, merges their variables with the last finisher winning, and continues", async () => {
+    const server = fakeServer(() => ({ status: 200 }), 1);
+    const send: SendFn = async (req, signal) => {
+      if (req.url.endsWith("/slow")) await new Promise((r) => setTimeout(r, 40));
+      return server.send(req, signal);
+    };
+    const slow = savedRequest("Slow", "https://{{host}}/slow", { preScript: `rr.vars.set("who", "slow"); rr.vars.set("a", "1")` });
+    const fast = savedRequest("Fast", "https://{{host}}/fast", { preScript: `rr.vars.set("who", "fast"); rr.vars.set("b", "2")` });
+    const after = savedRequest("After", "https://{{host}}/after?who={{who}}&a={{a}}&b={{b}}");
+    const par = node("parallel");
+    const join = node("join");
+    const a = runRequestNode(slow);
+    const b = runRequestNode(fast);
+    const c = runRequestNode(after);
+    const flow = flowOf([par, a, b, join, c], [
+      [par, "branches", a],
+      [par, "branches", b],
+      [a, "passed", join],
+      [b, "passed", join],
+      [join, "passed", c],
+    ]);
+    const run = await runFlow(flow, ctxOf(send, [], [slow, fast, after]));
+    expect(run.end).toBe("passed");
+    expect(server.urls().at(-1)).toBe("https://api.test/after?who=slow&a=1&b=2");
+    const steps = [...run.stepList].sort((x, y) => x.index - y.index);
+    expect(steps.map((s) => s.nodeType)).toEqual(["start", "parallel", "run-request", "run-request", "join", "run-request"]);
+    expect(steps.filter((s) => s.nodeType === "run-request").slice(0, 2).map((s) => s.branch).sort()).toEqual(["1", "2"]);
+    expect(steps[4].status).toBe("passed");
+  });
+
+  it("fails the Join when a branch failed, after waiting for every branch", async () => {
+    const server = fakeServer((req) => (req.url.endsWith("/bad") ? { status: 500 } : { status: 200 }));
+    const bad = makeCase("Bad", "https://{{host}}/bad");
+    const good = makeCase("Good", "https://{{host}}/good");
+    const suite = suiteOf([bad, good]);
+    const cleanup = savedRequest("Cleanup", "https://{{host}}/cleanup");
+    const par = node("parallel");
+    const join = node("join");
+    const a = runCaseNode(suite, bad);
+    const b = runCaseNode(suite, good);
+    const c = runRequestNode(cleanup);
+    const wires: [FlowNode, FlowOutput, FlowNode][] = [
+      [par, "branches", a],
+      [par, "branches", b],
+      [a, "passed", join],
+      [b, "passed", join],
+    ];
+    const unwired = await runFlow(flowOf([par, a, b, join, c], wires), ctxOf(server.send, [suite], [cleanup]));
+    expect(unwired.end).toBe("failed");
+    expect(unwired.endReason).toMatch(/Join" failed because a branch failed/);
+    expect(server.urls()).toContain("https://api.test/good");
+    const join1 = unwired.stepList.find((s) => s.nodeType === "join")!;
+    expect(join1.notes.join(" ")).toMatch(/Branch 1: "Suite › Bad"/);
+
+    const handled = await runFlow(flowOf([par, a, b, join, c], [...wires, [join, "failed", c]]), ctxOf(server.send, [suite], [cleanup]));
+    expect(handled.end).toBe("passed");
+    expect(handled.stepList.at(-1)?.label).toBe("Cleanup");
+  });
+
+  it("ends the flow after all branches when there is no Join", async () => {
+    const server = fakeServer(() => ({ status: 200 }));
+    const r1 = savedRequest("One", "https://{{host}}/1");
+    const r2 = savedRequest("Two", "https://{{host}}/2");
+    const par = node("parallel");
+    const a = runRequestNode(r1);
+    const b = runRequestNode(r2);
+    const run = await runFlow(flowOf([par, a, b], [
+      [par, "branches", a],
+      [par, "branches", b],
+    ]), ctxOf(server.send, [], [r1, r2]));
+    expect(run.end).toBe("passed");
+    expect(server.sent).toHaveLength(2);
+  });
+
+  it("refuses branches that meet at different Joins", async () => {
+    const server = fakeServer(() => ({ status: 200 }));
+    const par = node("parallel");
+    const w1 = node("wait", { ms: 0 });
+    const w2 = node("wait", { ms: 0 });
+    const j1 = node("join");
+    const j2 = node("join");
+    const run = await runFlow(flowOf([par, w1, w2, j1, j2], [
+      [par, "branches", w1],
+      [par, "branches", w2],
+      [w1, "next", j1],
+      [w2, "next", j2],
+    ]), ctxOf(server.send));
+    expect(run.end).toBe("failed");
+    expect(run.endReason).toMatch(/different Join/);
+  });
+
+  it("lets a Parallel's output have many wires", () => {
+    const par = node("parallel");
+    const w1 = node("wait");
+    const w2 = node("wait");
+    const f = flowOf([par, w1, w2], [
+      [par, "branches", w1],
+      [par, "branches", w2],
+    ]);
+    expect(validateFlow(f, [], () => null).filter((p) => p.level === "error")).toEqual([]);
+  });
+});
+
+describe("Loop over CSV", () => {
+  const csv = { name: "users.csv", text: "id,name\n1,Ann\n2,Bob\n3,Cy" };
+
+  it("runs the body once per row with columns filled in, carrying variables between rows, then continues from done", async () => {
+    const server = fakeServer(() => ({ status: 200 }));
+    const get = savedRequest("Get user", "https://{{host}}/u/{{id}}?name={{name}}&prev={{prev}}", { postScript: `rr.vars.set("prev", rr.data.id)` });
+    const after = savedRequest("After", "https://{{host}}/after?prev={{prev}}");
+    const loop = node("loop", { data: csv });
+    const a = runRequestNode(get);
+    const b = runRequestNode(after);
+    const run = await runFlow(flowOf([loop, a, b], [
+      [loop, "row", a],
+      [loop, "done", b],
+    ]), ctxOf(server.send, [], [get, after]));
+    expect(server.urls()).toEqual([
+      "https://api.test/u/1?name=Ann&prev={{prev}}",
+      "https://api.test/u/2?name=Bob&prev=1",
+      "https://api.test/u/3?name=Cy&prev=2",
+      "https://api.test/after?prev=3",
+    ]);
+    expect(run.end).toBe("passed");
+    const steps = [...run.stepList].sort((x, y) => x.index - y.index);
+    expect(steps[1].nodeType).toBe("loop");
+    expect(steps[1].output).toBe("done");
+    expect(steps.filter((s) => s.nodeType === "run-request").map((s) => s.row)).toEqual([0, 1, 2, undefined]);
+  });
+
+  it("treats a wire back into the loop as the end of a row", async () => {
+    const server = fakeServer(() => ({ status: 200 }));
+    const get = savedRequest("Get", "https://{{host}}/u/{{id}}");
+    const loop = node("loop", { data: csv });
+    const a = runRequestNode(get);
+    const run = await runFlow(flowOf([loop, a], [
+      [loop, "row", a],
+      [a, "passed", loop],
+    ]), ctxOf(server.send, [], [get]));
+    expect(server.sent).toHaveLength(3);
+    expect(run.end).toBe("passed");
+  });
+
+  it("runs every row, then fails the flow when a row failed with nothing to handle it", async () => {
+    const server = fakeServer((req) => (req.url.endsWith("/2") ? { status: 500 } : { status: 200 }));
+    const tc = makeCase("Get", "https://{{host}}/u/{{id}}");
+    const suite = suiteOf([tc]);
+    const after = savedRequest("After", "https://{{host}}/after");
+    const loop = node("loop", { data: csv });
+    const a = runCaseNode(suite, tc);
+    const b = runRequestNode(after);
+    const run = await runFlow(flowOf([loop, a, b], [
+      [loop, "row", a],
+      [loop, "done", b],
+    ]), ctxOf(server.send, [suite], [after]));
+    expect(server.urls()).toEqual(["https://api.test/u/1", "https://api.test/u/2", "https://api.test/u/3"]);
+    expect(run.end).toBe("failed");
+    expect(run.endReason).toMatch(/1 of 3 rows of "Loop over users.csv" failed/);
+    const loopStep = run.stepList.find((s) => s.nodeType === "loop")!;
+    expect(loopStep.status).toBe("failed");
+    expect(loopStep.notes.join(" ")).toMatch(/Row 2: "Suite › Get"/);
+  });
+
+  it("needs a CSV", () => {
+    const f = flowOf([node("loop")], []);
+    expect(validateFlow(f, [], () => null).find((p) => p.level === "error")?.message).toMatch(/Load a CSV/);
   });
 });

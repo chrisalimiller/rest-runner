@@ -20,7 +20,7 @@ import "@xyflow/react/dist/style.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { newEdge, newNode, NODE_TYPE_LABELS, nodeLabel } from "../../lib/flows/flows";
 import { nodeDetail, type FlowItems } from "../../lib/flows/items";
-import type { Flow, FlowNode, FlowNodeType, FlowOutput } from "../../lib/flows/types";
+import { MULTI_WIRE_OUTPUTS, type Flow, type FlowNode, type FlowNodeType, type FlowOutput } from "../../lib/flows/types";
 import type { FlowProblem } from "../../lib/flows/validate";
 import { CanvasActions, NoteNodeView, StepNodeView, type CanvasStatus, type StepData } from "./FlowNodeView";
 
@@ -33,6 +33,9 @@ const PALETTE: { type: FlowNodeType; hint: string }[] = [
   { type: "run-suite", hint: "A whole suite, with its CSV" },
   { type: "run-request", hint: "A saved request and its scripts" },
   { type: "if", hint: "Branch on a value or the last result" },
+  { type: "parallel", hint: "Run several branches at the same time" },
+  { type: "join", hint: "Wait for every parallel branch" },
+  { type: "loop", hint: "Run steps once per CSV row" },
   { type: "wait", hint: "Pause for a set time" },
   { type: "set-var", hint: "Set a flow variable" },
   { type: "note", hint: "Text to explain the flow" },
@@ -83,7 +86,16 @@ function toRFNode(node: FlowNode, items: FlowItems, problems: FlowProblem[], run
   };
 }
 
-const EDGE_CLASS: Record<FlowOutput, string> = { next: "e-next", passed: "e-passed", failed: "e-failed", true: "e-true", false: "e-false" };
+const EDGE_CLASS: Record<FlowOutput, string> = {
+  next: "e-next",
+  passed: "e-passed",
+  failed: "e-failed",
+  true: "e-true",
+  false: "e-false",
+  branches: "e-branches",
+  row: "e-row",
+  done: "e-next",
+};
 
 function Canvas({ flow, items, problems, runState, onChange, onSelect, focusNodeId, focusNonce, readOnly }: Props) {
   const rf = useReactFlow();
@@ -161,11 +173,15 @@ function Canvas({ flow, items, problems, runState, onChange, onSelect, focusNode
     (c: Connection) => {
       if (!c.source || !c.target || !c.sourceHandle) return;
       const handle = c.sourceHandle as FlowOutput;
-      // An output has one wire, so a new wire from it replaces the old one.
-      update((f) => ({
-        ...f,
-        edges: [...f.edges.filter((e) => !(e.source === c.source && e.sourceHandle === handle)), newEdge(c.source!, handle, c.target!)],
-      }));
+      // Most outputs have one wire, so a new wire from one replaces the old one. Parallel's "branches" takes many.
+      const multi = MULTI_WIRE_OUTPUTS.includes(handle);
+      update((f) => {
+        if (multi && f.edges.some((e) => e.source === c.source && e.sourceHandle === handle && e.target === c.target)) return f;
+        return {
+          ...f,
+          edges: [...f.edges.filter((e) => multi || !(e.source === c.source && e.sourceHandle === handle)), newEdge(c.source!, handle, c.target!)],
+        };
+      });
     },
     [update],
   );

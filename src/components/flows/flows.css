@@ -158,6 +158,9 @@
 .type-run-suite { --node-color: var(--put); }
 .type-run-request { --node-color: var(--post); }
 .type-if { --node-color: var(--patch); }
+.type-parallel,
+.type-join { --node-color: var(--redirect); }
+.type-loop { --node-color: #db61a2; }
 .type-wait,
 .type-set-var { --node-color: var(--other); }
 .type-note { --node-color: #e3b341; }
@@ -205,6 +208,8 @@
 .flow-canvas .react-flow__edge.e-failed path { stroke: var(--bad); }
 .flow-canvas .react-flow__edge.e-true path { stroke: var(--patch); }
 .flow-canvas .react-flow__edge.e-false path { stroke: #6e7681; stroke-dasharray: 5 4; }
+.flow-canvas .react-flow__edge.e-branches path { stroke: var(--redirect); }
+.flow-canvas .react-flow__edge.e-row path { stroke: #db61a2; }
 .flow-canvas .react-flow__edge.selected path { stroke-width: 2.5; }
 .flow-canvas .react-flow__edge.e-passed .react-flow__arrowhead polyline { stroke: var(--ok); fill: var(--ok); }
 
@@ -362,7 +367,12 @@
 .flow-node .flow-handle.out-passed { background: var(--ok); }
 .flow-node .flow-handle.out-failed { background: var(--bad); }
 .flow-node .flow-handle.out-true { background: var(--patch); }
-.flow-node .flow-handle.out-next { background: var(--accent-fg); }
+.flow-node .flow-handle.out-next,
+.flow-node .flow-handle.out-done { background: var(--accent-fg); }
+.flow-node .flow-handle.out-branches { background: var(--redirect); }
+.flow-node .flow-handle.out-row { background: #db61a2; }
+.flow-node-output.out-row span { color: #db61a2; }
+.flow-node-output.out-branches span { color: var(--redirect); }
 
 /* Sticky note */
 .flow-note {
@@ -603,6 +613,13 @@ button.flow-problem:hover:not(:disabled) {
 
 .flow-step-out.out-failed { color: var(--bad); border-color: rgba(248, 81, 73, 0.4); }
 .flow-step-out.out-passed { color: var(--ok); border-color: rgba(63, 185, 80, 0.4); }
+
+.flow-step-where {
+  font-size: 10px;
+  color: var(--muted);
+  font-family: var(--mono);
+  white-space: nowrap;
+}
 
 .flow-step-body {
   display: flex;

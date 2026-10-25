@@ -13,6 +13,7 @@ import {
   type FlowNode,
   type FlowNodeType,
   type FlowPosition,
+  type LoopData,
   type RetrySettings,
 } from "./types";
 
@@ -44,6 +45,11 @@ export function newNode(type: FlowNodeType, position: FlowPosition = { x: 0, y: 
       return { ...base, type, requestId: "", retry: { ...NO_RETRY } };
     case "if":
       return { ...base, type, condition: { ...DEFAULT_CONDITION } };
+    case "parallel":
+    case "join":
+      return { ...base, type };
+    case "loop":
+      return { ...base, type, data: null };
     case "wait":
       return { ...base, type, ms: 1000 };
     case "set-var":
@@ -65,6 +71,9 @@ export const NODE_TYPE_LABELS: Record<FlowNodeType, string> = {
   "run-suite": "Run suite",
   "run-request": "Run request",
   if: "If",
+  parallel: "Parallel",
+  join: "Join",
+  loop: "Loop over CSV",
   wait: "Wait",
   "set-var": "Set variable",
   note: "Sticky note",
@@ -83,6 +92,8 @@ export function nodeLabel(node: FlowNode, suites: TestSuite[], findRequest: Requ
       return suites.find((s) => s.id === node.suiteId)?.name ?? "Run suite";
     case "run-request":
       return findRequest(node.requestId)?.name ?? "Run request";
+    case "loop":
+      return node.data ? `Loop over ${node.data.name}` : "Loop over CSV";
     case "wait":
       return `Wait ${formatMs(node.ms)}`;
     case "set-var":
@@ -146,6 +157,13 @@ function cleanNode(v: unknown): FlowNode | null {
       return { ...base, type, requestId: str(n.requestId), retry: cleanRetry(n.retry) };
     case "if":
       return { ...base, type, condition: cleanCondition(n.condition) };
+    case "parallel":
+    case "join":
+      return { ...base, type };
+    case "loop": {
+      const d = n.data as Partial<LoopData> | null | undefined;
+      return { ...base, type, data: d && typeof d.name === "string" && typeof d.text === "string" ? { name: d.name, text: d.text } : null };
+    }
     case "wait":
       return { ...base, type, ms: num(n.ms, 1000) };
     case "set-var":

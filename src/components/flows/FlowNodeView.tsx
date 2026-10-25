@@ -27,7 +27,16 @@ export const CanvasActions = createContext<{
   readOnly: boolean;
 }>({ onNoteText: () => {}, onNoteResize: () => {}, readOnly: false });
 
-const OUTPUT_LABELS: Record<FlowOutput, string> = { next: "", passed: "passed", failed: "failed", true: "true", false: "false" };
+const OUTPUT_LABELS: Record<FlowOutput, string> = {
+  next: "",
+  passed: "passed",
+  failed: "failed",
+  true: "true",
+  false: "false",
+  branches: "branches",
+  row: "each row",
+  done: "done",
+};
 
 const STATUS_LABELS: Record<CanvasStatus, string> = { running: "Running", passed: "Passed", failed: "Failed", done: "Done", cancelled: "Stopped" };
 

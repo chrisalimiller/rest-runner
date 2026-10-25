@@ -9,7 +9,8 @@ export interface FlowRunView {
   flowId: string;
   running: boolean;
   steps: FlowStep[];
-  currentNodeId: string | null;
+  /** Steps running now (several at once inside Parallel). */
+  runningNodeIds: string[];
   startedAt: number;
   finishedAt?: number;
   end?: FlowRunEnd;
@@ -54,6 +55,13 @@ function StepRow({ step, onFocus }: { step: FlowStep; onFocus: () => void }) {
       <button className="flow-step-head" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
         <span className={`flow-step-mark st-${step.status}`}>{mark}</span>
         <span className="flow-step-name">{step.label}</span>
+        {(step.branch || step.row !== undefined) && (
+          <span className="flow-step-where" title={[step.branch && `Branch ${step.branch}`, step.row !== undefined && `CSV row ${step.row + 1}`].filter(Boolean).join(", ")}>
+            {step.branch ? `⑂${step.branch}` : ""}
+            {step.branch && step.row !== undefined ? " " : ""}
+            {step.row !== undefined ? `row ${step.row + 1}` : ""}
+          </span>
+        )}
         {step.output && step.output !== "next" && <span className={`flow-step-out out-${step.output}`}>{step.output}</span>}
         <span className="muted mono small">{formatMs(step.durationMs)}</span>
       </button>
@@ -137,14 +145,14 @@ export function FlowRunPanel({ problems, run, labelFor, onFocusNode }: Props) {
               {run.endReason && run.end !== "passed" && <span className="small">{run.endReason}</span>}
             </div>
           )}
-          {run.running && run.currentNodeId && (
+          {run.running && run.runningNodeIds.length > 0 && (
             <p className="small">
-              <span className="pulse-dot" aria-hidden /> {labelFor(run.currentNodeId)}
+              <span className="pulse-dot" aria-hidden /> {[...new Set(run.runningNodeIds)].map(labelFor).join(", ")}
             </p>
           )}
           {run.saveError && <p className="small warning">Could not save this run: {run.saveError}</p>}
           <ol className="flow-steps">
-            {run.steps.map((s) => (
+            {[...run.steps].sort((a, b) => a.index - b.index).map((s) => (
               <StepRow key={s.index} step={s} onFocus={() => onFocusNode(s.nodeId)} />
             ))}
           </ol>
