@@ -8,6 +8,7 @@ import { AuthEditor } from "../AuthEditor";
 import { BodyEditor } from "../BodyEditor";
 import { KeyValueEditor } from "../KeyValueEditor";
 import { ScriptEditor } from "../testing/ScriptEditor";
+import { CurlPanel } from "./CurlPanel";
 import { Section } from "./Section";
 
 type SectionId = "params" | "auth" | "headers" | "body" | "scripts";
@@ -103,6 +104,7 @@ function useDebounced<T>(value: T, ms: number): T {
 }
 
 const BODY_MODES: BodyMode[] = ["none", "json", "text", "urlencoded"];
+const CURL_OPEN_KEY = "rest-runner.curl-open";
 
 /**
  * The request column of layout A: URL bar, the resolved URL, and Params / Auth /
@@ -118,6 +120,11 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
   const methodAllowsBody = def.method !== "GET" && def.method !== "HEAD";
   const isOpen = (id: SectionId) => openState[id] ?? (methodAllowsBody ? id === "body" : id === "params");
   const toggle = (id: SectionId) => setOpenState((s) => ({ ...s, [id]: !isOpen(id) }));
+
+  const [curlOpen, setCurlOpen] = useState(() => load<boolean>(CURL_OPEN_KEY, false));
+  useEffect(() => {
+    save(CURL_OPEN_KEY, curlOpen);
+  }, [curlOpen]);
 
   const urlInputs = useDebounced({ def, envVars }, 150);
   const finalUrl = resolvedUrl(urlInputs.def, urlInputs.envVars);
@@ -167,9 +174,18 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
               <span className="resolved-legend">{envName ? `values from ${envName}` : "no environment"}</span>
             </>
           ) : (
-            <span className="muted">The final URL, with environment values and query params filled in, shows here.</span>
+            <span className="muted resolved-empty">The final URL, with environment values and query params filled in, shows here.</span>
           )}
+          <button
+            className={`link-btn small curl-toggle ${curlOpen ? "active" : ""}`}
+            onClick={() => setCurlOpen((o) => !o)}
+            aria-expanded={curlOpen}
+            title={curlOpen ? "Hide the cURL command" : "Show the cURL command Send would run"}
+          >
+            {curlOpen ? "Hide cURL" : "cURL"}
+          </button>
         </div>
+        {curlOpen && <CurlPanel def={urlInputs.def} vars={urlInputs.envVars} envName={envName} />}
       </div>
 
       <div className="req-sections">

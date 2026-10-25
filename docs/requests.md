@@ -8,6 +8,9 @@ Requests mode is where you build a request and read the response. The request is
 - Type the **URL**. If it has no scheme (`http://`, `https://`), `http://` is added when it is sent.
 - Under the bar, the **resolved URL** line shows exactly what Send will use, with environment values, script variables and your enabled query params filled in. Placeholders that still have no value are shown in orange. It also says which environment the values came from.
 - Press **Enter** in the URL box to send.
+- Click **cURL** at the end of the resolved URL line to see the `curl` command Send would run, with environment values, script variables, auth and the body filled in. Pick **Bash / zsh** (macOS, Linux, Git Bash) or **Windows cmd**, then **Copy** it into a terminal. Placeholders with no value are listed under the command. Click **Hide cURL** to close it; whether it is open is remembered.
+  - A pre-request script runs only when you press Send, so anything it changes is not in the command.
+  - cmd can't pass line breaks inside an argument, so a multi-line JSON body is put on one line there (it means the same thing).
 
 GET and HEAD requests never send a body, even if you filled one in. The Body section warns you ("not sent with GET").
 
