@@ -34,6 +34,10 @@ export interface SuiteRunContext {
   scripts: ScriptRunner;
   signal: AbortSignal;
   onResult: (result: CaseResult) => void;
+  /** Variables each iteration starts with (a flow passes its variables in here). Empty when missing. */
+  startVars?: Vars;
+  /** Called with an iteration's variables once its cases are done. Not called in the parallel-cases mode. */
+  onIterationDone?: (iteration: Iteration, runVars: Vars) => void;
 }
 
 function sleep(ms: number, signal: AbortSignal): Promise<void> {
@@ -225,8 +229,8 @@ export async function runSuite(suite: TestSuite, ctx: SuiteRunContext): Promise<
       const chains: ReturnType<typeof makeChain>[] = [];
       await pool(cases, options.concurrency, shouldStop, async (c, w) => {
         chains[w] ??= makeChain();
-        // Cases running at the same time cannot pass variables to each other, so each starts empty.
-        await chains[w](() => runOne(c, iter, {}));
+        // Cases running at the same time cannot pass variables to each other, so each starts from the start values.
+        await chains[w](() => runOne(c, iter, { ...ctx.startVars }));
       });
     }
   } else {
@@ -234,12 +238,13 @@ export async function runSuite(suite: TestSuite, ctx: SuiteRunContext): Promise<
     const chains: ReturnType<typeof makeChain>[] = [];
     await pool(iterations, concurrency, shouldStop, async (iter, w) => {
       chains[w] ??= makeChain();
-      // Variables carry from case to case within an iteration; each iteration starts empty.
-      const runVars: Vars = {};
+      // Variables carry from case to case within an iteration; each iteration starts from the same start values.
+      const runVars: Vars = { ...ctx.startVars };
       for (const c of cases) {
         if (shouldStop()) break;
         await chains[w](() => runOne(c, iter, runVars));
       }
+      ctx.onIterationDone?.(iter, runVars);
     });
   }
 

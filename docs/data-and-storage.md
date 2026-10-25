@@ -23,13 +23,14 @@ The app is a desktop window around a web view, and it keeps its data in that web
 | `rest-runner.section` | Whether Requests or Testing was open |
 | `rest-runner.test-suites` | Test suites, including their saved CSV data |
 | `rest-runner.test-open-suite`, `rest-runner.test-environment` | The open suite, and the environment selected in Testing |
+| `rest-runner.flows` | [Flows](flows.md): their steps, wires and settings |
 
 **IndexedDB** (larger items):
 
 | Database | Contents | Limit |
 | --- | --- | --- |
 | `rest-runner` | Saved batch runs | The last 30 runs; response bodies cut at 1 MB |
-| `rest-runner-tests` | Saved test runs | The last 50 runs; response bodies cut at 1 MB |
+| `rest-runner-tests` | Saved test runs, and saved flow runs | The last 50 test runs and the last 50 flow runs; response bodies cut at 1 MB |
 
 The oldest runs are removed automatically past those limits.
 
