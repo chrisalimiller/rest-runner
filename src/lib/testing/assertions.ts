@@ -41,6 +41,8 @@ export function opNeedsValue(op: AssertionOp): boolean {
   return op !== "exists" && op !== "notExists";
 }
 
+export { show as showValue, typeOf as typeOfValue };
+
 export function describeAssertion(a: Assertion): string {
   const subject = a.source === "header" || a.source === "json" ? `${SOURCE_LABELS[a.source]} ${a.property}` : SOURCE_LABELS[a.source];
   return opNeedsValue(a.op) ? `${subject} ${OP_LABELS[a.op]} ${a.expected}` : `${subject} ${OP_LABELS[a.op]}`;
@@ -147,17 +149,13 @@ function actualValue(a: Assertion, res: ResponseResult): Actual {
   }
 }
 
-/** Checks one assertion against a response. Placeholders in the expected value are filled from vars. */
-export function evaluateAssertion(a: Assertion, res: ResponseResult, vars: Vars = {}): Check {
-  const filled = { ...a, expected: applyTemplate(a.expected, vars), property: applyTemplate(a.property, vars) };
-  const name = describeAssertion(filled);
-  const got = actualValue(filled, res);
-  if ("error" in got) return { name, passed: false, message: got.error, source: "assertion" };
-  const actual = got.value;
-  const expected = filled.expected;
-
+/**
+ * Compares a value against the expected text with one of the assertion ops.
+ * Returns true or false, or a message when the comparison cannot be made.
+ */
+export function compareValue(op: AssertionOp, actual: unknown, expected: string): boolean | string {
   let result: boolean | string;
-  switch (a.op) {
+  switch (op) {
     case "eq":
       result = statusClassMatch(actual, expected) ?? looseEqual(actual, expected);
       break;
@@ -168,7 +166,7 @@ export function evaluateAssertion(a: Assertion, res: ResponseResult, vars: Vars 
     case "lte":
     case "gt":
     case "gte":
-      result = compareNumbers(actual, expected, a.op);
+      result = compareNumbers(actual, expected, op);
       break;
     case "contains":
       result = contains(actual, expected);
@@ -194,6 +192,19 @@ export function evaluateAssertion(a: Assertion, res: ResponseResult, vars: Vars 
       break;
   }
 
+  return result;
+}
+
+/** Checks one assertion against a response. Placeholders in the expected value are filled from vars. */
+export function evaluateAssertion(a: Assertion, res: ResponseResult, vars: Vars = {}): Check {
+  const filled = { ...a, expected: applyTemplate(a.expected, vars), property: applyTemplate(a.property, vars) };
+  const name = describeAssertion(filled);
+  const got = actualValue(filled, res);
+  if ("error" in got) return { name, passed: false, message: got.error, source: "assertion" };
+  const actual = got.value;
+  const expected = filled.expected;
+
+  const result = compareValue(a.op, actual, expected);
   if (typeof result === "string") return { name, passed: false, message: result, source: "assertion" };
   const seen = a.op === "isType" ? `${show(actual)} (${typeOf(actual)})` : show(actual);
   return { name, passed: result, message: `Got ${seen}`, source: "assertion" };

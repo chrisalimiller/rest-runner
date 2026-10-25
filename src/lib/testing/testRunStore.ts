@@ -6,17 +6,20 @@ export const MAX_SAVED_TEST_RUNS = 50;
 const DB_NAME = "rest-runner-tests";
 const SUMMARIES = "summaries";
 const RUNS = "runs";
+/** Flow runs share this database (added in version 2). */
+export const FLOW_SUMMARIES = "flow-summaries";
+export const FLOW_RUNS = "flow-runs";
+const STORES = [SUMMARIES, RUNS, FLOW_SUMMARIES, FLOW_RUNS];
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
-function openDb(): Promise<IDBDatabase> {
+export function openDb(): Promise<IDBDatabase> {
   if (!dbPromise) {
     dbPromise = new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, 1);
+      const req = indexedDB.open(DB_NAME, 2);
       req.onupgradeneeded = () => {
         const db = req.result;
-        if (!db.objectStoreNames.contains(SUMMARIES)) db.createObjectStore(SUMMARIES, { keyPath: "id" });
-        if (!db.objectStoreNames.contains(RUNS)) db.createObjectStore(RUNS, { keyPath: "id" });
+        for (const name of STORES) if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: "id" });
       };
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => {
@@ -28,7 +31,7 @@ function openDb(): Promise<IDBDatabase> {
   return dbPromise;
 }
 
-function done(tx: IDBTransaction): Promise<void> {
+export function done(tx: IDBTransaction): Promise<void> {
   return new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);
@@ -36,7 +39,7 @@ function done(tx: IDBTransaction): Promise<void> {
   });
 }
 
-function result<T>(req: IDBRequest<T>): Promise<T> {
+export function result<T>(req: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);

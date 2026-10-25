@@ -1,0 +1,191 @@
+import type { Vars } from "../template";
+import type { TestRun } from "../testing/testRun";
+import type { AssertionOp, AssertionSource, Check } from "../testing/types";
+
+/** The name of a node's output, which is also the handle a wire leaves from. */
+export type FlowOutput = "next" | "passed" | "failed" | "true" | "false";
+
+export interface FlowPosition {
+  x: number;
+  y: number;
+}
+
+/** Try a Run step again when it fails: up to `times` more tries, waiting `delayMs` before each. */
+export interface RetrySettings {
+  times: number;
+  delayMs: number;
+}
+
+export const NO_RETRY: RetrySettings = { times: 0, delayMs: 1000 };
+
+/**
+ * What an If node checks.
+ * Response sources (status, time, size, header, body, json) read the response of the last Run step.
+ * "variable" reads a flow variable (property is its name). "last-result" is "passed" or "failed" for the last Run step.
+ */
+export type ConditionSource = AssertionSource | "variable" | "last-result";
+
+export interface FlowCondition {
+  source: ConditionSource;
+  /** Header name, JSON path or variable name. Unused for the other sources. */
+  property: string;
+  op: AssertionOp;
+  /** May contain {{placeholders}}. */
+  expected: string;
+}
+
+interface NodeBase {
+  id: string;
+  position: FlowPosition;
+  /** A name shown on the canvas and in reports. Empty means a name made from what the node runs. */
+  label?: string;
+}
+
+export interface StartNode extends NodeBase {
+  type: "start";
+}
+
+export interface RunCaseNode extends NodeBase {
+  type: "run-case";
+  suiteId: string;
+  caseId: string;
+  retry: RetrySettings;
+}
+
+export interface RunSuiteNode extends NodeBase {
+  type: "run-suite";
+  suiteId: string;
+  retry: RetrySettings;
+}
+
+export interface RunRequestNode extends NodeBase {
+  type: "run-request";
+  /** A saved request or saved example, by id. */
+  requestId: string;
+  retry: RetrySettings;
+}
+
+export interface IfNode extends NodeBase {
+  type: "if";
+  condition: FlowCondition;
+}
+
+export interface WaitNode extends NodeBase {
+  type: "wait";
+  ms: number;
+}
+
+export interface SetVarNode extends NodeBase {
+  type: "set-var";
+  name: string;
+  /** May contain {{placeholders}}. */
+  value: string;
+}
+
+export type RunNode = RunCaseNode | RunSuiteNode | RunRequestNode;
+export type FlowNode = StartNode | RunCaseNode | RunSuiteNode | RunRequestNode | IfNode | WaitNode | SetVarNode;
+export type FlowNodeType = FlowNode["type"];
+
+export const FLOW_NODE_TYPES: FlowNodeType[] = ["start", "run-case", "run-suite", "run-request", "if", "wait", "set-var"];
+
+/** The outputs each node type has, in the order they are drawn. */
+export const NODE_OUTPUTS: Record<FlowNodeType, FlowOutput[]> = {
+  start: ["next"],
+  "run-case": ["passed", "failed"],
+  "run-suite": ["passed", "failed"],
+  "run-request": ["passed", "failed"],
+  if: ["true", "false"],
+  wait: ["next"],
+  "set-var": ["next"],
+};
+
+/** A wire from one node's output to another node. */
+export interface FlowEdge {
+  id: string;
+  source: string;
+  sourceHandle: FlowOutput;
+  target: string;
+}
+
+export interface Flow {
+  id: string;
+  name: string;
+  description: string;
+  nodes: FlowNode[];
+  edges: FlowEdge[];
+}
+
+/** One try of a Run step. */
+export interface Attempt {
+  passed: boolean;
+  startedAt: string;
+  durationMs: number;
+  /** The first failed check, or why the step could not run. */
+  reason?: string;
+}
+
+/**
+ * passed / failed: Run steps, and Join later.
+ * done: steps that cannot fail (Start, Wait, Set variable, If).
+ * cancelled: Stop was pressed while the step ran.
+ */
+export type FlowStepStatus = "passed" | "failed" | "done" | "cancelled";
+
+export interface FlowStep {
+  /** 0-based position in the run. */
+  index: number;
+  nodeId: string;
+  nodeType: FlowNodeType;
+  label: string;
+  status: FlowStepStatus;
+  /** The output the flow left by. Missing when the step was cancelled. */
+  output?: FlowOutput;
+  /** The node the flow went to next; null when the output had no wire. */
+  nextNodeId?: string | null;
+  startedAt: string;
+  durationMs: number;
+  varsBefore: Vars;
+  varsAfter: Vars;
+  notes: string[];
+  /** Run steps: every try, in order. */
+  attempts?: Attempt[];
+  /** Run steps: the full suite or case report of the last try. */
+  child?: TestRun;
+  /** If steps: the condition as checked. */
+  check?: Check;
+}
+
+/**
+ * passed: the flow reached a step with nothing wired after it, and every failure on the way had a failed wire.
+ * failed: a step failed with nothing wired to its failed output, or the flow could not go on.
+ * cancelled: Stop was pressed.
+ */
+export type FlowRunEnd = "passed" | "failed" | "cancelled";
+
+export interface FlowRunSummary {
+  id: string;
+  kind: "flow";
+  flowId: string;
+  flowName: string;
+  environmentName?: string;
+  /** "manual" for the Run button; a schedule node's id for scheduled runs (added with schedules). */
+  trigger: string;
+  startedAt: string;
+  finishedAt: string;
+  end: FlowRunEnd;
+  /** Why the flow failed or stopped, when it did. */
+  endReason?: string;
+  steps: number;
+  /** Run steps that passed and failed (a failure followed by its failed wire still counts). */
+  passedSteps: number;
+  failedSteps: number;
+}
+
+export interface FlowRun extends FlowRunSummary {
+  /** The flow as it was when the run started. */
+  flow: Flow;
+  stepList: FlowStep[];
+  /** Flow variables when the run ended. */
+  vars: Vars;
+  log: { at: string; message: string }[];
+}

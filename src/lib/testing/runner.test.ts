@@ -218,3 +218,26 @@ describe("request scripts in test runs", () => {
     expect(results[0].passed).toBe(true);
   });
 });
+
+describe("start variables", () => {
+  it("starts every iteration from the given variables and reports each iteration's variables at the end", async () => {
+    const server = fakeServer(() => ({ status: 200 }));
+    const a = makeCase("A", "https://{{host}}/u/{{id}}?t={{token}}", { postScript: `rr.vars.set("seen", rr.data.id)` });
+    const done: Record<string, string>[] = [];
+    await runSuite(suiteOf([a]), {
+      rows: [{ id: "1" }, { id: "2" }],
+      envVars: { host: "api.test" },
+      send: server.send,
+      scripts: inlineScriptRunner,
+      signal: new AbortController().signal,
+      onResult: () => {},
+      startVars: { token: "abc" },
+      onIterationDone: (_i, vars) => done.push({ ...vars }),
+    });
+    expect(server.sent.map((s) => s.url)).toEqual(["https://api.test/u/1?t=abc", "https://api.test/u/2?t=abc"]);
+    expect(done).toEqual([
+      { token: "abc", seen: "1" },
+      { token: "abc", seen: "2" },
+    ]);
+  });
+});
