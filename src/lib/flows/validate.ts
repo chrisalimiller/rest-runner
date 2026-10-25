@@ -85,6 +85,9 @@ export function validateFlow(flow: Flow, suites: TestSuite[], findRequest: Reque
     if (byId.get(edge.target)?.type === "start") {
       problems.push({ level: "error", nodeId: edge.target, message: "Nothing can be wired into Start." });
     }
+    if (byId.get(edge.target)?.type === "note") {
+      problems.push({ level: "error", nodeId: edge.target, message: "Sticky notes are never run, so nothing can be wired into one." });
+    }
   }
 
   for (const node of flow.nodes) {
@@ -113,7 +116,7 @@ export function validateFlow(flow: Flow, suites: TestSuite[], findRequest: Reque
       }
     }
     for (const node of flow.nodes) {
-      if (!reached.has(node.id) && node.type !== "start") {
+      if (!reached.has(node.id) && node.type !== "start" && node.type !== "note") {
         problems.push({ level: "warning", nodeId: node.id, message: `"${nodeLabel(node, suites, findRequest)}" is not wired from the start, so it never runs.` });
       }
     }

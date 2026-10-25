@@ -33,9 +33,10 @@ export const KIND_LABELS: Record<QuickKind, string> = {
 };
 
 /** Group order, per mode: the mode you are in comes first. */
-export const KIND_ORDER: Record<"requests" | "testing", QuickKind[]> = {
+export const KIND_ORDER: Record<"requests" | "testing" | "flows", QuickKind[]> = {
   requests: ["request", "example", "history", "batch-run", "suite", "case", "test-run"],
   testing: ["suite", "case", "test-run", "request", "example", "history", "batch-run"],
+  flows: ["suite", "case", "request", "example", "test-run", "history", "batch-run"],
 };
 
 function walk(items: TreeNode[], path: string[], out: QuickItem[]) {
