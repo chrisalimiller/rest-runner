@@ -8,9 +8,14 @@ import { CaseResultView } from "./CaseResultView";
 import { ResultRow, resultStatus } from "./ResultRow";
 
 interface Props {
-  runId: string;
+  /** A saved test run to load. */
+  runId?: string;
+  /** Or a run already in hand (a flow step's report). */
+  preloaded?: TestRun;
   onBack: () => void;
-  onDelete: (id: string) => void;
+  backLabel?: string;
+  /** Missing hides Delete (a flow step's report is part of its flow run). */
+  onDelete?: (id: string) => void;
   /** Open with the list filtered to this case, and this result selected (an index into the run's results). */
   initialCaseId?: string;
   initialIndex?: number;
@@ -26,7 +31,7 @@ function formatDuration(ms: number): string {
 }
 
 /** A saved test run: summary, per-case breakdown, run log, and every case result. */
-export function TestRunExplorer({ runId, onBack, onDelete, initialCaseId, initialIndex }: Props) {
+export function TestRunExplorer({ runId, preloaded, onBack, backLabel = "← Back to suite", onDelete, initialCaseId, initialIndex }: Props) {
   const [run, setRun] = useState<TestRun | null | undefined>(undefined);
   const [filter, setFilter] = useState<Filter>("all");
   const [caseFilter, setCaseFilter] = useState<string | null>(null);
@@ -40,7 +45,7 @@ export function TestRunExplorer({ runId, onBack, onDelete, initialCaseId, initia
     let live = true;
     setRun(undefined);
     setCaseFilter(initialCaseId ?? null);
-    getTestRun(runId)
+    (preloaded ? Promise.resolve(preloaded) : runId ? getTestRun(runId) : Promise.resolve(undefined))
       .then((r) => {
         if (!live) return;
         setRun(r ?? null);
@@ -52,7 +57,7 @@ export function TestRunExplorer({ runId, onBack, onDelete, initialCaseId, initia
     return () => {
       live = false;
     };
-  }, [runId, initialCaseId, initialIndex]);
+  }, [runId, preloaded, initialCaseId, initialIndex]);
 
   const perCase = useMemo(() => (run ? caseStats(run) : []), [run]);
   const times = useMemo(() => (run ? testRunTimes(run) : null), [run]);
@@ -81,7 +86,7 @@ export function TestRunExplorer({ runId, onBack, onDelete, initialCaseId, initia
     return (
       <section className="explorer">
         <button className="link-btn" onClick={onBack}>
-          ← Back to suite
+          {backLabel}
         </button>
         <p className="muted">This test run could not be found. It may have been removed.</p>
       </section>
@@ -117,7 +122,7 @@ export function TestRunExplorer({ runId, onBack, onDelete, initialCaseId, initia
       <div className="explorer-head">
         <div>
           <button className="link-btn" onClick={onBack}>
-            ← Back to suite
+            {backLabel}
           </button>
           <h2>{run.suiteName}</h2>
           <p className="muted small">
@@ -133,14 +138,16 @@ export function TestRunExplorer({ runId, onBack, onDelete, initialCaseId, initia
           <button className="secondary" onClick={() => void exportReport("csv")}>
             Export CSV report
           </button>
-          <button
-            className="secondary danger"
-            onClick={() => {
-              if (window.confirm("Delete this test run? Exported reports are not affected.")) onDelete(run.id);
-            }}
-          >
-            Delete
-          </button>
+          {onDelete && (
+            <button
+              className="secondary danger"
+              onClick={() => {
+                if (window.confirm("Delete this test run? Exported reports are not affected.")) onDelete(run.id);
+              }}
+            >
+              Delete
+            </button>
+          )}
         </div>
       </div>
       {message && <p className="small save-message">{message}</p>}

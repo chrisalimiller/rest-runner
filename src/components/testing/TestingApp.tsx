@@ -263,6 +263,7 @@ export function TestingApp({ active, shell, command }: Props) {
     if (!command || lastCommand.current === command.nonce) return;
     lastCommand.current = command.nonce;
     if (command.type === "open") openItem(command.item);
+    if (command.type === "reload") setSuites(cleanSuites(load(SUITES_KEY, [])));
   }, [command]);
 
   useEffect(() => {

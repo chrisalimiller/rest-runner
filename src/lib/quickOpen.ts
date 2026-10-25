@@ -3,10 +3,11 @@ import type { RunSummary } from "./run";
 import type { TestRunSummary } from "./testing/testRun";
 import type { TestSuite } from "./testing/types";
 import type { HistoryEntry } from "./types";
+import type { Flow, FlowRunSummary } from "./flows/types";
 
 /** Quick open (Ctrl/Cmd + K): one search over everything you can jump to. */
 
-export type QuickKind = "request" | "example" | "history" | "batch-run" | "suite" | "case" | "test-run";
+export type QuickKind = "request" | "example" | "history" | "batch-run" | "suite" | "case" | "test-run" | "flow" | "flow-run";
 
 export interface QuickItem {
   kind: QuickKind;
@@ -30,12 +31,15 @@ export const KIND_LABELS: Record<QuickKind, string> = {
   suite: "Suites",
   case: "Test cases",
   "test-run": "Test runs",
+  flow: "Flows",
+  "flow-run": "Flow runs",
 };
 
 /** Group order, per mode: the mode you are in comes first. */
-export const KIND_ORDER: Record<"requests" | "testing", QuickKind[]> = {
-  requests: ["request", "example", "history", "batch-run", "suite", "case", "test-run"],
-  testing: ["suite", "case", "test-run", "request", "example", "history", "batch-run"],
+export const KIND_ORDER: Record<"requests" | "testing" | "flows", QuickKind[]> = {
+  requests: ["request", "example", "history", "batch-run", "suite", "case", "test-run", "flow", "flow-run"],
+  testing: ["suite", "case", "test-run", "flow", "flow-run", "request", "example", "history", "batch-run"],
+  flows: ["flow", "flow-run", "suite", "case", "test-run", "request", "example", "history", "batch-run"],
 };
 
 function walk(items: TreeNode[], path: string[], out: QuickItem[]) {
@@ -99,6 +103,25 @@ export function testRunItems(runs: TestRunSummary[]): QuickItem[] {
     id: r.id,
     title: r.suiteName,
     detail: `${r.passed} passed${r.failed ? `, ${r.failed} failed` : ""}${r.csvName ? ` · ${r.csvName}` : ""}`,
+    at: r.startedAt,
+  }));
+}
+
+export function flowItems(flows: Flow[]): QuickItem[] {
+  return flows.map((f) => {
+    const steps = f.nodes.filter((n) => n.type !== "note" && n.type !== "start" && n.type !== "schedule").length;
+    return { kind: "flow", id: f.id, title: f.name || "(unnamed)", detail: f.description || `${steps} step${steps === 1 ? "" : "s"}` };
+  });
+}
+
+const FLOW_END: Record<FlowRunSummary["end"], string> = { passed: "passed", failed: "failed", cancelled: "stopped" };
+
+export function flowRunItems(runs: FlowRunSummary[]): QuickItem[] {
+  return runs.map((r) => ({
+    kind: "flow-run",
+    id: r.id,
+    title: r.flowName,
+    detail: `${FLOW_END[r.end]} · ${r.passedSteps} passed${r.failedSteps ? `, ${r.failedSteps} failed` : ""}${r.trigger !== "manual" ? " · scheduled" : ""}`,
     at: r.startedAt,
   }));
 }

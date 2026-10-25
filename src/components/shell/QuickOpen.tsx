@@ -3,6 +3,8 @@ import { cleanCollections, migrateSavedRequests, isRequestDef } from "../../lib/
 import {
   batchRunItems,
   collectionItems,
+  flowItems,
+  flowRunItems,
   historyItems,
   KIND_ORDER,
   searchQuickOpen,
@@ -14,6 +16,8 @@ import { listRuns } from "../../lib/runStore";
 import { load } from "../../lib/storage";
 import { cleanSuites } from "../../lib/testing/suites";
 import { listTestRuns } from "../../lib/testing/testRunStore";
+import { listFlowRuns } from "../../lib/flows/flowRunStore";
+import { loadFlows } from "../../lib/flows/flows";
 import type { HistoryEntry } from "../../lib/types";
 import { SearchIcon } from "./Icons";
 import type { Mode } from "./TopBar";
@@ -33,10 +37,11 @@ function readStoredItems(): QuickItem[] {
     ...collectionItems(collections),
     ...historyItems(load<HistoryEntry[]>("rest-runner.history", [])),
     ...suiteItems(cleanSuites(load("rest-runner.test-suites", []))),
+    ...flowItems(loadFlows()),
   ];
 }
 
-/** Ctrl/Cmd + K: fuzzy search over requests, examples, history, batch runs, suites, cases and test runs. */
+/** Ctrl/Cmd + K: fuzzy search over requests, examples, history, batch runs, suites, cases, test runs, flows and flow runs. */
 export function QuickOpen({ mode, onClose, onPick, onClearHistory }: Props) {
   const [query, setQuery] = useState("");
   const [items, setItems] = useState<QuickItem[]>(readStoredItems);
@@ -45,8 +50,14 @@ export function QuickOpen({ mode, onClose, onPick, onClearHistory }: Props) {
 
   useEffect(() => {
     let live = true;
-    Promise.all([listRuns().catch(() => []), listTestRuns().catch(() => [])]).then(([runs, testRuns]) => {
-      if (live) setItems((list) => [...list.filter((i) => i.kind !== "batch-run" && i.kind !== "test-run"), ...batchRunItems(runs), ...testRunItems(testRuns)]);
+    Promise.all([listRuns().catch(() => []), listTestRuns().catch(() => []), listFlowRuns().catch(() => [])]).then(([runs, testRuns, flowRuns]) => {
+      if (live)
+        setItems((list) => [
+          ...list.filter((i) => i.kind !== "batch-run" && i.kind !== "test-run" && i.kind !== "flow-run"),
+          ...batchRunItems(runs),
+          ...testRunItems(testRuns),
+          ...flowRunItems(flowRuns),
+        ]);
     });
     return () => {
       live = false;
@@ -84,7 +95,9 @@ export function QuickOpen({ mode, onClose, onPick, onClearHistory }: Props) {
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder={mode === "testing" ? "Jump to a suite, case or test run…" : "Jump to a request, example, run or history…"}
+            placeholder={
+              mode === "testing" ? "Jump to a suite, case or test run…" : mode === "flows" ? "Jump to a flow, flow run, suite or case…" : "Jump to a request, example, run or history…"
+            }
             aria-label="Search"
             aria-controls="quick-open-list"
             aria-activedescendant={flat[active] ? `qo-${active}` : undefined}

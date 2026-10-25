@@ -1,6 +1,8 @@
 import type { TestSuite } from "../testing/types";
 import { nodeLabel, type RequestLookup } from "./flows";
-import { NODE_OUTPUTS, type Flow, type FlowNode } from "./types";
+import { parseCsv } from "../csv";
+import { scheduleProblem } from "./schedule";
+import { MULTI_WIRE_OUTPUTS, NODE_OUTPUTS, type Flow, type FlowNode } from "./types";
 
 export interface FlowProblem {
   /** error: the flow cannot start. warning: it can, but something looks wrong. */
@@ -45,6 +47,15 @@ function itemProblems(node: FlowNode, suites: TestSuite[], findRequest: RequestL
       return [];
     case "set-var":
       return node.name.trim() === "" ? ["Enter a variable name."] : [];
+    case "schedule": {
+      const problem = scheduleProblem(node.schedule);
+      return problem ? [problem] : [];
+    }
+    case "loop": {
+      if (!node.data) return ["Load a CSV file for the loop to go through."];
+      if (parseCsv(node.data.text).headers.length === 0) return [`${node.data.name} has no header row.`];
+      return [];
+    }
     default:
       return [];
   }
@@ -55,13 +66,20 @@ export function validateFlow(flow: Flow, suites: TestSuite[], findRequest: Reque
   const problems: FlowProblem[] = [];
   const byId = new Map(flow.nodes.map((n) => [n.id, n]));
   const starts = flow.nodes.filter((n) => n.type === "start");
+  const schedules = flow.nodes.filter((n) => n.type === "schedule");
 
   let entry: FlowNode | undefined;
   if (options.entryNodeId) {
     entry = byId.get(options.entryNodeId);
     if (!entry) problems.push({ level: "error", message: "The step this run starts from is no longer in the flow." });
+  } else if (starts.length === 0 && schedules.length === 1) {
+    // With no Start, Run starts from the only Schedule.
+    entry = schedules[0];
   } else if (starts.length === 0) {
-    problems.push({ level: "error", message: "Add a Start node: a run begins there." });
+    problems.push({
+      level: "error",
+      message: schedules.length ? "Add a Start node to run this flow with the Run button. Schedules start it on their own." : "Add a Start node: a run begins there.",
+    });
   } else if (starts.length > 1) {
     for (const s of starts.slice(1)) problems.push({ level: "error", nodeId: s.id, message: "A flow has one Start node. Remove this one." });
     entry = starts[0];
@@ -82,13 +100,17 @@ export function validateFlow(flow: Flow, suites: TestSuite[], findRequest: Reque
     if (!source || !byId.has(edge.target) || !NODE_OUTPUTS[source.type].includes(edge.sourceHandle)) {
       problems.push({ level: "error", nodeId: source?.id, message: "A wire points at a step that no longer exists. Remove it." });
     }
-    if (byId.get(edge.target)?.type === "start") {
-      problems.push({ level: "error", nodeId: edge.target, message: "Nothing can be wired into Start." });
+    if (byId.get(edge.target)?.type === "start" || byId.get(edge.target)?.type === "schedule") {
+      problems.push({ level: "error", nodeId: edge.target, message: `Nothing can be wired into ${byId.get(edge.target)!.type === "start" ? "Start" : "a Schedule"}.` });
+    }
+    if (byId.get(edge.target)?.type === "note") {
+      problems.push({ level: "error", nodeId: edge.target, message: "Sticky notes are never run, so nothing can be wired into one." });
     }
   }
 
   for (const node of flow.nodes) {
     for (const output of NODE_OUTPUTS[node.type]) {
+      if (MULTI_WIRE_OUTPUTS.includes(output)) continue;
       const count = flow.edges.filter((e) => e.source === node.id && e.sourceHandle === output).length;
       if (count > 1) {
         problems.push({
@@ -100,9 +122,25 @@ export function validateFlow(flow: Flow, suites: TestSuite[], findRequest: Reque
     }
   }
 
-  if (entry) {
-    const reached = new Set<string>([entry.id]);
-    const queue = [entry.id];
+  for (const node of flow.nodes) {
+    const label = () => nodeLabel(node, suites, findRequest);
+    const out = flow.edges.filter((e) => e.source === node.id);
+    const into = flow.edges.filter((e) => e.target === node.id);
+    if (node.type === "parallel" && out.length < 2) {
+      problems.push({ level: "warning", nodeId: node.id, message: `"${label()}" has ${out.length === 0 ? "no branches" : "one branch"}. Wire two or more steps from it to run them at the same time.` });
+    }
+    if (node.type === "join" && into.length < 2) {
+      problems.push({ level: "warning", nodeId: node.id, message: `"${label()}" has ${into.length === 0 ? "nothing" : "one wire"} coming in. Wire the end of each parallel branch into it.` });
+    }
+    if (node.type === "loop" && !out.some((e) => e.sourceHandle === "row")) {
+      problems.push({ level: "warning", nodeId: node.id, message: `Nothing is wired to the "each row" output of "${label()}", so it does nothing per row.` });
+    }
+  }
+
+  if (entry || schedules.length) {
+    const roots = [...new Set([...(entry ? [entry.id] : []), ...starts.map((n) => n.id), ...schedules.map((n) => n.id)])];
+    const reached = new Set<string>(roots);
+    const queue = [...roots];
     while (queue.length) {
       const id = queue.shift()!;
       for (const e of flow.edges) {
@@ -113,7 +151,7 @@ export function validateFlow(flow: Flow, suites: TestSuite[], findRequest: Reque
       }
     }
     for (const node of flow.nodes) {
-      if (!reached.has(node.id) && node.type !== "start") {
+      if (!reached.has(node.id) && node.type !== "start" && node.type !== "schedule" && node.type !== "note") {
         problems.push({ level: "warning", nodeId: node.id, message: `"${nodeLabel(node, suites, findRequest)}" is not wired from the start, so it never runs.` });
       }
     }

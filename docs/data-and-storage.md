@@ -20,10 +20,12 @@ The app is a desktop window around a web view, and it keeps its data in that web
 | `rest-runner.script-vars` | [Script variables](scripting.md#variable-scoping) set by request scripts |
 | `rest-runner.batch-options` | Your batch run options |
 | `rest-runner.request-sections`, `rest-runner.case-request-sections`, `rest-runner.split` | Which sections are open and the column split |
-| `rest-runner.section` | Whether Requests or Testing was open |
+| `rest-runner.section` | Whether Requests, Testing or Flows was open |
 | `rest-runner.test-suites` | Test suites, including their saved CSV data |
 | `rest-runner.test-open-suite`, `rest-runner.test-environment` | The open suite, and the environment selected in Testing |
-| `rest-runner.flows` | [Flows](flows.md): their steps, wires and settings |
+| `rest-runner.flows` | [Flows](flows.md): their steps, wires, sticky notes and settings |
+| `rest-runner.flow-open`, `rest-runner.flow-environment` | The open flow, and the environment selected in Flows |
+| `rest-runner.flow-schedules` | For each [Schedule](flows.md#schedules) step: the last time it came due, the last run, and the last skipped run with its reason |
 
 **IndexedDB** (larger items):
 

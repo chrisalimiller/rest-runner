@@ -433,6 +433,7 @@ export default function App({ active = true, shell, command }: Props) {
     if (!command || lastCommand.current === command.nonce) return;
     lastCommand.current = command.nonce;
     if (command.type === "clear-history") setHistory([]);
+    else if (command.type === "reload") setCollections(loadCollections());
     else openItem(command.item);
   }, [command]);
 

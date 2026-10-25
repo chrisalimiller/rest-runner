@@ -1,5 +1,6 @@
 import { newId } from "../ids";
 import { load, save } from "../storage";
+import { DEFAULT_SCHEDULE, describeSchedule, type Schedule } from "./schedule";
 import { ASSERTION_OPS, type TestSuite } from "../testing/types";
 import type { RequestDef } from "../types";
 import {
@@ -13,6 +14,7 @@ import {
   type FlowNode,
   type FlowNodeType,
   type FlowPosition,
+  type LoopData,
   type RetrySettings,
 } from "./types";
 
@@ -36,6 +38,8 @@ export function newNode(type: FlowNodeType, position: FlowPosition = { x: 0, y: 
   switch (type) {
     case "start":
       return { ...base, type };
+    case "schedule":
+      return { ...base, type, schedule: { ...DEFAULT_SCHEDULE }, enabled: true };
     case "run-case":
       return { ...base, type, suiteId: "", caseId: "", retry: { ...NO_RETRY } };
     case "run-suite":
@@ -44,12 +48,21 @@ export function newNode(type: FlowNodeType, position: FlowPosition = { x: 0, y: 
       return { ...base, type, requestId: "", retry: { ...NO_RETRY } };
     case "if":
       return { ...base, type, condition: { ...DEFAULT_CONDITION } };
+    case "parallel":
+    case "join":
+      return { ...base, type };
+    case "loop":
+      return { ...base, type, data: null };
     case "wait":
       return { ...base, type, ms: 1000 };
     case "set-var":
       return { ...base, type, name: "", value: "" };
+    case "note":
+      return { ...base, type, text: "", width: NOTE_SIZE.width, height: NOTE_SIZE.height };
   }
 }
+
+export const NOTE_SIZE = { width: 220, height: 120 };
 
 export function newEdge(source: string, sourceHandle: FlowEdge["sourceHandle"], target: string): FlowEdge {
   return { id: newId(), source, sourceHandle, target };
@@ -57,12 +70,17 @@ export function newEdge(source: string, sourceHandle: FlowEdge["sourceHandle"], 
 
 export const NODE_TYPE_LABELS: Record<FlowNodeType, string> = {
   start: "Start",
+  schedule: "Schedule",
   "run-case": "Run case",
   "run-suite": "Run suite",
   "run-request": "Run request",
   if: "If",
+  parallel: "Parallel",
+  join: "Join",
+  loop: "Loop over CSV",
   wait: "Wait",
   "set-var": "Set variable",
+  note: "Sticky note",
 };
 
 /** The name shown for a node: its own label, or one made from what it runs. */
@@ -78,10 +96,16 @@ export function nodeLabel(node: FlowNode, suites: TestSuite[], findRequest: Requ
       return suites.find((s) => s.id === node.suiteId)?.name ?? "Run suite";
     case "run-request":
       return findRequest(node.requestId)?.name ?? "Run request";
+    case "loop":
+      return node.data ? `Loop over ${node.data.name}` : "Loop over CSV";
+    case "schedule":
+      return describeSchedule(node.schedule);
     case "wait":
       return `Wait ${formatMs(node.ms)}`;
     case "set-var":
       return node.name ? `Set ${node.name}` : "Set variable";
+    case "note":
+      return node.text.split("\n")[0].trim().slice(0, 40) || "Sticky note";
     default:
       return NODE_TYPE_LABELS[node.type];
   }
@@ -105,6 +129,17 @@ function str(v: unknown, fallback = ""): string {
 function cleanRetry(v: unknown): RetrySettings {
   const r = (v ?? {}) as Partial<RetrySettings>;
   return { times: Math.min(100, num(r.times, 0)), delayMs: num(r.delayMs, NO_RETRY.delayMs) };
+}
+
+function cleanSchedule(v: unknown): Schedule {
+  const s = (v ?? {}) as Record<string, unknown>;
+  if (s.kind === "interval") return { kind: "interval", minutes: Math.max(1, num(s.minutes, 60, 1)) };
+  if (s.kind === "weekdays") {
+    const days = Array.isArray(s.days) ? [...new Set(s.days.filter((d): d is number => Number.isInteger(d) && d >= 0 && d <= 6))] : [];
+    return { kind: "weekdays", time: str(s.time, "09:00"), days };
+  }
+  if (s.kind === "daily") return { kind: "daily", time: str(s.time, "09:00") };
+  return { ...DEFAULT_SCHEDULE };
 }
 
 function cleanCondition(v: unknown): FlowCondition {
@@ -131,6 +166,8 @@ function cleanNode(v: unknown): FlowNode | null {
   switch (type) {
     case "start":
       return { ...base, type };
+    case "schedule":
+      return { ...base, type, schedule: cleanSchedule(n.schedule), enabled: n.enabled !== false };
     case "run-case":
       return { ...base, type, suiteId: str(n.suiteId), caseId: str(n.caseId), retry: cleanRetry(n.retry) };
     case "run-suite":
@@ -139,10 +176,19 @@ function cleanNode(v: unknown): FlowNode | null {
       return { ...base, type, requestId: str(n.requestId), retry: cleanRetry(n.retry) };
     case "if":
       return { ...base, type, condition: cleanCondition(n.condition) };
+    case "parallel":
+    case "join":
+      return { ...base, type };
+    case "loop": {
+      const d = n.data as Partial<LoopData> | null | undefined;
+      return { ...base, type, data: d && typeof d.name === "string" && typeof d.text === "string" ? { name: d.name, text: d.text } : null };
+    }
     case "wait":
       return { ...base, type, ms: num(n.ms, 1000) };
     case "set-var":
       return { ...base, type, name: str(n.name), value: str(n.value) };
+    case "note":
+      return { ...base, type, text: str(n.text), width: num(n.width, NOTE_SIZE.width, 80), height: num(n.height, NOTE_SIZE.height, 40) };
   }
 }
 

@@ -1,9 +1,13 @@
 import type { Vars } from "../template";
+import type { Schedule } from "./schedule";
 import type { TestRun } from "../testing/testRun";
 import type { AssertionOp, AssertionSource, Check } from "../testing/types";
 
 /** The name of a node's output, which is also the handle a wire leaves from. */
-export type FlowOutput = "next" | "passed" | "failed" | "true" | "false";
+export type FlowOutput = "next" | "passed" | "failed" | "true" | "false" | "branches" | "row" | "done";
+
+/** Outputs that can have any number of wires (each wire is a branch). Every other output has at most one. */
+export const MULTI_WIRE_OUTPUTS: FlowOutput[] = ["branches"];
 
 export interface FlowPosition {
   x: number;
@@ -45,6 +49,14 @@ export interface StartNode extends NodeBase {
   type: "start";
 }
 
+/** Starts the flow at set times while the app is open. */
+export interface ScheduleNode extends NodeBase {
+  type: "schedule";
+  schedule: Schedule;
+  /** Off: the schedule is kept but never starts a run. */
+  enabled: boolean;
+}
+
 export interface RunCaseNode extends NodeBase {
   type: "run-case";
   suiteId: string;
@@ -82,21 +94,68 @@ export interface SetVarNode extends NodeBase {
   value: string;
 }
 
+/** Starts every branch wired to it at the same time. */
+export interface ParallelNode extends NodeBase {
+  type: "parallel";
+}
+
+/** Waits for every branch of a Parallel, merges their variables, then continues. */
+export interface JoinNode extends NodeBase {
+  type: "join";
+}
+
+/** CSV text saved on a Loop node. */
+export interface LoopData {
+  name: string;
+  text: string;
+}
+
+/** Runs the steps wired to "row" once per CSV row, then continues from "done". */
+export interface LoopNode extends NodeBase {
+  type: "loop";
+  data: LoopData | null;
+}
+
+/** Free text on the canvas to explain a flow. Never run, and has no wires. */
+export interface NoteNode extends NodeBase {
+  type: "note";
+  text: string;
+  width: number;
+  height: number;
+}
+
 export type RunNode = RunCaseNode | RunSuiteNode | RunRequestNode;
-export type FlowNode = StartNode | RunCaseNode | RunSuiteNode | RunRequestNode | IfNode | WaitNode | SetVarNode;
+export type FlowNode =
+  | StartNode
+  | ScheduleNode
+  | RunCaseNode
+  | RunSuiteNode
+  | RunRequestNode
+  | IfNode
+  | ParallelNode
+  | JoinNode
+  | LoopNode
+  | WaitNode
+  | SetVarNode
+  | NoteNode;
 export type FlowNodeType = FlowNode["type"];
 
-export const FLOW_NODE_TYPES: FlowNodeType[] = ["start", "run-case", "run-suite", "run-request", "if", "wait", "set-var"];
+export const FLOW_NODE_TYPES: FlowNodeType[] = ["start", "schedule", "run-case", "run-suite", "run-request", "if", "parallel", "join", "loop", "wait", "set-var", "note"];
 
 /** The outputs each node type has, in the order they are drawn. */
 export const NODE_OUTPUTS: Record<FlowNodeType, FlowOutput[]> = {
   start: ["next"],
+  schedule: ["next"],
   "run-case": ["passed", "failed"],
   "run-suite": ["passed", "failed"],
   "run-request": ["passed", "failed"],
   if: ["true", "false"],
+  parallel: ["branches"],
+  join: ["passed", "failed"],
+  loop: ["row", "done"],
   wait: ["next"],
   "set-var": ["next"],
+  note: [],
 };
 
 /** A wire from one node's output to another node. */
@@ -125,15 +184,19 @@ export interface Attempt {
 }
 
 /**
- * passed / failed: Run steps, and Join later.
- * done: steps that cannot fail (Start, Wait, Set variable, If).
+ * passed / failed: Run steps, Join, and Loop over CSV.
+ * done: steps that cannot fail (Start, Schedule, Wait, Set variable, If, Parallel).
  * cancelled: Stop was pressed while the step ran.
  */
 export type FlowStepStatus = "passed" | "failed" | "done" | "cancelled";
 
 export interface FlowStep {
-  /** 0-based position in the run. */
+  /** 0-based position in the run, in the order steps started. */
   index: number;
+  /** Which parallel branch ran the step: "" outside Parallel, "2" for the second branch, "2.1" for a branch inside it. */
+  branch?: string;
+  /** The 0-based CSV row of the innermost Loop over CSV the step ran in. */
+  row?: number;
   nodeId: string;
   nodeType: FlowNodeType;
   label: string;
@@ -168,8 +231,10 @@ export interface FlowRunSummary {
   flowId: string;
   flowName: string;
   environmentName?: string;
-  /** "manual" for the Run button; a schedule node's id for scheduled runs (added with schedules). */
+  /** "manual" for the Run button, or the id of the Schedule step that started the run. */
   trigger: string;
+  /** For scheduled runs: the schedule as text, such as "Daily at 09:00". */
+  triggerLabel?: string;
   startedAt: string;
   finishedAt: string;
   end: FlowRunEnd;

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import App from "./App";
 import { QuickOpen } from "./components/shell/QuickOpen";
 import type { Mode } from "./components/shell/TopBar";
+import { FlowsApp } from "./components/flows/FlowsApp";
 import { TestingApp } from "./components/testing/TestingApp";
 import type { QuickItem } from "./lib/quickOpen";
 import { load, save } from "./lib/storage";
@@ -9,17 +10,25 @@ import { load, save } from "./lib/storage";
 const SECTION_KEY = "rest-runner.section";
 
 /** Something quick open asked a mode to do. The nonce makes the same pick twice count twice. */
-export type ShellCommand = { type: "open"; item: QuickItem; nonce: number } | { type: "clear-history"; nonce: number };
+export type ShellCommand =
+  | { type: "open"; item: QuickItem; nonce: number }
+  | { type: "clear-history"; nonce: number }
+  /** Another mode changed saved data this mode keeps in memory: read it again from storage. */
+  | { type: "reload"; nonce: number };
 
 function modeFor(item: QuickItem): Mode {
+  if (item.kind === "flow" || item.kind === "flow-run") return "flows";
   return item.kind === "suite" || item.kind === "case" || item.kind === "test-run" ? "testing" : "requests";
 }
 
-/** The two modes (Requests and Testing). Both stay mounted so a running batch or suite keeps going. */
+/** The three modes (Requests, Testing and Flows). All stay mounted so a running batch, suite or flow keeps going. */
 export default function Root() {
-  const [section, setSection] = useState<Mode>(() => (load<string>(SECTION_KEY, "requests") === "testing" ? "testing" : "requests"));
+  const [section, setSection] = useState<Mode>(() => {
+    const saved = load<string>(SECTION_KEY, "requests");
+    return saved === "testing" || saved === "flows" ? saved : "requests";
+  });
   const [quickOpen, setQuickOpen] = useState(false);
-  const [commands, setCommands] = useState<Record<Mode, ShellCommand | null>>({ requests: null, testing: null });
+  const [commands, setCommands] = useState<Record<Mode, ShellCommand | null>>({ requests: null, testing: null, flows: null });
   useEffect(() => {
     save(SECTION_KEY, section);
   }, [section]);
@@ -36,7 +45,15 @@ export default function Root() {
   }, []);
 
   const send = (mode: Mode, cmd: ShellCommand) => setCommands((c) => ({ ...c, [mode]: cmd }));
-  const shell = { onMode: setSection, onQuickOpen: () => setQuickOpen(true) };
+  const shell: ShellProps = {
+    onMode: setSection,
+    onQuickOpen: () => setQuickOpen(true),
+    onDataChanged: (what) => {
+      const nonce = Date.now();
+      if (what.includes("collections")) send("requests", { type: "reload", nonce });
+      if (what.includes("suites")) send("testing", { type: "reload", nonce });
+    },
+  };
 
   return (
     <div className="app-shell">
@@ -45,6 +62,9 @@ export default function Root() {
       </div>
       <div className="root-section" hidden={section !== "testing"}>
         <TestingApp active={section === "testing"} shell={shell} command={commands.testing} />
+      </div>
+      <div className="root-section" hidden={section !== "flows"}>
+        <FlowsApp active={section === "flows"} shell={shell} command={commands.flows} />
       </div>
       {quickOpen && (
         <QuickOpen
@@ -66,4 +86,6 @@ export default function Root() {
 export interface ShellProps {
   onMode: (mode: Mode) => void;
   onQuickOpen: () => void;
+  /** A mode wrote saved data that another mode holds in memory (Flows importing suites or requests). */
+  onDataChanged: (what: ("suites" | "collections")[]) => void;
 }

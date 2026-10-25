@@ -29,7 +29,7 @@ Runs on macOS and Windows from one codebase, built with [Tauri 2](https://tauri.
 - Examples: each saved request can keep any number of named sample payloads (Save as example), optionally with the response they got
 - Environments: named sets of variables such as `baseUrl` and `token`, picked from the switch in the top bar. The line under the URL shows the final URL with environment values and query params filled in
 - Params, Auth, Headers and Body are collapsible sections; closed, each shows a one-line summary. Open sections and the width of the two columns (drag the divider) are remembered
-- Quick open (Ctrl/Cmd + K): fuzzy search over requests, examples, history, batch runs, suites, test cases and test runs
+- Quick open (Ctrl/Cmd + K): fuzzy search over requests, examples, history, batch runs, suites, test cases, test runs, flows and flow runs
 - Export and import collections (with folders and examples) and environments as one JSON file (older export files still import), to back up or move between computers
 - History of the last 50 requests, in quick open and in the **Earlier sends of this request** strip under the response (click one to see that response again); your current request is kept between launches
 - Scripts: each request can have a pre-request and a post-response JavaScript script (`rr` API) for setting variables and checking responses. See [docs/scripting.md](docs/scripting.md)
@@ -105,6 +105,12 @@ Switch to **Testing** at the top right. Suites and test runs are listed on the l
 A case passes when every check passes: its enabled assertions, every `rr.test`, both scripts finishing without an error, and a response arriving.
 
 Finished runs are saved (the last 50) under **Test runs**. The report shows cases and checks passed, timing, a per-case table (click a case to filter), the run log, and every result with its checks, notes, variables, request, response and script output. **Export HTML report** and **Export CSV report** work like the batch reports, with one line or section per case per iteration. Suites can be exported and imported as a JSON file from the Suites list.
+
+## Flows
+
+Switch to **Flows** at the top right to chain test cases, suites and saved requests into one run on a canvas. Wire steps by their **passed** and **failed** outputs, branch with **If**, run branches side by side with **Parallel** and **Join**, repeat steps per CSV row with **Loop over CSV**, and add **Wait**, **Set variable**, retries and sticky notes. A **Schedule** step runs the flow every N minutes, daily, or on chosen weekdays while the app is open.
+
+Each run is saved with a combined report: every step, and each Run step's full test report, exportable as one HTML or CSV file. Flows can be exported and imported together with the suites and saved requests they use. See [docs/flows.md](docs/flows.md).
 
 ## Getting the app
 

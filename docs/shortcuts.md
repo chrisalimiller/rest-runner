@@ -2,7 +2,7 @@
 
 ## Quick open
 
-Press **Ctrl + K** (Windows) or **⌘ K** (Mac), or click the search box in the top bar, to jump to anything you have saved. Press the shortcut again, or Esc, to close it. It works in both modes.
+Press **Ctrl + K** (Windows) or **⌘ K** (Mac), or click the search box in the top bar, to jump to anything you have saved. Press the shortcut again, or Esc, to close it. It works in every mode.
 
 It searches these groups in one list:
 
@@ -15,6 +15,8 @@ It searches these groups in one list:
 | **Suites** | The suite in Testing |
 | **Test cases** | The case, inside its suite |
 | **Test runs** | The report in Testing |
+| **Flows** | The flow on its canvas |
+| **Flow runs** | The [flow run report](flows.md#reports) |
 
 The group for the mode you are in comes first.
 
