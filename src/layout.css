@@ -2124,3 +2124,55 @@ details.case-try .call-detail {
   padding: 16px;
   margin: 0;
 }
+
+/* ---------- cURL command (request builder) ---------- */
+
+.resolved-url .curl-toggle {
+  flex: none;
+  font-family: var(--mono);
+}
+
+.resolved-url .curl-toggle.active {
+  color: var(--text);
+}
+
+.curl-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-inset);
+}
+
+.curl-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.curl-command {
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text);
+  white-space: pre;
+  user-select: text;
+}
+
+.curl-panel p {
+  margin: 0;
+}
+
+.curl-panel .var-chip {
+  margin: 0 2px;
+}
+
+.resolved-empty {
+  flex: 1;
+  min-width: 0;
+}
