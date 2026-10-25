@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import type { Environment } from "../../lib/environments";
 import { BrandLockup } from "../BrandMark";
+import { overlayTitleBar } from "../../lib/windowChrome";
 import { PencilIcon, SearchIcon } from "./Icons";
 
 export type Mode = "requests" | "testing" | "flows";
@@ -28,7 +29,8 @@ export const MOD_KEY = isMac ? "⌘" : "Ctrl";
 /** The one bar at the top of both modes: brand, switcher, quick open, environment, mode tabs. */
 export function TopBar(props: Props) {
   return (
-    <header className="topbar">
+    // With the macOS overlay title bar, empty parts of the top bar drag the window; buttons and fields still click.
+    <header className="topbar" data-tauri-drag-region={overlayTitleBar ? "deep" : undefined}>
       <BrandLockup />
       {props.switcher}
       <button className="quick-open-field" onClick={props.onQuickOpen} aria-label="Quick open" aria-keyshortcuts="Control+K Meta+K">

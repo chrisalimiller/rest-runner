@@ -190,6 +190,15 @@ body.dragging-split {
   z-index: 5;
 }
 
+/* macOS overlay title bar: leave room for the traffic lights (placed at x 18 in tauri.conf.json). */
+.overlay-titlebar .topbar {
+  padding-left: 90px;
+}
+
+.overlay-titlebar.is-fullscreen .topbar {
+  padding-left: 20px;
+}
+
 .brand-lockup {
   display: flex;
   align-items: center;
