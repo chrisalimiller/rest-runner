@@ -2,7 +2,9 @@ import { autocompletion, closeBrackets, closeBracketsKeymap, type CompletionSour
 import { javascript } from "@codemirror/lang-javascript";
 import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
 import { json } from "@codemirror/lang-json";
-import { bracketMatching, HighlightStyle, syntaxHighlighting } from "@codemirror/language";
+import { python } from "@codemirror/lang-python";
+import { bracketMatching, HighlightStyle, StreamLanguage, syntaxHighlighting } from "@codemirror/language";
+import { shell } from "@codemirror/legacy-modes/mode/shell";
 import { linter, type Diagnostic } from "@codemirror/lint";
 import { Compartment, EditorState, type Extension } from "@codemirror/state";
 import {
@@ -30,7 +32,17 @@ const githubDarkHighlight = HighlightStyle.define([
   { tag: [t.function(t.variableName), t.function(t.propertyName)], color: "#d2a8ff" },
   { tag: [t.lineComment, t.blockComment], color: "#8b949e", fontStyle: "italic" },
   { tag: t.regexp, color: "#7ee787" },
+  { tag: [t.definition(t.variableName), t.function(t.definition(t.variableName))], color: "#d2a8ff" },
+  { tag: [t.className, t.self, t.special(t.variableName)], color: "#ffa657" },
+  { tag: [t.atom, t.standard(t.variableName), t.escape], color: "#79c0ff" },
 ]);
+
+/** Languages for read-only views of exported scripts. */
+export type ScriptViewLanguage = "python" | "bash";
+const scriptLanguages: Record<ScriptViewLanguage, () => Extension> = {
+  python: () => python(),
+  bash: () => StreamLanguage.define(shell),
+};
 
 const editorTheme = EditorView.theme(
   {
@@ -120,6 +132,8 @@ interface Props {
   /** JavaScript mode adds highlighting, plus the given autocomplete source when there is one. */
   javascript?: boolean;
   completions?: CompletionSource;
+  /** Python or Bash highlighting, for showing exported scripts. Long lines scroll instead of wrapping. */
+  language?: ScriptViewLanguage;
   readOnly?: boolean;
   placeholder?: string;
   ariaLabel?: string;
@@ -134,6 +148,7 @@ export function CodeEditor({
   json: isJson = false,
   javascript: isJs = false,
   completions,
+  language,
   readOnly = false,
   placeholder,
   ariaLabel,
@@ -145,6 +160,7 @@ export function CodeEditor({
   const modeCompartment = useRef(new Compartment());
 
   const modeExtensions = (): Extension[] => {
+    if (language) return [scriptLanguages[language](), syntaxHighlighting(githubDarkHighlight)];
     if (isJs) {
       return [
         javascript(),
@@ -159,7 +175,7 @@ export function CodeEditor({
     if (!host.current) return;
     const extensions: Extension[] = [
       editorTheme,
-      EditorView.lineWrapping,
+      language ? [] : EditorView.lineWrapping,
       placeholderMarks,
       modeCompartment.current.of(modeExtensions()),
       EditorView.contentAttributes.of({ "aria-label": ariaLabel ?? "Code", spellcheck: "false" }),
@@ -204,7 +220,7 @@ export function CodeEditor({
   useEffect(() => {
     view.current?.dispatch({ effects: modeCompartment.current.reconfigure(modeExtensions()) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isJson, isJs]);
+  }, [isJson, isJs, language]);
 
   return <div ref={host} className={`code-editor ${readOnly ? "readonly" : ""}`} />;
 }

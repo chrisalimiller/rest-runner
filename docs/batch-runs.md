@@ -58,7 +58,14 @@ If the request has scripts they run for every row. See [Scripting](scripting.md#
 
 ## Exporting a batch as a script
 
-**Export script…** (next to **Preview**) saves the batch as a Python or Bash script that runs in a terminal without the app. The script holds the request, the run options, and the values of the selected environment. It reads a CSV file you give it, sends one request per row, prints a line per result, and writes a results CSV with the same columns as the app's [CSV report](#reports) (without the notes and script columns).
+**Export script…** (next to **Preview**) turns the batch into a Python or Bash script that runs in a terminal without the app. The script holds the request, the run options, and the values of the selected environment. It reads a CSV file you give it, sends one request per row, prints a line per result, and writes a results CSV with the same columns as the app's [CSV report](#reports) (without the notes and script columns).
+
+The panel shows the script in the app, highlighted like other code. Pick **Python** or **Bash** at the top (the app remembers your choice), then either:
+
+- **Copy** puts the whole script on the clipboard. Paste it into a file with the name shown next to the tabs (for example `my-request-batch.py`) and run it with the command under the script.
+- **Save to file…** saves it with a file dialog and then shows the command that runs it.
+
+Both give the same script. The view updates as you change the request, the options, the environment, or the CSV, so it always matches what you would save. Long lines scroll sideways rather than wrap, and you can drag the bottom corner of the view to make it taller.
 
 | | Python | Bash |
 | --- | --- | --- |
