@@ -2172,6 +2172,25 @@ details.case-try .call-detail {
   margin: 0 2px;
 }
 
+/* Batch export: the generated script, shown like other code in the app. */
+.script-export-head {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.batch-export .script-export-code {
+  flex: none;
+  height: 360px;
+  resize: vertical;
+}
+
+.batch-export code {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
 .resolved-empty {
   flex: 1;
   min-width: 0;
