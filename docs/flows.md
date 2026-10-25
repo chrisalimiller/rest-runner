@@ -1,8 +1,36 @@
 # Flows
 
-> **Status:** the flow engine is in place. The **Flows** mode with its canvas arrives in the next update; this page describes how a flow runs so the rules are written down before the editor lands.
-
 A **flow** chains your saved work into one run. You place **steps** (nodes) on a canvas and wire them together. Each step runs a test case, a whole suite or a saved request, or controls what happens next. A flow runs inside the open app, with the environment selected in the Flows top bar.
+
+## The Flows window
+
+Open it with the **Flows** tab at the top right.
+
+- **Left:** your **Flows** (with **New**) and recent **Flow runs**. Below 1000 px wide this becomes a drop-down.
+- **Middle:** the flow's name and description (edit in place), **Duplicate**, **Delete**, and **Run** (**Stop** while running). Under that, the **step bar**, then the **canvas**.
+- **Right:** the settings of the selected step. With nothing selected: anything that stops the flow from running, then the live run or the latest run.
+- **Top bar:** Quick open, and an environment switch of its own. Environments are edited in Requests mode.
+
+Flows are saved automatically as you edit. Like the other modes, Flows stays alive while you switch away, so a running flow carries on.
+
+## Building a flow
+
+- **Add a step:** click it in the step bar (it lands in the middle of the canvas), or drag it onto the canvas.
+- **Wire steps:** drag from an output dot on the right of a step to the input dot on the left of another. Dragging a new wire from an output that already has one replaces the old wire.
+- **Select** a step to edit it on the right. **Delete** or **Backspace** removes the selected step or wire; so does **Delete step** in its settings.
+- **Move around:** drag the background to pan, scroll or pinch to zoom, and use the buttons at the bottom left to zoom or fit the whole flow. The small map at the bottom right also pans and zooms.
+- **Name:** every step has an optional name. Empty, it shows the case, suite or request it runs.
+- **Sticky notes** hold free text to explain a flow. Type straight into the note; drag its top edge to move it and its corners to resize it. Notes are never run and can't be wired.
+
+A red **!** on a step means the flow can't run until it is fixed (for example, a deleted case). A yellow one is a warning, such as a step nothing is wired to. The right-hand panel lists them; click one to jump to the step. **Run** stays off while there is an error.
+
+## Running
+
+Press **Run**. The run begins at **Start** and the step running now shows a spinner. Finished steps turn green or red, and the right-hand panel lists every step with its result, time and the wire it took. Click a step there for its notes, tries, the case and check counts, and the variables it changed. **Show on canvas** finds the step.
+
+Finished runs are saved (the last 50) and listed under **Flow runs**. Opening one shows the flow **as it was when it ran**, read-only, with each step's result. **Back to editing** returns to the flow.
+
+Only one flow runs at a time. You can keep editing while it runs; the run uses the flow as it was when you pressed Run.
 
 ## Steps
 

@@ -82,11 +82,19 @@ export interface SetVarNode extends NodeBase {
   value: string;
 }
 
+/** Free text on the canvas to explain a flow. Never run, and has no wires. */
+export interface NoteNode extends NodeBase {
+  type: "note";
+  text: string;
+  width: number;
+  height: number;
+}
+
 export type RunNode = RunCaseNode | RunSuiteNode | RunRequestNode;
-export type FlowNode = StartNode | RunCaseNode | RunSuiteNode | RunRequestNode | IfNode | WaitNode | SetVarNode;
+export type FlowNode = StartNode | RunCaseNode | RunSuiteNode | RunRequestNode | IfNode | WaitNode | SetVarNode | NoteNode;
 export type FlowNodeType = FlowNode["type"];
 
-export const FLOW_NODE_TYPES: FlowNodeType[] = ["start", "run-case", "run-suite", "run-request", "if", "wait", "set-var"];
+export const FLOW_NODE_TYPES: FlowNodeType[] = ["start", "run-case", "run-suite", "run-request", "if", "wait", "set-var", "note"];
 
 /** The outputs each node type has, in the order they are drawn. */
 export const NODE_OUTPUTS: Record<FlowNodeType, FlowOutput[]> = {
@@ -97,6 +105,7 @@ export const NODE_OUTPUTS: Record<FlowNodeType, FlowOutput[]> = {
   if: ["true", "false"],
   wait: ["next"],
   "set-var": ["next"],
+  note: [],
 };
 
 /** A wire from one node's output to another node. */

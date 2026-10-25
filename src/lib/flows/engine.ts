@@ -203,6 +203,8 @@ async function runNode(e: Engine, node: FlowNode): Promise<StepOutcome> {
   switch (node.type) {
     case "start":
       return { status: "done", output: "next", notes: [] };
+    case "note":
+      return { status: "done", notes: ["Sticky notes are not run."] };
     case "wait": {
       await sleep(node.ms, e.ctx.signal);
       if (e.ctx.signal.aborted) return { status: "cancelled", notes: ["Stopped while waiting."] };

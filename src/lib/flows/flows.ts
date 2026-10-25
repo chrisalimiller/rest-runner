@@ -48,8 +48,12 @@ export function newNode(type: FlowNodeType, position: FlowPosition = { x: 0, y: 
       return { ...base, type, ms: 1000 };
     case "set-var":
       return { ...base, type, name: "", value: "" };
+    case "note":
+      return { ...base, type, text: "", width: NOTE_SIZE.width, height: NOTE_SIZE.height };
   }
 }
+
+export const NOTE_SIZE = { width: 220, height: 120 };
 
 export function newEdge(source: string, sourceHandle: FlowEdge["sourceHandle"], target: string): FlowEdge {
   return { id: newId(), source, sourceHandle, target };
@@ -63,6 +67,7 @@ export const NODE_TYPE_LABELS: Record<FlowNodeType, string> = {
   if: "If",
   wait: "Wait",
   "set-var": "Set variable",
+  note: "Sticky note",
 };
 
 /** The name shown for a node: its own label, or one made from what it runs. */
@@ -82,6 +87,8 @@ export function nodeLabel(node: FlowNode, suites: TestSuite[], findRequest: Requ
       return `Wait ${formatMs(node.ms)}`;
     case "set-var":
       return node.name ? `Set ${node.name}` : "Set variable";
+    case "note":
+      return node.text.split("\n")[0].trim().slice(0, 40) || "Sticky note";
     default:
       return NODE_TYPE_LABELS[node.type];
   }
@@ -143,6 +150,8 @@ function cleanNode(v: unknown): FlowNode | null {
       return { ...base, type, ms: num(n.ms, 1000) };
     case "set-var":
       return { ...base, type, name: str(n.name), value: str(n.value) };
+    case "note":
+      return { ...base, type, text: str(n.text), width: num(n.width, NOTE_SIZE.width, 80), height: num(n.height, NOTE_SIZE.height, 40) };
   }
 }
 

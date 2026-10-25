@@ -41,11 +41,13 @@ The app is one window with a single bar along the top.
 | **Suite name** (Testing mode) | The open suite. |
 | **Quick open** | A search box that opens with Ctrl/Cmd + K. See [Quick open](shortcuts.md). |
 | **Environment switch** | One button per environment plus **None**. The pencil opens the environment editor (Requests mode only). |
-| **Requests / Testing** | Switches mode. |
+| **Requests / Testing / Flows** | Switches mode. |
 
 **Requests mode** is split in two. The left column is the request (URL bar, resolved URL, collapsible Params / Auth / Headers / Body / Scripts sections, and an action footer with **Send**, **Save**, **Run with CSV…**). The right column is the response. Drag the divider to resize the columns (your split is remembered; double-click it to reset; arrow keys move it when it has focus). Below 1000 px wide the columns stack.
 
 **Testing mode** has suites and test runs on the left, the open suite in the middle, and the latest run on the right. See [Testing](testing.md).
+
+**Flows mode** has flows and flow runs on the left, the flow's canvas in the middle, and the selected step's settings (or the latest run) on the right. See [Flows](flows.md).
 
 ## Your first request
 
@@ -61,4 +63,5 @@ The request you are editing is remembered between launches, even if you never sa
 
 - Batch the request over a spreadsheet: [CSV batch runs](batch-runs.md).
 - Add checks and run several requests in order: [Testing](testing.md).
+- Chain cases, suites and saved requests with branches and retries: [Flows](flows.md).
 - Pull a token out of one response and use it in the next request: [scripting](scripting.md#quick-example).

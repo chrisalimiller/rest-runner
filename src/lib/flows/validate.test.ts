@@ -71,6 +71,22 @@ describe("validateFlow", () => {
   });
 });
 
+describe("sticky notes", () => {
+  it("are never warned about and can't be wired into", () => {
+    const note = newNode("note");
+    const f = withNodes([note]);
+    expect(validateFlow(f, [], noRequests)).toEqual([]);
+    f.edges = [newEdge(f.nodes[0].id, "next", note.id)];
+    expect(validateFlow(f, [], noRequests)[0].message).toMatch(/Sticky notes are never run/);
+  });
+
+  it("keep their text and size through cleaning", () => {
+    const f = withNodes([{ ...newNode("note"), type: "note", text: "Hi", width: 10, height: 300 } as FlowNode]);
+    const [clean] = cleanFlows([f]);
+    expect(clean.nodes[1]).toMatchObject({ type: "note", text: "Hi", width: 80, height: 300 });
+  });
+});
+
 describe("cleanFlows", () => {
   it("keeps good nodes and wires and drops broken ones", () => {
     const f = newFlow("Kept");

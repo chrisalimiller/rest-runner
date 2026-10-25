@@ -3,7 +3,7 @@ import type { Environment } from "../../lib/environments";
 import { BrandLockup } from "../BrandMark";
 import { PencilIcon, SearchIcon } from "./Icons";
 
-export type Mode = "requests" | "testing";
+export type Mode = "requests" | "testing" | "flows";
 
 interface Props {
   mode: Mode;
@@ -19,6 +19,8 @@ interface Props {
   onEditEnvironments?: () => void;
   envTitle?: string;
 }
+
+const MODE_LABELS: Record<Mode, string> = { requests: "Requests", testing: "Testing", flows: "Flows" };
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 export const MOD_KEY = isMac ? "⌘" : "Ctrl";
@@ -43,9 +45,9 @@ export function TopBar(props: Props) {
         title={props.envTitle}
       />
       <nav className="mode-tabs" aria-label="Mode">
-        {(["requests", "testing"] as const).map((m) => (
+        {(["requests", "testing", "flows"] as const).map((m) => (
           <button key={m} className={props.mode === m ? "active" : ""} aria-current={props.mode === m ? "page" : undefined} onClick={() => props.onMode(m)}>
-            {m === "requests" ? "Requests" : "Testing"}
+            {MODE_LABELS[m]}
           </button>
         ))}
       </nav>
