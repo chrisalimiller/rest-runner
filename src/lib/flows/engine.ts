@@ -9,6 +9,7 @@ import { DEFAULT_SUITE_OPTIONS, type CaseResult, type SuiteRunEnd, type SuiteRun
 import type { RequestDef, ResponseResult } from "../types";
 import { evaluateCondition } from "./conditions";
 import { formatMs, nodeLabel, type RequestLookup } from "./flows";
+import { describeSchedule } from "./schedule";
 import { hasErrors, validateFlow } from "./validate";
 import type { Attempt, Flow, FlowNode, FlowOutput, FlowRun, FlowRunEnd, FlowStep, RunNode } from "./types";
 
@@ -32,7 +33,7 @@ export interface FlowRunContext {
   signal: AbortSignal;
   /** The node to start from. Missing means the Start node. */
   entryNodeId?: string;
-  /** "manual", or the id of what started the run. */
+  /** "manual", or the id of the Schedule step that started the run. */
   trigger?: string;
   maxSteps?: number;
   /** Called when a step starts, before it has a result. */
@@ -242,6 +243,8 @@ async function runSimpleNode(e: Engine, lane: Lane, node: FlowNode): Promise<Ste
   switch (node.type) {
     case "start":
       return { status: "done", output: "next", notes: [] };
+    case "schedule":
+      return { status: "done", output: "next", notes: [e.ctx.trigger === node.id ? `Started by its schedule: ${describeSchedule(node.schedule)}.` : "Started from here."] };
     case "note":
     case "parallel":
     case "join":
@@ -524,7 +527,7 @@ export async function runFlow(flow: Flow, ctx: FlowRunContext): Promise<FlowRun>
     maxSteps: ctx.maxSteps ?? MAX_FLOW_STEPS,
   };
   const lane: Lane = { vars: {}, data: {}, lastResult: null, lastResponse: null, branch: "" };
-  const entry = ctx.entryNodeId ?? snapshot.nodes.find((n) => n.type === "start")!.id;
+  const entry = ctx.entryNodeId ?? (snapshot.nodes.find((n) => n.type === "start") ?? snapshot.nodes.find((n) => n.type === "schedule"))!.id;
   const result = await walk(e, entry, lane, { inParallel: false });
 
   let end: FlowRunEnd = "passed";
@@ -557,6 +560,9 @@ export async function runFlow(flow: Flow, ctx: FlowRunContext): Promise<FlowRun>
     flowName: snapshot.name,
     environmentName: ctx.environmentName,
     trigger: ctx.trigger ?? "manual",
+    ...(ctx.trigger && ctx.trigger !== "manual" && e.byId.get(ctx.trigger)?.type === "schedule"
+      ? { triggerLabel: describeSchedule((e.byId.get(ctx.trigger) as Extract<FlowNode, { type: "schedule" }>).schedule) }
+      : {}),
     startedAt,
     finishedAt,
     end,

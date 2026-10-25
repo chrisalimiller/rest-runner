@@ -29,6 +29,7 @@ const NODE_TYPES = { step: StepNodeView, note: NoteNodeView };
 /** What the palette offers, in order. */
 const PALETTE: { type: FlowNodeType; hint: string }[] = [
   { type: "start", hint: "Where a run begins" },
+  { type: "schedule", hint: "Run the flow on a timer while the app is open" },
   { type: "run-case", hint: "One test case from a suite" },
   { type: "run-suite", hint: "A whole suite, with its CSV" },
   { type: "run-request", hint: "A saved request and its scripts" },

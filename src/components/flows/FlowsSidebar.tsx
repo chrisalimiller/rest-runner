@@ -6,16 +6,41 @@ interface Props {
   activeFlowId: string | null;
   onOpenFlow: (id: string) => void;
   onNewFlow: () => void;
+  onExport: () => void;
+  onImport: (file: File) => void;
   runs: FlowRunSummary[];
   activeRunId: string | null;
   onOpenRun: (id: string) => void;
-  runningFlowId: string | null;
+  runningFlowIds: string[];
+  /** Next scheduled run and the latest skipped one, per flow id. */
+  scheduleInfo: Record<string, ScheduleInfo>;
+}
+
+export interface ScheduleInfo {
+  next?: string;
+  skipped?: string;
 }
 
 const END_MARK = { passed: "✓", failed: "✕", cancelled: "■" } as const;
 
 /** Flows and recent flow runs on the left of Flows mode. Below 800px wide it turns into a select at the top. */
-export function FlowsSidebar({ flows, activeFlowId, onOpenFlow, onNewFlow, runs, activeRunId, onOpenRun, runningFlowId }: Props) {
+export function FlowsSidebar({ flows, activeFlowId, onOpenFlow, onNewFlow, onExport, onImport, runs, activeRunId, onOpenRun, runningFlowIds, scheduleInfo }: Props) {
+  const importLink = (
+    <label className="link-btn" title="Import flows from a file">
+      Import
+      <input
+        type="file"
+        accept=".json,application/json"
+        hidden
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onImport(f);
+          e.target.value = "";
+        }}
+      />
+    </label>
+  );
+
   return (
     <>
       <div className="runbook-nav-compact">
@@ -49,6 +74,7 @@ export function FlowsSidebar({ flows, activeFlowId, onOpenFlow, onNewFlow, runs,
         <button className="link-btn small" onClick={onNewFlow}>
           New
         </button>
+        {importLink}
       </div>
 
       <nav className="runbook-nav" aria-label="Flows and flow runs">
@@ -59,22 +85,34 @@ export function FlowsSidebar({ flows, activeFlowId, onOpenFlow, onNewFlow, runs,
               <button className="link-btn" onClick={onNewFlow} title="Add a flow">
                 New
               </button>
+              {importLink}
+              {flows.length > 0 && (
+                <button className="link-btn" onClick={onExport} title="Save every flow, with the suites and saved requests they run, to a file">
+                  Export
+                </button>
+              )}
             </span>
           </div>
           {flows.length === 0 && <p className="muted small nav-empty">A flow chains test cases, suites and saved requests into one run.</p>}
-          {flows.map((f) => (
-            <button
-              key={f.id}
-              className={`nav-row ${activeFlowId === f.id && activeRunId === null ? "active" : ""}`}
-              aria-current={activeFlowId === f.id && activeRunId === null ? "page" : undefined}
-              onClick={() => onOpenFlow(f.id)}
-              title={f.description || f.name}
-            >
-              {runningFlowId === f.id && <span className="pulse-dot" aria-label="Running" />}
-              <span className="nav-row-name">{f.name || "(unnamed)"}</span>
-              <span className="nav-row-count">{f.nodes.filter((n) => n.type !== "note" && n.type !== "start").length}</span>
-            </button>
-          ))}
+          {flows.map((f) => {
+            const info = scheduleInfo[f.id];
+            return (
+              <div key={f.id} className="flow-nav-item">
+                <button
+                  className={`nav-row ${activeFlowId === f.id && activeRunId === null ? "active" : ""}`}
+                  aria-current={activeFlowId === f.id && activeRunId === null ? "page" : undefined}
+                  onClick={() => onOpenFlow(f.id)}
+                  title={f.description || f.name}
+                >
+                  {runningFlowIds.includes(f.id) && <span className="pulse-dot" aria-label="Running" />}
+                  <span className="nav-row-name">{f.name || "(unnamed)"}</span>
+                  <span className="nav-row-count">{f.nodes.filter((n) => n.type !== "note" && n.type !== "start" && n.type !== "schedule").length}</span>
+                </button>
+                {info?.next && <p className="flow-nav-note muted small">⏱ Next: {info.next}</p>}
+                {info?.skipped && <p className="flow-nav-note tone-warn small">{info.skipped}</p>}
+              </div>
+            );
+          })}
         </div>
         <div className="nav-group">
           <div className="nav-group-head">

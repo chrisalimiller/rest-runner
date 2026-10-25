@@ -29,6 +29,8 @@ interface Props {
   run: FlowRunView | null;
   labelFor: (nodeId: string) => string;
   onFocusNode: (nodeId: string) => void;
+  /** Opens the saved run's full report. Only given once the run is saved. */
+  onOpenReport?: () => void;
 }
 
 const END_LABELS: Record<FlowRunEnd, string> = { passed: "Passed", failed: "Failed", cancelled: "Stopped" };
@@ -102,7 +104,7 @@ function StepRow({ step, onFocus }: { step: FlowStep; onFocus: () => void }) {
 }
 
 /** The right-hand panel when no step is selected: what blocks a run, then live progress or the shown run. */
-export function FlowRunPanel({ problems, run, labelFor, onFocusNode }: Props) {
+export function FlowRunPanel({ problems, run, labelFor, onFocusNode, onOpenReport }: Props) {
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
     if (!run?.running) return;
@@ -143,6 +145,11 @@ export function FlowRunPanel({ problems, run, labelFor, onFocusNode }: Props) {
                 {run.passedSteps ?? 0} run step{run.passedSteps === 1 ? "" : "s"} passed, {run.failedSteps ?? 0} failed
               </span>
               {run.endReason && run.end !== "passed" && <span className="small">{run.endReason}</span>}
+              {onOpenReport && (
+                <button className="link-btn small" onClick={onOpenReport}>
+                  Open report
+                </button>
+              )}
             </div>
           )}
           {run.running && run.runningNodeIds.length > 0 && (

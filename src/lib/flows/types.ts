@@ -1,4 +1,5 @@
 import type { Vars } from "../template";
+import type { Schedule } from "./schedule";
 import type { TestRun } from "../testing/testRun";
 import type { AssertionOp, AssertionSource, Check } from "../testing/types";
 
@@ -46,6 +47,14 @@ interface NodeBase {
 
 export interface StartNode extends NodeBase {
   type: "start";
+}
+
+/** Starts the flow at set times while the app is open. */
+export interface ScheduleNode extends NodeBase {
+  type: "schedule";
+  schedule: Schedule;
+  /** Off: the schedule is kept but never starts a run. */
+  enabled: boolean;
 }
 
 export interface RunCaseNode extends NodeBase {
@@ -118,6 +127,7 @@ export interface NoteNode extends NodeBase {
 export type RunNode = RunCaseNode | RunSuiteNode | RunRequestNode;
 export type FlowNode =
   | StartNode
+  | ScheduleNode
   | RunCaseNode
   | RunSuiteNode
   | RunRequestNode
@@ -130,11 +140,12 @@ export type FlowNode =
   | NoteNode;
 export type FlowNodeType = FlowNode["type"];
 
-export const FLOW_NODE_TYPES: FlowNodeType[] = ["start", "run-case", "run-suite", "run-request", "if", "parallel", "join", "loop", "wait", "set-var", "note"];
+export const FLOW_NODE_TYPES: FlowNodeType[] = ["start", "schedule", "run-case", "run-suite", "run-request", "if", "parallel", "join", "loop", "wait", "set-var", "note"];
 
 /** The outputs each node type has, in the order they are drawn. */
 export const NODE_OUTPUTS: Record<FlowNodeType, FlowOutput[]> = {
   start: ["next"],
+  schedule: ["next"],
   "run-case": ["passed", "failed"],
   "run-suite": ["passed", "failed"],
   "run-request": ["passed", "failed"],
@@ -174,7 +185,7 @@ export interface Attempt {
 
 /**
  * passed / failed: Run steps, Join, and Loop over CSV.
- * done: steps that cannot fail (Start, Wait, Set variable, If, Parallel).
+ * done: steps that cannot fail (Start, Schedule, Wait, Set variable, If, Parallel).
  * cancelled: Stop was pressed while the step ran.
  */
 export type FlowStepStatus = "passed" | "failed" | "done" | "cancelled";
@@ -220,8 +231,10 @@ export interface FlowRunSummary {
   flowId: string;
   flowName: string;
   environmentName?: string;
-  /** "manual" for the Run button; a schedule node's id for scheduled runs (added with schedules). */
+  /** "manual" for the Run button, or the id of the Schedule step that started the run. */
   trigger: string;
+  /** For scheduled runs: the schedule as text, such as "Daily at 09:00". */
+  triggerLabel?: string;
   startedAt: string;
   finishedAt: string;
   end: FlowRunEnd;

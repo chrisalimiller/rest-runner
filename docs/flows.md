@@ -1,13 +1,13 @@
 # Flows
 
-A **flow** chains your saved work into one run. You place **steps** (nodes) on a canvas and wire them together. Each step runs a test case, a whole suite or a saved request, or controls what happens next. A flow runs inside the open app, with the environment selected in the Flows top bar.
+A **flow** chains your saved work into one run. You place **steps** (nodes) on a canvas and wire them together. Each step runs a test case, a whole suite or a saved request, or controls what happens next. A flow runs inside the open app, when you press **Run** or when one of its [schedules](#schedules) comes due, with the environment selected in the Flows top bar.
 
 ## The Flows window
 
 Open it with the **Flows** tab at the top right.
 
-- **Left:** your **Flows** (with **New**) and recent **Flow runs**. Below 1000 px wide this becomes a drop-down.
-- **Middle:** the flow's name and description (edit in place), **Duplicate**, **Delete**, and **Run** (**Stop** while running). Under that, the **step bar**, then the **canvas**.
+- **Left:** your **Flows** (with **New**, **Import** and **Export**) and recent **Flow runs**. A flow with a schedule shows when it runs next, and the last run it skipped. Below 1000 px wide this becomes a drop-down.
+- **Middle:** the flow's name and description (edit in place), **Export**, **Duplicate**, **Delete**, and **Run** (**Stop** while running). Under that, the **step bar**, then the **canvas**.
 - **Right:** the settings of the selected step. With nothing selected: anything that stops the flow from running, then the live run or the latest run.
 - **Top bar:** Quick open, and an environment switch of its own. Environments are edited in Requests mode.
 
@@ -26,17 +26,18 @@ A red **!** on a step means the flow can't run until it is fixed (for example, a
 
 ## Running
 
-Press **Run**. The run begins at **Start** and the step running now shows a spinner. Finished steps turn green or red, and the right-hand panel lists every step with its result, time and the wire it took. Click a step there for its notes, tries, the case and check counts, and the variables it changed. **Show on canvas** finds the step.
+Press **Run**. The run begins at **Start** (or, in a flow with no Start and one Schedule, at the Schedule) and the step running now shows a spinner. Finished steps turn green or red, and the right-hand panel lists every step with its result, time and the wire it took. Click a step there for its notes, tries, the case and check counts, and the variables it changed. **Show on canvas** finds the step.
 
-Finished runs are saved (the last 50) and listed under **Flow runs**. Opening one shows the flow **as it was when it ran**, read-only, with each step's result. **Back to editing** returns to the flow.
+Finished runs are saved (the last 50) and listed under **Flow runs**. Opening one shows its [report](#reports). **Open report** under the result in the right-hand panel does the same for the run you just watched.
 
-Only one flow runs at a time. You can keep editing while it runs; the run uses the flow as it was when you pressed Run.
+Different flows can run at the same time (for example, a scheduled flow while you run another one by hand). The same flow runs once at a time. You can keep editing while it runs; the run uses the flow as it was when it started.
 
 ## Steps
 
 | Step | What it does | Outputs |
 | --- | --- | --- |
-| **Start** | Where a run begins. A flow has exactly one. | next |
+| **Start** | Where a run begins when you press Run. A flow has at most one. | next |
+| **Schedule** | Starts the flow on a timer while the app is open. See [Schedules](#schedules). Nothing can be wired into it. | next |
 | **Run case** | Runs one case from a suite, with its scripts and assertions, using that suite's run settings (for example "4xx/5xx fail the case" and the script time limit). It runs once and does not use the suite's CSV. | passed, failed |
 | **Run suite** | Runs a whole suite exactly like **Run suite** in Testing: its run order, repeat count and CSV data. It passes when every case in every iteration passes. | passed, failed |
 | **Run request** | Runs a saved request (or saved example) with its pre-request and post-response scripts. It passes when a response comes back and every `rr.test` in its scripts passes. A 4xx or 5xx on its own does not fail it; add an `rr.test` on the status if you want that. | passed, failed |
@@ -117,3 +118,42 @@ Expected values can use `{{placeholders}}`. When there is nothing to check yet (
 ## Reports
 
 Every step is recorded in order with its status, time, the output it took, and the flow variables before and after. Each Run step keeps the full suite or case report of its last try, the same report Testing shows.
+
+Open a run from **Flow runs** (or **Open report** after a run) to see:
+
+- **Summary:** passed, failed or stopped, why, how many steps ran, Run steps passed and failed, the total time, the environment, and what started it (the Run button, or which schedule).
+- **Run log:** every message from the run, with times.
+- **Steps:** one line per step in the order they started, with the Parallel branch or CSV row where it ran. **Failed** shows only the failed steps. Click a step for its notes, tries and variables.
+- **Open full report** on a Run step opens its whole test report, with every case, check, request and response. **← Back to the flow run** returns.
+- **Show on canvas** shows the flow **as it was when it ran**, read-only, with each step's result. **Back to editing** returns to the flow.
+- **Export HTML report** saves one file you can open in any browser: the summary, the run log, every step, and each Run step's full test report inside it. It has a search box and a "failed only" filter, and needs no internet.
+- **Export CSV report** saves one line per step, plus one line per case result inside each Run step (the step's columns repeat on those lines, so the file filters well in Excel).
+- **Delete** removes the saved run. Exported files are not affected.
+
+## Schedules
+
+A **Schedule** step starts the flow by itself, while REST Runner is open. Add one from the step bar and wire its **next** to the first step, just like Start. A flow can have Start and Schedule steps side by side, and more than one Schedule.
+
+In its settings, pick:
+
+- **Every N minutes**, counted from midnight: every 15 minutes means :00, :15, :30 and :45.
+- **Every day** at a time.
+- **On chosen days** at a time, for example Monday to Friday at 07:30.
+
+Untick **Run on this schedule** to pause it without deleting it; the step shows **off**. Times are the computer's local time. Scheduled runs use the environment selected in the Flows top bar at the time they start.
+
+- A run that came due **while the app was closed** is skipped. It does not run when you open the app.
+- A run that comes due **while the same flow is still running** is skipped.
+- A run that comes due while the flow **has an error to fix** (for example a deleted case) is skipped.
+
+Each skip is noted in the Schedule step's settings and under the flow in the list, with the reason. The step's settings also show the next run and the last one. A scheduled run is saved under **Flow runs** like any other, and its report says which schedule started it.
+
+## Export and import
+
+**Export** in the Flows list saves every flow to one JSON file; **Export** above the canvas saves only the open flow. The file also carries the suites and saved requests the flows run, so it works on another computer.
+
+**Import** reads such a file. A flow, suite or saved request with the same id as one you have replaces it; everything else is added. Saved requests go back into a collection and folders with the same names, made if they are missing. The message after the import says how many of each were added and updated. Schedule history is not in the file, so imported schedules start fresh.
+
+## Quick open
+
+Quick open (**Ctrl + K** or **⌘ K**) finds flows and flow runs too. A flow opens on its canvas; a flow run opens its report.

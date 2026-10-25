@@ -28,6 +28,8 @@ export function nodeDetail(node: FlowNode, items: FlowItems): string {
   switch (node.type) {
     case "start":
       return "Run begins here";
+    case "schedule":
+      return node.enabled ? "While the app is open" : "Turned off";
     case "run-case": {
       const suite = items.suites.find((s) => s.id === node.suiteId);
       const tc = suite?.cases.find((c) => c.id === node.caseId);

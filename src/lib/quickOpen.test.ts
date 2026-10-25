@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { newCollection, newFolder, requestNode, type Collection } from "./collections";
 import { newRequest } from "./defaults";
-import { collectionItems, fuzzyScore, historyItems, KIND_ORDER, searchQuickOpen, suiteItems, type QuickItem } from "./quickOpen";
+import { newFlow, newNode } from "./flows/flows";
+import type { FlowRunSummary } from "./flows/types";
+import { collectionItems, flowItems, flowRunItems, fuzzyScore, historyItems, KIND_ORDER, searchQuickOpen, suiteItems, type QuickItem } from "./quickOpen";
 import { newSuite, newTestCase } from "./testing/suites";
 
 function sampleCollections(): Collection[] {
@@ -71,5 +73,29 @@ describe("searchQuickOpen", () => {
 
   it("caps each group", () => {
     expect(searchQuickOpen(items, "", KIND_ORDER.requests, 1).every((g) => g.items.length === 1)).toBe(true);
+  });
+});
+
+describe("flow items", () => {
+  it("lists flows with their step count and flow runs with their result", () => {
+    const f = newFlow("Nightly smoke");
+    f.nodes.push(newNode("schedule"), newNode("run-suite"), newNode("note"));
+    expect(flowItems([f])).toEqual([{ kind: "flow", id: f.id, title: "Nightly smoke", detail: "1 step" }]);
+    const run: FlowRunSummary = {
+      id: "r1",
+      kind: "flow",
+      flowId: f.id,
+      flowName: "Nightly smoke",
+      startedAt: "2026-10-25T09:00:00.000Z",
+      finishedAt: "2026-10-25T09:00:05.000Z",
+      trigger: "node-1",
+      end: "failed",
+      steps: 3,
+      passedSteps: 1,
+      failedSteps: 1,
+    };
+    expect(flowRunItems([run])[0]).toMatchObject({ kind: "flow-run", title: "Nightly smoke", detail: "failed · 1 passed, 1 failed · scheduled" });
+    const groups = searchQuickOpen([...flowItems([f]), ...flowRunItems([run])], "night", KIND_ORDER.flows);
+    expect(groups.map((g) => g.kind)).toEqual(["flow", "flow-run"]);
   });
 });

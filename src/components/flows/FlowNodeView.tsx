@@ -57,12 +57,17 @@ export function StepNodeView({ data, selected }: NodeProps<StepRFNode>) {
   const retry = "retry" in node && node.retry.times > 0 ? node.retry.times : 0;
   return (
     <div className={`flow-node type-${node.type} ${selected ? "selected" : ""} ${status ? `st-${status}` : ""} ${problem ? `has-${problem}` : ""}`}>
-      {node.type !== "start" && <Handle type="target" position={Position.Left} id="in" className="flow-handle in" />}
+      {node.type !== "start" && node.type !== "schedule" && <Handle type="target" position={Position.Left} id="in" className="flow-handle in" />}
       <div className="flow-node-head">
         <span className="flow-node-kind">{NODE_TYPE_LABELS[node.type]}</span>
         {retry > 0 && (
           <span className="flow-node-badge" title={`Retries up to ${retry} time${retry === 1 ? "" : "s"}`}>
             ↻ {retry}
+          </span>
+        )}
+        {node.type === "schedule" && !node.enabled && (
+          <span className="flow-node-badge" title="This schedule is turned off">
+            off
           </span>
         )}
         {runs && runs > 1 && (

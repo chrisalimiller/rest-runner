@@ -3,7 +3,8 @@ import { parseCsv } from "../../lib/csv";
 import { CONDITION_SOURCE_LABELS, OPS_FOR_CONDITION } from "../../lib/flows/conditions";
 import { formatMs, NODE_TYPE_LABELS, nodeLabel } from "../../lib/flows/flows";
 import type { FlowItems } from "../../lib/flows/items";
-import type { ConditionSource, FlowCondition, FlowNode, LoopNode, RetrySettings } from "../../lib/flows/types";
+import { nextDueAfter, scheduleProblem, WEEKDAY_NAMES, type Schedule, type ScheduleState } from "../../lib/flows/schedule";
+import type { ConditionSource, FlowCondition, FlowNode, LoopNode, RetrySettings, ScheduleNode } from "../../lib/flows/types";
 import type { FlowProblem } from "../../lib/flows/validate";
 import { OP_LABELS, opNeedsValue } from "../../lib/testing/assertions";
 
@@ -11,6 +12,8 @@ interface Props {
   node: FlowNode;
   items: FlowItems;
   problems: FlowProblem[];
+  /** What the scheduler remembers about this Schedule step, if it is one. */
+  scheduleState?: ScheduleState;
   onChange: (node: FlowNode) => void;
   onDelete: () => void;
   onClose: () => void;
@@ -200,11 +203,84 @@ function LoopEditor({ node, onChange }: { node: LoopNode; onChange: (n: LoopNode
   );
 }
 
+function when(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, { weekday: "short", hour: "2-digit", minute: "2-digit", month: "short", day: "numeric" });
+}
+
+/** Monday first, as most calendars show it. */
+const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
+
+function ScheduleEditor({ node, state, onChange }: { node: ScheduleNode; state?: ScheduleState; onChange: (n: FlowNode) => void }) {
+  const s = node.schedule;
+  const set = (schedule: Schedule) => onChange({ ...node, schedule });
+  const time = s.kind === "interval" ? "09:00" : s.time;
+  const problem = scheduleProblem(s);
+  const next = node.enabled && !problem ? nextDueAfter(s, new Date()) : null;
+  return (
+    <fieldset className="flow-fieldset">
+      <legend className="section-title">When</legend>
+      <label className="check small">
+        <input type="checkbox" checked={node.enabled} onChange={(e) => onChange({ ...node, enabled: e.target.checked })} />
+        Run on this schedule
+      </label>
+      <label className="flow-field">
+        <span>Repeat</span>
+        <select
+          value={s.kind}
+          onChange={(e) => {
+            const kind = e.target.value as Schedule["kind"];
+            if (kind === "interval") set({ kind, minutes: 60 });
+            else if (kind === "daily") set({ kind, time });
+            else set({ kind, time, days: [1, 2, 3, 4, 5] });
+          }}
+        >
+          <option value="interval">Every N minutes</option>
+          <option value="daily">Every day</option>
+          <option value="weekdays">On chosen days</option>
+        </select>
+      </label>
+      {s.kind === "interval" && <NumberField label="Every" value={s.minutes} min={1} onChange={(minutes) => set({ ...s, minutes })} suffix="minutes" />}
+      {s.kind !== "interval" && (
+        <label className="flow-field">
+          <span>At</span>
+          <input type="time" value={s.time} onChange={(e) => set({ ...s, time: e.target.value })} />
+        </label>
+      )}
+      {s.kind === "weekdays" && (
+        <div className="flow-weekdays" role="group" aria-label="Days">
+          {WEEK_ORDER.map((d) => (
+            <label key={d} className="check small">
+              <input
+                type="checkbox"
+                checked={s.days.includes(d)}
+                onChange={(e) => set({ ...s, days: e.target.checked ? [...s.days, d].sort() : s.days.filter((x) => x !== d) })}
+              />
+              {WEEKDAY_NAMES[d]}
+            </label>
+          ))}
+        </div>
+      )}
+      {problem && <p className="small flow-problem error">{problem}</p>}
+      {next && <p className="small">Next run: {when(next.toISOString())}</p>}
+      {state?.ranDue && <p className="muted small">Last ran: {when(state.ranDue)}</p>}
+      {state?.skipped && (
+        <p className="small tone-warn">
+          Skipped the {when(state.skipped.due)} run: {state.skipped.reason}.
+        </p>
+      )}
+      <p className="muted small">
+        {s.kind === "interval" ? "Counts from midnight, so every 15 minutes means :00, :15, :30 and :45. " : ""}
+        Uses this computer's time and the environment picked in the top bar. Runs only while REST Runner is open; a run missed while it was closed, or one that comes due while the flow is still running, is skipped and noted here.
+      </p>
+    </fieldset>
+  );
+}
+
 /** CSV files above this size may not fit in local storage. */
 const MAX_LOOP_CSV = 2 * 1024 * 1024;
 
 /** Settings for the selected node, in the right-hand panel. */
-export function NodeSettings({ node, items, problems, onChange, onDelete, onClose }: Props) {
+export function NodeSettings({ node, items, problems, scheduleState, onChange, onDelete, onClose }: Props) {
   const mine = problems.filter((p) => p.nodeId === node.id);
   const autoLabel = nodeLabel({ ...node, label: "" }, items.suites, items.findRequest);
   const suite = "suiteId" in node ? items.suites.find((s) => s.id === node.suiteId) : undefined;
@@ -232,6 +308,7 @@ export function NodeSettings({ node, items, problems, onChange, onDelete, onClos
       )}
 
       {node.type === "start" && <p className="muted small">A run begins here when you press Run. A flow has one Start.</p>}
+      {node.type === "schedule" && <ScheduleEditor node={node} state={scheduleState} onChange={onChange} />}
 
       {(node.type === "run-case" || node.type === "run-suite") && (
         <label className="flow-field">

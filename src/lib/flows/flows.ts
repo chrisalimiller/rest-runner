@@ -1,5 +1,6 @@
 import { newId } from "../ids";
 import { load, save } from "../storage";
+import { DEFAULT_SCHEDULE, describeSchedule, type Schedule } from "./schedule";
 import { ASSERTION_OPS, type TestSuite } from "../testing/types";
 import type { RequestDef } from "../types";
 import {
@@ -37,6 +38,8 @@ export function newNode(type: FlowNodeType, position: FlowPosition = { x: 0, y: 
   switch (type) {
     case "start":
       return { ...base, type };
+    case "schedule":
+      return { ...base, type, schedule: { ...DEFAULT_SCHEDULE }, enabled: true };
     case "run-case":
       return { ...base, type, suiteId: "", caseId: "", retry: { ...NO_RETRY } };
     case "run-suite":
@@ -67,6 +70,7 @@ export function newEdge(source: string, sourceHandle: FlowEdge["sourceHandle"], 
 
 export const NODE_TYPE_LABELS: Record<FlowNodeType, string> = {
   start: "Start",
+  schedule: "Schedule",
   "run-case": "Run case",
   "run-suite": "Run suite",
   "run-request": "Run request",
@@ -94,6 +98,8 @@ export function nodeLabel(node: FlowNode, suites: TestSuite[], findRequest: Requ
       return findRequest(node.requestId)?.name ?? "Run request";
     case "loop":
       return node.data ? `Loop over ${node.data.name}` : "Loop over CSV";
+    case "schedule":
+      return describeSchedule(node.schedule);
     case "wait":
       return `Wait ${formatMs(node.ms)}`;
     case "set-var":
@@ -125,6 +131,17 @@ function cleanRetry(v: unknown): RetrySettings {
   return { times: Math.min(100, num(r.times, 0)), delayMs: num(r.delayMs, NO_RETRY.delayMs) };
 }
 
+function cleanSchedule(v: unknown): Schedule {
+  const s = (v ?? {}) as Record<string, unknown>;
+  if (s.kind === "interval") return { kind: "interval", minutes: Math.max(1, num(s.minutes, 60, 1)) };
+  if (s.kind === "weekdays") {
+    const days = Array.isArray(s.days) ? [...new Set(s.days.filter((d): d is number => Number.isInteger(d) && d >= 0 && d <= 6))] : [];
+    return { kind: "weekdays", time: str(s.time, "09:00"), days };
+  }
+  if (s.kind === "daily") return { kind: "daily", time: str(s.time, "09:00") };
+  return { ...DEFAULT_SCHEDULE };
+}
+
 function cleanCondition(v: unknown): FlowCondition {
   const c = (v ?? {}) as Partial<FlowCondition>;
   return {
@@ -149,6 +166,8 @@ function cleanNode(v: unknown): FlowNode | null {
   switch (type) {
     case "start":
       return { ...base, type };
+    case "schedule":
+      return { ...base, type, schedule: cleanSchedule(n.schedule), enabled: n.enabled !== false };
     case "run-case":
       return { ...base, type, suiteId: str(n.suiteId), caseId: str(n.caseId), retry: cleanRetry(n.retry) };
     case "run-suite":

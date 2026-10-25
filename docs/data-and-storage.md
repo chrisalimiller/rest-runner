@@ -25,6 +25,7 @@ The app is a desktop window around a web view, and it keeps its data in that web
 | `rest-runner.test-open-suite`, `rest-runner.test-environment` | The open suite, and the environment selected in Testing |
 | `rest-runner.flows` | [Flows](flows.md): their steps, wires, sticky notes and settings |
 | `rest-runner.flow-open`, `rest-runner.flow-environment` | The open flow, and the environment selected in Flows |
+| `rest-runner.flow-schedules` | For each [Schedule](flows.md#schedules) step: the last time it came due, the last run, and the last skipped run with its reason |
 
 **IndexedDB** (larger items):
 
