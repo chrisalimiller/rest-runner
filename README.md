@@ -56,6 +56,8 @@ Each row becomes one request. Options:
 - **Count 4xx/5xx as failures:** connection errors always count as failures.
 - **Stop on first failure:** no new requests start after a failure.
 
+**Export script…** saves the batch as a Python or Bash script you can run in a terminal on macOS or Windows, without the app. See [Exporting a batch as a script](docs/batch-runs.md#exporting-a-batch-as-a-script).
+
 In a raw JSON body, a placeholder inside quotes (`"name": "{{name}}"`) is escaped, so quotes or line breaks in the CSV keep the JSON valid. Outside quotes (`"age": {{age}}`) the value is inserted as is, so numbers, `true`/`false`, and `null` work.
 
 Results appear as they come in. Click a row to see its full request and response, or filter to failures only.
