@@ -56,6 +56,29 @@ When a run ends (finished, stopped, or stopped after a failure) it is saved auto
 
 If the request has scripts they run for every row. See [Scripting](scripting.md#csv-batch-runs-in-requests-mode). In short: `rr.data` is the row, `rr.iteration` is the 0-based row number, each row starts with its own copy of the script variables, and a row fails if its script errors or one of its `rr.test` checks fails. If the pre-request script fails the row is shown as not sent.
 
+## Exporting a batch as a script
+
+**Export script…** (next to **Preview**) saves the batch as a Python or Bash script that runs in a terminal without the app. The script holds the request, the run options, and the values of the selected environment. It reads a CSV file you give it, sends one request per row, prints a line per result, and writes a results CSV with the same columns as the app's [CSV report](#reports) (without the notes and script columns).
+
+| | Python | Bash |
+| --- | --- | --- |
+| Needs | Python 3.8 or newer, no extra packages | bash 3.2 or newer and curl |
+| macOS | `python3 my-request-batch.py data.csv` | `bash my-request-batch.sh data.csv` |
+| Windows | `py my-request-batch.py data.csv` | Git Bash (comes with Git for Windows) or WSL: `bash my-request-batch.sh data.csv` |
+
+If a CSV was loaded when you exported, its file name is the default, so the script finds it when it sits in the same folder.
+
+Options (both scripts): `--concurrency N`, `--delay-ms N`, `--stop-on-failure` / `--no-stop-on-failure`, `--http-errors-fail` / `--no-http-errors-fail`, `--timeout SECONDS` (default 120), `--out FILE` (default `<csv name>-results-<time>.csv`), and `--dry-run` to print the requests without sending them. The defaults are the options you had set in the app. `--help` lists them.
+
+The script fills placeholders with the same rules as the app: a CSV column wins, then the environment, then variables left by earlier sends' scripts. A placeholder with no value is sent as written. The CSV is read the same way too (separator detection, quotes, line breaks inside quotes). The exit code is 0 when every request passed and 1 when any failed or the run was stopped. Ctrl+C stops starting new requests and still writes the results.
+
+Differences from a run in the app:
+
+- **Pre-request and post-response scripts are not included.** They are JavaScript for the app's `rr` API. Values they set are not filled in, and their checks do not run. The export panel warns you when the request has scripts.
+- **Environment values are copied into the script as plain text**, including tokens and passwords. Check the script before you share it. To change them, edit the settings block at the top of the script.
+- Results go to the results CSV and the terminal. They do not appear in the app's run explorer.
+- The Bash script applies the delay before each request after the first few (one per concurrent slot) rather than per worker. With 1 concurrent request it is the same gap between requests.
+
 ## The run explorer
 
 Open a saved run from **Quick open → Batch runs**, from the **Earlier sends of this request** pills, or the link after a run. It shows:

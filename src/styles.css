@@ -593,6 +593,25 @@ textarea.code {
   margin: 0;
 }
 
+.batch-export {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+
+.batch-export p {
+  margin: 0;
+}
+
+.export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .batch-preview .code-view {
   flex: none;
 }

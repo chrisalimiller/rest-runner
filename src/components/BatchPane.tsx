@@ -8,6 +8,8 @@ import { buildRun } from "../lib/run";
 import { saveRun } from "../lib/runStore";
 import { prepareRequest, requestPlaceholders } from "../lib/request";
 import { requestScriptRunner } from "../lib/requestScripts";
+import { saveTextFile } from "../lib/saveFile";
+import { buildScript, SCRIPT_LANGUAGES, scriptExportNotes, scriptFileName, scriptRunCommand, type ScriptExportInput, type ScriptLanguage } from "../lib/scriptExport";
 import { detectVarSets } from "../lib/testing/varsDetect";
 import { load, save } from "../lib/storage";
 import type { Vars } from "../lib/template";
@@ -59,6 +61,8 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
   const [startedAt, setStartedAt] = useState(0);
   const [elapsed, setElapsed] = useState(0);
   const [showPreview, setShowPreview] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+  const [exportStatus, setExportStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [filter, setFilter] = useState<Filter>("all");
   const [selected, setSelected] = useState<number | null>(null);
   const [limit, setLimit] = useState(PAGE_SIZE);
@@ -181,6 +185,31 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
   };
 
   const stop = () => abortRef.current?.abort();
+
+  const exportInput: ScriptExportInput = {
+    def,
+    options,
+    // Same order as a run in the app: environment, then leftover script variables. CSV columns win over both.
+    defaults: { ...envVars, ...scriptVars },
+    envName,
+    csvName: file?.name,
+  };
+  const exportNotes = scriptExportNotes(exportInput);
+
+  const exportScript = async (language: ScriptLanguage) => {
+    const { filterName, extension } = SCRIPT_LANGUAGES[language];
+    const fileName = scriptFileName(def, language);
+    setExportStatus(null);
+    try {
+      const result = await saveTextFile(fileName, buildScript(language, exportInput), filterName, extension);
+      if (!result.saved) return;
+      const savedName = result.path?.split(/[\\/]/).pop() ?? fileName;
+      const command = scriptRunCommand(language, savedName, file?.name, navigator.userAgent.includes("Windows"));
+      setExportStatus({ ok: true, text: `Saved${result.path ? ` to ${result.path}` : ""}. Run it in a terminal with: ${command}` });
+    } catch (e) {
+      setExportStatus({ ok: false, text: `Could not save the script: ${e instanceof Error ? e.message : String(e)}` });
+    }
+  };
 
   const passed = results.filter((r) => !r.failed).length;
   const failed = results.length - passed;
@@ -327,6 +356,17 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
             Stop on first failure
           </label>
           <div className="run-actions">
+          <button
+            className="secondary"
+            onClick={() => {
+              setShowExport((s) => !s);
+              setExportStatus(null);
+            }}
+            disabled={running || def.url.trim() === ""}
+            title="Save this batch as a Python or Bash script you can run in a terminal"
+          >
+            {showExport ? "Hide export" : "Export script…"}
+          </button>
           <button className="secondary" onClick={() => setShowPreview((s) => !s)} disabled={!file || rows.length === 0 || running}>
             {showPreview ? "Hide preview" : "Preview"}
           </button>
@@ -342,6 +382,29 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
           </div>
         </div>
       </div>
+
+      {showExport && !running && (
+        <div className="batch-export">
+          <p className="small">
+            Save this batch as a script that runs in a terminal without the app. It sends the request once per row of a CSV you give it, with
+            the options above, and writes a results CSV like the app's CSV report. Python needs Python 3.8 or newer. Bash needs curl; on Windows
+            run it in Git Bash or WSL.
+          </p>
+          {exportNotes.map((note) => (
+            <p key={note} className="warning small">
+              {note}
+            </p>
+          ))}
+          <div className="export-actions">
+            {(Object.keys(SCRIPT_LANGUAGES) as ScriptLanguage[]).map((lang) => (
+              <button key={lang} className="secondary" onClick={() => void exportScript(lang)}>
+                Save {SCRIPT_LANGUAGES[lang].label} script…
+              </button>
+            ))}
+          </div>
+          {exportStatus && <p className={`small ${exportStatus.ok ? "muted" : "warning"}`}>{exportStatus.text}</p>}
+        </div>
+      )}
 
       {showPreview && file && (
         <div className="batch-preview">
