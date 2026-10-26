@@ -13,7 +13,7 @@ Testing mode (the **Testing** tab at the top right) runs **test suites**. A suit
 
 - **New** (left) creates a suite. Click a suite in the list to open it.
 - The suite header has its **name** and **description** (edit in place), a summary line (cases, run order, CSV, repeat, script limit), **Run settings & data**, and **Run suite** (**Stop** while running).
-- At the bottom of the suite: **Duplicate suite** and **Delete suite**. Deleting asks first, and keeps the saved test runs.
+- In the ⋯ menu of the suite header: **Duplicate suite** and **Delete suite**. Deleting does not ask; an **Undo** toast appears for 8 seconds. Saved test runs are kept either way.
 - Suites are saved automatically as you edit.
 
 ## Test cases
@@ -125,7 +125,7 @@ Each result also gets plain-language notes (placeholders that had no value, an H
 
 ## Reports
 
-When a run ends it is saved (the last 50 runs are kept, as Test runs in the sidebar, with the passed and failed counts). The **Last run** panel shows the latest run of the open suite: cases passed, a pass/fail bar, iterations, checks, average time, 95th percentile, and a list of failures. Click a failure to open the report filtered to that case. **Export HTML** and **Export CSV** are in the panel.
+When a run ends it is saved (the last 50 runs are kept, as Test runs in the sidebar, with the passed and failed counts). The **Last run** panel shows the latest run of the open suite: cases passed, a pass/fail bar, iterations, checks, average time, 95th percentile, and the failures **grouped by case and check**, most frequent first, for example "Get ticket · Response time < 250 ms · 8 of 12 rows · worst 371 ms". Click a group to open the report filtered to that case and check. A case that failed without a check (a script error, or no response) appears as "Not sent", "No response" or "Failed". In the report, **Failures first** (on by default for runs that used CSV data) lists failed rows before passed ones, and a chip shows the case and check filter. **Export HTML** and **Export CSV** are in the panel.
 
 Opening a run (from the sidebar, the panel, or Quick open) shows the full report:
 
@@ -133,7 +133,7 @@ Opening a run (from the sidebar, the panel, or Quick open) shows the full report
 - **By test case** table. Click a case to show only its results.
 - The run log: start (cases × iterations, data file), run order, environment, first failure, how it ended, final count.
 - Every result, searchable by case, URL, value or check. Each shows its checks (pass or fail with the value seen), notes, variables, the request, response, headers, and script output.
-- **Export HTML report**, **Export CSV report**, and **Delete**.
+- **Export HTML report** and **Export CSV report**, and **Delete run** in the ⋯ menu (no confirmation; an **Undo** toast appears for 8 seconds). Report exports always mask [secret values](requests.md#secret-values).
 
 The **HTML report** is a self-contained file with the same content, filters (All / Failed / Passed), search, a clickable case table, and Expand all. The **CSV report** has one line per case per iteration with these columns:
 

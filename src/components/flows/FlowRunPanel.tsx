@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { formatMs, whenLabel } from "../../lib/earlierSends";
 import type { FlowRunEnd, FlowStep } from "../../lib/flows/types";
 import type { FlowProblem } from "../../lib/flows/validate";
-import { varChanges } from "../../lib/flows/flowReport";
+import { END_LABELS, varChanges } from "../../lib/flows/flowReport";
 
 /** The run in progress, or the finished run being shown, for the open flow. */
 export interface FlowRunView {
@@ -34,7 +34,6 @@ interface Props {
   onOpenReport?: () => void;
 }
 
-const END_LABELS: Record<FlowRunEnd, string> = { passed: "Passed", failed: "Failed", cancelled: "Stopped" };
 
 function elapsed(ms: number): string {
   const s = ms / 1000;
@@ -140,7 +139,7 @@ export function FlowRunPanel({ problems, run, labelFor, onFocusNode, onOpenRepor
               <span className="small">
                 {run.passedSteps ?? 0} run step{run.passedSteps === 1 ? "" : "s"} passed, {run.failedSteps ?? 0} failed
               </span>
-              {run.endReason && run.end !== "passed" && <span className="small">{run.endReason}</span>}
+              {run.endReason && run.end !== "passed" && run.end !== "passed-handled" && <span className="small">{run.endReason}</span>}
               {onOpenReport && (
                 <button className="link-btn small" onClick={onOpenReport}>
                   Open report

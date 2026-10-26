@@ -40,7 +40,7 @@ Runs on macOS and Windows from one codebase, built with [Tauri 2](https://tauri.
 
 Click the pencil next to the environment switch in the top bar to add sets of variables, for example Dev and Prod, each with its own `baseUrl` and `token`. Pick one on the switch, and `{{baseUrl}}` or `{{token}}` anywhere in a request is filled from it. This works for single requests and batch runs. In a batch run, a CSV column with the same name takes priority over the environment.
 
-Environment values are stored on this computer only, in the app's local storage. They are included in exports, so treat an export file that holds tokens like a password.
+Environment values are stored on this computer only, in the app's local storage. A variable can be marked **secret** (lock button): it is masked on screen, in the cURL panel, and always in exported reports, and Export workspace leaves it out unless you choose to include it. The **Variables** button in the top bar lists the placeholders the open request uses and where each value comes from; an amber "unfilled" chip warns about placeholders with no value before you send.
 
 ## Batch runs from a CSV
 
@@ -109,6 +109,8 @@ Finished runs are saved (the last 50) under **Test runs**. The report shows case
 ## Flows
 
 Switch to **Flows** at the top right to chain test cases, suites and saved requests into one run on a canvas. Wire steps by their **passed** and **failed** outputs, branch with **If**, run branches side by side with **Parallel** and **Join**, repeat steps per CSV row with **Loop over CSV**, and add **Wait**, **Set variable**, retries and sticky notes. A **Schedule** step runs the flow every N minutes, daily, or on chosen weekdays while the app is open.
+
+A Run request step fails on a 4xx/5xx unless you turn off its **4xx/5xx counts as failed** checkbox. A flow that only got to its end because a failed step had a failed wire ends **Passed with handled failures** (amber). Deleting things never asks: an **Undo** toast appears, and Ctrl/Cmd + Z undoes canvas edits. A readable opening view and **Tidy layout** keep big flows usable.
 
 Each run is saved with a combined report: every step, and each Run step's full test report, exportable as one HTML or CSV file. Flows can be exported and imported together with the suites and saved requests they use. See [docs/flows.md](docs/flows.md).
 

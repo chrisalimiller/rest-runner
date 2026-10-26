@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cleanCollections } from "../../lib/collections";
 import { environmentVars, type Environment } from "../../lib/environments";
 import { FlowNotRunnableError, runFlow } from "../../lib/flows/engine";
+import { stepStatusCode } from "../../lib/flows/flowReport";
 import { describeImport, importFlowsFile, toFlowsFile } from "../../lib/flows/flowFile";
 import { deleteFlowRun, getFlowRun, listFlowRuns, saveFlowRun } from "../../lib/flows/flowRunStore";
 import { loadFlows, newFlow, nodeLabel, saveFlows } from "../../lib/flows/flows";
@@ -67,7 +68,7 @@ function viewOf(run: FlowRun): FlowRunView {
 function runStateOf(view: FlowRunView | null): Map<string, NodeRunState> {
   const map = new Map<string, NodeRunState>();
   if (!view) return map;
-  for (const s of [...view.steps].sort((a, b) => a.index - b.index)) map.set(s.nodeId, { status: s.status, runs: (map.get(s.nodeId)?.runs ?? 0) + 1 });
+  for (const s of [...view.steps].sort((a, b) => a.index - b.index)) map.set(s.nodeId, { status: s.status, runs: (map.get(s.nodeId)?.runs ?? 0) + 1, statusCode: stepStatusCode(s) });
   if (view.running) for (const id of view.runningNodeIds) map.set(id, { status: "running", runs: map.get(id)?.runs ?? 0 });
   return map;
 }

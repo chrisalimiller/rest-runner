@@ -5,7 +5,7 @@ import { applyTemplate, type Vars } from "../template";
 import { planIterations, runCase, runSuite } from "../testing/runner";
 import type { ScriptRunner } from "../testing/scriptRunner";
 import { buildTestRun, type TestRun } from "../testing/testRun";
-import { DEFAULT_SUITE_OPTIONS, type CaseResult, type SuiteRunEnd, type SuiteRunOptions, type TestCase, type TestSuite } from "../testing/types";
+import { DEFAULT_SUITE_OPTIONS, type CaseResult, type SuiteRunEnd, type TestCase, type TestSuite } from "../testing/types";
 import type { RequestDef, ResponseResult } from "../types";
 import { evaluateCondition } from "./conditions";
 import { formatMs, nodeLabel, type RequestLookup } from "./flows";
@@ -20,7 +20,6 @@ export const MAX_FLOW_STEPS = 1000;
  * A saved request runs as a one-off case with no assertions, so it passes when a
  * response comes back and every rr.test in its scripts passes. A 4xx/5xx alone does not fail it.
  */
-export const REQUEST_STEP_OPTIONS: SuiteRunOptions = { ...DEFAULT_SUITE_OPTIONS, httpErrorsFail: false };
 
 export interface FlowRunContext {
   /** The suites as they are now. Run nodes point at them by id. */
@@ -205,8 +204,8 @@ function requestCase(def: RequestDef): TestCase {
   return { id: def.id, name: def.name, enabled: true, request: structuredClone(def), preScript: "", postScript: "", assertions: [] };
 }
 
-function requestSuite(def: RequestDef, tc: TestCase): TestSuite {
-  return { id: `request:${def.id}`, name: def.name, description: "Saved request run by a flow", cases: [tc], options: { ...REQUEST_STEP_OPTIONS } };
+function requestSuite(def: RequestDef, tc: TestCase, httpErrorsFail: boolean): TestSuite {
+  return { id: `request:${def.id}`, name: def.name, description: "Saved request run by a flow", cases: [tc], options: { ...DEFAULT_SUITE_OPTIONS, httpErrorsFail } };
 }
 
 async function tryRunNode(e: Engine, lane: Lane, node: RunNode): Promise<TryResult> {
@@ -221,7 +220,8 @@ async function tryRunNode(e: Engine, lane: Lane, node: RunNode): Promise<TryResu
   }
   const def = e.ctx.findRequest(node.requestId)!;
   const tc = requestCase(def);
-  return tryCase(e, lane, requestSuite(def, tc), tc);
+  // A 4xx/5xx fails the step unless the step's switch was turned off. Older flows have no switch and count as on.
+  return tryCase(e, lane, requestSuite(def, tc, node.httpErrorsFail !== false), tc);
 }
 
 interface StepOutcome {
@@ -545,6 +545,8 @@ export async function runFlow(flow: Flow, ctx: FlowRunContext): Promise<FlowRun>
 
   const finishedAt = new Date().toISOString();
   const runSteps = e.steps.filter((s) => s.attempts);
+  // The flow got to its end, but only because failed Run steps had a failed wire to follow.
+  if (end === "passed" && runSteps.some((s) => s.status === "failed")) end = "passed-handled";
   const passedSteps = runSteps.filter((s) => s.status === "passed").length;
   const failedSteps = runSteps.filter((s) => s.status === "failed").length;
   e.log.push({ at: finishedAt, message: endReason ?? "Reached the end of the flow." });

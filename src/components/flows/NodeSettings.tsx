@@ -349,7 +349,14 @@ export function NodeSettings({ node, items, problems, scheduleState, onChange, o
       {node.type === "run-request" && (
         <>
           <RequestSelect items={items} value={node.requestId} onChange={(requestId) => onChange({ ...node, requestId })} />
-          <p className="muted small">Runs with the request's own scripts. Passes when a response comes back and every rr.test passes; a 4xx/5xx alone does not fail it.</p>
+          <label className="check">
+            <input type="checkbox" checked={node.httpErrorsFail !== false} onChange={(e) => onChange({ ...node, httpErrorsFail: e.target.checked })} />
+            4xx/5xx counts as failed
+          </label>
+          <p className="muted small">
+            Runs with the request's own scripts. Passes when a response comes back and every rr.test passes
+            {node.httpErrorsFail !== false ? ", and the status is below 400." : ". With the switch off, a 4xx/5xx alone does not fail it."}
+          </p>
         </>
       )}
 

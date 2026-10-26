@@ -9,7 +9,19 @@ export function orderedSteps(run: FlowRun): FlowStep[] {
   return [...run.stepList].sort((a, b) => a.index - b.index);
 }
 
-export const END_LABELS: Record<FlowRunEnd, string> = { passed: "Passed", failed: "Failed", cancelled: "Stopped" };
+/** The HTTP status of the last response a Run step got: a number, null when no response came back, undefined when it has no result (not a Run step, or not run yet). */
+export function stepStatusCode(step: FlowStep): number | null | undefined {
+  const last = step.child?.results[step.child.results.length - 1];
+  if (!last) return undefined;
+  return last.outcome?.ok ? last.outcome.response.status : null;
+}
+
+export const END_LABELS: Record<FlowRunEnd, string> = { passed: "Passed", "passed-handled": "Passed with handled failures", failed: "Failed", cancelled: "Stopped" };
+
+/** passed → ok, passed-handled → warn (amber), failed → bad, anything else none. */
+export function endTone(end: FlowRunEnd): "ok" | "warn" | "bad" | "" {
+  return end === "passed" ? "ok" : end === "passed-handled" ? "warn" : end === "failed" ? "bad" : "";
+}
 
 export function stepWhere(s: FlowStep): string {
   return [s.branch ? `branch ${s.branch}` : "", s.row !== undefined ? `row ${s.row + 1}` : ""].filter(Boolean).join(", ");
@@ -92,6 +104,7 @@ export function toFlowCsvReport(run: FlowRun): string {
     "url",
     "error",
     "case_notes",
+    "flow_result",
   ];
   const lines = [head.map(csvCell).join(",")];
   for (const s of orderedSteps(run)) {
@@ -108,7 +121,7 @@ export function toFlowCsvReport(run: FlowRun): string {
       s.notes.join("\n"),
       varChanges(s.varsBefore, s.varsAfter).join("\n"),
     ];
-    lines.push([...stepCells, "", "", "", "", "", "", "", "", "", ""].map(csvCell).join(","));
+    lines.push([...stepCells, "", "", "", "", "", "", "", "", "", "", END_LABELS[run.end]].map(csvCell).join(","));
     for (const r of s.child?.results ?? []) {
       const o = r.outcome;
       lines.push(
@@ -127,6 +140,7 @@ export function toFlowCsvReport(run: FlowRun): string {
           o?.request.url ?? "",
           o && !o.ok ? o.error : "",
           r.notes.join("\n"),
+          END_LABELS[run.end],
         ]
           .map(csvCell)
           .join(","),
@@ -173,7 +187,7 @@ ${
 export function toFlowHtmlReport(run: FlowRun): string {
   const steps = orderedSteps(run);
   const title = `${run.flowName} · ${formatTime(run.startedAt)}`;
-  const endTone = run.end === "passed" ? "ok" : run.end === "failed" ? "bad" : "";
+  const resultTone = endTone(run.end);
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -190,7 +204,7 @@ h1 { font-size: 22px; margin: 0 0 4px; } h2 { font-size: 16px; margin: 28px 0 8p
 .muted { color: var(--muted); } pre, .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
 .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-top: 16px; }
 .card { background: var(--soft); border-radius: 6px; padding: 10px 12px; } .card b { display: block; font-size: 20px; } .card span { color: var(--muted); font-size: 12px; }
-.ok { color: var(--ok); } .bad { color: var(--bad); }
+.ok { color: var(--ok); } .bad { color: var(--bad); } .warn { color: var(--accent); }
 table { border-collapse: collapse; } .info td, .info th { text-align: left; padding: 3px 14px 3px 0; vertical-align: top; } .info th { color: var(--muted); font-weight: 500; }
 .log { list-style: none; padding: 0; margin: 0; } .log li { padding: 2px 0; } .log time { color: var(--muted); margin-right: 8px; font-size: 12px; }
 .toolbar { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; position: sticky; top: 0; background: var(--bg); padding: 8px 0; z-index: 1; }
@@ -213,7 +227,7 @@ iframe.child { width: 100%; height: 600px; border: 1px solid var(--border); bord
 ${run.flow.description ? `<p>${esc(run.flow.description)}</p>` : ""}
 
 <div class="cards">
-  <div class="card"><b class="${endTone}">${esc(END_LABELS[run.end])}</b><span>result</span></div>
+  <div class="card"><b class="${resultTone}">${esc(END_LABELS[run.end])}</b><span>result</span></div>
   <div class="card"><b>${run.steps}</b><span>steps ran</span></div>
   <div class="card"><b class="ok">${run.passedSteps}</b><span>run steps passed</span></div>
   <div class="card"><b class="${run.failedSteps ? "bad" : ""}">${run.failedSteps}</b><span>run steps failed</span></div>

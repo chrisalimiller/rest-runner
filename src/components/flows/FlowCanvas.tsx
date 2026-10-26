@@ -6,8 +6,10 @@ import {
   Controls,
   MarkerType,
   MiniMap,
+  Panel,
   ReactFlow,
   ReactFlowProvider,
+  useNodesInitialized,
   useReactFlow,
   type Connection,
   type Edge,
@@ -19,6 +21,8 @@ import {
 import "@xyflow/react/dist/style.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { newEdge, newNode, NODE_TYPE_LABELS, nodeLabel } from "../../lib/flows/flows";
+import { tidyFlow } from "../../lib/flows/layout";
+import { chooseView, FIT_PADDING, MIN_ZOOM, READABLE_ZOOM } from "../../lib/flows/view";
 import { nodeDetail, type FlowItems } from "../../lib/flows/items";
 import { MULTI_WIRE_OUTPUTS, type Flow, type FlowNode, type FlowNodeType, type FlowOutput } from "../../lib/flows/types";
 import type { FlowProblem } from "../../lib/flows/validate";
@@ -45,6 +49,8 @@ const PALETTE: { type: FlowNodeType; hint: string }[] = [
 export interface NodeRunState {
   status: CanvasStatus;
   runs: number;
+  /** Run request steps: status code of the last response (null = none). */
+  statusCode?: number | null;
 }
 
 interface Props {
@@ -84,6 +90,7 @@ function toRFNode(node: FlowNode, items: FlowItems, problems: FlowProblem[], run
       detail: nodeDetail(node, items),
       status: run?.status,
       runs: run?.runs,
+      statusCode: run?.statusCode,
       problem,
       problemText: mine.map((p) => p.message).join("\n"),
     },
@@ -145,6 +152,36 @@ function Canvas({ flow, items, problems, runState, onChange, onSelect, focusNode
       })),
     [flow.edges, selectedEdges],
   );
+
+  /** Opens a flow readably: the whole flow when it fits at a readable zoom, otherwise zoom 1 on Start. */
+  const showDefaultView = useCallback(
+    (animate = false) => {
+      const nodes = rf.getNodes().filter((n) => n.measured?.width);
+      const wrap = wrapRef.current?.getBoundingClientRect();
+      if (nodes.length === 0 || !wrap) return;
+      const box = (list: typeof nodes) => rf.getNodesBounds(list);
+      const start = nodes.find((n) => (n.data as StepData | undefined)?.node?.type === "start");
+      const choice = chooseView(box(nodes), { width: wrap.width, height: wrap.height }, start ? box([start]) : null);
+      const duration = animate ? 250 : 0;
+      if (choice.kind === "fit") void rf.fitView({ padding: FIT_PADDING, minZoom: READABLE_ZOOM, maxZoom: 1, duration });
+      else void rf.setCenter(choice.x, choice.y, { zoom: 1, duration });
+    },
+    [rf],
+  );
+  const measured = useNodesInitialized();
+  const opened = useRef(false);
+  useEffect(() => {
+    if (!measured || opened.current) return;
+    opened.current = true;
+    showDefaultView();
+  }, [measured, showDefaultView]);
+
+  /** Arranges the steps left to right. One undo step puts them back. */
+  const tidy = useCallback(() => {
+    const sizes = new Map(rf.getNodes().filter((n) => n.measured?.width).map((n) => [n.id, { width: n.measured!.width!, height: n.measured!.height! }]));
+    onChange(tidyFlow(flowRef.current, sizes));
+    requestAnimationFrame(() => showDefaultView(true));
+  }, [rf, onChange, showDefaultView]);
 
   const update = useCallback((patch: (f: Flow) => Flow, group?: string) => onChange(patch(flowRef.current), group), [onChange]);
 
@@ -302,13 +339,18 @@ function Canvas({ flow, items, problems, runState, onChange, onSelect, focusNode
             nodesDraggable={!readOnly}
             nodesConnectable={!readOnly}
             colorMode="dark"
-            fitView
-            fitViewOptions={{ padding: 0.15, maxZoom: 1 }}
-            minZoom={0.2}
+            minZoom={MIN_ZOOM}
             maxZoom={2}
           >
             <Background variant={BackgroundVariant.Dots} gap={20} size={1} />
-            <Controls showInteractive={false} />
+            <Controls showInteractive={false} onFitView={() => showDefaultView(true)} />
+            {!readOnly && flow.nodes.length > 1 && (
+              <Panel position="top-right">
+                <button className="secondary tidy-btn" onClick={tidy} title="Arrange the steps left to right. You can undo it.">
+                  Tidy layout
+                </button>
+              </Panel>
+            )}
             <MiniMap pannable zoomable className="flow-minimap" style={{ width: 150, height: 96 }} nodeBorderRadius={4} />
           </ReactFlow>
         </CanvasActions.Provider>

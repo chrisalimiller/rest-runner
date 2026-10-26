@@ -36,7 +36,7 @@ The app is a desktop window around a web view, and it keeps its data in that web
 
 The oldest runs are removed automatically past those limits.
 
-Because environments, collections and suites can hold tokens and passwords you typed in, treat the app's data folder and any export file as sensitive. Tokens are stored as plain text.
+Because environments, collections and suites can hold tokens and passwords you typed in, treat the app's data folder and any export file as sensitive. Tokens are stored as plain text. Marking an environment variable as a [secret](requests.md#secret-values) only hides it on screen and in reports and exports; it is still stored as plain text in local storage.
 
 ## Limits
 
@@ -54,11 +54,14 @@ Because environments, collections and suites can hold tokens and passwords you t
 From inside the app:
 
 - **History:** Quick open → History group → **Clear history**.
-- **Script variables:** the **Clear** button under a request's script editor.
+- **Script variables:** **Clear** or **Clear all** in the Variables popover (top bar, Requests mode).
 - **Collections, folders, requests, examples:** delete them from the request switcher's tree.
 - **Environments:** delete them in the environment editor.
-- **Suites:** **Delete** at the bottom of a suite. Deleting a suite keeps its saved test runs.
-- **Batch runs and test runs:** open one and press **Delete**.
+- **Suites:** **Delete suite** in the ⋯ menu of the suite header. Deleting a suite keeps its saved test runs.
+- **Test cases, flows and flow steps:** in the ⋯ menu of the case or flow (a step has **Delete step** in its settings).
+- **Batch runs, test runs and flow runs:** open one and use **Delete** (in the ⋯ menu for test and flow runs).
+
+Deleting any of these does not ask first. A toast at the bottom left offers **Undo** for 8 seconds. A saved run is only removed from storage when the toast goes away. In Flows, **Ctrl/Cmd + Z** also undoes edits to the canvas (see [Flows](flows.md#undo)).
 
 To wipe everything, quit the app and delete its web view data folder. These are the usual locations. If a folder is not there, search for `com.chrisalimiller.restrunner`.
 

@@ -184,7 +184,7 @@ export function FlowRunReport({ runId, onBack, onDelete, onShowCanvas }: Props) 
 
       <div className="stat-cards">
         <div className="stat">
-          <b className={run.end === "passed" ? "status ok" : run.end === "failed" ? "status bad" : ""}>{END_LABELS[run.end]}</b>
+          <b className={run.end === "passed" ? "status ok" : run.end === "passed-handled" ? "status warn" : run.end === "failed" ? "status bad" : ""}>{END_LABELS[run.end]}</b>
           <span>result</span>
         </div>
         <div className="stat">
@@ -204,7 +204,7 @@ export function FlowRunReport({ runId, onBack, onDelete, onShowCanvas }: Props) 
           <span>total time</span>
         </div>
       </div>
-      {run.endReason && run.end !== "passed" && <p className="small flow-problem error">{run.endReason}</p>}
+      {run.endReason && run.end !== "passed" && run.end !== "passed-handled" && <p className="small flow-problem error">{run.endReason}</p>}
 
       <div className="explorer-meta small">
         <button className="link-btn" onClick={() => setShowLog((v) => !v)}>

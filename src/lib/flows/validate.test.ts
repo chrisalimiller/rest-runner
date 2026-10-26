@@ -105,6 +105,26 @@ describe("cleanFlows", () => {
   });
 });
 
+describe("Run request switch", () => {
+  const raw = (extra: object) => {
+    const f = newFlow("F");
+    const n = { ...newNode("run-request"), requestId: "r", ...extra } as Record<string, unknown>;
+    if (!("httpErrorsFail" in extra)) delete n.httpErrorsFail;
+    return { ...f, nodes: [...f.nodes, n] };
+  };
+
+  it("loads flows saved before the switch with 4xx/5xx counting as failed", () => {
+    const [clean] = cleanFlows([raw({})]);
+    expect(clean.nodes[1]).toMatchObject({ type: "run-request", httpErrorsFail: true });
+  });
+
+  it("keeps a switch that was turned off, and a new step starts on", () => {
+    const [clean] = cleanFlows([raw({ httpErrorsFail: false })]);
+    expect(clean.nodes[1]).toMatchObject({ httpErrorsFail: false });
+    expect(newNode("run-request")).toMatchObject({ httpErrorsFail: true });
+  });
+});
+
 describe("nodeLabel", () => {
   it("uses the node's own label, then the item's name", () => {
     const { suite, caseId } = suiteWithCase();

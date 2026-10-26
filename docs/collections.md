@@ -39,12 +39,12 @@ An example is a named copy of a request's payload (URL, params, headers, body, a
 
 ## Export and import
 
-**Export** (in the switcher popover) writes one JSON file with all collections (with folders and examples) and all environments. Use it to back up or to move between computers. **Import** reads such a file and merges it:
+**Export** (in the switcher popover) writes one JSON file with all collections (with folders and examples) and all environments. If any environment variable is marked [secret](requests.md#secret-values), a dialog asks **Include secret values?** and leaves them out by default (the variables stay in the file with empty values). Use it to back up or to move between computers. **Import** reads such a file and merges it:
 
-- A collection or environment with the same id replaces the one you have. Others are added.
+- A collection or environment with the same id replaces the one you have. Others are added. A secret variable that comes in empty keeps the value you already have.
 - Files from the first version of the app (a flat list of saved requests) still import. Requests whose id you already have are updated where they sit, and new ones go into a collection called **Imported requests**.
 - Malformed entries are skipped, and a file that is not a REST Runner export is rejected with a message.
 
-The export file contains environment values, which may include tokens. Keep it safe.
+The export file contains environment values. Secret values are left out unless you chose to include them; other values, such as non-secret tokens, are always included. Keep the file safe.
 
 Test suites have their own export and import in the [Testing sidebar](testing.md#exporting-suites).

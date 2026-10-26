@@ -7,7 +7,7 @@ A **flow** chains your saved work into one run. You place **steps** (nodes) on a
 Open it with the **Flows** tab at the top right.
 
 - **Left:** your **Flows** (with **New**, **Import** and **Export**) and recent **Flow runs**. A flow with a schedule shows when it runs next, and the last run it skipped. Below 1000 px wide this becomes a drop-down.
-- **Middle:** the flow's name and description (edit in place), **Export**, **Duplicate**, **Delete**, and **Run** (**Stop** while running). Under that, the **step bar**, then the **canvas**.
+- **Middle:** the flow's name and description (edit in place), undo and redo buttons, a ⋯ menu with **Export**, **Duplicate** and **Delete flow**, and **Run** (**Stop** while running). Under that, the **step bar**, then the **canvas**.
 - **Right:** the settings of the selected step. With nothing selected: anything that stops the flow from running, then the live run or the latest run.
 - **Top bar:** Quick open, and an environment switch of its own. Environments are edited in Requests mode.
 
@@ -17,8 +17,14 @@ Flows are saved automatically as you edit. Like the other modes, Flows stays ali
 
 - **Add a step:** click it in the step bar (it lands in the middle of the canvas), or drag it onto the canvas.
 - **Wire steps:** drag from an output dot on the right of a step to the input dot on the left of another. Dragging a new wire from an output that already has one replaces the old wire.
-- **Select** a step to edit it on the right. **Delete** or **Backspace** removes the selected step or wire; so does **Delete step** in its settings.
-- **Move around:** drag the background to pan, scroll or pinch to zoom, and use the buttons at the bottom left to zoom or fit the whole flow. The small map at the bottom right also pans and zooms.
+- **Select** a step to edit it on the right. **Delete** or **Backspace** removes the selected step or wire; so does **Delete step** in its settings. Nothing asks first; use [undo](#undo).
+- **Move around:** drag the background to pan, scroll or pinch to zoom, and use the buttons at the bottom left to zoom or fit the flow. The small map at the bottom right also pans and zooms.
+- **Opening view:** a flow opens at a readable size: the whole flow when it fits at 70% zoom or more, otherwise 100% zoom centred on Start. The fit button does the same. Manual zoom goes down to 30%; below 60% each card shows just its colour and name.
+- **Tidy layout** (top right of the canvas) arranges the steps left to right with 80 px between columns and 40 px between rows, in the order of their wires. Start stays where it is and sticky notes move with the step they sit closest to. You can undo it.
+
+### Undo
+
+**Ctrl/Cmd + Z** undoes your last edit to the open flow (up to 50 steps back) and **Ctrl/Cmd + Shift + Z** (or **Ctrl + Y**) redoes it. This covers moving, adding and deleting steps and wires, notes, step settings and renames. It is off while the cursor is in a text field. The ↶ and ↷ buttons in the flow header do the same. Deleting a whole flow shows an **Undo** toast for 8 seconds instead.
 - **Name:** every step has an optional name. Empty, it shows the case, suite or request it runs.
 - **Sticky notes** hold free text to explain a flow. Type straight into the note; drag its top edge to move it and its corners to resize it. Notes are never run and can't be wired.
 
@@ -40,7 +46,7 @@ Different flows can run at the same time (for example, a scheduled flow while yo
 | **Schedule** | Starts the flow on a timer while the app is open. See [Schedules](#schedules). Nothing can be wired into it. | next |
 | **Run case** | Runs one case from a suite, with its scripts and assertions, using that suite's run settings (for example "4xx/5xx fail the case" and the script time limit). It runs once and does not use the suite's CSV. | passed, failed |
 | **Run suite** | Runs a whole suite exactly like **Run suite** in Testing: its run order, repeat count and CSV data. It passes when every case in every iteration passes. | passed, failed |
-| **Run request** | Runs a saved request (or saved example) with its pre-request and post-response scripts. It passes when a response comes back and every `rr.test` in its scripts passes. A 4xx or 5xx on its own does not fail it; add an `rr.test` on the status if you want that. | passed, failed |
+| **Run request** | Runs a saved request (or saved example) with its pre-request and post-response scripts. It passes when a response comes back, every `rr.test` in its scripts passes, and the status is below 400. Each Run request step has a **4xx/5xx counts as failed** checkbox in its settings (on by default); turn it off for a step where an error response is expected and you check it yourself. The card shows the status code of its last response. | passed, failed |
 | **If** | Checks a condition and goes down **true** or **false**. See [Conditions](#conditions). | true, false |
 | **Parallel** | Starts every step wired to **branches** at the same time. See [Parallel and Join](#parallel-and-join). | branches (any number of wires) |
 | **Join** | Waits for every branch of the Parallel before it, then continues. Fails if any branch failed. | passed, failed |
@@ -61,7 +67,9 @@ Run steps point at the **live** case, suite or request, by id. They do not copy 
 
 - A Run step that fails follows its **failed** wire.
 - If nothing is wired to **failed**, the flow stops there and is marked **Failed**.
-- If the failed wire was followed and the flow reaches its end, the flow is marked **Passed**. The report still counts how many Run steps failed, so a handled failure stays visible.
+- If the failed wire was followed and the flow reaches its end, the flow is marked **Passed with handled failures** (amber). A flow is **Passed** (green) only when no Run step failed on the way. A flow with an unhandled failure is **Failed**. The report counts how many Run steps failed in every case.
+
+> **Older flows:** Run request steps saved before the checkbox existed now fail on 4xx/5xx, because a missing setting is read as on. Turn the checkbox off on steps that relied on the old behaviour.
 - **Stop** ends the run at once and marks it **Stopped**.
 
 ## Parallel and Join
@@ -128,7 +136,7 @@ Open a run from **Flow runs** (or **Open report** after a run) to see:
 - **Show on canvas** shows the flow **as it was when it ran**, read-only, with each step's result. **Back to editing** returns to the flow.
 - **Export HTML report** saves one file you can open in any browser: the summary, the run log, every step, and each Run step's full test report inside it. It has a search box and a "failed only" filter, and needs no internet.
 - **Export CSV report** saves one line per step, plus one line per case result inside each Run step (the step's columns repeat on those lines, so the file filters well in Excel).
-- **Delete** removes the saved run. Exported files are not affected.
+- **Delete run** (in the ⋯ menu) removes the saved run. It does not ask; an **Undo** toast appears for 8 seconds. Exported files are not affected. Reports always mask [secret values](requests.md#secret-values).
 
 ## Schedules
 

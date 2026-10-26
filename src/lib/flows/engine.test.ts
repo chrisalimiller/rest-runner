@@ -93,7 +93,7 @@ describe("runFlow", () => {
     expect(run.stepList[1].child?.environmentName).toBe("Dev");
   });
 
-  it("follows the failed wire, keeps going, and still passes with the failure counted", async () => {
+  it("follows the failed wire, keeps going, and ends passed with handled failures", async () => {
     const server = fakeServer((req) => (req.url.endsWith("/health") ? { status: 500 } : { status: 200 }));
     const tc = makeCase("Health", "https://{{host}}/health");
     const suite = suiteOf([tc]);
@@ -101,7 +101,7 @@ describe("runFlow", () => {
     const a = runCaseNode(suite, tc);
     const b = runRequestNode(cleanup);
     const run = await runFlow(flowOf([a, b], [[a, "failed", b]]), ctxOf(server.send, [suite], [cleanup]));
-    expect(run.end).toBe("passed");
+    expect(run.end).toBe("passed-handled");
     expect(run.failedSteps).toBe(1);
     expect(run.passedSteps).toBe(1);
     expect(run.stepList[1].notes.join(" ")).toMatch(/Status is below 400/);
@@ -122,15 +122,44 @@ describe("runFlow", () => {
     expect(run.stepList.at(-1)?.nextNodeId).toBeNull();
   });
 
-  it("passes a saved request on a 500 when its scripts have no failing rr.test", async () => {
+  it("fails a saved request on a 404/500 by default, and passes it when the step's switch is off", async () => {
+    const server = fakeServer(() => ({ status: 404 }));
+    const req = savedRequest("Missing", "https://{{host}}/a");
+    const strict = runRequestNode(req);
+    const failed = await runFlow(flowOf([strict], []), ctxOf(server.send, [], [req]));
+    expect(failed.stepList[1].status).toBe("failed");
+    expect(failed.end).toBe("failed");
+    expect(failed.stepList[1].notes.join(" ")).toMatch(/Status is below 400/);
+
+    const lenient = { ...runRequestNode(req), httpErrorsFail: false } as FlowNode;
+    const passed = await runFlow(flowOf([lenient], []), ctxOf(server.send, [], [req]));
+    expect(passed.stepList[1].status).toBe("passed");
+    expect(passed.end).toBe("passed");
+  });
+
+  it("treats a Run request step saved without the switch as failing on 4xx/5xx", async () => {
     const server = fakeServer(() => ({ status: 500 }));
-    const plain = savedRequest("Plain", "https://{{host}}/a");
+    const req = savedRequest("Old", "https://{{host}}/a");
+    const old = runRequestNode(req);
+    delete (old as { httpErrorsFail?: boolean }).httpErrorsFail;
+    const run = await runFlow(flowOf([old], []), ctxOf(server.send, [], [req]));
+    expect(run.end).toBe("failed");
+  });
+
+  it("still fails a saved request whose rr.test fails, whatever the switch", async () => {
+    const server = fakeServer(() => ({ status: 500 }));
     const tested = savedRequest("Tested", "https://{{host}}/b", { postScript: `rr.test("is 200", () => rr.expect(rr.response.status).toBe(200))` });
-    const a = runRequestNode(plain);
-    const b = runRequestNode(tested);
-    const run = await runFlow(flowOf([a, b], [[a, "passed", b]]), ctxOf(server.send, [], [plain, tested]));
-    expect(run.stepList[1].status).toBe("passed");
-    expect(run.stepList[2].status).toBe("failed");
+    const a = { ...runRequestNode(tested), httpErrorsFail: false } as FlowNode;
+    const run = await runFlow(flowOf([a], []), ctxOf(server.send, [], [tested]));
+    expect(run.stepList[1].status).toBe("failed");
+    expect(run.end).toBe("failed");
+  });
+
+  it("ends failed, not passed-handled, when a failure had no failed wire", async () => {
+    const server = fakeServer(() => ({ status: 500 }));
+    const req = savedRequest("Bad", "https://{{host}}/a");
+    const a = runRequestNode(req);
+    const run = await runFlow(flowOf([a], []), ctxOf(server.send, [], [req]));
     expect(run.end).toBe("failed");
   });
 
@@ -342,7 +371,7 @@ describe("Parallel and Join", () => {
     expect(join1.notes.join(" ")).toMatch(/Branch 1: "Suite › Bad"/);
 
     const handled = await runFlow(flowOf([par, a, b, join, c], [...wires, [join, "failed", c]]), ctxOf(server.send, [suite], [cleanup]));
-    expect(handled.end).toBe("passed");
+    expect(handled.end).toBe("passed-handled");
     expect(handled.stepList.at(-1)?.label).toBe("Cleanup");
   });
 

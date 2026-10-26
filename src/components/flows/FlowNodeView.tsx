@@ -1,6 +1,7 @@
-import { Handle, NodeResizer, Position, type Node, type NodeProps } from "@xyflow/react";
+import { Handle, NodeResizer, Position, useStore, type Node, type NodeProps } from "@xyflow/react";
 import { createContext, useContext } from "react";
 import { NODE_TYPE_LABELS } from "../../lib/flows/flows";
+import { COMPACT_ZOOM } from "../../lib/flows/view";
 import { NODE_OUTPUTS, type FlowNode, type FlowOutput, type FlowStepStatus, type NoteNode } from "../../lib/flows/types";
 
 export type CanvasStatus = FlowStepStatus | "running";
@@ -13,6 +14,8 @@ export interface StepData extends Record<string, unknown> {
   status?: CanvasStatus;
   /** How many times this node ran in that run, when more than once. */
   runs?: number;
+  /** Run request steps: the status of the last response, or null when none came back. */
+  statusCode?: number | null;
   problem?: "error" | "warning";
   problemText?: string;
 }
@@ -52,9 +55,29 @@ function StatusMark({ status }: { status: CanvasStatus }) {
 
 /** Every runnable node: a card with an input on the left and its outputs on the right. */
 export function StepNodeView({ data, selected }: NodeProps<StepRFNode>) {
-  const { node, label, detail, status, runs, problem, problemText } = data;
+  const { node, label, detail, status, runs, statusCode, problem, problemText } = data;
   const outputs = NODE_OUTPUTS[node.type];
   const retry = "retry" in node && node.retry.times > 0 ? node.retry.times : 0;
+  // Zoomed far out, a card keeps only its colour and name, drawn big enough to read. 0 means normal size.
+  const compactZoom = useStore((s) => (s.transform[2] < COMPACT_ZOOM ? Math.max(0.2, Math.round(s.transform[2] * 20) / 20) : 0));
+  if (compactZoom > 0) {
+    return (
+      <div className={`flow-node compact type-${node.type} ${selected ? "selected" : ""} ${status ? `st-${status}` : ""} ${problem ? `has-${problem}` : ""}`}>
+        {node.type !== "start" && node.type !== "schedule" && <Handle type="target" position={Position.Left} id="in" className="flow-handle in" />}
+        <div className="flow-node-compact-label" style={{ fontSize: Math.min(26, Math.round(13 / compactZoom)) }} title={label}>
+          {status && <StatusMark status={status} />}
+          {label}
+        </div>
+        <div className="flow-node-outputs">
+          {outputs.map((o) => (
+            <div key={o} className={`flow-node-output out-${o}`}>
+              <Handle type="source" position={Position.Right} id={o} className={`flow-handle out-${o}`} />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
   return (
     <div className={`flow-node type-${node.type} ${selected ? "selected" : ""} ${status ? `st-${status}` : ""} ${problem ? `has-${problem}` : ""}`}>
       {node.type !== "start" && node.type !== "schedule" && <Handle type="target" position={Position.Left} id="in" className="flow-handle in" />}
@@ -73,6 +96,11 @@ export function StepNodeView({ data, selected }: NodeProps<StepRFNode>) {
         {runs && runs > 1 && (
           <span className="flow-node-badge" title={`Ran ${runs} times`}>
             ×{runs}
+          </span>
+        )}
+        {node.type === "run-request" && statusCode !== undefined && (
+          <span className={`flow-node-badge code-${statusCode === null ? "none" : statusCode >= 400 ? "bad" : "ok"}`} title={statusCode === null ? "No response came back" : `Last response: ${statusCode}`}>
+            {statusCode === null ? "ERR" : statusCode}
           </span>
         )}
         {problem && (
