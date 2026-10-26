@@ -130,7 +130,7 @@ export function RunExplorer({ runId, onBack, onDelete, onLoadRequest }: Props) {
           <button
             className="secondary danger"
             onClick={() => {
-              if (window.confirm("Delete this run? Exported reports are not affected.")) onDelete(run.id);
+              onDelete(run.id);
             }}
           >
             Delete

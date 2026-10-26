@@ -1,3 +1,5 @@
+import { OverflowMenu } from "../shell/OverflowMenu";
+import { TrashIcon } from "../shell/Icons";
 import { currentMasker, maskSecrets, storedSecrets } from "../../lib/secrets";
 import { useEffect, useMemo, useState } from "react";
 import { formatMs } from "../../lib/earlierSends";
@@ -172,14 +174,10 @@ export function FlowRunReport({ runId, onBack, onDelete, onShowCanvas }: Props) 
           <button className="secondary" onClick={() => void exportReport("csv")}>
             Export CSV report
           </button>
-          <button
-            className="secondary danger"
-            onClick={() => {
-              if (window.confirm("Delete this flow run? Exported reports are not affected.")) onDelete(run.id);
-            }}
-          >
-            Delete
-          </button>
+          <OverflowMenu
+            label="Run actions"
+            items={[{ label: "Delete run", icon: <TrashIcon />, onSelect: () => onDelete(run.id), danger: true, title: "Exported reports are not affected" }]}
+          />
         </div>
       </div>
       {message && <p className="small save-message">{message}</p>}

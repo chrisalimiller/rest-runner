@@ -1,3 +1,5 @@
+import { OverflowMenu } from "../shell/OverflowMenu";
+import { TrashIcon } from "../shell/Icons";
 import { maskSecrets, storedSecrets } from "../../lib/secrets";
 import { useEffect, useMemo, useState } from "react";
 import { saveTextFile } from "../../lib/saveFile";
@@ -140,14 +142,10 @@ export function TestRunExplorer({ runId, preloaded, onBack, backLabel = "← Bac
             Export CSV report
           </button>
           {onDelete && (
-            <button
-              className="secondary danger"
-              onClick={() => {
-                if (window.confirm("Delete this test run? Exported reports are not affected.")) onDelete(run.id);
-              }}
-            >
-              Delete
-            </button>
+            <OverflowMenu
+              label="Run actions"
+              items={[{ label: "Delete run", icon: <TrashIcon />, onSelect: () => onDelete(run.id), danger: true, title: "Exported reports are not affected" }]}
+            />
           )}
         </div>
       </div>

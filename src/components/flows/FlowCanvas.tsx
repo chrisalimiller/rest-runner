@@ -53,7 +53,8 @@ interface Props {
   problems: FlowProblem[];
   /** Status per node id from the live run or the run being viewed. */
   runState: Map<string, NodeRunState>;
-  onChange: (flow: Flow) => void;
+  /** `group` merges a burst of the same edit (typing in a note) into one undo step. */
+  onChange: (flow: Flow, group?: string) => void;
   onSelect: (nodeId: string | null) => void;
   /** Ask to select a node from outside (for example from the problems list). */
   focusNodeId: string | null;
@@ -145,7 +146,7 @@ function Canvas({ flow, items, problems, runState, onChange, onSelect, focusNode
     [flow.edges, selectedEdges],
   );
 
-  const update = useCallback((patch: (f: Flow) => Flow) => onChange(patch(flowRef.current)), [onChange]);
+  const update = useCallback((patch: (f: Flow) => Flow, group?: string) => onChange(patch(flowRef.current), group), [onChange]);
 
   const onNodesChange = useCallback(
     (changes: NodeChange<RFNode>[]) => {
@@ -254,7 +255,7 @@ function Canvas({ flow, items, problems, runState, onChange, onSelect, focusNode
   const actions = useMemo(
     () => ({
       readOnly,
-      onNoteText: (id: string, text: string) => update((f) => ({ ...f, nodes: f.nodes.map((n) => (n.id === id && n.type === "note" ? { ...n, text } : n)) })),
+      onNoteText: (id: string, text: string) => update((f) => ({ ...f, nodes: f.nodes.map((n) => (n.id === id && n.type === "note" ? { ...n, text } : n)) }), `note:${id}`),
       onNoteResize: (id: string, width: number, height: number) =>
         update((f) => ({ ...f, nodes: f.nodes.map((n) => (n.id === id && n.type === "note" ? { ...n, width, height } : n)) })),
     }),

@@ -9,6 +9,7 @@ import { ResponsePane } from "./components/ResponsePane";
 import { RunExplorer } from "./components/RunExplorer";
 import { TopBar } from "./components/shell/TopBar";
 import { useToast } from "./components/shell/Toast";
+import { useDeferredDelete } from "./components/shell/useDeferredDelete";
 import { VariablesPopover } from "./components/shell/VariablesPopover";
 import type { ShellCommand, ShellProps } from "./Root";
 import {
@@ -126,8 +127,6 @@ export default function App({ active = true, shell, command }: Props) {
   const [focusVarId, setFocusVarId] = useState<string | undefined>(undefined);
   const [showVariables, setShowVariables] = useState(false);
   const [exportDialog, setExportDialog] = useState(false);
-  /** Runs deleted a moment ago: hidden now, removed for good when the Undo toast expires. */
-  const [pendingRunDeletes, setPendingRunDeletes] = useState<Set<string>>(new Set());
   const toast = useToast();
   const [notice, setNotice] = useState<string | null>(null);
   const [switcherOpen, setSwitcherOpen] = useState(false);
@@ -181,6 +180,7 @@ export default function App({ active = true, shell, command }: Props) {
       .catch(() => setRuns([]));
   }, []);
   useEffect(refreshRuns, [refreshRuns]);
+  const runDelete = useDeferredDelete(deleteRun, refreshRuns);
 
   useEffect(() => {
     save(DRAFT_KEY, def);
@@ -529,7 +529,7 @@ export default function App({ active = true, shell, command }: Props) {
   };
 
   const unfilled = unresolvedPlaceholders(def, sendVars);
-  const sends = earlierSends(history, runs.filter((r) => !pendingRunDeletes.has(r.id)), def);
+  const sends = earlierSends(history, runs.filter((r) => !runDelete.hidden.has(r.id)), def);
   const shownEntry = outcomeIsSample && shownHistoryId ? history.find((h) => h.id === shownHistoryId) : undefined;
   const openBatch = () => {
     setPane("batch");
@@ -648,22 +648,8 @@ export default function App({ active = true, shell, command }: Props) {
             onLoadRequest={(run) => openRunRequest(run.request, run.csvName)}
             onDelete={(id) => {
               const name = runs.find((r) => r.id === id)?.csvName;
-              setPendingRunDeletes((s) => new Set(s).add(id));
+              runDelete.request(id, `Deleted the batch run${name ? ` of ${name}` : ""}`);
               setOpenRun(null);
-              const settle = () =>
-                setPendingRunDeletes((s) => {
-                  const next = new Set(s);
-                  next.delete(id);
-                  return next;
-                });
-              toast.show({
-                message: `Deleted the batch run${name ? ` of ${name}` : ""}`,
-                onUndo: settle,
-                onExpire: () => void deleteRun(id).finally(() => {
-                  refreshRuns();
-                  settle();
-                }),
-              });
             }}
           />
         </main>
