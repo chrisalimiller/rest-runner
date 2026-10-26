@@ -279,6 +279,44 @@ body.dragging-split {
   padding: 0 8px;
 }
 
+.env-dropdown-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  max-width: 180px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.env-dropdown-btn:hover,
+.env-dropdown-btn[aria-expanded="true"] {
+  background: var(--bg-hover);
+}
+
+.env-dropdown-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The search shrinks to a magnifier and its shortcut. */
+.quick-open-field.compact {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.quick-open-field.compact .quick-open-placeholder {
+  display: none;
+}
+
 .env-dot {
   width: 6px;
   height: 6px;
@@ -394,6 +432,31 @@ body.dragging-split {
   text-underline-offset: 3px;
 }
 
+.switcher-pencil {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.switcher-btn:hover .switcher-pencil,
+.switcher-btn:focus-within .switcher-pencil {
+  opacity: 1;
+}
+
+.switcher-pencil:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
 .switcher-rename {
   height: 24px;
   padding: 0 6px;
@@ -434,6 +497,11 @@ body.dragging-split {
   flex-direction: column;
   gap: 8px;
   padding: 12px;
+}
+
+.switcher-popover.list-popover {
+  height: auto;
+  max-height: min(420px, calc(100vh - 80px));
 }
 
 .popover-head {
@@ -1196,11 +1264,11 @@ body.dragging-split {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr) 280px;
+  grid-template-columns: var(--nav-w, 240px) minmax(0, 1fr) 280px;
 }
 
 .runbook.with-report {
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: var(--nav-w, 240px) minmax(0, 1fr);
 }
 
 .runbook-nav {
@@ -1212,6 +1280,24 @@ body.dragging-split {
   padding: 16px 14px;
   background: var(--bg-inset);
   border-right: 1px solid var(--border-muted);
+}
+
+.runbook-nav[hidden] {
+  display: none;
+}
+
+.runbook-nav.collapsed {
+  align-items: center;
+  padding: 10px 4px;
+}
+
+.runbook.nav-collapsed,
+.flows-layout.nav-collapsed {
+  --nav-w: 40px;
+}
+
+.title-switcher-btn {
+  padding-right: 8px;
 }
 
 .runbook-nav-compact {
@@ -2012,7 +2098,7 @@ details.case-try .call-detail {
 
 @media (max-width: 1200px) {
   .runbook {
-    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-columns: var(--nav-w, 240px) minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) auto;
   }
 
@@ -2236,6 +2322,16 @@ details.case-try .call-detail {
 .resolved-url .curl-toggle {
   flex: none;
   font-family: var(--mono);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.resolved-copy {
+  flex: none;
+  align-self: center;
+  width: 22px;
+  height: 22px;
 }
 
 .resolved-url .curl-toggle.active {
@@ -2377,6 +2473,130 @@ select:focus-visible,
   border-color: var(--text);
 }
 
+/* An input that draws {{placeholders}} in their own style (key/value value cells). */
+.ph-input {
+  position: relative;
+}
+
+.ph-input input {
+  position: relative;
+}
+
+.ph-input.marked input {
+  color: transparent;
+  caret-color: var(--text);
+  background: transparent;
+}
+
+.ph-mirror {
+  position: absolute;
+  inset: 0;
+  padding: 7px 9px;
+  overflow: hidden;
+  white-space: pre;
+  font: inherit;
+  font-family: var(--mono);
+  pointer-events: none;
+  color: var(--text);
+}
+
+.ph-mirror .ph {
+  padding: 0;
+  box-shadow: 0 0 0 1px var(--placeholder-bg);
+}
+
+.kv tr.disabled .ph-mirror {
+  opacity: 0.5;
+}
+
+/* Section bar under the URL */
+.section-bar {
+  flex: none;
+  display: flex;
+  gap: 4px;
+  padding: 0 22px 8px;
+  overflow-x: auto;
+}
+
+.section-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--border-muted);
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.section-chip:hover {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.section-chip.current {
+  color: var(--text);
+  border-color: var(--accent-fg);
+  background: var(--accent-subtle);
+}
+
+.section-chip-mark {
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+
+/* "Tests 2/2" on the Scripts tab */
+.tab-badge {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.tab-badge.ok {
+  color: var(--ok);
+  background: var(--ok-subtle);
+}
+
+.tab-badge.bad {
+  color: var(--bad);
+  background: var(--bad-subtle);
+}
+
+.running-line {
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+
+.running-line .muted {
+  font-weight: 400;
+}
+
+.disc.running {
+  position: relative;
+}
+
+.disc-tally {
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 4px;
+  display: flex;
+  gap: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.case-card.locked {
+  opacity: 0.85;
+}
+
 /* URL field: a transparent-text input over a copy of its text with {{placeholders}} marked. */
 .url-bar .url-field {
   position: relative;
@@ -2421,4 +2641,21 @@ select:focus-visible,
   background: var(--placeholder-bg);
   border-radius: 3px;
   box-shadow: 0 0 0 1px var(--placeholder-bg);
+}
+
+.split-btn {
+  display: inline-flex;
+}
+
+.split-btn .try-btn {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.split-btn .split-caret {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: 0;
+  padding: 0 7px;
+  min-width: 0;
 }

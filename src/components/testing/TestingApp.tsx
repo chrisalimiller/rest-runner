@@ -8,7 +8,7 @@ import { sendRequest } from "../../lib/http";
 import { newId } from "../../lib/ids";
 import { saveTextFile } from "../../lib/saveFile";
 import { load, save } from "../../lib/storage";
-import { planIterations, runCase, runSuite } from "../../lib/testing/runner";
+import { planIterations, runCase, runUpTo, runSuite } from "../../lib/testing/runner";
 import { createWorkerScriptRunner } from "../../lib/testing/scriptRunner";
 import { cleanSuites, newSuite } from "../../lib/testing/suites";
 import { buildTestRun, type TestRunSummary } from "../../lib/testing/testRun";
@@ -25,6 +25,9 @@ import type { LiveRunState } from "./LiveRun";
 import { SuiteEditor } from "./SuiteEditor";
 import { MAX_SAVED_CSV, SuiteSettings } from "./SuiteSettings";
 import { TestingSidebar } from "./TestingSidebar";
+import { Modal } from "../shell/Modal";
+import { TitleSwitcher } from "../shell/TitleSwitcher";
+import { useCollapsed } from "../shell/useCollapsed";
 import { TestRunExplorer } from "./TestRunExplorer";
 
 const SUITES_KEY = "rest-runner.test-suites";
@@ -60,6 +63,7 @@ interface OpenReport {
 
 /** The Testing section: suites of test cases, running them, and their reports. */
 export function TestingApp({ active, shell, command }: Props) {
+  const [navCollapsed, toggleNav] = useCollapsed("rest-runner.testing-nav-collapsed");
   const [suites, setSuites] = useState<TestSuite[]>(() => cleanSuites(load(SUITES_KEY, [])));
   const [openSuiteId, setOpenSuiteId] = useState<string | null>(() => load(OPEN_SUITE_KEY, null));
   /** The open case of each suite; null means all collapsed. Missing means the first case. */
@@ -162,7 +166,7 @@ export function TestingApp({ active, shell, command }: Props) {
     bufferRef.current = [];
     const startedAt = new Date();
     const all: CaseResult[] = [];
-    setLive({ suiteId: s.id, running: true, planned, results: [], startedAt: startedAt.getTime() });
+    setLive({ suiteId: s.id, running: true, planned, iterations, results: [], startedAt: startedAt.getTime() });
     // Fresh run results replace earlier Try case results for this suite's cases.
     setTryResults((t) => Object.fromEntries(Object.entries(t).filter(([id]) => !s.cases.some((c) => c.id === id))));
 
@@ -222,6 +226,26 @@ export function TestingApp({ active, shell, command }: Props) {
     }
   };
 
+  const tryUpTo = async (s: TestSuite, tc: TestCase) => {
+    if (tryingCaseId) return;
+    setTryingCaseId(tc.id);
+    const { rows } = rowsFor(s);
+    try {
+      const results = await runUpTo(s, s.cases.indexOf(tc), {
+        rows,
+        envVars,
+        send: sendRequest,
+        scripts: scripts.run,
+        signal: new AbortController().signal,
+        onResult: (r) => setTryResults((t) => ({ ...t, [r.caseId]: r })),
+      });
+      const failed = results.find((r) => !r.passed);
+      setNotice(failed ? `Try up to here stopped at "${failed.caseName}", which failed.` : `Tried ${results.length} case${results.length === 1 ? "" : "s"} up to "${tc.name}".`);
+    } finally {
+      setTryingCaseId(null);
+    }
+  };
+
   const exportSuites = async () => {
     try {
       const result = await saveTextFile("rest-runner-test-suites.json", toSuitesFile(suites), "REST Runner test suites", "json");
@@ -275,13 +299,6 @@ export function TestingApp({ active, shell, command }: Props) {
     }
   }, [command]);
 
-  useEffect(() => {
-    if (!settingsOpen) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setSettingsOpen(false);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [settingsOpen]);
-
   const suiteLive = live && suite && live.suiteId === suite.id ? live : null;
 
   return (
@@ -291,14 +308,32 @@ export function TestingApp({ active, shell, command }: Props) {
         onMode={shell.onMode}
         onQuickOpen={shell.onQuickOpen}
         searchPlaceholder="Jump to a suite, case or test run…"
-        switcher={suite && openRunId === null ? <span className="topbar-title" title={suite.name}>{suite.name || "(unnamed)"}</span> : undefined}
+        switcher={
+          suite && openRunId === null ? (
+            <TitleSwitcher
+              noun="Suites"
+              title={suite.name}
+              items={suites.map((s) => ({ id: s.id, name: s.name, detail: String(s.cases.length) }))}
+              activeId={suite.id}
+              onOpen={(id) => {
+                setOpenSuiteId(id);
+                setOpenRunId(null);
+              }}
+              onNew={createSuite}
+              onImport={(f) => void importSuites(f)}
+              onExport={() => void exportSuites()}
+            />
+          ) : undefined
+        }
         environments={environments}
         activeEnvId={envId}
         onEnvChange={setEnvId}
         envTitle="Environments are edited in Requests mode"
       />
-      <div className={`runbook ${openRunId !== null ? "with-report" : ""}`}>
+      <div className={`runbook ${openRunId !== null ? "with-report" : ""} ${navCollapsed ? "nav-collapsed" : ""}`}>
         <TestingSidebar
+          collapsed={navCollapsed}
+          onToggleCollapsed={toggleNav}
           suites={suites}
           activeSuiteId={openSuiteId}
           onOpenSuite={(id) => {
@@ -354,10 +389,12 @@ export function TestingApp({ active, shell, command }: Props) {
               onOpenCase={(id) => setOpenCases((o) => ({ ...o, [suite.id]: id }))}
               onOpenSettings={() => setSettingsOpen(true)}
               running={!!suiteLive?.running}
+              live={suiteLive?.running ? { results: suiteLive.results, iterations: suiteLive.iterations, planned: suiteLive.planned } : null}
               anyRunning={!!live?.running}
               onRun={() => void run(suite)}
               onStop={() => abortRef.current?.abort()}
               onTryCase={(tc) => void tryCase(suite, tc)}
+              onTryUpTo={(tc) => void tryUpTo(suite, tc)}
               tryingCaseId={tryingCaseId}
               tryResults={tryResults}
               latestRun={latestRun && latestRun.suiteId === suite.id ? latestRun : null}
@@ -372,19 +409,17 @@ export function TestingApp({ active, shell, command }: Props) {
               onOpenReport={(id, caseId, index, check) => setReport({ id, caseId, index, check })}
             />
             {settingsOpen && (
-              <div className="sheet-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setSettingsOpen(false)}>
-                <div className="sheet" role="dialog" aria-label="Run settings and data">
-                  <div className="modal-head">
-                    <h3>Run settings &amp; data</h3>
-                    <button className="icon-btn" onClick={() => setSettingsOpen(false)} aria-label="Close">
-                      ×
-                    </button>
-                  </div>
-                  <div className="sheet-body">
-                    <SuiteSettings suite={suite} onChange={updateSuite} envVarNames={Object.keys(envVars)} />
-                  </div>
+              <Modal sheet label="Run settings and data" onClose={() => setSettingsOpen(false)}>
+                <div className="modal-head">
+                  <h3>Run settings &amp; data</h3>
+                  <button className="icon-btn" onClick={() => setSettingsOpen(false)} aria-label="Close">
+                    ×
+                  </button>
                 </div>
-              </div>
+                <div className="sheet-body">
+                  <SuiteSettings suite={suite} onChange={updateSuite} envVarNames={Object.keys(envVars)} />
+                </div>
+              </Modal>
             )}
           </>
         ) : (

@@ -134,3 +134,36 @@ export function splitPlaceholders(text: string, vars?: Vars): TextPart[] {
   if (last < text.length) out.push({ text: text.slice(last), placeholder: false });
   return out;
 }
+
+export type RequestSectionId = "params" | "auth" | "headers" | "body" | "scripts";
+
+export interface SectionBarItem {
+  id: RequestSectionId;
+  label: string;
+  /** A count (Params, Headers) or a dot (set up) for the chip; empty when the section has nothing. */
+  mark: string;
+}
+
+/** The chips of the section bar under the URL: "Params 1 · Auth · Headers 3 · Body · Scripts •". */
+export function sectionBarItems(def: RequestDef): SectionBarItem[] {
+  const params = rowCounts(def.params).on;
+  const headers = rowCounts(def.headers).on;
+  return [
+    { id: "params", label: "Params", mark: params ? String(params) : "" },
+    { id: "auth", label: "Auth", mark: def.auth.type !== "none" ? "•" : "" },
+    { id: "headers", label: "Headers", mark: headers ? String(headers) : "" },
+    { id: "body", label: "Body", mark: def.bodyMode !== "none" ? "•" : "" },
+    { id: "scripts", label: "Scripts", mark: (def.preScript ?? "").trim() || (def.postScript ?? "").trim() ? "•" : "" },
+  ];
+}
+
+/**
+ * Scroll-spy: the section the reader is in. `tops` are the sections' distances from the top of the
+ * scrolling area, in order; the answer is the last one that has reached `offset`, or the first.
+ */
+export function activeSection<T extends string>(tops: { id: T; top: number }[], offset = 12): T | null {
+  if (tops.length === 0) return null;
+  let current = tops[0].id;
+  for (const t of tops) if (t.top <= offset) current = t.id;
+  return current;
+}

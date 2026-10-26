@@ -38,6 +38,8 @@ Runs on macOS and Windows from one codebase, built with [Tauri 2](https://tauri.
 
 ## Environments
 
+The top bar adapts to narrow windows (a search icon, an environment drop-down), the suite and flow names switch between items, and the lists on the left of Testing and Flows can be hidden. In Testing, a case's **Try up to here** runs the cases before it first, a run shows its progress and per-case counts, and the report has a grid of CSV rows by cases. In Flows, a schedule chip in the header shows when the flow runs next and can switch it off, and warnings are counted on the Run button.
+
 Click the pencil next to the environment switch in the top bar to add sets of variables, for example Dev and Prod, each with its own `baseUrl` and `token`. Pick one on the switch, and `{{baseUrl}}` or `{{token}}` anywhere in a request is filled from it. This works for single requests and batch runs. In a batch run, a CSV column with the same name takes priority over the environment.
 
 Each environment can have a colour (a dot on the switch). A coloured environment outlines **Send**, **Run suite** and **Run** and names it in the label, for example **Send to Prod**; environments named Prod start red.

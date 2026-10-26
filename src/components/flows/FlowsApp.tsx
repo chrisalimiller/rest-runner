@@ -1,3 +1,4 @@
+import { scheduleChip } from "../../lib/flows/scheduleChip";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cleanCollections } from "../../lib/collections";
 import { environmentVars, guardFor, loadEnvironments, type Environment } from "../../lib/environments";
@@ -24,6 +25,8 @@ import { MOD_KEY, TopBar } from "../shell/TopBar";
 import { useDeferredDelete } from "../shell/useDeferredDelete";
 import { reinsert, removeById } from "../../lib/listUndo";
 import { canRedo, canUndo, createUndoStack, pushUndo, redo, undo, type UndoStack } from "../../lib/undoStack";
+import { TitleSwitcher } from "../shell/TitleSwitcher";
+import { useCollapsed } from "../shell/useCollapsed";
 import { RunningLine } from "./RunningLine";
 import { FlowCanvas, type NodeRunState } from "./FlowCanvas";
 import { FlowRunPanel, type FlowRunView } from "./FlowRunPanel";
@@ -84,6 +87,7 @@ function timeLabel(iso: string): string {
 
 /** Flows mode: chain test cases, suites and saved requests on a canvas and run them as one. */
 export function FlowsApp({ active, shell, command }: Props) {
+  const [navCollapsed, toggleNav] = useCollapsed("rest-runner.flows-nav-collapsed");
   const [flows, setFlows] = useState<Flow[]>(loadFlows);
   const [openFlowId, setOpenFlowId] = useState<string | null>(() => load(OPEN_FLOW_KEY, null));
   const [environments, setEnvironments] = useState<Environment[]>(loadEnvironments);
@@ -457,6 +461,8 @@ export function FlowsApp({ active, shell, command }: Props) {
     .filter((l) => l.running)
     .map((l) => l.flowId);
   const flowRunning = !!flow && runningIds.includes(flow.id);
+  const warningCount = problems.filter((p) => p.level === "warning").length;
+  const chip = flow ? scheduleChip(flow, new Date()) : null;
   const guard = guardFor(environments.find((e) => e.id === envId));
   const selected = flow && selectedId ? (flow.nodes.find((n) => n.id === selectedId) ?? null) : null;
   const labelFor = (id: string) => {
@@ -474,14 +480,29 @@ export function FlowsApp({ active, shell, command }: Props) {
         onMode={shell.onMode}
         onQuickOpen={shell.onQuickOpen}
         searchPlaceholder="Jump to a flow, flow run, suite or case…"
-        switcher={flow && !reportId ? <span className="topbar-title" title={flow.name}>{flow.name || "(unnamed)"}</span> : undefined}
+        switcher={
+          flow && !reportId ? (
+            <TitleSwitcher
+              noun="Flows"
+              title={flow.name}
+              items={flows.map((f) => ({ id: f.id, name: f.name, detail: String(f.nodes.filter((n) => n.type !== "note" && n.type !== "start" && n.type !== "schedule").length) }))}
+              activeId={openFlowId}
+              onOpen={openFlow}
+              onNew={createFlow}
+              onImport={(f) => void importFlows(f)}
+              onExport={() => void exportFlows(flows)}
+            />
+          ) : undefined
+        }
         environments={environments}
         activeEnvId={envId}
         onEnvChange={setEnvId}
         envTitle="Flows (including scheduled runs) use this environment. Environments are edited in Requests mode."
       />
-      <div className={`flows-layout ${reportId ? "with-report" : ""}`}>
+      <div className={`flows-layout ${reportId ? "with-report" : ""} ${navCollapsed ? "nav-collapsed" : ""}`}>
         <FlowsSidebar
+          collapsed={navCollapsed}
+          onToggleCollapsed={toggleNav}
           flows={flows}
           activeFlowId={openFlowId}
           onOpenFlow={openFlow}
@@ -546,6 +567,27 @@ export function FlowsApp({ active, shell, command }: Props) {
                         {notice}
                       </span>
                     )}
+                    {selected && warningCount > 0 && (
+                      <button className="warning-chip" onClick={closeSettings} title="Show the list of warnings">
+                        ⚠ {warningCount} warning{warningCount === 1 ? "" : "s"}
+                      </button>
+                    )}
+                    {chip && (
+                      <label className={`schedule-chip ${chip.enabled ? "on" : "off"}`} title={`${chip.label}${chip.count > 1 ? ` (first of ${chip.count} schedules)` : ""}. Runs only while the app is open.`}>
+                        <span aria-hidden>⏱</span>
+                        <span>
+                          {chip.label}
+                          {chip.next ? ` · ${chip.next}` : ""}
+                        </span>
+                        <input
+                          type="checkbox"
+                          role="switch"
+                          checked={chip.enabled}
+                          aria-label={`Schedule ${chip.label}`}
+                          onChange={(e) => flow.nodes.forEach((n) => n.type === "schedule" && n.id === chip.nodeId && updateNode({ ...n, enabled: e.target.checked }))}
+                        />
+                      </label>
+                    )}
                     <button className="icon-btn" onClick={() => stepHistory("undo")} disabled={!flowStack || !canUndo(flowStack)} aria-label="Undo" title={`Undo (${MOD_KEY}+Z)`}>
                       ↶
                     </button>
@@ -575,7 +617,7 @@ export function FlowsApp({ active, shell, command }: Props) {
                         disabled={hasErrors(problems)}
                         title={hasErrors(problems) ? "Fix the problems listed on the right first" : hasStart ? "Run the flow from its Start step" : "Run the flow from its Schedule step now"}
                       >
-                        {guard ? guard.run : "Run"}
+                        {guard ? guard.run : "Run"}{warningCount > 0 && ` · ${warningCount} warning${warningCount === 1 ? "" : "s"}`}
                       </button>
                     )}
                   </>

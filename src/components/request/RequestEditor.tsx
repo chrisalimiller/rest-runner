@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { requestToCurl } from "../../lib/curl";
 import { findJsonProblem, formatJson } from "../../lib/jsonFormat";
+import { readableUrl } from "../../lib/quickOpen";
 import { unresolvedPlaceholders } from "../../lib/request";
-import { authSummary, BODY_LABELS, bodySummary, countsLabel, headersText, paramsText, resolvedUrl, rowCounts, splitPlaceholders } from "../../lib/requestSummary";
+import { activeSection, authSummary, BODY_LABELS, bodySummary, countsLabel, headersText, paramsText, resolvedUrl, rowCounts, sectionBarItems, splitPlaceholders } from "../../lib/requestSummary";
 import { load, save } from "../../lib/storage";
 import type { Vars } from "../../lib/template";
 import { HTTP_METHODS, type BodyMode, type HttpMethod, type RequestDef } from "../../lib/types";
@@ -9,6 +11,9 @@ import { AuthEditor } from "../AuthEditor";
 import { BodyEditor } from "../BodyEditor";
 import { KeyValueEditor } from "../KeyValueEditor";
 import { ScriptEditor } from "../testing/ScriptEditor";
+import { ChevronDownIcon, CopyIcon } from "../shell/Icons";
+import { OverflowMenu } from "../shell/OverflowMenu";
+import { useToast } from "../shell/Toast";
 import { CurlPanel } from "./CurlPanel";
 import { UrlInput } from "./UrlInput";
 import { Section } from "./Section";
@@ -109,10 +114,34 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
     save(sectionsKey, openState);
   }, [sectionsKey, openState]);
 
+  const scroller = useRef<HTMLDivElement>(null);
+  const [spy, setSpy] = useState<SectionId | null>("params");
+  /** Which section is at the top of the scrolling area. */
+  const readSpy = useCallback(() => {
+    const box = scroller.current;
+    if (!box) return;
+    const top = box.getBoundingClientRect().top;
+    const tops = [...box.querySelectorAll<HTMLElement>("[data-section]")].map((el) => ({ id: el.dataset.section as SectionId, top: el.getBoundingClientRect().top - top }));
+    setSpy(activeSection(tops));
+  }, []);
+  const jumpTo = (id: SectionId) => {
+    setOpenState((s) => ({ ...s, [id]: true }));
+    requestAnimationFrame(() => {
+      const box = scroller.current;
+      const el = box?.querySelector<HTMLElement>(`[data-section="${id}"]`);
+      if (box && el) box.scrollTo({ top: el.offsetTop - box.offsetTop, behavior: "smooth" });
+      setSpy(id);
+    });
+  };
+
   const methodAllowsBody = def.method !== "GET" && def.method !== "HEAD";
   const isOpen = (id: SectionId) => openState[id] ?? (methodAllowsBody ? id === "body" : id === "params");
   const toggle = (id: SectionId) => setOpenState((s) => ({ ...s, [id]: !isOpen(id) }));
 
+  const toast = useToast();
+  const copyToClipboard = (text: string, message: string) => {
+    void navigator.clipboard?.writeText(text).then(() => toast.show({ message }));
+  };
   const [curlOpen, setCurlOpen] = useState(() => load<boolean>(CURL_OPEN_KEY, false));
   useEffect(() => {
     save(CURL_OPEN_KEY, curlOpen);
@@ -161,9 +190,12 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
               <span className="resolved-arrow" aria-hidden>
                 →
               </span>
-              <span className="resolved-text">
-                <WithPlaceholders text={finalUrl} vars={urlInputs.envVars} />
+              <span className="resolved-text" title={finalUrl}>
+                <WithPlaceholders text={readableUrl(finalUrl)} vars={urlInputs.envVars} />
               </span>
+              <button className="icon-btn resolved-copy" onClick={() => copyToClipboard(finalUrl, "Copied the URL")} aria-label="Copy the full URL" title={`Copy the full URL\n${finalUrl}`}>
+                <CopyIcon size={12} />
+              </button>
               {unfilled.length > 0 && (
                 <button
                   className="unfilled-chip"
@@ -178,19 +210,49 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
           ) : (
             <span className="muted resolved-empty">The final URL, with environment values and query params filled in, shows here.</span>
           )}
-          <button
-            className={`link-btn small curl-toggle ${curlOpen ? "active" : ""}`}
-            onClick={() => setCurlOpen((o) => !o)}
-            aria-expanded={curlOpen}
-            title={curlOpen ? "Hide the cURL command" : "Show the cURL command Send would run"}
-          >
-            {curlOpen ? "Hide cURL" : "cURL"}
-          </button>
+          <OverflowMenu
+            label="cURL"
+            triggerClass={`link-btn small curl-toggle ${curlOpen ? "active" : ""}`}
+            triggerTitle="Show or copy the cURL command Send would run"
+            trigger={
+              <>
+                cURL <ChevronDownIcon size={10} />
+              </>
+            }
+            items={[
+              { label: curlOpen ? "Hide cURL" : "Show cURL", onSelect: () => setCurlOpen((o) => !o) },
+              {
+                label: "Copy as cURL (Bash)",
+                onSelect: () => copyToClipboard(requestToCurl(urlInputs.def, urlInputs.envVars, "bash").command, "Copied the cURL command (Bash)"),
+                disabled: def.url.trim() === "",
+                separated: true,
+              },
+              {
+                label: "Copy as cURL (Windows cmd)",
+                onSelect: () => copyToClipboard(requestToCurl(urlInputs.def, urlInputs.envVars, "cmd").command, "Copied the cURL command (Windows cmd)"),
+                disabled: def.url.trim() === "",
+              },
+            ]}
+          />
         </div>
         {curlOpen && <CurlPanel def={urlInputs.def} vars={urlInputs.envVars} envName={envName} />}
       </div>
 
-      <div className="req-sections">
+      <nav className="section-bar" aria-label="Jump to a section">
+        {sectionBarItems(def).map((item) => (
+          <button
+            key={item.id}
+            className={`section-chip ${spy === item.id ? "current" : ""}`}
+            aria-current={spy === item.id ? "true" : undefined}
+            onClick={() => jumpTo(item.id)}
+          >
+            {item.label}
+            {item.mark && <span className="section-chip-mark">{item.mark}</span>}
+          </button>
+        ))}
+      </nav>
+
+      <div className="req-sections" ref={scroller} onScroll={readSpy}>
         <Section
           id="params"
           label="Params"
@@ -207,7 +269,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
           }
           meta={countsLabel(params)}
         >
-          <KeyValueEditor rows={def.params} onChange={(rows) => onChange({ params: rows })} />
+          <KeyValueEditor rows={def.params} onChange={(rows) => onChange({ params: rows })} placeholderVars={envVars} />
         </Section>
 
         <Section
@@ -240,7 +302,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
           }
           meta={countsLabel(headers) || "None"}
         >
-          <KeyValueEditor rows={def.headers} onChange={(rows) => onChange({ headers: rows })} />
+          <KeyValueEditor rows={def.headers} onChange={(rows) => onChange({ headers: rows })} placeholderVars={envVars} />
         </Section>
 
         <Section
@@ -288,6 +350,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
             mode={def.bodyMode}
             body={def.body}
             formBody={def.formBody}
+            placeholderVars={envVars}
             methodAllowsBody={methodAllowsBody}
             onModeChange={(bodyMode) => onChange({ bodyMode })}
             onBodyChange={(b) => onChange({ body: b })}

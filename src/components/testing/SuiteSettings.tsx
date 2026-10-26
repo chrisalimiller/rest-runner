@@ -2,6 +2,7 @@ import { CsvPreview } from "../CsvPreview";
 import { useMemo, useRef, useState } from "react";
 import { parseCsv } from "../../lib/csv";
 import { requestPlaceholders } from "../../lib/request";
+import { planEstimate } from "../../lib/testing/plan";
 import { planIterations } from "../../lib/testing/runner";
 import type { RunMode, SuiteRunOptions, TestSuite } from "../../lib/testing/types";
 
@@ -66,10 +67,12 @@ export function SuiteSettings({ suite, onChange, envVarNames }: Props) {
       </div>
 
       <div className="batch-options suite-options">
-        <label title="Most requests in flight at once in the parallel modes">
-          Concurrency
-          <input type="number" min={1} max={50} value={o.concurrency} disabled={o.mode === "sequential"} onChange={(e) => set({ concurrency: Math.max(1, Number(e.target.value) || 1) })} />
-        </label>
+        {o.mode !== "sequential" && (
+          <label title="Most requests in flight at once in the parallel modes">
+            Concurrency
+            <input type="number" min={1} max={50} value={o.concurrency} onChange={(e) => set({ concurrency: Math.max(1, Number(e.target.value) || 1) })} />
+          </label>
+        )}
         <label title="Pause between cases">
           Delay (ms)
           <input type="number" min={0} step={100} value={o.delayMs} onChange={(e) => set({ delayMs: Math.max(0, Number(e.target.value) || 0) })} />
@@ -93,6 +96,10 @@ export function SuiteSettings({ suite, onChange, envVarNames }: Props) {
           4xx/5xx fail a case that has no status assertion
         </label>
       </div>
+
+      <p className="plan-estimate" role="status">
+        {planEstimate(csv ? csv.rows.length : null, enabled.length, o.repeat).text}
+      </p>
 
       <h3>Data (CSV)</h3>
       <p className="muted small">With a CSV, the whole suite runs once per row and {"{{column}}"} placeholders are filled from that row. Without one, it runs once.</p>

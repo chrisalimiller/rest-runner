@@ -551,3 +551,74 @@ table.results.test-results .url-cell,
   font-family: var(--sans);
   font-size: 13px;
 }
+
+.plan-estimate {
+  margin: 4px 0 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius);
+  background: var(--bg-soft);
+  font-size: 13px;
+}
+
+/* CSV rows by cases */
+.result-grid {
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.result-grid th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 4px 8px;
+  background: var(--bg-soft);
+  color: var(--muted);
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.result-grid tbody th {
+  position: sticky;
+  left: 0;
+  z-index: 0;
+  top: auto;
+  border-top: 1px solid var(--border-muted);
+}
+
+.result-grid td {
+  padding: 2px 4px;
+  border-top: 1px solid var(--border-muted);
+  text-align: center;
+}
+
+.grid-cell {
+  min-width: 52px;
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  font: inherit;
+  font-family: var(--mono);
+  cursor: pointer;
+}
+
+.grid-cell.ok {
+  color: var(--ok);
+  background: var(--ok-subtle);
+}
+
+.grid-cell.bad {
+  color: var(--bad);
+  background: var(--bad-subtle);
+}
+
+.grid-cell.selected,
+.grid-cell:focus-visible {
+  border-color: var(--accent-fg);
+  outline: none;
+}

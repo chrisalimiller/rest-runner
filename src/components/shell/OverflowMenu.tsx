@@ -12,6 +12,8 @@ export interface MenuItem {
   title?: string;
   /** Draws a divider above this item. */
   separated?: boolean;
+  /** Makes it a choice in a group: the current one is marked. */
+  checked?: boolean;
 }
 
 interface Props {
@@ -19,10 +21,14 @@ interface Props {
   /** Accessible name for the ⋯ button. */
   label?: string;
   disabled?: boolean;
+  /** What the button shows instead of ⋯. */
+  trigger?: React.ReactNode;
+  triggerClass?: string;
+  triggerTitle?: string;
 }
 
 /** A ⋯ button that opens a menu. Closes with Escape or a click elsewhere; arrow keys, Home and End move between items. */
-export function OverflowMenu({ items, label = "More actions", disabled }: Props) {
+export function OverflowMenu({ items, label = "More actions", disabled, trigger, triggerClass, triggerTitle }: Props) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
   const button = useRef<HTMLButtonElement>(null);
@@ -61,23 +67,24 @@ export function OverflowMenu({ items, label = "More actions", disabled }: Props)
     <span className="overflow-menu">
       <button
         ref={button}
-        className="icon-btn overflow-btn"
+        className={triggerClass ?? "icon-btn overflow-btn"}
         aria-label={label}
-        title={label}
+        title={triggerTitle ?? label}
         aria-haspopup="menu"
         aria-expanded={open}
         disabled={disabled}
         onClick={() => setOpen((o) => !o)}
       >
-        <MoreIcon />
+        {trigger ?? <MoreIcon />}
       </button>
       {open && (
         <div className="overflow-popover" role="menu" aria-label={label} ref={menu} onKeyDown={onKeyDown} style={pos ? { top: pos.top, right: pos.right } : { visibility: "hidden" }}>
           {items.map((item) => (
             <button
               key={item.label}
-              role="menuitem"
-              className={`overflow-item ${item.danger ? "danger" : ""} ${item.separated ? "separated" : ""}`}
+              role={item.checked === undefined ? "menuitem" : "menuitemradio"}
+              aria-checked={item.checked}
+              className={`overflow-item ${item.danger ? "danger" : ""} ${item.separated ? "separated" : ""} ${item.checked ? "checked" : ""}`}
               disabled={item.disabled}
               title={item.title}
               onClick={() => {

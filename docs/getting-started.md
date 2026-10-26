@@ -42,12 +42,14 @@ The app is one window with a single bar along the top.
 | --- | --- |
 | **Brand** | The rest-runner mark. |
 | **Request switcher** (Requests mode) | Shows the open request: its collection path, method, name, and a dot when it has unsaved changes. Click the folder area to open your collections. Click the name, or press `F2`, to rename it. |
-| **Suite name** (Testing mode) | The open suite. |
+| **Suite name** (Testing mode), **Flow name** (Flows mode) | The open suite or flow. Click it to switch to another one without opening the list on the left. |
 | **Quick open** | A search box that opens with Ctrl/Cmd + K. See [Quick open](shortcuts.md). |
-| **Environment switch** | One button per environment plus **None**. The pencil opens the environment editor (Requests mode only). |
+| **Environment switch** | One button per environment plus **None**. When the window is narrow (under 1200 px) or there are more than three environments, it becomes a drop-down that still shows the colour of the selected one. The pencil opens the environment editor (Requests mode only). |
 | **Requests / Testing / Flows** | Switches mode. |
 
-**Requests mode** is split in two. The left column is the request (URL bar, resolved URL, collapsible Params / Auth / Headers / Body / Scripts sections, and an action footer with **Send**, **Save**, **Run with CSV…**). The right column is the response. Drag the divider to resize the columns (your split is remembered; double-click it to reset; arrow keys move it when it has focus). Below 1000 px wide the columns stack.
+**Requests mode** is split in two. The left column is the request (URL bar, resolved URL, collapsible Params / Auth / Headers / Body / Scripts sections, and an action footer with **Send**, **Save**, **Run with CSV…**). The right column is the response. Drag the divider to resize the columns (your split is remembered; double-click it to reset; arrow keys move it when it has focus). Below 1000 px wide the columns stack. Under 1366 px the top bar shrinks too: Quick open becomes a search icon with its shortcut hint.
+
+In Testing and Flows the list on the left (suites and runs, flows and runs) can be hidden with the **«** button to give the middle more room; whether it is hidden is remembered. The suite or flow name in the top bar switches between items either way.
 
 **Testing mode** has suites and test runs on the left, the open suite in the middle, and the latest run on the right. See [Testing](testing.md).
 

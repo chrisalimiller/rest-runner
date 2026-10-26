@@ -1,8 +1,12 @@
+import { triggerText } from "../../lib/flows/scheduleChip";
 import { END_LABELS } from "../../lib/flows/flowReport";
 import { whenLabel } from "../../lib/earlierSends";
 import type { Flow, FlowRunSummary } from "../../lib/flows/types";
 
 interface Props {
+  /** The list is folded to a thin rail; the choice is remembered. */
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
   flows: Flow[];
   activeFlowId: string | null;
   onOpenFlow: (id: string) => void;
@@ -25,7 +29,7 @@ export interface ScheduleInfo {
 const END_MARK = { passed: "✓", "passed-handled": "✓", failed: "✕", cancelled: "■" } as const;
 
 /** Flows and recent flow runs on the left of Flows mode. Below 800px wide it turns into a select at the top. */
-export function FlowsSidebar({ flows, activeFlowId, onOpenFlow, onNewFlow, onExport, onImport, runs, activeRunId, onOpenRun, runningFlowIds, scheduleInfo }: Props) {
+export function FlowsSidebar({ collapsed, onToggleCollapsed, flows, activeFlowId, onOpenFlow, onNewFlow, onExport, onImport, runs, activeRunId, onOpenRun, runningFlowIds, scheduleInfo }: Props) {
   const importLink = (
     <label className="link-btn" title="Import flows from a file">
       Import
@@ -66,7 +70,7 @@ export function FlowsSidebar({ flows, activeFlowId, onOpenFlow, onNewFlow, onExp
             <optgroup label="Flow runs">
               {runs.map((r) => (
                 <option key={r.id} value={`run:${r.id}`}>
-                  {r.flowName} · {whenLabel(r.startedAt)} · {r.end}
+                  {r.flowName} · {whenLabel(r.startedAt)} · {r.end}{triggerText(r) ? ` · ${triggerText(r)}` : ""}
                 </option>
               ))}
             </optgroup>
@@ -78,7 +82,14 @@ export function FlowsSidebar({ flows, activeFlowId, onOpenFlow, onNewFlow, onExp
         {importLink}
       </div>
 
-      <nav className="runbook-nav" aria-label="Flows and flow runs">
+      {collapsed && (
+        <nav className="runbook-nav collapsed" aria-label="Flows and flow runs">
+          <button className="icon-btn" onClick={onToggleCollapsed} aria-label="Show flows and flow runs" title="Show the list" aria-expanded={false}>
+            »
+          </button>
+        </nav>
+      )}
+      <nav className="runbook-nav" aria-label="Flows and flow runs" hidden={collapsed}>
         <div className="nav-group">
           <div className="nav-group-head">
             <span className="section-title">Flows</span>
@@ -92,6 +103,9 @@ export function FlowsSidebar({ flows, activeFlowId, onOpenFlow, onNewFlow, onExp
                   Export
                 </button>
               )}
+              <button className="icon-btn" onClick={onToggleCollapsed} aria-label="Hide the list" title="Hide the list" aria-expanded>
+                «
+              </button>
             </span>
           </div>
           {flows.length === 0 && <p className="muted small nav-empty">A flow chains test cases, suites and saved requests into one run.</p>}
@@ -121,8 +135,9 @@ export function FlowsSidebar({ flows, activeFlowId, onOpenFlow, onNewFlow, onExp
           </div>
           {runs.length === 0 && <p className="muted small nav-empty">Finished flow runs show up here.</p>}
           {runs.map((r) => (
-            <button key={r.id} className={`nav-row run-row ${activeRunId === r.id ? "active" : ""}`} onClick={() => onOpenRun(r.id)} title={r.endReason ?? r.flowName}>
+            <button key={r.id} className={`nav-row run-row ${activeRunId === r.id ? "active" : ""}`} onClick={() => onOpenRun(r.id)} title={[triggerText(r), r.endReason].filter(Boolean).join(" · ") || r.flowName}>
               <span className="nav-row-name">{r.flowName}</span>
+              {triggerText(r) && <span className="run-trigger" title={triggerText(r)!}>⏱</span>}
               <span className="muted">{whenLabel(r.startedAt)}</span>
               <span className={`mono ${r.end === "passed" ? "tone-ok" : r.end === "passed-handled" ? "tone-warn" : r.end === "failed" ? "tone-bad" : "muted"}`} title={END_LABELS[r.end]}>{END_MARK[r.end]}</span>
               {r.failedSteps > 0 && <span className="mono tone-bad">{r.failedSteps}✕</span>}

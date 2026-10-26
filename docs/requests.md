@@ -8,7 +8,8 @@ Requests mode is where you build a request and read the response. The request is
 - Type the **URL**. If it has no scheme (`http://`, `https://`), `http://` is added when it is sent.
 - Under the bar, the **resolved URL** line shows exactly what Send will use, with environment values, script variables and your enabled query params filled in. Placeholders that still have no value are shown in red, and an amber chip at the end of the line says how many are unfilled ("1 unfilled: token", or "3 unfilled"; hover for the names). Click the chip to open the [Variables popover](#the-variables-popover). Send then shows a small ⚠ and reads "Sends with {{token}} as written", but it still sends without asking. The line also says which environment the values came from.
 - Press **Enter** in the URL box to send.
-- Click **cURL** at the end of the resolved URL line to see the `curl` command Send would run, with environment values, script variables, auth and the body filled in. Pick **Bash / zsh** (macOS, Linux, Git Bash) or **Windows cmd**, then **Copy** it into a terminal. Placeholders with no value are listed under the command. Click **Hide cURL** to close it; whether it is open is remembered.
+- Click the copy button at the end of the resolved URL line to copy the full URL. The URL shows `{{placeholders}}` in colour while you type, and the same highlighting is used in the Params, Headers and form value fields.
+- Open the **cURL ▾** menu at the end of the resolved URL line to **Show cURL** (the `curl` command Send would run), or to **Copy as cURL (Bash)** or **Copy as cURL (Windows cmd)** in one click. The command includes with environment values, script variables, auth and the body filled in. Pick **Bash / zsh** (macOS, Linux, Git Bash) or **Windows cmd** in the panel, then **Copy** it into a terminal. Placeholders with no value are listed under the command. Choose **Hide cURL** to close it; whether it is open is remembered.
   - A pre-request script runs only when you press Send, so anything it changes is not in the command.
   - cmd can't pass line breaks inside an argument, so a multi-line JSON body is put on one line there (it means the same thing).
 
@@ -16,7 +17,9 @@ GET and HEAD requests never send a body, even if you filled one in. The Body sec
 
 ## The sections
 
-Below the URL bar are five collapsible sections: **Params**, **Auth**, **Headers**, **Body** and **Scripts**. When a section is closed it shows a one-line summary, so you can check it without opening it. Which sections are open, and the width of the two columns, are remembered. By default Body is open for methods that carry a body and Params is open for GET and HEAD.
+A **section bar** under the URL line has one chip per section (**Params**, **Auth**, **Headers**, **Body**, **Scripts**) with a count or a one-word summary, such as `Params 2` or `Auth Bearer`. Click a chip to scroll to that section and open it; the chip of the section you are in is highlighted.
+
+Below it are five collapsible sections: **Params**, **Auth**, **Headers**, **Body** and **Scripts**. When a section is closed it shows a one-line summary, so you can check it without opening it. Which sections are open, and the width of the two columns, are remembered. By default Body is open for methods that carry a body and Params is open for GET and HEAD.
 
 ### Params, Headers and form fields
 
@@ -56,7 +59,7 @@ How a placeholder is filled in a JSON body:
 
 ### Scripts
 
-The Scripts section holds a **Pre-request** and a **Post-response** script. A bullet (•) on a tab means that script has content. Snippets next to the editor insert common code, and typing `rr.` offers autocomplete. Under the editor, a line says how many script variables earlier sends have set and links to the Variables popover, where you can see and clear them. See the [scripting reference](scripting.md) for the full API and when scripts run.
+The Scripts section holds a **Pre-request** and a **Post-response** script. The section's results (the `rr.test` checks, console output and errors of the last send) appear under the response in a **Scripts** tab, with a badge that is green when every check passed and red otherwise. A bullet (•) on a tab means that script has content. Snippets next to the editor insert common code, and typing `rr.` offers autocomplete. Under the editor, a line says how many script variables earlier sends have set and links to the Variables popover, where you can see and clear them. See the [scripting reference](scripting.md) for the full API and when scripts run.
 
 ## Placeholders and variables
 

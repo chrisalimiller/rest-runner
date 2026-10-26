@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { newRequest } from "./defaults";
+import { emptyRow, newRequest } from "./defaults";
 import { prepareRequest } from "./request";
-import { authSummary, bodySummary, countsLabel, paramsText, requestSummaryLine, resolvedUrl, rowCounts, splitPlaceholders } from "./requestSummary";
+import { activeSection, authSummary, bodySummary, countsLabel, paramsText, requestSummaryLine, resolvedUrl, rowCounts, sectionBarItems, splitPlaceholders } from "./requestSummary";
 import type { KeyValue, RequestDef } from "./types";
 
 const row = (key: string, value: string, enabled = true): KeyValue => ({ id: key + value, key, value, enabled });
@@ -76,5 +76,33 @@ describe("splitPlaceholders", () => {
 
   it("flags each placeholder as resolved or not when vars are given", () => {
     expect(splitPlaceholders("{{a}}/%7B%7Bb%7D%7D/{{ c }}", { a: "1", c: "" }).filter((p) => p.placeholder).map((p) => p.resolved)).toEqual([true, false, true]);
+  });
+});
+
+describe("section bar", () => {
+  it("shows counts for params and headers and a dot for the rest", () => {
+    const def = {
+      ...newRequest(),
+      params: [{ id: "1", key: "a", value: "1", enabled: true }, emptyRow()],
+      headers: [
+        { id: "2", key: "h", value: "v", enabled: true },
+        { id: "3", key: "g", value: "v", enabled: true },
+        { id: "4", key: "off", value: "v", enabled: false },
+      ],
+      bodyMode: "json" as const,
+      postScript: "rr.test('x', true)",
+    };
+    expect(sectionBarItems(def).map((i) => `${i.label}${i.mark ? ` ${i.mark}` : ""}`)).toEqual(["Params 1", "Auth", "Headers 2", "Body •", "Scripts •"]);
+  });
+
+  it("finds the section the reader is in", () => {
+    const tops = [
+      { id: "params" as const, top: -300 },
+      { id: "headers" as const, top: -20 },
+      { id: "body" as const, top: 180 },
+    ];
+    expect(activeSection(tops)).toBe("headers");
+    expect(activeSection([{ id: "params" as const, top: 40 }])).toBe("params");
+    expect(activeSection([])).toBeNull();
   });
 });

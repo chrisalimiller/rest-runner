@@ -4,6 +4,7 @@ import { maskSecrets, storedSecrets } from "../../lib/secrets";
 import { useEffect, useMemo, useState } from "react";
 import { saveTextFile } from "../../lib/saveFile";
 import { describeMode } from "../../lib/testing/describe";
+import { buildGrid } from "../../lib/testing/grid";
 import { failureCheckNames, testReportFileName, toTestCsvReport, toTestHtmlReport } from "../../lib/testing/testReport";
 import { caseStats, testRunTimes, type TestRun } from "../../lib/testing/testRun";
 import { getTestRun } from "../../lib/testing/testRunStore";
@@ -42,6 +43,7 @@ export function TestRunExplorer({ runId, preloaded, onBack, backLabel = "← Bac
   const [caseFilter, setCaseFilter] = useState<string | null>(null);
   const [checkFilter, setCheckFilter] = useState<string | null>(initialCheck ?? null);
   const [failuresFirst, setFailuresFirst] = useState(true);
+  const [view, setView] = useState<"list" | "grid">("list");
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<number | null>(null);
   const [limit, setLimit] = useState(PAGE_SIZE);
@@ -67,6 +69,7 @@ export function TestRunExplorer({ runId, preloaded, onBack, backLabel = "← Bac
     };
   }, [runId, preloaded, initialCaseId, initialCheck, initialIndex]);
 
+  const grid = useMemo(() => (run && run.csvName ? buildGrid(run, failuresFirst) : null), [run, failuresFirst]);
   const perCase = useMemo(() => (run ? caseStats(run) : []), [run]);
   const times = useMemo(() => (run ? testRunTimes(run) : null), [run]);
 
@@ -235,6 +238,16 @@ export function TestRunExplorer({ runId, preloaded, onBack, backLabel = "← Bac
             Check: {checkFilter} ×
           </button>
         )}
+        {grid && (
+          <div className="segmented" role="tablist" aria-label="Results view">
+            <button role="tab" aria-selected={view === "list"} className={view === "list" ? "on" : ""} onClick={() => setView("list")}>
+              List
+            </button>
+            <button role="tab" aria-selected={view === "grid"} className={view === "grid" ? "on" : ""} onClick={() => setView("grid")} title="Rows of the CSV against cases">
+              Grid
+            </button>
+          </div>
+        )}
         {run.csvName && (
           <label className="check">
             <input type="checkbox" checked={failuresFirst} onChange={(e) => setFailuresFirst(e.target.checked)} />
@@ -256,6 +269,51 @@ export function TestRunExplorer({ runId, preloaded, onBack, backLabel = "← Bac
       )}
 
       <div className="explorer-body">
+        {grid && view === "grid" ? (
+          <div className="results-list">
+            <div className="results-scroll result-grid-scroll">
+              <table className="result-grid">
+                <thead>
+                  <tr>
+                    <th>CSV row</th>
+                    {grid.columns.map((c) => (
+                      <th key={c.caseId} title={c.caseName}>
+                        {c.caseIndex + 1}. {c.caseName}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {grid.rows.map((row) => (
+                    <tr key={row.iteration}>
+                      <th scope="row" title={row.title}>
+                        {row.title}
+                      </th>
+                      {row.cells.map((cell, i) => (
+                        <td key={i}>
+                          {cell ? (
+                            <button
+                              className={`grid-cell ${cell.passed ? "ok" : "bad"} ${selected === cell.resultIndex ? "selected" : ""}`}
+                              onClick={() => setSelected(cell.resultIndex)}
+                              aria-label={`${row.title}, ${grid.columns[i].caseName}: ${cell.passed ? "passed" : "failed"}, ${cell.label}`}
+                              aria-pressed={selected === cell.resultIndex}
+                            >
+                              {cell.label}
+                            </button>
+                          ) : (
+                            <span className="muted" title="Not run">
+                              ·
+                            </span>
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
         <div className="results-list">
           <div className="results-toolbar">
             {(["all", "passed", "failed"] as const).map((f) => (
@@ -291,6 +349,7 @@ export function TestRunExplorer({ runId, preloaded, onBack, backLabel = "← Bac
             )}
           </div>
         </div>
+        )}
         <div className="result-detail">
           {picked ? (
             <CaseResultView key={selected} result={picked} title={`${picked.caseName} · iteration ${picked.iteration + 1}${picked.rowIndex !== null ? ` (row ${picked.rowIndex + 1})` : ""}`} />

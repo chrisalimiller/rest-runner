@@ -4,7 +4,7 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr) 320px;
+  grid-template-columns: var(--nav-w, 240px) minmax(0, 1fr) 320px;
 }
 
 .flow-main {
@@ -686,13 +686,13 @@ button.flow-problem:hover:not(:disabled) {
 
 @media (max-width: 1200px) {
   .flows-layout {
-    grid-template-columns: 220px minmax(0, 1fr) 280px;
+    grid-template-columns: var(--nav-w, 220px) minmax(0, 1fr) 280px;
   }
 }
 
 /* The full-width report of a saved flow run has no settings panel. */
 .flows-layout.with-report {
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: var(--nav-w, 240px) minmax(0, 1fr);
 }
 
 .flow-nav-item .flow-nav-note {
@@ -977,4 +977,48 @@ table.results.flow-report-steps td {
   .flow-node.st-running {
     animation: none;
   }
+}
+
+.schedule-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--text-soft);
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.schedule-chip.on {
+  color: var(--text);
+  border-color: var(--accent-fg);
+}
+
+.schedule-chip input {
+  margin: 0;
+}
+
+.run-trigger {
+  color: var(--text-soft);
+  font-size: 11px;
+}
+
+.flow-node.has-warning {
+  border-color: var(--warn);
+  outline: 1px solid var(--warn);
+}
+
+.warning-chip {
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  color: var(--warn);
+  background: transparent;
+  border: 1px solid var(--warn);
+  white-space: nowrap;
 }

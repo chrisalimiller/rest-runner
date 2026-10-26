@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { destinations, type Collection, type Destination } from "../lib/collections";
-import { useEscape } from "./useEscape";
+import { Modal } from "./shell/Modal";
 
 const NEW_COLLECTION = "__new__";
 
@@ -14,19 +14,16 @@ function parseKey(key: string): Destination {
 }
 
 function SmallModal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  useEscape(onClose);
   return (
-    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal small-modal" role="dialog" aria-label={title}>
-        <div className="modal-head">
-          <h3>{title}</h3>
-          <button className="icon-btn" onClick={onClose} aria-label="Close">
-            ×
-          </button>
-        </div>
-        {children}
+    <Modal label={title} onClose={onClose} className="small-modal">
+      <div className="modal-head">
+        <h3>{title}</h3>
+        <button className="icon-btn" onClick={onClose} aria-label="Close">
+          ×
+        </button>
       </div>
-    </div>
+      {children}
+    </Modal>
   );
 }
 

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { currentMasker } from "../lib/secrets";
 import { formatBytes, statusClass } from "../lib/format";
 import { BodyView } from "./BodyView";
-import { ScriptResults, scriptsTabLabel } from "./ScriptResults";
+import { ScriptResults, ScriptsBadge, scriptsTabLabel } from "./ScriptResults";
 import type { RunEntry } from "../lib/run";
 
 type Tab = "overview" | "request" | "response" | "headers" | "scripts";
@@ -62,6 +62,7 @@ export function CallDetail({ entry }: { entry: RunEntry }) {
         {scripts && (
           <button className={tab === "scripts" ? "active" : ""} onClick={() => setTab("scripts")}>
             {scriptsTabLabel(scripts)}
+            <ScriptsBadge run={scripts} />
           </button>
         )}
       </div>

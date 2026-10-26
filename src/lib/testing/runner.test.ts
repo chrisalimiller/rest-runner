@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SendFn } from "../batch";
 import type { PreparedRequest, SendOutcome } from "../types";
-import { planIterations, runSuite } from "./runner";
+import { planIterations, runSuite, runUpTo } from "./runner";
 import { inlineScriptRunner } from "./scriptRunner";
 import { newAssertion, newSuite, newTestCase } from "./suites";
 import { buildTestRun, caseStats } from "./testRun";
@@ -239,5 +239,18 @@ describe("start variables", () => {
       { token: "abc", seen: "1" },
       { token: "abc", seen: "2" },
     ]);
+  });
+});
+
+describe("runUpTo", () => {
+  it("runs the cases up to the chosen one once, skipping disabled ones, and carries variables", async () => {
+    const server = fakeServer(() => ({ status: 200, body: '{"id":"7"}' }));
+    const a = makeCase("A", "https://{{host}}/a", { postScript: `rr.vars.set("id", "7")` });
+    const b = makeCase("B", "https://{{host}}/b", { enabled: false });
+    const c = makeCase("C", "https://{{host}}/c/{{id}}");
+    const d = makeCase("D", "https://{{host}}/d");
+    const results = await runUpTo(suiteOf([a, b, c, d]), 2, { rows: null, envVars: { host: "api.test" }, send: server.send, scripts: inlineScriptRunner, signal: new AbortController().signal });
+    expect(results.map((r) => r.caseName)).toEqual(["A", "C"]);
+    expect(server.sent.map((r) => r.url)).toEqual(["https://api.test/a", "https://api.test/c/7"]);
   });
 });

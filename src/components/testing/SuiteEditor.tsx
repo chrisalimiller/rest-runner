@@ -3,6 +3,7 @@ import { parseCsv } from "../../lib/csv";
 import type { Vars } from "../../lib/template";
 import { checkCounts, failureLine, latestCaseResult } from "../../lib/testing/caseStatus";
 import { listPickableRequests } from "../../lib/testing/requestSources";
+import { caseTally, runningLabel, type CaseTally } from "../../lib/testing/progress";
 import { duplicateCase, newTestCase } from "../../lib/testing/suites";
 import type { TestRun } from "../../lib/testing/testRun";
 import type { CaseResult, RunMode, TestCase, TestSuite } from "../../lib/testing/types";
@@ -31,11 +32,14 @@ interface Props {
   onOpenCase: (id: string | null) => void;
   onOpenSettings: () => void;
   running: boolean;
+  /** Progress of the run in progress for this suite: the counts on each case's disc and the headline. */
+  live?: { results: CaseResult[]; iterations: number; planned: number } | null;
   /** True while any suite is running (only one runs at a time). */
   anyRunning: boolean;
   onRun: () => void;
   onStop: () => void;
   onTryCase: (tc: TestCase) => void;
+  onTryUpTo: (tc: TestCase) => void;
   tryingCaseId: string | null;
   tryResults: Record<string, CaseResult>;
   latestRun: TestRun | null;
@@ -53,6 +57,7 @@ function shortPath(url: string): string {
 }
 
 type Disc = "passed" | "failed" | "skipped" | "running" | "none";
+
 
 /** The suite as a runbook: a header with run controls, then every case as a step on a timeline. */
 export function SuiteEditor(props: Props) {
@@ -164,7 +169,14 @@ export function SuiteEditor(props: Props) {
       <div className="suite-head">
         <div className="suite-title">
           <input className="suite-name" value={suite.name} onChange={(e) => onChange({ ...suite, name: e.target.value })} aria-label="Suite name" />
-          <span className="muted small">{summary}</span>
+          {props.running && props.live ? (
+            <span className="small running-line" role="status">
+              {runningLabel(props.live.results, props.live.iterations, props.live.planned)}
+              <span className="muted"> · Edits apply to the next run</span>
+            </span>
+          ) : (
+            <span className="muted small">{summary}</span>
+          )}
           <input
             className="suite-description"
             value={suite.description}
@@ -217,6 +229,7 @@ export function SuiteEditor(props: Props) {
           {suite.cases.map((c, i) => {
             const latest = latestCaseResult(c.id, props.tryResults[c.id], props.latestRun);
             const disc: Disc = !c.enabled ? "skipped" : props.running ? "running" : latest ? (latest.passed ? "passed" : "failed") : "none";
+            const tally = disc === "running" && props.live ? caseTally(props.live.results, c.id) : undefined;
             const open = openCaseId === c.id;
             const source = c.sourceRequestId ? sources.find((r) => r.id === c.sourceRequestId) : undefined;
             return (
@@ -238,7 +251,7 @@ export function SuiteEditor(props: Props) {
                     onKeyDown={(e) => onHandleKey(e, c)}
                     onBlur={() => lifted?.id === c.id && lifted.how === "keyboard" && setLifted(null)}
                   >
-                    <StatusDisc disc={disc} n={i + 1} />
+                    <StatusDisc disc={disc} n={i + 1} tally={tally} />
                   </button>
                   <span className="step-line" />
                 </div>
@@ -273,6 +286,7 @@ export function SuiteEditor(props: Props) {
                       }}
                       onCollapse={() => onOpenCase(null)}
                       onTry={() => props.onTryCase(c)}
+                      onTryUpTo={() => props.onTryUpTo(c)}
                       trying={props.tryingCaseId === c.id}
                       tryResult={props.tryResults[c.id] ?? null}
                       latest={latest}
@@ -280,9 +294,10 @@ export function SuiteEditor(props: Props) {
                       onRefreshFromSource={source ? () => updateCase({ ...c, request: { ...structuredClone(source.request), id: c.request.id } }) : undefined}
                       envVars={props.envVars}
                       envName={props.envName}
+                      locked={props.running}
                     />
                   ) : (
-                    <CaseSummary testCase={c} latest={latest} onOpen={() => onOpenCase(c.id)} onToggle={(enabled) => updateCase({ ...c, enabled })} />
+                    <CaseSummary testCase={c} latest={latest} locked={props.running} onOpen={() => onOpenCase(c.id)} onToggle={(enabled) => updateCase({ ...c, enabled })} />
                   )}
                 </div>
               </section>
@@ -317,7 +332,7 @@ export function SuiteEditor(props: Props) {
   );
 }
 
-function StatusDisc({ disc, n }: { disc: Disc; n: number }) {
+function StatusDisc({ disc, n, tally }: { disc: Disc; n: number; tally?: CaseTally }) {
   if (disc === "passed")
     return (
       <span className="disc passed" title="Passed">
@@ -332,13 +347,21 @@ function StatusDisc({ disc, n }: { disc: Disc; n: number }) {
         <span className="visually-hidden">Failed</span>
       </span>
     );
-  if (disc === "running")
+  if (disc === "running") {
+    const counted = tally && tally.passed + tally.failed > 0;
     return (
-      <span className="disc running" title="Running">
+      <span className="disc running" title={counted ? `Running: ${tally.passed} passed, ${tally.failed} failed so far` : "Running"}>
         <span className="spinner" aria-hidden />
         <span className="visually-hidden">Running</span>
+        {counted && (
+          <span className="disc-tally" aria-hidden>
+            <span className="tone-ok">✓{tally.passed}</span>
+            {tally.failed > 0 && <span className="tone-bad">✕{tally.failed}</span>}
+          </span>
+        )}
       </span>
     );
+  }
   return (
     <span className={`disc ${disc === "skipped" ? "skipped" : "idle"}`} title={disc === "skipped" ? "Skipped" : "Not run yet"}>
       {n}
@@ -347,14 +370,14 @@ function StatusDisc({ disc, n }: { disc: Disc; n: number }) {
 }
 
 /** A closed case: one line with its checkbox, name, method, path, checks and the variables it sets. */
-function CaseSummary({ testCase: c, latest, onOpen, onToggle }: { testCase: TestCase; latest: CaseResult | null; onOpen: () => void; onToggle: (enabled: boolean) => void }) {
+function CaseSummary({ testCase: c, latest, locked, onOpen, onToggle }: { testCase: TestCase; latest: CaseResult | null; locked: boolean; onOpen: () => void; onToggle: (enabled: boolean) => void }) {
   const counts = latest ? checkCounts(latest) : null;
   const sets = latest?.passed ? detectVarSets(c.postScript) : [];
   const failed = c.enabled && latest && !latest.passed;
   return (
     <div className={`case-card ${failed ? "failed" : ""} ${c.enabled ? "" : "skipped"}`}>
       <div className="case-card-head">
-        <input type="checkbox" checked={c.enabled} onChange={(e) => onToggle(e.target.checked)} aria-label={`Include ${c.name}`} title="Include in runs" />
+        <input type="checkbox" checked={c.enabled} disabled={locked} onChange={(e) => onToggle(e.target.checked)} aria-label={`Include ${c.name}`} title={locked ? "Edits apply to the next run" : "Include in runs"} />
         <button className="case-open" onClick={onOpen} title={`Open ${c.name}`}>
           <span className="case-name">{c.name}</span>
           <span className={`method m-${c.request.method.toLowerCase()}`}>{c.request.method}</span>

@@ -1,3 +1,4 @@
+import { triggerText } from "../../lib/flows/scheduleChip";
 import { OverflowMenu } from "../shell/OverflowMenu";
 import { TrashIcon } from "../shell/Icons";
 import { currentMasker, maskSecrets, storedSecrets } from "../../lib/secrets";
@@ -160,7 +161,7 @@ export function FlowRunReport({ runId, onBack, onDelete, onShowCanvas }: Props) 
           </button>
           <h2>{run.flowName}</h2>
           <p className="muted small">
-            {new Date(run.startedAt).toLocaleString()} · {run.trigger === "manual" ? "Run button" : `Schedule: ${run.triggerLabel ?? "scheduled"}`}
+            {new Date(run.startedAt).toLocaleString()} · {triggerText(run) ?? "Run button"}
             {run.environmentName ? ` · ${run.environmentName}` : " · No environment"}
           </p>
         </div>
