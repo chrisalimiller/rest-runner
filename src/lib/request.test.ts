@@ -135,3 +135,21 @@ describe("unresolvedPlaceholders", () => {
     expect(unresolvedPlaceholders(get, { base: "x", id: "1", q: "1", tenant: "t", token: "t" })).toEqual([]);
   });
 });
+
+describe("comments in JSON bodies", () => {
+  const def = {
+    ...newRequest(),
+    method: "POST" as const,
+    bodyMode: "json" as const,
+    body: '{\n  // who\n  "name": "{{name}}", /* {{ignored}} */\n  "n": {{n}}\n}',
+  };
+
+  it("removes comments before filling placeholders", () => {
+    const prepared = prepareRequest(def, { name: "Ann", n: "2" });
+    expect(JSON.parse(prepared.body!)).toEqual({ name: "Ann", n: 2 });
+  });
+
+  it("ignores placeholders that are only inside comments", () => {
+    expect(requestPlaceholders(def).sort()).toEqual(["n", "name"]);
+  });
+});

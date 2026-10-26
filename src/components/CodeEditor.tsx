@@ -19,7 +19,7 @@ import {
 } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
 import { useEffect, useRef } from "react";
-import { findJsonProblem, formatJson } from "../lib/jsonFormat";
+import { findJsonComments, findJsonProblem, formatJson } from "../lib/jsonFormat";
 
 /** GitHub dark syntax colors. */
 const githubDarkHighlight = HighlightStyle.define([
@@ -81,6 +81,27 @@ const placeholderMarks = ViewPlugin.fromClass(
   },
   { decorations: (v) => v.decorations },
 );
+
+/** Greys out // and block comments, which the JSON grammar would otherwise mark as errors. */
+const commentMarks = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+    constructor(view: EditorView) {
+      this.decorations = this.build(view);
+    }
+    update(u: ViewUpdate) {
+      if (u.docChanged) this.decorations = this.build(u.view);
+    }
+    build(view: EditorView): DecorationSet {
+      const mark = Decoration.mark({ class: "cm-json-comment" });
+      return Decoration.set(findJsonComments(view.state.doc.toString()).map(([from, to]) => mark.range(from, to)));
+    }
+  },
+  { decorations: (v) => v.decorations },
+);
+
+/** Lets Ctrl/Cmd+/ comment lines in a JSON body with //. */
+const jsonCommentTokens = EditorState.languageData.of(() => [{ commentTokens: { line: "//", block: { open: "/*", close: "*/" } } }]);
 
 const jsonLinter = linter(
   (view) => {
@@ -168,7 +189,7 @@ export function CodeEditor({
         completions && !readOnly ? autocompletion({ override: [completions] }) : [],
       ];
     }
-    return isJson ? [json(), syntaxHighlighting(githubDarkHighlight), readOnly ? [] : [jsonLinter, formatOnPaste]] : [];
+    return isJson ? [json(), jsonCommentTokens, commentMarks, syntaxHighlighting(githubDarkHighlight), readOnly ? [] : [jsonLinter, formatOnPaste]] : [];
   };
 
   useEffect(() => {

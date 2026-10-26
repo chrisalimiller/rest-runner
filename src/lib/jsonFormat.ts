@@ -3,6 +3,8 @@
  * wherever a value or key can go, so a request body like
  *   {"id": {{id}}, "name": "{{name}}"}
  * can be checked and formatted before the placeholders are filled in.
+ * It also accepts // line comments and block comments outside strings; they
+ * are removed by stripJsonComments before a request is sent.
  */
 
 export type TokenType = "string" | "number" | "literal" | "placeholder" | "punct";
@@ -41,13 +43,96 @@ function match(re: RegExp, text: string, at: number): string | null {
   return m && m[0].length > 0 ? m[0] : null;
 }
 
+/** Index just past the comment starting at `at`, or null when there is no comment there. */
+function commentEnd(text: string, at: number): number | null {
+  if (text[at] !== "/") return null;
+  if (text[at + 1] === "/") {
+    const nl = text.indexOf("\n", at + 2);
+    return nl === -1 ? text.length : nl;
+  }
+  if (text[at + 1] === "*") {
+    const close = text.indexOf("*/", at + 2);
+    if (close === -1) throw new JsonError("Comment is missing its closing */", at, text.length);
+    return close + 2;
+  }
+  return null;
+}
+
+/** Removes // and block comments that sit outside strings. Line breaks are kept. Text with no comments comes back unchanged. */
+export function stripJsonComments(text: string): string {
+  if (!text.includes("/")) return text;
+  let out = "";
+  let i = 0;
+  while (i < text.length) {
+    const ch = text[i];
+    if (ch === '"') {
+      let j = i + 1;
+      while (j < text.length && text[j] !== '"') j += text[j] === "\\" ? 2 : 1;
+      out += text.slice(i, j + 1);
+      i = j + 1;
+      continue;
+    }
+    let end: number | null = null;
+    try {
+      end = commentEnd(text, i);
+    } catch {
+      end = text.length;
+    }
+    if (end !== null) {
+      i = end;
+      continue;
+    }
+    out += ch;
+    i += 1;
+  }
+  return out;
+}
+
+/** Start and end offsets of each comment outside strings, for highlighting. */
+export function findJsonComments(text: string): [number, number][] {
+  const out: [number, number][] = [];
+  if (!text.includes("/")) return out;
+  let i = 0;
+  while (i < text.length) {
+    if (text[i] === '"') {
+      let j = i + 1;
+      while (j < text.length && text[j] !== '"') j += text[j] === "\\" ? 2 : 1;
+      i = j + 1;
+      continue;
+    }
+    let end: number | null = null;
+    try {
+      end = commentEnd(text, i);
+    } catch {
+      end = text.length;
+    }
+    if (end !== null) {
+      out.push([i, end]);
+      i = end;
+    } else {
+      i += 1;
+    }
+  }
+  return out;
+}
+
+/** True when the text has a comment outside its strings. */
+export function hasJsonComments(text: string): boolean {
+  return stripJsonComments(text) !== text;
+}
+
 export function tokenize(text: string): Token[] {
   const tokens: Token[] = [];
   let i = 0;
   while (i < text.length) {
-    SPACE.lastIndex = i;
-    SPACE.exec(text);
-    i = SPACE.lastIndex;
+    for (;;) {
+      SPACE.lastIndex = i;
+      SPACE.exec(text);
+      i = SPACE.lastIndex;
+      const end = i < text.length ? commentEnd(text, i) : null;
+      if (end === null) break;
+      i = end;
+    }
     if (i >= text.length) break;
     const ch = text[i];
     if (ch === '"') {
@@ -173,9 +258,10 @@ export function findJsonProblem(text: string): JsonProblem | null {
   }
 }
 
-/** Pretty-prints JSON with 2-space indents, keeping placeholders and string contents exactly. Returns null if the text is not valid. */
+/** Pretty-prints JSON with 2-space indents, keeping placeholders and string contents exactly. Returns null if the text is not valid or has comments. */
 export function formatJson(text: string, indent = "  "): string | null {
-  if (text.trim() === "" || findJsonProblem(text)) return null;
+  // Formatting would drop the comments, so a body with comments is left as written.
+  if (text.trim() === "" || findJsonProblem(text) || hasJsonComments(text)) return null;
   const tokens = tokenize(text);
   let out = "";
   let depth = 0;
