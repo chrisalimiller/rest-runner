@@ -39,7 +39,7 @@ import {
 import { emptyRow, newRequest } from "./lib/defaults";
 import { earlierSendLabel, earlierSends, earlierSendTone, sendTooltip, whenLabel } from "./lib/earlierSends";
 import { fitHistory, historyLabel, historyOutcome, MAX_HISTORY_BODY, responseNotKept } from "./lib/history";
-import { environmentVars, newEnvironment, type Environment } from "./lib/environments";
+import { environmentVars, guardFor, loadEnvironments, newEnvironment, type Environment } from "./lib/environments";
 import { sendRequest } from "./lib/http";
 import { newId } from "./lib/ids";
 import { prepareRequest, unresolvedPlaceholders } from "./lib/request";
@@ -121,7 +121,7 @@ export default function App({ active = true, shell, command }: Props) {
   const [outcomeIsSample, setOutcomeIsSample] = useState(false);
   const [sampleLabel, setSampleLabel] = useState<string | undefined>(undefined);
   const [shownHistoryId, setShownHistoryId] = useState<string | null>(null);
-  const [environments, setEnvironments] = useState<Environment[]>(() => load(ENVIRONMENTS_KEY, []));
+  const [environments, setEnvironments] = useState<Environment[]>(loadEnvironments);
   const [activeEnvId, setActiveEnvId] = useState<string | null>(() => load(ACTIVE_ENV_KEY, null));
   const [showEnvEditor, setShowEnvEditor] = useState(false);
   const [focusVarId, setFocusVarId] = useState<string | undefined>(undefined);
@@ -530,6 +530,7 @@ export default function App({ active = true, shell, command }: Props) {
   };
 
   const unfilled = unresolvedPlaceholders(def, sendVars);
+  const guard = guardFor(activeEnv);
   const sends = earlierSends(history, runs.filter((r) => !runDelete.hidden.has(r.id)), def);
   const shownEntry = outcomeIsSample && shownHistoryId ? history.find((h) => h.id === shownHistoryId) : undefined;
   const openBatch = () => {
@@ -680,13 +681,14 @@ export default function App({ active = true, shell, command }: Props) {
               </button>
             ) : (
               <button
-                className="send"
+                className={`send ${guard ? "guarded" : ""}`}
+                style={guard ? ({ "--guard": guard.cssColor } as React.CSSProperties) : undefined}
                 onClick={() => void send()}
                 disabled={def.url.trim() === ""}
                 title={unfilled.length > 0 ? `Sends with ${unfilled.map((n) => `{{${n}}}`).join(", ")} as written` : "Send (Ctrl/Cmd + Enter)"}
               >
                 {unfilled.length > 0 && <span aria-hidden>⚠ </span>}
-                Send
+                {guard ? guard.send : "Send"}
               </button>
             )}
             <button className="secondary" onClick={saveCurrent} title="Save (Ctrl/Cmd + S)">

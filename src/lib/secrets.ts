@@ -1,8 +1,7 @@
-import type { Environment } from "./environments";
+import { ENVIRONMENTS_KEY, type Environment } from "./environments";
 import { load } from "./storage";
 
 export const SECRET_MASK = "••••••";
-const ENVIRONMENTS_KEY = "rest-runner.environments";
 
 /** Every way a value can appear in text we show or export: as is, JSON-escaped, URL-encoded, HTML-escaped, CSV-quoted. */
 function variants(value: string): string[] {

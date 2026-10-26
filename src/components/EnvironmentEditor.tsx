@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { newEnvironment, type Environment } from "../lib/environments";
+import { ENV_COLORS, ENV_COLOR_VARS, newEnvironment, type Environment, type EnvColor } from "../lib/environments";
 import { KeyValueEditor } from "./KeyValueEditor";
 import { useToast } from "./shell/Toast";
 import { useEscape } from "./useEscape";
@@ -88,6 +88,22 @@ export function EnvironmentEditor({ environments, activeId, onChange, onClose, f
                   <button className="secondary danger" onClick={() => remove(selected)}>
                     Delete
                   </button>
+                </div>
+                <div className="env-color-row" role="radiogroup" aria-label="Environment colour">
+                  <span className="muted small">Colour</span>
+                  {ENV_COLORS.map((c) => (
+                    <button
+                      key={c}
+                      role="radio"
+                      aria-checked={(selected.color ?? "none") === c}
+                      aria-label={c === "none" ? "No colour" : c}
+                      title={c === "none" ? "No colour" : `${c[0].toUpperCase()}${c.slice(1)}`}
+                      className={`env-swatch ${(selected.color ?? "none") === c ? "on" : ""} ${c === "none" ? "none" : ""}`}
+                      style={c === "none" ? undefined : { background: ENV_COLOR_VARS[c as Exclude<EnvColor, "none">] }}
+                      onClick={() => update({ ...selected, color: c })}
+                    />
+                  ))}
+                  <span className="muted small">A coloured environment outlines Send, Run suite and Run, and puts its name on them.</span>
                 </div>
                 <p className="muted small">
                   Use these anywhere in a request as {"{{name}}"}. In a batch run, a CSV column with the same name wins. Lock a value to mask it on screen and leave it out of exports.

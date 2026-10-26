@@ -2252,3 +2252,33 @@ select:focus-visible,
   padding: 0;
   margin-bottom: 4px;
 }
+
+.guarded {
+  outline: 2px solid var(--guard);
+  outline-offset: 2px;
+}
+
+.env-color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.env-swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: var(--bg-soft);
+  cursor: pointer;
+}
+
+.env-swatch.none {
+  border: 1px dashed var(--muted);
+}
+
+.env-swatch.on {
+  border-color: var(--text);
+}

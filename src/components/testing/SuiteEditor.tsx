@@ -40,6 +40,8 @@ interface Props {
   latestRun: TestRun | null;
   envVars: Vars;
   envName?: string;
+  /** The selected environment has a colour: Run suite is outlined and says where it runs. */
+  guard?: { cssColor: string; runSuite: string } | null;
   notice: string | null;
 }
 
@@ -126,13 +128,14 @@ export function SuiteEditor(props: Props) {
           </button>
         ) : (
           <button
-            className="send icon-label"
+            className={`send icon-label ${props.guard ? "guarded" : ""}`}
+            style={props.guard ? ({ "--guard": props.guard.cssColor } as React.CSSProperties) : undefined}
             onClick={props.onRun}
             disabled={enabledCount === 0 || props.anyRunning}
             title={props.anyRunning ? "Another suite is running" : enabledCount === 0 ? "Add or enable a test case first" : "Run every enabled case"}
           >
             <PlayFilledIcon />
-            Run suite
+            {props.guard ? props.guard.runSuite : "Run suite"}
           </button>
         )}
       </div>

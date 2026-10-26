@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cleanCollections } from "../../lib/collections";
-import { environmentVars, type Environment } from "../../lib/environments";
+import { environmentVars, guardFor, loadEnvironments, type Environment } from "../../lib/environments";
 import { FlowNotRunnableError, runFlow } from "../../lib/flows/engine";
 import { stepStatusCode } from "../../lib/flows/flowReport";
 import { describeImport, importFlowsFile, toFlowsFile } from "../../lib/flows/flowFile";
@@ -33,7 +33,6 @@ import "./flows.css";
 const OPEN_FLOW_KEY = "rest-runner.flow-open";
 const FLOW_ENV_KEY = "rest-runner.flow-environment";
 const SCHEDULE_STATE_KEY = "rest-runner.flow-schedules";
-const ENVIRONMENTS_KEY = "rest-runner.environments";
 const SUITES_KEY = "rest-runner.test-suites";
 const COLLECTIONS_KEY = "rest-runner.collections";
 /** How often the scheduler looks for runs that came due. */
@@ -85,7 +84,7 @@ function timeLabel(iso: string): string {
 export function FlowsApp({ active, shell, command }: Props) {
   const [flows, setFlows] = useState<Flow[]>(loadFlows);
   const [openFlowId, setOpenFlowId] = useState<string | null>(() => load(OPEN_FLOW_KEY, null));
-  const [environments, setEnvironments] = useState<Environment[]>(() => load(ENVIRONMENTS_KEY, []));
+  const [environments, setEnvironments] = useState<Environment[]>(loadEnvironments);
   const [envId, setEnvId] = useState<string | null>(() => load(FLOW_ENV_KEY, null));
   const [items, setItems] = useState<FlowItems>(readFlowItems);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -130,7 +129,7 @@ export function FlowsApp({ active, shell, command }: Props) {
   // Suites, requests and environments are edited in the other modes; pick up changes whenever Flows is shown.
   useEffect(() => {
     if (!active) return;
-    setEnvironments(load(ENVIRONMENTS_KEY, []));
+    setEnvironments(loadEnvironments());
     setItems(readFlowItems());
   }, [active]);
 
@@ -220,7 +219,7 @@ export function FlowsApp({ active, shell, command }: Props) {
     const fresh = readFlowItems();
     setItems(fresh);
     // Read environments now: a scheduled run can start while another mode is open.
-    const envs = load<Environment[]>(ENVIRONMENTS_KEY, []);
+    const envs = loadEnvironments();
     const runEnv = envs.find((e) => e.id === envIdRef.current) ?? null;
     const controller = new AbortController();
     aborts.current.set(f.id, controller);
@@ -443,6 +442,7 @@ export function FlowsApp({ active, shell, command }: Props) {
     .filter((l) => l.running)
     .map((l) => l.flowId);
   const flowRunning = !!flow && runningIds.includes(flow.id);
+  const guard = guardFor(environments.find((e) => e.id === envId));
   const selected = flow && selectedId ? (flow.nodes.find((n) => n.id === selectedId) ?? null) : null;
   const labelFor = (id: string) => {
     const n = flow?.nodes.find((x) => x.id === id);
@@ -551,12 +551,13 @@ export function FlowsApp({ active, shell, command }: Props) {
                       </button>
                     ) : (
                       <button
-                        className="send"
+                        className={`send ${guard ? "guarded" : ""}`}
+                        style={guard ? ({ "--guard": guard.cssColor } as React.CSSProperties) : undefined}
                         onClick={() => void run(flow, onlySchedule?.length === 1 ? onlySchedule[0].id : undefined)}
                         disabled={hasErrors(problems)}
                         title={hasErrors(problems) ? "Fix the problems listed on the right first" : hasStart ? "Run the flow from its Start step" : "Run the flow from its Schedule step now"}
                       >
-                        Run
+                        {guard ? guard.run : "Run"}
                       </button>
                     )}
                   </>

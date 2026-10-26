@@ -7,7 +7,7 @@ import {
   updateRequest,
   type Collection,
 } from "./collections";
-import type { Environment } from "./environments";
+import { cleanEnvironments, type Environment } from "./environments";
 import type { RequestDef } from "./types";
 
 /**
@@ -93,7 +93,7 @@ export function importWorkspaceFile(text: string, collections: Collection[], env
   }
   if (!data || data.app !== "rest-runner") throw new Error("This is not a REST Runner export file.");
 
-  const envs = (Array.isArray(data.environments) ? data.environments : []).filter(isEnvironment);
+  const envs = cleanEnvironments((Array.isArray(data.environments) ? data.environments : []).filter(isEnvironment));
   const e = mergeById(
     environments,
     envs.map((env) => keepSecretValues(env, environments.find((x) => x.id === env.id))),
