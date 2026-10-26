@@ -252,3 +252,25 @@ export async function runSuite(suite: TestSuite, ctx: SuiteRunContext): Promise<
   if (stopped) return "stopped-on-failure";
   return "completed";
 }
+
+/**
+ * "Try up to here": runs the cases from the first through `upToIndex` once, in order, using the first CSV row.
+ * Disabled cases are skipped (the target case runs even when it is off, since it was asked for), and variables
+ * carry from case to case like in a sequential run. Stops at the first failure when the suite says so.
+ */
+export async function runUpTo(suite: TestSuite, upToIndex: number, ctx: Omit<SuiteRunContext, "onResult"> & { onResult?: (result: CaseResult) => void }): Promise<CaseResult[]> {
+  const iter = planIterations(ctx.rows, 1)[0];
+  const runVars: Vars = { ...ctx.startVars };
+  const results: CaseResult[] = [];
+  for (let i = 0; i <= upToIndex && i < suite.cases.length; i++) {
+    const tc = suite.cases[i];
+    if (!tc.enabled && i !== upToIndex) continue;
+    if (ctx.signal.aborted) break;
+    const result = await runCase({ testCase: tc, caseIndex: i, iter, runVars }, suite.options, ctx);
+    if (!result) break;
+    results.push(result);
+    ctx.onResult?.(result);
+    if (!result.passed && suite.options.stopOnFailure) break;
+  }
+  return results;
+}

@@ -26,6 +26,8 @@ interface Props {
   onCollapse: () => void;
   /** Sends this one case (with its scripts and assertions) using the first CSV row, if any. */
   onTry: () => void;
+  /** Runs the cases from the first through this one, once. */
+  onTryUpTo: () => void;
   trying: boolean;
   tryResult: CaseResult | null;
   /** The latest result: the Try case result, or from the latest run. */
@@ -84,10 +86,22 @@ export function CaseEditor(props: Props) {
               { label: "Delete case", icon: <TrashIcon />, onSelect: props.onDelete, danger: true, separated: true },
             ]}
           />
-          <button className="secondary try-btn" onClick={props.onTry} disabled={props.trying || def.url.trim() === ""} title="Send this case once, with its scripts and assertions">
-            <PlayFilledIcon size={10} />
-            {props.trying ? "Running…" : "Try case"}
-          </button>
+          <span className="split-btn">
+            <button className="secondary try-btn" onClick={props.onTry} disabled={props.trying || def.url.trim() === ""} title="Send this case once, with its scripts and assertions">
+              <PlayFilledIcon size={10} />
+              {props.trying ? "Running…" : "Try case"}
+            </button>
+            <OverflowMenu
+              label="More ways to try"
+              triggerTitle="More ways to try"
+              triggerClass="secondary split-caret"
+              trigger={<span aria-hidden>▾</span>}
+              disabled={props.trying || props.index === 0}
+              items={[
+                { label: "Try up to here", onSelect: props.onTryUpTo, title: "Run the enabled cases before this one, then this one, so variables they set are available" },
+              ]}
+            />
+          </span>
           <button className="square-btn" onClick={props.onCollapse} aria-label="Collapse case" title="Collapse">
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
               <path d="M6 15l6-6 6 6" />

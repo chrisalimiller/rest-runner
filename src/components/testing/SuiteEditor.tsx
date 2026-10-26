@@ -39,6 +39,7 @@ interface Props {
   onRun: () => void;
   onStop: () => void;
   onTryCase: (tc: TestCase) => void;
+  onTryUpTo: (tc: TestCase) => void;
   tryingCaseId: string | null;
   tryResults: Record<string, CaseResult>;
   latestRun: TestRun | null;
@@ -285,6 +286,7 @@ export function SuiteEditor(props: Props) {
                       }}
                       onCollapse={() => onOpenCase(null)}
                       onTry={() => props.onTryCase(c)}
+                      onTryUpTo={() => props.onTryUpTo(c)}
                       trying={props.tryingCaseId === c.id}
                       tryResult={props.tryResults[c.id] ?? null}
                       latest={latest}

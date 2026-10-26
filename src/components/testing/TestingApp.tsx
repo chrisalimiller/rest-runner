@@ -8,7 +8,7 @@ import { sendRequest } from "../../lib/http";
 import { newId } from "../../lib/ids";
 import { saveTextFile } from "../../lib/saveFile";
 import { load, save } from "../../lib/storage";
-import { planIterations, runCase, runSuite } from "../../lib/testing/runner";
+import { planIterations, runCase, runUpTo, runSuite } from "../../lib/testing/runner";
 import { createWorkerScriptRunner } from "../../lib/testing/scriptRunner";
 import { cleanSuites, newSuite } from "../../lib/testing/suites";
 import { buildTestRun, type TestRunSummary } from "../../lib/testing/testRun";
@@ -226,6 +226,26 @@ export function TestingApp({ active, shell, command }: Props) {
     }
   };
 
+  const tryUpTo = async (s: TestSuite, tc: TestCase) => {
+    if (tryingCaseId) return;
+    setTryingCaseId(tc.id);
+    const { rows } = rowsFor(s);
+    try {
+      const results = await runUpTo(s, s.cases.indexOf(tc), {
+        rows,
+        envVars,
+        send: sendRequest,
+        scripts: scripts.run,
+        signal: new AbortController().signal,
+        onResult: (r) => setTryResults((t) => ({ ...t, [r.caseId]: r })),
+      });
+      const failed = results.find((r) => !r.passed);
+      setNotice(failed ? `Try up to here stopped at "${failed.caseName}", which failed.` : `Tried ${results.length} case${results.length === 1 ? "" : "s"} up to "${tc.name}".`);
+    } finally {
+      setTryingCaseId(null);
+    }
+  };
+
   const exportSuites = async () => {
     try {
       const result = await saveTextFile("rest-runner-test-suites.json", toSuitesFile(suites), "REST Runner test suites", "json");
@@ -374,6 +394,7 @@ export function TestingApp({ active, shell, command }: Props) {
               onRun={() => void run(suite)}
               onStop={() => abortRef.current?.abort()}
               onTryCase={(tc) => void tryCase(suite, tc)}
+              onTryUpTo={(tc) => void tryUpTo(suite, tc)}
               tryingCaseId={tryingCaseId}
               tryResults={tryResults}
               latestRun={latestRun && latestRun.suiteId === suite.id ? latestRun : null}

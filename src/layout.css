@@ -2642,3 +2642,20 @@ select:focus-visible,
   border-radius: 3px;
   box-shadow: 0 0 0 1px var(--placeholder-bg);
 }
+
+.split-btn {
+  display: inline-flex;
+}
+
+.split-btn .try-btn {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.split-btn .split-caret {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  border-left: 0;
+  padding: 0 7px;
+  min-width: 0;
+}
