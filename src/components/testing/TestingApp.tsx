@@ -26,6 +26,8 @@ import { SuiteEditor } from "./SuiteEditor";
 import { MAX_SAVED_CSV, SuiteSettings } from "./SuiteSettings";
 import { TestingSidebar } from "./TestingSidebar";
 import { Modal } from "../shell/Modal";
+import { TitleSwitcher } from "../shell/TitleSwitcher";
+import { useCollapsed } from "../shell/useCollapsed";
 import { TestRunExplorer } from "./TestRunExplorer";
 
 const SUITES_KEY = "rest-runner.test-suites";
@@ -61,6 +63,7 @@ interface OpenReport {
 
 /** The Testing section: suites of test cases, running them, and their reports. */
 export function TestingApp({ active, shell, command }: Props) {
+  const [navCollapsed, toggleNav] = useCollapsed("rest-runner.testing-nav-collapsed");
   const [suites, setSuites] = useState<TestSuite[]>(() => cleanSuites(load(SUITES_KEY, [])));
   const [openSuiteId, setOpenSuiteId] = useState<string | null>(() => load(OPEN_SUITE_KEY, null));
   /** The open case of each suite; null means all collapsed. Missing means the first case. */
@@ -285,14 +288,32 @@ export function TestingApp({ active, shell, command }: Props) {
         onMode={shell.onMode}
         onQuickOpen={shell.onQuickOpen}
         searchPlaceholder="Jump to a suite, case or test run…"
-        switcher={suite && openRunId === null ? <span className="topbar-title" title={suite.name}>{suite.name || "(unnamed)"}</span> : undefined}
+        switcher={
+          suite && openRunId === null ? (
+            <TitleSwitcher
+              noun="Suites"
+              title={suite.name}
+              items={suites.map((s) => ({ id: s.id, name: s.name, detail: String(s.cases.length) }))}
+              activeId={suite.id}
+              onOpen={(id) => {
+                setOpenSuiteId(id);
+                setOpenRunId(null);
+              }}
+              onNew={createSuite}
+              onImport={(f) => void importSuites(f)}
+              onExport={() => void exportSuites()}
+            />
+          ) : undefined
+        }
         environments={environments}
         activeEnvId={envId}
         onEnvChange={setEnvId}
         envTitle="Environments are edited in Requests mode"
       />
-      <div className={`runbook ${openRunId !== null ? "with-report" : ""}`}>
+      <div className={`runbook ${openRunId !== null ? "with-report" : ""} ${navCollapsed ? "nav-collapsed" : ""}`}>
         <TestingSidebar
+          collapsed={navCollapsed}
+          onToggleCollapsed={toggleNav}
           suites={suites}
           activeSuiteId={openSuiteId}
           onOpenSuite={(id) => {

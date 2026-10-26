@@ -4,7 +4,7 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr) 320px;
+  grid-template-columns: var(--nav-w, 240px) minmax(0, 1fr) 320px;
 }
 
 .flow-main {
@@ -686,13 +686,13 @@ button.flow-problem:hover:not(:disabled) {
 
 @media (max-width: 1200px) {
   .flows-layout {
-    grid-template-columns: 220px minmax(0, 1fr) 280px;
+    grid-template-columns: var(--nav-w, 220px) minmax(0, 1fr) 280px;
   }
 }
 
 /* The full-width report of a saved flow run has no settings panel. */
 .flows-layout.with-report {
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: var(--nav-w, 240px) minmax(0, 1fr);
 }
 
 .flow-nav-item .flow-nav-note {

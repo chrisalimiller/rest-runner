@@ -3,6 +3,9 @@ import type { TestRunSummary } from "../../lib/testing/testRun";
 import type { TestSuite } from "../../lib/testing/types";
 
 interface Props {
+  /** The list is folded to a thin rail; the choice is remembered. */
+  collapsed: boolean;
+  onToggleCollapsed: () => void;
   suites: TestSuite[];
   activeSuiteId: string | null;
   onOpenSuite: (id: string) => void;
@@ -16,7 +19,7 @@ interface Props {
 }
 
 /** Suites and test runs on the left of Testing. Below 800px wide it turns into a select at the top. */
-export function TestingSidebar({ suites, activeSuiteId, onOpenSuite, onNewSuite, onExport, onImport, runs, activeRunId, onOpenRun, runningSuiteId }: Props) {
+export function TestingSidebar({ collapsed, onToggleCollapsed, suites, activeSuiteId, onOpenSuite, onNewSuite, onExport, onImport, runs, activeRunId, onOpenRun, runningSuiteId }: Props) {
   const importLink = (
     <label className="link-btn" title="Import test suites from a file">
       Import
@@ -69,7 +72,14 @@ export function TestingSidebar({ suites, activeSuiteId, onOpenSuite, onNewSuite,
         {importLink}
       </div>
 
-      <nav className="runbook-nav" aria-label="Suites and test runs">
+      {collapsed && (
+        <nav className="runbook-nav collapsed" aria-label="Suites and test runs">
+          <button className="icon-btn" onClick={onToggleCollapsed} aria-label="Show suites and test runs" title="Show the list" aria-expanded={false}>
+            »
+          </button>
+        </nav>
+      )}
+      <nav className="runbook-nav" aria-label="Suites and test runs" hidden={collapsed}>
         <div className="nav-group">
           <div className="nav-group-head">
             <span className="section-title">Suites</span>
@@ -80,6 +90,9 @@ export function TestingSidebar({ suites, activeSuiteId, onOpenSuite, onNewSuite,
               {importLink}
               <button className="link-btn" onClick={onExport} disabled={suites.length === 0} title="Export all test suites to a file">
                 Export
+              </button>
+              <button className="icon-btn" onClick={onToggleCollapsed} aria-label="Hide the list" title="Hide the list" aria-expanded>
+                «
               </button>
             </span>
           </div>

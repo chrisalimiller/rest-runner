@@ -474,6 +474,11 @@ body.dragging-split {
   padding: 12px;
 }
 
+.switcher-popover.list-popover {
+  height: auto;
+  max-height: min(420px, calc(100vh - 80px));
+}
+
 .popover-head {
   display: flex;
   align-items: center;
@@ -1234,11 +1239,11 @@ body.dragging-split {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 240px minmax(0, 1fr) 280px;
+  grid-template-columns: var(--nav-w, 240px) minmax(0, 1fr) 280px;
 }
 
 .runbook.with-report {
-  grid-template-columns: 240px minmax(0, 1fr);
+  grid-template-columns: var(--nav-w, 240px) minmax(0, 1fr);
 }
 
 .runbook-nav {
@@ -1250,6 +1255,24 @@ body.dragging-split {
   padding: 16px 14px;
   background: var(--bg-inset);
   border-right: 1px solid var(--border-muted);
+}
+
+.runbook-nav[hidden] {
+  display: none;
+}
+
+.runbook-nav.collapsed {
+  align-items: center;
+  padding: 10px 4px;
+}
+
+.runbook.nav-collapsed,
+.flows-layout.nav-collapsed {
+  --nav-w: 40px;
+}
+
+.title-switcher-btn {
+  padding-right: 8px;
 }
 
 .runbook-nav-compact {
@@ -2050,7 +2073,7 @@ details.case-try .call-detail {
 
 @media (max-width: 1200px) {
   .runbook {
-    grid-template-columns: 240px minmax(0, 1fr);
+    grid-template-columns: var(--nav-w, 240px) minmax(0, 1fr);
     grid-template-rows: minmax(0, 1fr) auto;
   }
 
