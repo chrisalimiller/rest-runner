@@ -7,6 +7,7 @@ import {
   updateRequest,
   type Collection,
 } from "./collections";
+import type { ExportedCertificate } from "./certificatesFile";
 import { cleanEnvironments, type Environment } from "./environments";
 import { importFlowsFile } from "./flows/flowFile";
 import { cleanFlows } from "./flows/flows";
@@ -19,19 +20,22 @@ import type { RequestDef } from "./types";
 
 /**
  * File format for exporting and importing a whole workspace: collections,
- * environments, test suites and flows. Version 2 files (no suites or flows) and
+ * environments, test suites and flows (and, from version 4, certificate rules). Version 3 files (no certificates),
+ * version 2 files (no suites or flows) and
  * version 1 files (a flat `savedRequests` list) still import, and so do the
  * separate suites and flows files.
  */
 export interface WorkspaceFile {
   app: "rest-runner";
   kind: "workspace";
-  version: 3;
+  version: 4;
   exportedAt: string;
   collections: Collection[];
   environments: Environment[];
   suites: TestSuite[];
   flows: Flow[];
+  /** Certificate rules, without key material unless the export included the files. Version 4 and later. */
+  certificates?: ExportedCertificate[];
 }
 
 /** Everything a workspace file holds. */
@@ -53,18 +57,19 @@ export function exportEnvironments(environments: Environment[], includeSecrets: 
 export function toWorkspaceFile(
   collections: Collection[],
   environments: Environment[],
-  options: { includeSecrets?: boolean; suites?: TestSuite[]; flows?: Flow[] } = {},
+  options: { includeSecrets?: boolean; suites?: TestSuite[]; flows?: Flow[]; certificates?: ExportedCertificate[] } = {},
 ): string {
   environments = exportEnvironments(environments, options.includeSecrets ?? false);
   const file: WorkspaceFile = {
     app: "rest-runner",
     kind: "workspace",
-    version: 3,
+    version: 4,
     exportedAt: new Date().toISOString(),
     collections,
     environments,
     suites: options.suites ?? [],
     flows: options.flows ?? [],
+    ...(options.certificates?.length ? { certificates: options.certificates } : {}),
   };
   return JSON.stringify(file, null, 2);
 }

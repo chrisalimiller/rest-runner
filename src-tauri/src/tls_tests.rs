@@ -279,3 +279,25 @@ async fn ids_cannot_leave_the_certificates_folder() {
     let cert = f.write("client.crt", f.pki.client_pem.as_bytes());
     assert!(f.import("../evil", &cert, None, None).unwrap_err().contains("Invalid certificate id"));
 }
+
+#[tokio::test]
+async fn files_exported_inline_import_into_another_store_and_work() {
+    let f = Fixture::new().await;
+    let pfx = f.write("client.pfx", &p12(&f.pki, "pfx-pass"));
+    f.import("c1", &pfx, None, Some("pfx-pass")).unwrap();
+    let exported = f.store.export_files("c1").unwrap();
+    assert_eq!(exported.cert_name.as_deref(), Some("client.p12"));
+    assert_eq!(exported.passphrase.as_deref(), Some("pfx-pass"));
+
+    // A second computer: new data folder, same files from the export.
+    f.store
+        .import(&ImportRequest {
+            id: "c2".into(),
+            cert_data: exported.cert_data,
+            cert_name: exported.cert_name,
+            passphrase: exported.passphrase,
+            ..Default::default()
+        })
+        .unwrap();
+    assert_eq!(f.get(Some("c2"), true).await.unwrap(), "secure");
+}

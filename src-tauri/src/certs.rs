@@ -10,6 +10,7 @@ use std::{
     sync::Arc,
 };
 
+use base64::{engine::general_purpose::STANDARD as BASE64, Engine};
 use pkcs8::EncryptedPrivateKeyInfo;
 use rustls::{
     crypto::ring::sign::any_supported_type,
@@ -75,6 +76,24 @@ pub struct ImportRequest {
     /// A separate PEM private key.
     pub key_path: Option<String>,
     pub ca_path: Option<String>,
+    pub passphrase: Option<String>,
+    /// The same files as base64, from a workspace export, instead of paths. `cert_name` says
+    /// whether the certificate is a .pfx/.p12 (by its extension).
+    pub cert_data: Option<String>,
+    pub cert_name: Option<String>,
+    pub key_data: Option<String>,
+    pub ca_data: Option<String>,
+}
+
+/// An entry's files and passphrase for a workspace export that includes them. Files are base64.
+#[derive(Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ExportedFiles {
+    pub cert_data: Option<String>,
+    /// `client.pem` or `client.p12`.
+    pub cert_name: Option<String>,
+    pub key_data: Option<String>,
+    pub ca_data: Option<String>,
     pub passphrase: Option<String>,
 }
 
@@ -142,11 +161,23 @@ impl CertStore {
     pub fn import(&self, req: &ImportRequest) -> Result<Imported, String> {
         let folder = self.folder(&req.id)?;
         let passphrase = req.passphrase.as_deref().filter(|p| !p.is_empty());
-        let read = |path: &str, what: &str| fs::read(path).map_err(|e| format!("Could not read the {what} file {path}: {e}"));
+        let read = |path: &Option<String>, data: &Option<String>, what: &str| -> Result<Option<Vec<u8>>, String> {
+            match (path, data) {
+                (Some(path), _) => fs::read(path)
+                    .map(Some)
+                    .map_err(|e| format!("Could not read the {what} file {path}: {e}")),
+                (None, Some(data)) => BASE64
+                    .decode(data)
+                    .map(Some)
+                    .map_err(|_| format!("The {what} file in the export is damaged.")),
+                (None, None) => Ok(None),
+            }
+        };
 
-        let cert_bytes = req.cert_path.as_deref().map(|p| read(p, "certificate")).transpose()?;
-        let key_bytes = req.key_path.as_deref().map(|p| read(p, "key")).transpose()?;
-        let ca_bytes = req.ca_path.as_deref().map(|p| read(p, "CA")).transpose()?;
+        let cert_bytes = read(&req.cert_path, &req.cert_data, "certificate")?;
+        let key_bytes = read(&req.key_path, &req.key_data, "key")?;
+        let ca_bytes = read(&req.ca_path, &req.ca_data, "CA")?;
+        let cert_name = req.cert_path.as_deref().or(req.cert_name.as_deref()).unwrap_or("");
         if cert_bytes.is_none() && ca_bytes.is_none() {
             return Err("Pick a client certificate, a CA file, or both.".into());
         }
@@ -157,7 +188,7 @@ impl CertStore {
         let mut client = None;
         let mut client_file = None;
         if let Some(bytes) = &cert_bytes {
-            let is_p12 = is_pkcs12(bytes, req.cert_path.as_deref().unwrap_or(""));
+            let is_p12 = is_pkcs12(bytes, cert_name);
             let material = if is_p12 {
                 load_pkcs12(bytes, passphrase.unwrap_or(""))?
             } else {
@@ -213,6 +244,21 @@ impl CertStore {
             return Err(e);
         }
         Ok(Imported { client, ca })
+    }
+
+    /// Reads an entry's files back for an export that includes them.
+    pub fn export_files(&self, id: &str) -> Result<ExportedFiles, String> {
+        let folder = self.folder(id)?;
+        let read = |name: &str| fs::read(folder.join(name)).ok().map(|bytes| BASE64.encode(bytes));
+        let (cert_name, cert_data) = if let Some(data) = read(CLIENT_P12) {
+            (Some(CLIENT_P12.to_string()), Some(data))
+        } else {
+            (read(CLIENT_PEM).map(|_| CLIENT_PEM.to_string()), read(CLIENT_PEM))
+        };
+        if cert_data.is_none() && read(CA_PEM).is_none() {
+            return Err("The certificate files are missing.".into());
+        }
+        Ok(ExportedFiles { cert_data, cert_name, key_data: read(KEY_PEM), ca_data: read(CA_PEM), passphrase: self.passphrases.get(id) })
     }
 
     /// Replaces the stored passphrase after checking it opens the certificate.

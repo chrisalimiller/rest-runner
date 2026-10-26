@@ -53,6 +53,12 @@ async fn cert_set_passphrase(
     done
 }
 
+/// Reads an entry's files and passphrase, for a workspace export that includes them.
+#[tauri::command]
+fn cert_export(certs: tauri::State<'_, Arc<certs::CertStore>>, id: String) -> Result<certs::ExportedFiles, String> {
+    certs.export_files(&id)
+}
+
 /// Removes an imported certificate's files and passphrase.
 #[tauri::command]
 fn cert_delete(
@@ -80,6 +86,7 @@ pub fn run() {
             http_cancel,
             cert_import,
             cert_set_passphrase,
+            cert_export,
             cert_delete
         ])
         .setup(|app| {

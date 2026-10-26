@@ -257,9 +257,36 @@ def read_csv(path):
 # ---------- Sending ----------
 
 
+def make_ssl_context():
+    """A client certificate and extra CA from the settings above, or None when there are none."""
+    cert = globals().get("CLIENT_CERT", "")
+    ca = globals().get("CA_CERT", "")
+    if not cert and not ca:
+        return None
+    import ssl
+
+    if ca and globals().get("CA_ONLY", False):
+        ctx = ssl.create_default_context(cafile=ca)
+    else:
+        ctx = ssl.create_default_context()
+        if ca:
+            ctx.load_verify_locations(cafile=ca)
+    if cert:
+        if cert.lower().endswith((".p12", ".pfx")):
+            sys.exit(
+                "Python cannot read .p12/.pfx files. Convert it first:\n"
+                "  openssl pkcs12 -in %s -out client.pem -nodes\n"
+                "then set CLIENT_CERT = \"client.pem\"." % cert
+            )
+        ctx.load_cert_chain(cert, globals().get("CLIENT_KEY") or None, os.environ.get("REST_RUNNER_CERT_PASSPHRASE") or None)
+    return ctx
+
+
 def make_opener():
     # Follows redirects. 4xx and 5xx responses arrive as HTTPError and are kept as responses in send().
-    opener = urllib.request.build_opener()
+    ctx = make_ssl_context()
+    handlers = [urllib.request.HTTPSHandler(context=ctx)] if ctx else []
+    opener = urllib.request.build_opener(*handlers)
     opener.addheaders = [("User-Agent", "rest-runner-script")]
     return opener
 

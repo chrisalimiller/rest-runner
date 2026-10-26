@@ -13,6 +13,7 @@ import { detectVarSets } from "../lib/testing/varsDetect";
 import { load, save } from "../lib/storage";
 import type { Vars } from "../lib/template";
 import type { RequestDef } from "../lib/types";
+import { useCertificates } from "./CertificatesDialog";
 import { CallDetail } from "./CallDetail";
 import { CsvPreview } from "./CsvPreview";
 import { ScriptExportPanel } from "./ScriptExportPanel";
@@ -193,6 +194,7 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
 
   const stop = () => abortRef.current?.abort();
 
+  const certificates = useCertificates();
   const exportInput = useMemo<ScriptExportInput>(
     () => ({
       def,
@@ -201,8 +203,9 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
       defaults: { ...envVars, ...scriptVars },
       envName,
       csvName: file?.name,
+      certificates,
     }),
-    [def, options, envVars, scriptVars, envName, file?.name],
+    [def, options, envVars, scriptVars, envName, file?.name, certificates],
   );
 
   const passed = results.filter((r) => !r.failed).length;
