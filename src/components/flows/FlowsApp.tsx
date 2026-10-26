@@ -3,6 +3,7 @@ import { cleanCollections } from "../../lib/collections";
 import { environmentVars, guardFor, loadEnvironments, type Environment } from "../../lib/environments";
 import { FlowNotRunnableError, runFlow } from "../../lib/flows/engine";
 import { stepStatusCode } from "../../lib/flows/flowReport";
+import { activeEdgeIds } from "../../lib/flows/progress";
 import { describeImport, importFlowsFile, toFlowsFile } from "../../lib/flows/flowFile";
 import { deleteFlowRun, getFlowRun, listFlowRuns, saveFlowRun } from "../../lib/flows/flowRunStore";
 import { loadFlows, newFlow, nodeLabel, saveFlows } from "../../lib/flows/flows";
@@ -23,6 +24,7 @@ import { MOD_KEY, TopBar } from "../shell/TopBar";
 import { useDeferredDelete } from "../shell/useDeferredDelete";
 import { reinsert, removeById } from "../../lib/listUndo";
 import { canRedo, canUndo, createUndoStack, pushUndo, redo, undo, type UndoStack } from "../../lib/undoStack";
+import { RunningLine } from "./RunningLine";
 import { FlowCanvas, type NodeRunState } from "./FlowCanvas";
 import { FlowRunPanel, type FlowRunView } from "./FlowRunPanel";
 import { FlowRunReport } from "./FlowRunReport";
@@ -170,6 +172,10 @@ export function FlowsApp({ active, shell, command }: Props) {
     return null;
   }, [flow, viewed, live, latest]);
   const runState = useMemo(() => runStateOf(shownRun), [shownRun]);
+  const animatedEdges = useMemo(
+    () => (flow && shownRun?.running ? activeEdgeIds(flow, shownRun.steps, shownRun.runningNodeIds) : undefined),
+    [flow, shownRun],
+  );
 
   /** Undo/redo history per flow (snapshots of the whole flow). */
   const [stacks, setStacks] = useState<Record<string, UndoStack<Flow>>>({});
@@ -223,6 +229,8 @@ export function FlowsApp({ active, shell, command }: Props) {
     const runEnv = envs.find((e) => e.id === envIdRef.current) ?? null;
     const controller = new AbortController();
     aborts.current.set(f.id, controller);
+    // The run panel takes the right-hand side; a step picked while it runs shows read-only settings.
+    if (f.id === openFlowId) closeSettings();
     setLives((all) => ({ ...all, [f.id]: { flowId: f.id, running: true, steps: [], runningNodeIds: [], startedAt: Date.now() } }));
     try {
       const result = await runFlow(f, {
@@ -553,9 +561,12 @@ export function FlowsApp({ active, shell, command }: Props) {
                       ]}
                     />
                     {flowRunning ? (
-                      <button className="send cancel" onClick={() => aborts.current.get(flow.id)?.abort()}>
-                        Stop
-                      </button>
+                      <>
+                        {live && <RunningLine flow={flow} run={live} />}
+                        <button className="send cancel" onClick={() => aborts.current.get(flow.id)?.abort()}>
+                          Stop
+                        </button>
+                      </>
                     ) : (
                       <button
                         className={`send ${guard ? "guarded" : ""}`}
@@ -575,6 +586,7 @@ export function FlowsApp({ active, shell, command }: Props) {
                 items={items}
                 problems={problems}
                 runState={runState}
+                animatedEdges={animatedEdges}
                 readOnly={readOnly}
                 onChange={updateFlow}
                 onSelect={setSelectedId}
@@ -593,6 +605,7 @@ export function FlowsApp({ active, shell, command }: Props) {
                 onChange={updateNode}
                 onDelete={() => deleteNode(selected.id)}
                 onClose={closeSettings}
+                locked={flowRunning}
               />
             ) : (
               <FlowRunPanel

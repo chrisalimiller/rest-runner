@@ -18,6 +18,8 @@ interface Props {
   onChange: (node: FlowNode) => void;
   onDelete: () => void;
   onClose: () => void;
+  /** The flow is running: show the settings but do not let them change. */
+  locked?: boolean;
 }
 
 const SOURCES = Object.keys(CONDITION_SOURCE_LABELS) as ConditionSource[];
@@ -281,7 +283,7 @@ function ScheduleEditor({ node, state, onChange }: { node: ScheduleNode; state?:
 const MAX_LOOP_CSV = 2 * 1024 * 1024;
 
 /** Settings for the selected node, in the right-hand panel. */
-export function NodeSettings({ node, items, problems, scheduleState, onChange, onDelete, onClose }: Props) {
+export function NodeSettings({ node, items, problems, scheduleState, onChange, onDelete, onClose, locked = false }: Props) {
   useEscape(onClose);
   const mine = problems.filter((p) => p.nodeId === node.id);
   const autoLabel = nodeLabel({ ...node, label: "" }, items.suites, items.findRequest);
@@ -296,11 +298,19 @@ export function NodeSettings({ node, items, problems, scheduleState, onChange, o
         </button>
       </div>
 
+      {locked && (
+        <p className="small flow-locked" role="status">
+          Running, settings are read-only
+        </p>
+      )}
+
       {mine.map((p, i) => (
         <p key={i} className={`small flow-problem ${p.level}`}>
           {p.message}
         </p>
       ))}
+
+      <fieldset className="flow-lock" disabled={locked}>
 
       {node.type !== "note" && (
         <label className="flow-field">
@@ -402,8 +412,10 @@ export function NodeSettings({ node, items, problems, scheduleState, onChange, o
         </>
       )}
 
+      </fieldset>
+
       <div className="flow-panel-foot">
-        <button className="secondary danger" onClick={onDelete}>
+        <button className="secondary danger" onClick={onDelete} disabled={locked}>
           Delete {node.type === "note" ? "note" : "step"}
         </button>
       </div>

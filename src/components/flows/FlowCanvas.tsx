@@ -67,6 +67,8 @@ interface Props {
   focusNodeId: string | null;
   /** Changes each time the same node is asked for again. */
   focusNonce: number;
+  /** Wires the live run just took into a step that is running now. */
+  animatedEdges?: Set<string>;
   /** Showing a past run: nothing can be moved, wired or changed. */
   readOnly: boolean;
   /** Changes each time the selection should be cleared from outside (settings panel closed). */
@@ -111,7 +113,7 @@ const EDGE_CLASS: Record<FlowOutput, string> = {
   done: "e-next",
 };
 
-function Canvas({ flow, items, problems, runState, onChange, onSelect, focusNodeId, focusNonce, readOnly, deselectNonce }: Props) {
+function Canvas({ flow, items, problems, runState, animatedEdges, onChange, onSelect, focusNodeId, focusNonce, readOnly, deselectNonce }: Props) {
   const rf = useReactFlow();
   const wrapRef = useRef<HTMLDivElement>(null);
   const flowRef = useRef(flow);
@@ -153,9 +155,10 @@ function Canvas({ flow, items, problems, runState, onChange, onSelect, focusNode
         targetHandle: "in",
         className: EDGE_CLASS[e.sourceHandle],
         selected: selectedEdges.has(e.id),
+        animated: animatedEdges?.has(e.id) ?? false,
         markerEnd: { type: MarkerType.ArrowClosed, width: 16, height: 16 },
       })),
-    [flow.edges, selectedEdges],
+    [flow.edges, selectedEdges, animatedEdges],
   );
 
   /** Opens a flow readably: the whole flow when it fits at a readable zoom, otherwise zoom 1 on Start. */
@@ -270,8 +273,18 @@ function Canvas({ flow, items, problems, runState, onChange, onSelect, focusNode
       setRfNodes((list) => list.map((n) => ({ ...n, selected: false })));
       onSelect(id);
       requestAnimationFrame(() => setRfNodes((list) => list.map((n) => ({ ...n, selected: n.id === id }))));
+      // Bring the new step into view when it landed off screen (after the flow has re-rendered).
+      requestAnimationFrame(() => {
+        const pos = flowRef.current.nodes.find((n) => n.id === id)?.position;
+        const wrap = wrapRef.current?.getBoundingClientRect();
+        if (!pos || !wrap) return;
+        const { x, y, zoom } = rf.getViewport();
+        const right = (pos.x + 220) * zoom + x;
+        const bottom = (pos.y + 100) * zoom + y;
+        if (right > wrap.width || bottom > wrap.height || pos.x * zoom + x < 0 || pos.y * zoom + y < 0) void rf.setCenter(pos.x + 110, pos.y + 40, { zoom, duration: 250 });
+      });
     },
-    [onSelect],
+    [onSelect, rf],
   );
 
   /** Palette click: next to the selected step (or the last one), wired from its first free output. */

@@ -100,9 +100,9 @@ export function StepNodeView({ data, selected }: NodeProps<StepRFNode>) {
             off
           </span>
         )}
-        {runs && runs > 1 && (
-          <span className="flow-node-badge" title={`Ran ${runs} times`}>
-            ×{runs}
+        {runs !== undefined && runs > 1 && (
+          <span className="flow-node-badge" title={`Ran ${runs} times in this run (a loop, a retry or a repeated branch)`}>
+            {runs} runs
           </span>
         )}
         {node.type === "run-request" && statusCode !== undefined && (
