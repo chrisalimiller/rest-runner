@@ -2322,6 +2322,16 @@ details.case-try .call-detail {
 .resolved-url .curl-toggle {
   flex: none;
   font-family: var(--mono);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.resolved-copy {
+  flex: none;
+  align-self: center;
+  width: 22px;
+  height: 22px;
 }
 
 .resolved-url .curl-toggle.active {
