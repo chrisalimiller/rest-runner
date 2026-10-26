@@ -1,3 +1,4 @@
+import { certificateLabel } from "../certificates";
 import { durationOf } from "../run";
 import { describeMode } from "./describe";
 import { caseStats, requestMs, testRunTimes, type TestRun } from "./testRun";
@@ -114,6 +115,7 @@ export function toTestCsvReport(run: TestRun): string {
     "response_headers",
     "response_body",
     "error",
+    "certificate",
     "script_output",
     "notes",
     ...run.columns.map((c) => `var:${c}`),
@@ -145,6 +147,7 @@ export function toTestCsvReport(run: TestRun): string {
       res ? headerLines(res.headers) : "",
       res?.body ?? "",
       o && !o.ok ? o.error : "",
+      certificateLabel(o?.certificate),
       scriptLog(r),
       r.notes.join("\n"),
       ...run.columns.map(data),
@@ -230,6 +233,7 @@ ${
   o
     ? `<h4>Request</h4>
 <p class="mono">${esc(o.request.method)} ${esc(o.request.url)}</p>
+${o.certificate ? `<p class="muted">Certificate: ${esc(certificateLabel(o.certificate))}</p>` : ""}
 ${kvTable(o.request.headers)}
 ${o.request.body ? `<pre>${esc(pretty(o.request.body))}</pre>` : ""}
 <h4>Response</h4>

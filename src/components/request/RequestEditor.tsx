@@ -14,6 +14,7 @@ import { ScriptEditor } from "../testing/ScriptEditor";
 import { ChevronDownIcon, CopyIcon } from "../shell/Icons";
 import { OverflowMenu } from "../shell/OverflowMenu";
 import { useToast } from "../shell/Toast";
+import { CertificateChip } from "./CertificateChip";
 import { CurlPanel } from "./CurlPanel";
 import { UrlInput } from "./UrlInput";
 import { Section } from "./Section";
@@ -205,6 +206,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
                   {unfilled.length === 1 ? `1 unfilled: ${unfilled[0]}` : `${unfilled.length} unfilled`}
                 </button>
               )}
+              <CertificateChip url={finalUrl} skipped={!!def.noCertificate} onSkip={(skip) => onChange({ noCertificate: skip || undefined })} />
               <span className="resolved-legend">{envName ? `values from ${envName}` : "no environment"}</span>
             </>
           ) : (

@@ -5,6 +5,8 @@ import type { Mode } from "./components/shell/TopBar";
 import { FlowsApp } from "./components/flows/FlowsApp";
 import { TestingApp } from "./components/testing/TestingApp";
 import type { QuickItem } from "./lib/quickOpen";
+import { CertificatesDialog } from "./components/CertificatesDialog";
+import { closeCertificates, useCertificatesDialog } from "./lib/certificatesDialog";
 import { FirstRun } from "./components/shell/FirstRun";
 import { load, save } from "./lib/storage";
 import { isFirstRun } from "./lib/workspaceStore";
@@ -30,6 +32,7 @@ export default function Root() {
     return saved === "testing" || saved === "flows" ? saved : "requests";
   });
   const [quickOpen, setQuickOpen] = useState(false);
+  const certificates = useCertificatesDialog();
   const [firstRun, setFirstRun] = useState(() => isFirstRun());
   const [commands, setCommands] = useState<Record<Mode, ShellCommand | null>>({ requests: null, testing: null, flows: null });
   useEffect(() => {
@@ -78,6 +81,7 @@ export default function Root() {
           }}
         />
       )}
+      {certificates.open && <CertificatesDialog entryId={certificates.entryId} onClose={closeCertificates} />}
       {quickOpen && (
         <QuickOpen
           mode={section}

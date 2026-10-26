@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const invoke = vi.fn();
 vi.mock("@tauri-apps/api/core", () => ({ invoke: (...args: unknown[]) => invoke(...args) }));
 
+import { resetCertificateCache, saveCertificates, type CertificateEntry } from "./certificates";
 import { sendRequest } from "./http";
 import type { PreparedRequest } from "./types";
 
@@ -12,7 +13,18 @@ function reply(status: number, headers: [string, string][] = [], body = "") {
   return { status, statusText: "", headers, body, sizeBytes: body.length, durationMs: 1 };
 }
 
+const details = { subject: "CN=x", issuer: "CN=ca", notBefore: 0, notAfter: 4_000_000_000, sha256: "ab".repeat(32) };
+const acme: CertificateEntry = {
+  id: "acme",
+  name: "Acme staging",
+  enabled: true,
+  patterns: ["api.acme.com"],
+  client: { format: "pem", separateKey: true, hasPassphrase: false, keyUnencrypted: true, details },
+};
+
 beforeEach(() => {
+  resetCertificateCache();
+  saveCertificates([]);
   invoke.mockReset();
   vi.stubGlobal("window", { __TAURI_INTERNALS__: {} });
 });
@@ -70,5 +82,46 @@ describe("sendRequest in the desktop app", () => {
     const out = await sendRequest(req, controller.signal);
     expect(!out.ok && out.error).toBe("Request cancelled");
     expect(invoke).not.toHaveBeenCalled();
+  });
+
+  describe("with imported certificates", () => {
+    beforeEach(() => saveCertificates([acme]));
+
+    it("sends the matching certificate and records it with the result", async () => {
+      invoke.mockResolvedValueOnce(reply(200));
+      const out = await sendRequest(req);
+      expect(invoke.mock.calls[0][1].request.tls).toEqual({ certId: "acme", caIds: [], caOnly: false });
+      expect(out.certificate).toEqual({ id: "acme", name: "Acme staging", sha256: details.sha256 });
+    });
+
+    it("sends no certificate to other hosts", async () => {
+      invoke.mockResolvedValueOnce(reply(200));
+      const out = await sendRequest({ ...req, url: "https://other.test/" });
+      expect(invoke.mock.calls[0][1].request.tls).toEqual({ caIds: [], caOnly: false });
+      expect(out.certificate).toBeUndefined();
+    });
+
+    it("leaves the client certificate out when the request says so", async () => {
+      invoke.mockResolvedValueOnce(reply(200));
+      const out = await sendRequest({ ...req, noCertificate: true });
+      expect(invoke.mock.calls[0][1].request.tls.certId).toBeUndefined();
+      expect(out.certificate).toBeUndefined();
+    });
+
+    it("matches again on every redirect hop, so the certificate is not shown to the next host", async () => {
+      invoke
+        .mockResolvedValueOnce(reply(302, [["location", "https://elsewhere.test/x"]]))
+        .mockResolvedValueOnce(reply(200));
+      await sendRequest(req);
+      expect(invoke.mock.calls[0][1].request.tls.certId).toBe("acme");
+      expect(invoke.mock.calls[1][1].request.tls.certId).toBeUndefined();
+    });
+
+    it("explains a missing client certificate in plain words", async () => {
+      saveCertificates([]);
+      invoke.mockRejectedValueOnce("error sending request: received fatal alert: CertificateRequired");
+      const out = await sendRequest(req);
+      expect(!out.ok && out.error).toMatch(/none matched api\.acme\.com/);
+    });
   });
 });

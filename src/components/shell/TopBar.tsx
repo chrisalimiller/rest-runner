@@ -4,7 +4,8 @@ import { BrandLockup } from "../BrandMark";
 import { overlayTitleBar } from "../../lib/windowChrome";
 import { topBarLayout } from "../../lib/topBar";
 import { useViewportWidth } from "../useViewportWidth";
-import { ChevronDownIcon, PencilIcon, SearchIcon } from "./Icons";
+import { openCertificates } from "../../lib/certificatesDialog";
+import { ChevronDownIcon, LockIcon, PencilIcon, SearchIcon } from "./Icons";
 import { OverflowMenu } from "./OverflowMenu";
 
 export type Mode = "requests" | "testing" | "flows";
@@ -71,6 +72,9 @@ export function TopBar(props: Props) {
           Variables
         </button>
       )}
+      <button className="icon-btn topbar-certs" onClick={() => openCertificates()} aria-label="Certificates" title="Client certificates and custom CAs, matched to addresses">
+        <LockIcon />
+      </button>
       <nav className="mode-tabs" aria-label="Mode">
         {(["requests", "testing", "flows"] as const).map((m) => (
           <button key={m} className={props.mode === m ? "active" : ""} aria-current={props.mode === m ? "page" : undefined} onClick={() => props.onMode(m)}>
