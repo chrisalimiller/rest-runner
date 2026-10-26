@@ -551,3 +551,12 @@ table.results.test-results .url-cell,
   font-family: var(--sans);
   font-size: 13px;
 }
+
+.plan-estimate {
+  margin: 4px 0 0;
+  padding: 6px 10px;
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius);
+  background: var(--bg-soft);
+  font-size: 13px;
+}
