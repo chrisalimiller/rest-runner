@@ -1,3 +1,4 @@
+import { triggerText } from "../../lib/flows/scheduleChip";
 import { END_LABELS } from "../../lib/flows/flowReport";
 import { whenLabel } from "../../lib/earlierSends";
 import type { Flow, FlowRunSummary } from "../../lib/flows/types";
@@ -69,7 +70,7 @@ export function FlowsSidebar({ collapsed, onToggleCollapsed, flows, activeFlowId
             <optgroup label="Flow runs">
               {runs.map((r) => (
                 <option key={r.id} value={`run:${r.id}`}>
-                  {r.flowName} · {whenLabel(r.startedAt)} · {r.end}
+                  {r.flowName} · {whenLabel(r.startedAt)} · {r.end}{triggerText(r) ? ` · ${triggerText(r)}` : ""}
                 </option>
               ))}
             </optgroup>
@@ -134,8 +135,9 @@ export function FlowsSidebar({ collapsed, onToggleCollapsed, flows, activeFlowId
           </div>
           {runs.length === 0 && <p className="muted small nav-empty">Finished flow runs show up here.</p>}
           {runs.map((r) => (
-            <button key={r.id} className={`nav-row run-row ${activeRunId === r.id ? "active" : ""}`} onClick={() => onOpenRun(r.id)} title={r.endReason ?? r.flowName}>
+            <button key={r.id} className={`nav-row run-row ${activeRunId === r.id ? "active" : ""}`} onClick={() => onOpenRun(r.id)} title={[triggerText(r), r.endReason].filter(Boolean).join(" · ") || r.flowName}>
               <span className="nav-row-name">{r.flowName}</span>
+              {triggerText(r) && <span className="run-trigger" title={triggerText(r)!}>⏱</span>}
               <span className="muted">{whenLabel(r.startedAt)}</span>
               <span className={`mono ${r.end === "passed" ? "tone-ok" : r.end === "passed-handled" ? "tone-warn" : r.end === "failed" ? "tone-bad" : "muted"}`} title={END_LABELS[r.end]}>{END_MARK[r.end]}</span>
               {r.failedSteps > 0 && <span className="mono tone-bad">{r.failedSteps}✕</span>}

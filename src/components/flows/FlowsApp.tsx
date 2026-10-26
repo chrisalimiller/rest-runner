@@ -1,3 +1,4 @@
+import { scheduleChip } from "../../lib/flows/scheduleChip";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cleanCollections } from "../../lib/collections";
 import { environmentVars, guardFor, loadEnvironments, type Environment } from "../../lib/environments";
@@ -460,6 +461,7 @@ export function FlowsApp({ active, shell, command }: Props) {
     .filter((l) => l.running)
     .map((l) => l.flowId);
   const flowRunning = !!flow && runningIds.includes(flow.id);
+  const chip = flow ? scheduleChip(flow, new Date()) : null;
   const guard = guardFor(environments.find((e) => e.id === envId));
   const selected = flow && selectedId ? (flow.nodes.find((n) => n.id === selectedId) ?? null) : null;
   const labelFor = (id: string) => {
@@ -563,6 +565,22 @@ export function FlowsApp({ active, shell, command }: Props) {
                       <span className="small notice" role="status" title={notice}>
                         {notice}
                       </span>
+                    )}
+                    {chip && (
+                      <label className={`schedule-chip ${chip.enabled ? "on" : "off"}`} title={`${chip.label}${chip.count > 1 ? ` (first of ${chip.count} schedules)` : ""}. Runs only while the app is open.`}>
+                        <span aria-hidden>⏱</span>
+                        <span>
+                          {chip.label}
+                          {chip.next ? ` · ${chip.next}` : ""}
+                        </span>
+                        <input
+                          type="checkbox"
+                          role="switch"
+                          checked={chip.enabled}
+                          aria-label={`Schedule ${chip.label}`}
+                          onChange={(e) => flow.nodes.forEach((n) => n.type === "schedule" && n.id === chip.nodeId && updateNode({ ...n, enabled: e.target.checked }))}
+                        />
+                      </label>
                     )}
                     <button className="icon-btn" onClick={() => stepHistory("undo")} disabled={!flowStack || !canUndo(flowStack)} aria-label="Undo" title={`Undo (${MOD_KEY}+Z)`}>
                       ↶

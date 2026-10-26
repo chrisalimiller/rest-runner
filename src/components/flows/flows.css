@@ -978,3 +978,32 @@ table.results.flow-report-steps td {
     animation: none;
   }
 }
+
+.schedule-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 8px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  font-size: 12px;
+  white-space: nowrap;
+  color: var(--text-soft);
+  max-width: 260px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.schedule-chip.on {
+  color: var(--text);
+  border-color: var(--accent-fg);
+}
+
+.schedule-chip input {
+  margin: 0;
+}
+
+.run-trigger {
+  color: var(--text-soft);
+  font-size: 11px;
+}
