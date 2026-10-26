@@ -427,6 +427,13 @@ export function FlowsApp({ active, shell, command }: Props) {
   useEffect(() => {
     if (!command || lastCommand.current === command.nonce) return;
     lastCommand.current = command.nonce;
+    if (command.type === "reload") {
+      setFlows(loadFlows());
+      setEnvironments(loadEnvironments());
+      setEnvId(load(FLOW_ENV_KEY, null));
+      setItems(readFlowItems());
+      return;
+    }
     if (command.type !== "open") return;
     const item = command.item;
     if (item.kind === "flow") {

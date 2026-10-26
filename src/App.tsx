@@ -52,7 +52,8 @@ import type { RunSummary } from "./lib/run";
 import type { QuickItem } from "./lib/quickOpen";
 import { deleteRun, listRuns } from "./lib/runStore";
 import { saveTextFile } from "./lib/saveFile";
-import { importWorkspaceFile, toWorkspaceFile } from "./lib/workspace";
+import { describeWorkspaceImport, importWorkspace as mergeWorkspace, toWorkspaceFile } from "./lib/workspace";
+import { readWorkspace, writeWorkspace } from "./lib/workspaceStore";
 import { load, save } from "./lib/storage";
 import type { HistoryEntry, RequestDef, SendOutcome } from "./lib/types";
 
@@ -398,7 +399,7 @@ export default function App({ active = true, shell, command }: Props) {
 
   const exportWorkspace = async (includeSecrets: boolean) => {
     try {
-      const result = await saveTextFile("rest-runner-export.json", toWorkspaceFile(collections, environments, { includeSecrets }), "REST Runner export", "json");
+      const result = await saveTextFile("rest-runner-export.json", toWorkspaceFile(collections, environments, { includeSecrets, suites: readWorkspace().suites, flows: readWorkspace().flows }), "REST Runner export", "json");
       if (result.saved) setNotice(result.path ? `Exported to ${result.path}` : "Export downloaded.");
     } catch (e) {
       setNotice(`Could not export: ${e instanceof Error ? e.message : String(e)}`);
@@ -436,11 +437,15 @@ export default function App({ active = true, shell, command }: Props) {
 
   const importWorkspace = async (file: File) => {
     try {
-      const result = importWorkspaceFile(await file.text(), collections, environments);
+      const stored = readWorkspace();
+      const result = mergeWorkspace(await file.text(), { ...stored, collections, environments });
+      const changed = result.counts.suites[0] + result.counts.suites[1] + result.counts.flows[0] + result.counts.flows[1] > 0;
+      if (changed && !writeWorkspace(result)) throw new Error("local storage is full");
       setCollections(result.collections);
       expand(...result.collections.filter((c) => !collections.some((x) => x.id === c.id)).map((c) => c.id));
       setEnvironments(result.environments);
-      setNotice(`Imported ${file.name}: ${result.added} added, ${result.replaced} updated.`);
+      if (changed) shell.onDataChanged(["suites", "flows"]);
+      setNotice(describeWorkspaceImport(file.name, result.counts));
     } catch (e) {
       setNotice(`Could not import ${file.name}: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -477,7 +482,11 @@ export default function App({ active = true, shell, command }: Props) {
     if (!command || lastCommand.current === command.nonce) return;
     lastCommand.current = command.nonce;
     if (command.type === "clear-history") setHistory([]);
-    else if (command.type === "reload") setCollections(loadCollections());
+    else if (command.type === "reload") {
+      setCollections(loadCollections());
+      setEnvironments(loadEnvironments());
+      setActiveEnvId(load(ACTIVE_ENV_KEY, null));
+    }
     else openItem(command.item);
   }, [command]);
 
@@ -557,7 +566,7 @@ export default function App({ active = true, shell, command }: Props) {
           <button className="link-btn" onClick={addCollection} title="Add a collection">
             New
           </button>
-          <label className="link-btn" title="Import collections and environments from a file">
+          <label className="link-btn" title="Import a workspace file: collections, environments, test suites and flows">
             Import
             <input
               type="file"
@@ -570,8 +579,8 @@ export default function App({ active = true, shell, command }: Props) {
               }}
             />
           </label>
-          <button className="link-btn" onClick={startExport} title="Export collections and environments to a file">
-            Export
+          <button className="link-btn" onClick={startExport} title="Export collections, environments, test suites and flows to one file">
+            Export workspace…
           </button>
         </span>
       </div>

@@ -268,7 +268,11 @@ export function TestingApp({ active, shell, command }: Props) {
     if (!command || lastCommand.current === command.nonce) return;
     lastCommand.current = command.nonce;
     if (command.type === "open") openItem(command.item);
-    if (command.type === "reload") setSuites(cleanSuites(load(SUITES_KEY, [])));
+    if (command.type === "reload") {
+      setSuites(cleanSuites(load(SUITES_KEY, [])));
+      setEnvironments(loadEnvironments());
+      setEnvId(load(TEST_ENV_KEY, null));
+    }
   }, [command]);
 
   useEffect(() => {
@@ -390,6 +394,7 @@ export function TestingApp({ active, shell, command }: Props) {
               <p className="muted">
                 Build suites of test cases from your saved requests, add assertions and scripts, and run them in order, in parallel, or once per CSV row.
               </p>
+              {suites.length === 0 && <p className="muted">Create a suite, then add cases from saved requests.</p>}
               {notice && <p className="small notice">{notice}</p>}
               <button className="send" onClick={createSuite}>
                 Create a test suite

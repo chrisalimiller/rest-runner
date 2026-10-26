@@ -83,7 +83,7 @@ export function TestingSidebar({ suites, activeSuiteId, onOpenSuite, onNewSuite,
               </button>
             </span>
           </div>
-          {suites.length === 0 && <p className="muted small nav-empty">A suite is an ordered list of test cases you run together.</p>}
+          {suites.length === 0 && <p className="muted small nav-empty">Create a suite, then add cases from saved requests.</p>}
           {suites.map((s) => (
             <button
               key={s.id}

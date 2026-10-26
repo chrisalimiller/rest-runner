@@ -5,7 +5,9 @@ import type { Mode } from "./components/shell/TopBar";
 import { FlowsApp } from "./components/flows/FlowsApp";
 import { TestingApp } from "./components/testing/TestingApp";
 import type { QuickItem } from "./lib/quickOpen";
+import { FirstRun } from "./components/shell/FirstRun";
 import { load, save } from "./lib/storage";
+import { isFirstRun } from "./lib/workspaceStore";
 
 const SECTION_KEY = "rest-runner.section";
 
@@ -28,6 +30,7 @@ export default function Root() {
     return saved === "testing" || saved === "flows" ? saved : "requests";
   });
   const [quickOpen, setQuickOpen] = useState(false);
+  const [firstRun, setFirstRun] = useState(() => isFirstRun());
   const [commands, setCommands] = useState<Record<Mode, ShellCommand | null>>({ requests: null, testing: null, flows: null });
   useEffect(() => {
     save(SECTION_KEY, section);
@@ -52,6 +55,7 @@ export default function Root() {
       const nonce = Date.now();
       if (what.includes("collections")) send("requests", { type: "reload", nonce });
       if (what.includes("suites")) send("testing", { type: "reload", nonce });
+      if (what.includes("flows")) send("flows", { type: "reload", nonce });
     },
   };
 
@@ -66,6 +70,14 @@ export default function Root() {
       <div className="root-section" hidden={section !== "flows"}>
         <FlowsApp active={section === "flows"} shell={shell} command={commands.flows} />
       </div>
+      {firstRun && (
+        <FirstRun
+          onDone={(changed) => {
+            setFirstRun(false);
+            if (changed) shell.onDataChanged(["collections", "suites", "flows"]);
+          }}
+        />
+      )}
       {quickOpen && (
         <QuickOpen
           mode={section}
@@ -87,5 +99,5 @@ export interface ShellProps {
   onMode: (mode: Mode) => void;
   onQuickOpen: () => void;
   /** A mode wrote saved data that another mode holds in memory (Flows importing suites or requests). */
-  onDataChanged: (what: ("suites" | "collections")[]) => void;
+  onDataChanged: (what: ("suites" | "collections" | "flows")[]) => void;
 }

@@ -228,7 +228,7 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
               </span>
             </span>
           ) : (
-            <span className="muted">Each row of the CSV becomes one request. Use {"{{column name}}"} anywhere in the request above.</span>
+            <span className="muted">Choose a CSV whose columns match your {"{{placeholders}}"}. Each row becomes one request.</span>
           )}
         </div>
 
