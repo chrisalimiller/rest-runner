@@ -35,6 +35,8 @@ interface Props {
   onRefreshFromSource?: () => void;
   envVars: Vars;
   envName?: string;
+  /** A run is in progress: the case can be read but not changed until it ends. */
+  locked?: boolean;
 }
 
 /** The open case in the runbook: header actions, request summary, checks and scripts, and what the post-script passes on. */
@@ -50,7 +52,7 @@ export function CaseEditor(props: Props) {
   const lastVars = latest?.postScript?.vars;
 
   return (
-    <div className={`case-card open ${latest && !latest.passed ? "failed" : ""}`}>
+    <div className={`case-card open ${latest && !latest.passed ? "failed" : ""} ${props.locked ? "locked" : ""}`} inert={props.locked}>
       <div className="case-card-head">
         <input type="checkbox" checked={tc.enabled} onChange={(e) => onChange({ ...tc, enabled: e.target.checked })} aria-label={`Include ${tc.name}`} title="Include in runs" />
         <input className="case-name-input" value={tc.name} onChange={(e) => onChange({ ...tc, name: e.target.value })} aria-label="Test case name" />

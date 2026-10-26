@@ -2567,3 +2567,32 @@ select:focus-visible,
   color: var(--bad);
   background: var(--bad-subtle);
 }
+
+.running-line {
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+
+.running-line .muted {
+  font-weight: 400;
+}
+
+.disc.running {
+  position: relative;
+}
+
+.disc-tally {
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  margin-left: 4px;
+  display: flex;
+  gap: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.case-card.locked {
+  opacity: 0.85;
+}

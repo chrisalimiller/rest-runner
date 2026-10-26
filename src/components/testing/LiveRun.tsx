@@ -7,6 +7,7 @@ export interface LiveRunState {
   suiteId: string;
   running: boolean;
   planned: number;
+  iterations: number;
   results: CaseResult[];
   startedAt: number;
   finishedAt?: number;

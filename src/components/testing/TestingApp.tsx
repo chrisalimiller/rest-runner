@@ -166,7 +166,7 @@ export function TestingApp({ active, shell, command }: Props) {
     bufferRef.current = [];
     const startedAt = new Date();
     const all: CaseResult[] = [];
-    setLive({ suiteId: s.id, running: true, planned, results: [], startedAt: startedAt.getTime() });
+    setLive({ suiteId: s.id, running: true, planned, iterations, results: [], startedAt: startedAt.getTime() });
     // Fresh run results replace earlier Try case results for this suite's cases.
     setTryResults((t) => Object.fromEntries(Object.entries(t).filter(([id]) => !s.cases.some((c) => c.id === id))));
 
@@ -369,6 +369,7 @@ export function TestingApp({ active, shell, command }: Props) {
               onOpenCase={(id) => setOpenCases((o) => ({ ...o, [suite.id]: id }))}
               onOpenSettings={() => setSettingsOpen(true)}
               running={!!suiteLive?.running}
+              live={suiteLive?.running ? { results: suiteLive.results, iterations: suiteLive.iterations, planned: suiteLive.planned } : null}
               anyRunning={!!live?.running}
               onRun={() => void run(suite)}
               onStop={() => abortRef.current?.abort()}
