@@ -510,6 +510,20 @@ body.dragging-split {
   justify-content: space-between;
 }
 
+/* New/Import/Export mix <button> and <label>; give them identical box metrics so they share a baseline. */
+.popover-head .sidebar-actions {
+  align-items: center;
+  gap: 14px;
+}
+
+.popover-head .sidebar-actions .link-btn {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  line-height: 16px;
+}
+
 .popover-new {
   padding: 6px;
 }
