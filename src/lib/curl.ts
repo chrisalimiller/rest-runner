@@ -1,3 +1,4 @@
+import { certificateForExport, type CertificateEntry, type CertificateExport } from "./certificates";
 import { prepareRequest } from "./request";
 import { findPlaceholders, type Vars } from "./template";
 import type { PreparedRequest, RequestDef } from "./types";
@@ -76,7 +77,7 @@ function headerArg(name: string, value: string): string {
 }
 
 /** Builds the curl command for a request that is already prepared (placeholders filled, auth applied). */
-export function preparedToCurl(req: PreparedRequest, shell: CurlShell, isJsonBody = false): Omit<CurlResult, "unresolved"> {
+export function preparedToCurl(req: PreparedRequest, shell: CurlShell, isJsonBody = false, certificate: CertificateExport | null = null): Omit<CurlResult, "unresolved"> {
   const quote = shell === "bash" ? bashQuote : cmdQuote;
   const notes: string[] = [];
   const first = ["curl", "--location"];
@@ -96,14 +97,38 @@ export function preparedToCurl(req: PreparedRequest, shell: CurlShell, isJsonBod
     }
     lines.push(`--data-raw ${quote(body)}`);
   }
+  if (certificate) lines.push(...certificateArgs(certificate, shell, quote, notes));
   const join = shell === "bash" ? " \\\n  " : " ^\n  ";
   return { command: lines.join(join), notes };
 }
 
+/** The certificate flags, with placeholder paths: the files are not copied out of the app. */
+function certificateArgs(cert: CertificateExport, shell: CurlShell, quote: (arg: string) => string, notes: string[]): string[] {
+  const dir = shell === "bash" ? "/path/to/" : "C:\\path\\to\\";
+  const lines: string[] = [];
+  const client = cert.client?.client;
+  if (client) {
+    const p12 = client.format === "pkcs12";
+    lines.push(`--cert ${quote(`${dir}${cert.stem}${p12 ? ".p12" : ".pem"}`)}`);
+    if (p12) lines.push("--cert-type P12");
+    else if (client.separateKey) lines.push(`--key ${quote(`${dir}${cert.stem}-key.pem`)}`);
+    if (client.hasPassphrase) lines.push(`--pass ${shell === "bash" ? '"$CERT_PASSPHRASE"' : '"%CERT_PASSPHRASE%"'}`);
+    notes.push(
+      `Uses the certificate "${cert.client!.name}". Its files stay inside the app: change the /path/to/ placeholders to your own copies${client.hasPassphrase ? ` and set CERT_PASSPHRASE to its passphrase` : ""}.`,
+    );
+  }
+  if (cert.ca?.ca) {
+    lines.push(`--cacert ${quote(`${dir}${cert.stem}-ca.pem`)}`);
+    notes.push(`Trusts the CA of "${cert.ca.name}". curl's --cacert replaces its usual trusted roots, so this command trusts only that CA.`);
+  }
+  return lines;
+}
+
 /** The curl command Send would run for this request, with environment and script variables filled in. */
-export function requestToCurl(def: RequestDef, vars: Vars, shell: CurlShell): CurlResult {
+export function requestToCurl(def: RequestDef, vars: Vars, shell: CurlShell, certificates: readonly CertificateEntry[] = []): CurlResult {
   const prepared = prepareRequest(def, vars);
-  const { command, notes } = preparedToCurl(prepared, shell, def.bodyMode === "json");
+  const certificate = certificates.length > 0 ? certificateForExport(prepared.url, certificates, def.noCertificate) : null;
+  const { command, notes } = preparedToCurl(prepared, shell, def.bodyMode === "json", certificate);
   const texts = [prepared.url, ...prepared.headers.flat(), prepared.body ?? ""];
   const unresolved = [...new Set(texts.flatMap(findPlaceholders))];
   if ((def.preScript ?? "").trim() !== "") {

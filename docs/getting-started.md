@@ -45,7 +45,7 @@ The app is one window with a single bar along the top.
 | **Suite name** (Testing mode), **Flow name** (Flows mode) | The open suite or flow. Click it to switch to another one without opening the list on the left. |
 | **Quick open** | A search box that opens with Ctrl/Cmd + K. See [Quick open](shortcuts.md). |
 | **Environment switch** | One button per environment plus **None**. When the window is narrow (under 1200 px) or there are more than three environments, it becomes a drop-down that still shows the colour of the selected one. The pencil opens the environment editor (Requests mode only). |
-| **Requests / Testing / Flows** | Switches mode. |
+| **Section switcher** (far right) | One segmented control for Requests, Testing and Flows. The open section shows its name; the other two show just an icon (hover for its name and shortcut). Press `Mod + 1`, `Mod + 2` or `Mod + 3` to switch. With focus on it, the arrow keys move between sections and Enter picks one. |
 
 **Requests mode** is split in two. The left column is the request (URL bar, resolved URL, collapsible Params / Auth / Headers / Body / Scripts sections, and an action footer with **Send**, **Save**, **Run with CSV…**). The right column is the response. Drag the divider to resize the columns (your split is remembered; double-click it to reset; arrow keys move it when it has focus). Below 1000 px wide the columns stack. Under 1366 px the top bar shrinks too: Quick open becomes a search icon with its shortcut hint.
 

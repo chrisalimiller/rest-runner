@@ -3,7 +3,9 @@ import { currentMasker } from "../lib/secrets";
 import { formatBytes, statusClass } from "../lib/format";
 import { BodyView } from "./BodyView";
 import { ScriptResults, ScriptsBadge, scriptsTabLabel } from "./ScriptResults";
+import { certificateLabel } from "../lib/certificates";
 import type { RunEntry } from "../lib/run";
+import { LockIcon } from "./shell/Icons";
 
 type Tab = "overview" | "request" | "response" | "headers" | "scripts";
 
@@ -44,6 +46,7 @@ export function CallDetail({ entry }: { entry: RunEntry }) {
         )}
         <span className="muted">{res ? res.durationMs : o.ok ? 0 : o.durationMs} ms</span>
         {res && <span className="muted">{formatBytes(res.sizeBytes)}</span>}
+        {o.certificate && <span className="muted" title={`Sent with the certificate "${o.certificate.name}"`}><LockIcon size={11} /> {certificateLabel(o.certificate)}</span>}
         <span className={`pill ${entry.failed ? "bad" : "ok"}`}>{entry.failed ? "FAIL" : "PASS"}</span>
       </div>
       <div className="tabs">

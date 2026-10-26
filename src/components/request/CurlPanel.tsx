@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { CURL_SHELL_LABELS, requestToCurl, type CurlShell } from "../../lib/curl";
+import { useCertificates } from "../CertificatesDialog";
 import { currentMasker } from "../../lib/secrets";
 import { load, save } from "../../lib/storage";
 import type { Vars } from "../../lib/template";
@@ -21,6 +22,7 @@ interface Props {
 
 /** The curl command Send would run, with variables filled in, ready to copy into a terminal. */
 export function CurlPanel({ def, vars, envName }: Props) {
+  const certificates = useCertificates();
   const [shell, setShell] = useState<CurlShell>(() => load<CurlShell>(SHELL_KEY, defaultShell()));
   const [copied, setCopied] = useState(false);
   useEffect(() => {
@@ -32,7 +34,7 @@ export function CurlPanel({ def, vars, envName }: Props) {
     return () => clearTimeout(t);
   }, [copied]);
 
-  const result = useMemo(() => requestToCurl(def, vars, shell), [def, vars, shell]);
+  const result = useMemo(() => requestToCurl(def, vars, shell, certificates), [def, vars, shell, certificates]);
   const empty = def.url.trim() === "";
   const shown = useMemo(() => currentMasker()(result.command), [result.command]);
   const hasSecret = shown !== result.command;

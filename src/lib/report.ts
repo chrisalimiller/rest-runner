@@ -1,3 +1,4 @@
+import { certificateLabel } from "./certificates";
 import { durationOf, runStats, statusLabel, type Run, type RunEntry } from "./run";
 import type { ScriptOutput } from "./testing/types";
 
@@ -48,6 +49,7 @@ export function toCsvReport(run: Run): string {
     "response_body",
     "response_size_bytes",
     "error",
+    "certificate",
     "notes",
     "script_tests",
     "script_log",
@@ -72,6 +74,7 @@ export function toCsvReport(run: Run): string {
       res?.body ?? "",
       res?.sizeBytes ?? "",
       o.ok ? "" : o.error,
+      certificateLabel(o.certificate),
       e.notes.join("\n"),
       scriptTestsText(e),
       scriptLogText(e),
@@ -157,7 +160,7 @@ ${e.notes.length ? `<h4>Notes</h4><ul class="notes">${e.notes.map((n) => `<li>${
 ${scriptsHtml(e)}
 <h4>Request</h4>
 <p class="mono">${esc(o.request.method)} ${esc(o.request.url)}</p>
-<p class="muted">Sent ${esc(formatTime(o.sentAt))}</p>
+<p class="muted">Sent ${esc(formatTime(o.sentAt))}${o.certificate ? ` · Certificate: ${esc(certificateLabel(o.certificate))}` : ""}</p>
 ${headerTable(o.request.headers)}
 ${o.request.body ? `<pre>${esc(pretty(o.request.body))}</pre>` : ""}
 <h4>Response</h4>

@@ -85,7 +85,7 @@ Response bodies over 1 MB are cut to 1 MB when a run is saved, and the call's no
 
 ## Testing
 
-Switch to **Testing** at the top right. Suites and test runs are listed on the left, the open suite reads as a runbook in the middle (one step per case, with a pass/fail disc), and the latest run is summarized on the right. A **test suite** is an ordered list of **test cases**; a case is a request plus checks.
+Switch to **Testing** with the section switcher at the top right (or press Ctrl/⌘ + 2). Suites and test runs are listed on the left, the open suite reads as a runbook in the middle (one step per case, with a pass/fail disc), and the latest run is summarized on the right. A **test suite** is an ordered list of **test cases**; a case is a request plus checks.
 
 - **Add cases** from your saved requests (each case gets its own copy, and **Update from saved request** pulls in later changes) or start a blank one. Reorder with the arrows, untick a case to skip it, or duplicate it.
 - **Assertions** are a no-code table: status code (exact, or a class like `2xx`), response time, response size, a header, the body text, or a JSON path such as `$.data[0].id` or `$.items.length`. Conditions include equals, contains, less/greater than, exists, matches regex and is of type. Expected values can use `{{variables}}`.
@@ -112,7 +112,7 @@ Finished runs are saved (the last 50) under **Test runs**. The report shows case
 
 ## Flows
 
-Switch to **Flows** at the top right to chain test cases, suites and saved requests into one run on a canvas. Wire steps by their **passed** and **failed** outputs, branch with **If**, run branches side by side with **Parallel** and **Join**, repeat steps per CSV row with **Loop over CSV**, and add **Wait**, **Set variable**, retries and sticky notes. A **Schedule** step runs the flow every N minutes, daily, or on chosen weekdays while the app is open.
+Switch to **Flows** with the section switcher at the top right (or press Ctrl/⌘ + 3) to chain test cases, suites and saved requests into one run on a canvas. Wire steps by their **passed** and **failed** outputs, branch with **If**, run branches side by side with **Parallel** and **Join**, repeat steps per CSV row with **Loop over CSV**, and add **Wait**, **Set variable**, retries and sticky notes. A **Schedule** step runs the flow every N minutes, daily, or on chosen weekdays while the app is open.
 
 A Run request step fails on a 4xx/5xx unless you turn off its **4xx/5xx counts as failed** checkbox. A flow that only got to its end because a failed step had a failed wire ends **Passed with handled failures** (amber). Deleting things never asks: an **Undo** toast appears, and Ctrl/Cmd + Z undoes canvas edits. A readable opening view and **Tidy layout** keep big flows usable.
 

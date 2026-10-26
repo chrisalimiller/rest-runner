@@ -50,6 +50,8 @@ jobs:
           workspaces: src-tauri -> target
       - run: npm ci
       - run: npm run tauri build -- ${{ matrix.args }}
+      # After the build, which creates the frontend bundle the Tauri crate embeds.
+      - run: cargo test --manifest-path src-tauri/Cargo.toml
       - uses: actions/upload-artifact@v4
         with:
           name: rest-runner-${{ matrix.name }}

@@ -202,36 +202,53 @@ export function ExampleDialog({ requestName, initialName, responseLabel, onSave,
 interface ExportProps {
   /** How many environment variables are marked secret and have a value. */
   secretCount: number;
-  onExport: (includeSecrets: boolean) => void;
+  /** How many imported certificates could have their files and passphrases put in the file. */
+  certificateFileCount?: number;
+  onExport: (includeSecrets: boolean, includeCertificateFiles: boolean) => void;
   onClose: () => void;
 }
 
 /** Asks whether secret environment values go into the exported file. Leaving them out is the default. */
-export function ExportWorkspaceDialog({ secretCount, onExport, onClose }: ExportProps) {
+export function ExportWorkspaceDialog({ secretCount, certificateFileCount = 0, onExport, onClose }: ExportProps) {
   const [include, setInclude] = useState(false);
+  const [includeCertFiles, setIncludeCertFiles] = useState(false);
   return (
     <SmallModal title="Export workspace" onClose={onClose}>
       <form
         className="dialog-body"
         onSubmit={(e) => {
           e.preventDefault();
-          onExport(include);
+          onExport(include, includeCertFiles);
         }}
       >
-        <fieldset className="field radio-group">
-          <legend>Include secret values?</legend>
-          <p className="muted small">
-            {secretCount} environment variable{secretCount === 1 ? " is" : "s are"} marked secret.
-          </p>
-          <label className="check">
-            <input type="radio" name="include-secrets" checked={!include} onChange={() => setInclude(false)} autoFocus />
-            Leave them out (recommended). Whoever imports the file sees which values to fill in.
-          </label>
-          <label className="check">
-            <input type="radio" name="include-secrets" checked={include} onChange={() => setInclude(true)} />
-            Include them. Anyone with the file can read them.
-          </label>
-        </fieldset>
+        {secretCount > 0 && (
+          <fieldset className="field radio-group">
+            <legend>Include secret values?</legend>
+            <p className="muted small">
+              {secretCount} environment variable{secretCount === 1 ? " is" : "s are"} marked secret.
+            </p>
+            <label className="check">
+              <input type="radio" name="include-secrets" checked={!include} onChange={() => setInclude(false)} autoFocus />
+              Leave them out (recommended). Whoever imports the file sees which values to fill in.
+            </label>
+            <label className="check">
+              <input type="radio" name="include-secrets" checked={include} onChange={() => setInclude(true)} />
+              Include them. Anyone with the file can read them.
+            </label>
+          </fieldset>
+        )}
+        {certificateFileCount > 0 && (
+          <fieldset className="field radio-group">
+            <legend>Certificates</legend>
+            <p className="muted small">
+              {certificateFileCount} certificate{certificateFileCount === 1 ? "" : "s"} imported. The file always has their names and address patterns.
+            </p>
+            <label className="check">
+              <input type="checkbox" checked={includeCertFiles} onChange={(e) => setIncludeCertFiles(e.target.checked)} />
+              Include the certificate files and passphrases. The file then holds private keys: anyone with it can act as you.
+            </label>
+          </fieldset>
+        )}
         <div className="dialog-actions">
           <button type="button" className="secondary" onClick={onClose}>
             Cancel

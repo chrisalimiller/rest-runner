@@ -31,6 +31,7 @@ The group for the mode you are in comes first.
 | Shortcut | What it does |
 | --- | --- |
 | `Mod + K` | Open or close Quick open |
+| `Mod + 1` / `2` / `3` | Switch to Requests, Testing or Flows (works from inside text fields and editors too) |
 | `Mod + Enter` | Send the request (Requests mode; also works from inside the body and script editors) |
 | `Enter` in the URL box | Send the request |
 | `Mod + S` | Save the open request or example |
