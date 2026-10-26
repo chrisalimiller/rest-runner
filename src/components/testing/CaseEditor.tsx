@@ -65,16 +65,6 @@ export function CaseEditor(props: Props) {
             from saved request
           </span>
         )}
-        {props.onRefreshFromSource && (
-          <button
-            className="link-btn small"
-            onClick={() => {
-              if (window.confirm(`Replace this case's request with the current version of "${props.sourceName}"? Scripts and assertions are kept.`)) props.onRefreshFromSource?.();
-            }}
-          >
-            Update from saved request
-          </button>
-        )}
         <span className="flex-gap" />
         <div className="case-actions-group">
           <OverflowMenu
@@ -83,6 +73,18 @@ export function CaseEditor(props: Props) {
               { label: "Move up", icon: "↑", onSelect: () => props.onMove(-1), disabled: props.index === 0 },
               { label: "Move down", icon: "↓", onSelect: () => props.onMove(1), disabled: props.index === props.count - 1 },
               { label: "Duplicate", icon: <CopyIcon />, onSelect: props.onDuplicate },
+              ...(props.onRefreshFromSource
+                ? [
+                    {
+                      label: "Update from saved request",
+                      icon: "↻",
+                      title: `Replace this case's request with the current version of "${props.sourceName}". Scripts and assertions are kept.`,
+                      onSelect: () => {
+                        if (window.confirm(`Replace this case's request with the current version of "${props.sourceName}"? Scripts and assertions are kept.`)) props.onRefreshFromSource?.();
+                      },
+                    },
+                  ]
+                : []),
               { label: "Delete case", icon: <TrashIcon />, onSelect: props.onDelete, danger: true, separated: true },
             ]}
           />

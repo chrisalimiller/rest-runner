@@ -1441,6 +1441,58 @@ body.dragging-split {
   border: 1px solid var(--border-muted);
   border-radius: var(--radius-lg);
   min-width: 0;
+  container: case / inline-size;
+}
+
+/* A narrow case card: Last result moves under the expected value instead of taking a column. */
+.last-result-inline {
+  display: none;
+  margin-top: 2px;
+  font-family: var(--mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@container case (max-width: 560px) {
+  .assertion-table .last-result,
+  .assertion-table th.col-result {
+    display: none;
+  }
+
+  .last-result-inline {
+    display: block;
+  }
+}
+
+.step-handle {
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 50%;
+  cursor: grab;
+  touch-action: none;
+  color: inherit;
+  font: inherit;
+}
+
+.step-handle:focus-visible {
+  outline: 2px solid var(--accent-fg);
+  outline-offset: 2px;
+}
+
+.step.lifted .case-card {
+  border-color: var(--accent-fg);
+  box-shadow: 0 0 0 1px var(--accent-fg), 0 6px 18px rgba(1, 4, 9, 0.5);
+}
+
+.step.lifted .step-handle {
+  cursor: grabbing;
+}
+
+body.dragging-case {
+  cursor: grabbing;
+  user-select: none;
 }
 
 .case-card.failed {
