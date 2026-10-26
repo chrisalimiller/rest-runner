@@ -188,3 +188,9 @@
 .topbar-variables {
   font-size: 12px;
 }
+
+.icon-btn.overflow-btn:hover,
+.icon-btn.overflow-btn[aria-expanded="true"] {
+  color: var(--text);
+  background: var(--bg-hover);
+}
