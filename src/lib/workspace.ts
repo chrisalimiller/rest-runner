@@ -14,6 +14,7 @@ import type { Flow } from "./flows/types";
 import { importSuitesFile } from "./testing/suiteFile";
 import { cleanSuites } from "./testing/suites";
 import type { TestSuite } from "./testing/types";
+import { detectPostmanFile, importPostmanCollection, importPostmanEnvironment } from "./postman";
 import type { RequestDef } from "./types";
 
 /**
@@ -73,9 +74,13 @@ export interface ImportResult {
   environments: Environment[];
   added: number;
   replaced: number;
+  /** Things in a Postman file that could not be carried over. */
+  warnings?: string[];
 }
 
 export interface WorkspaceImport extends Workspace {
+  /** Things in a Postman file that could not be carried over. */
+  warnings?: string[];
   /** What changed, as [added, updated] pairs. */
   counts: { collections: [number, number]; environments: [number, number]; suites: [number, number]; flows: [number, number]; requests: [number, number] };
 }
@@ -122,6 +127,14 @@ function mergeById<T extends { id: string }>(current: T[], incoming: T[]): { lis
  * new ones go into an "Imported requests" collection.
  */
 export function importWorkspaceFile(text: string, collections: Collection[], environments: Environment[]): ImportResult {
+  const postman = detectPostman(text);
+  if (postman) {
+    const zero: [number, number] = [0, 0];
+    const r = importPostman(postman.kind, postman.data, { collections, environments, suites: [], flows: [] }, { collections: zero, environments: zero, suites: zero, flows: zero, requests: zero });
+    const added = r.counts.collections[0] + r.counts.environments[0];
+    const replaced = r.counts.collections[1] + r.counts.environments[1];
+    return { collections: r.collections, environments: r.environments, added, replaced, warnings: r.warnings };
+  }
   return importCollectionsAndEnvironments(parseExport(text), collections, environments);
 }
 
@@ -136,14 +149,46 @@ function parseExport(text: string): Record<string, unknown> {
   return data;
 }
 
+function detectPostman(text: string): { kind: "collection" | "environment"; data: unknown } | null {
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  const kind = detectPostmanFile(data);
+  return kind ? { kind, data } : null;
+}
+
+/** A Postman collection (with its variables as an environment) or environment file, merged by id so importing it again replaces it. */
+function importPostman(kind: "collection" | "environment", data: unknown, current: Workspace, counts: WorkspaceImport["counts"]): WorkspaceImport {
+  if (kind === "environment") {
+    const { environment, warnings } = importPostmanEnvironment(data);
+    const e = mergeById(current.environments, [environment]);
+    return { ...current, environments: e.list, warnings, counts: { ...counts, environments: [e.added, e.replaced] } };
+  }
+  const { collection, variables, warnings } = importPostmanCollection(data);
+  const c = mergeById(current.collections, [collection]);
+  const e = mergeById(current.environments, variables ? [variables] : []);
+  return {
+    ...current,
+    collections: c.list,
+    environments: e.list,
+    warnings,
+    counts: { ...counts, collections: [c.added, c.replaced], environments: [e.added, e.replaced] },
+  };
+}
+
 /**
  * Reads any REST Runner export (a workspace file of any version, a test suites
  * file or a flows file) and merges everything in it into the current workspace.
  */
 export function importWorkspace(text: string, current: Workspace): WorkspaceImport {
-  const data = parseExport(text);
   const zero: [number, number] = [0, 0];
   const counts: WorkspaceImport["counts"] = { collections: zero, environments: zero, suites: zero, flows: zero, requests: zero };
+  const postman = detectPostman(text);
+  if (postman) return importPostman(postman.kind, postman.data, current, counts);
+  const data = parseExport(text);
   if (data.kind === "flows") {
     const r = importFlowsFile(text, current);
     return { ...current, flows: r.flows, suites: r.suites, collections: r.collections, counts: { ...counts, flows: r.counts.flows, suites: r.counts.suites, requests: r.counts.requests } };

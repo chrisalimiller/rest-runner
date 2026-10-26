@@ -43,7 +43,20 @@ An example is a named copy of a request's payload (URL, params, headers, body, a
 
 - A collection, environment, suite or flow with the same id replaces the one you have. Others are added. A secret variable that comes in empty keeps the value you already have.
 - Files from the first version of the app (a flat list of saved requests) still import. Requests whose id you already have are updated where they sit, and new ones go into a collection called **Imported requests**.
+- **Postman files** also import with the same button: a collection export (v2.0 or v2.1) or an environment or globals export. See below.
 - Malformed entries are skipped, and a file that is not a REST Runner export is rejected with a message.
+
+### Importing from Postman
+
+Export from Postman (**Export** on a collection, or on an environment), then use **Import** here.
+
+- **Collections (v2.0 and v2.1):** folders keep their nesting. Each request keeps its method, URL, query parameters, headers and body, and rows that are unticked in Postman come in disabled. Saved responses become **examples** with a sample response. `{{variable}}` placeholders work as they are.
+- **Auth:** Bearer, Basic and API key carry over. Auth set on a collection or folder is copied to every request below it that does not set its own, and "No Auth" is respected. Other types (OAuth 2, Digest and so on) come in as no auth, with a warning.
+- **Bodies:** raw JSON becomes a JSON body, other raw text a text body, x-www-form-urlencoded stays as is, and GraphQL becomes a JSON body with `query` and `variables`. Form-data is sent as an url-encoded form (file fields are dropped), and file bodies are dropped, each with a warning.
+- **Variables:** collection and folder variables become an environment called "Collection name variables". `:id` path variables are filled in with the value stored in Postman.
+- **Environments and globals:** each file becomes one environment. Disabled variables stay disabled. Secret variables are imported as plain values, which Postman may have exported empty.
+- **Not imported:** Postman scripts (`pm.*`), which do not run here, and requests with a method other than GET, POST, PUT, PATCH, DELETE, HEAD or OPTIONS.
+- Importing the same file again replaces what it added earlier instead of duplicating it. The message after the import lists any warnings.
 
 The export file contains environment values. Secret values are left out unless you chose to include them; other values, such as non-secret tokens, are always included. Keep the file safe.
 

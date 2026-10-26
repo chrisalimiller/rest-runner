@@ -2596,3 +2596,49 @@ select:focus-visible,
 .case-card.locked {
   opacity: 0.85;
 }
+
+/* URL field: a transparent-text input over a copy of its text with {{placeholders}} marked. */
+.url-bar .url-field {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+}
+
+.url-field .url-input {
+  position: relative;
+  width: 100%;
+  color: transparent;
+  caret-color: var(--text);
+}
+
+.url-field .url-input::selection {
+  color: transparent;
+  background: rgba(56, 139, 253, 0.4);
+}
+
+.url-mirror {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  overflow: hidden;
+  pointer-events: none;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+}
+
+.url-mirror-text {
+  white-space: pre;
+  will-change: transform;
+}
+
+/* No padding, so the marked text lines up with the input's characters; the shadow gives the mark room instead. */
+.url-var {
+  color: var(--placeholder-fg);
+  background: var(--placeholder-bg);
+  border-radius: 3px;
+  box-shadow: 0 0 0 1px var(--placeholder-bg);
+}

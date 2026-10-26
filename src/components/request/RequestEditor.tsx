@@ -15,6 +15,7 @@ import { ChevronDownIcon, CopyIcon } from "../shell/Icons";
 import { OverflowMenu } from "../shell/OverflowMenu";
 import { useToast } from "../shell/Toast";
 import { CurlPanel } from "./CurlPanel";
+import { UrlInput } from "./UrlInput";
 import { Section } from "./Section";
 
 type SectionId = "params" | "auth" | "headers" | "body" | "scripts";
@@ -172,8 +173,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
               <option key={m}>{m}</option>
             ))}
           </select>
-          <input
-            className="url-input"
+          <UrlInput
             value={def.url}
             onChange={(e) => onChange({ url: e.target.value })}
             placeholder={urlPlaceholder ?? "Enter URL, e.g. https://api.example.com/users"}
