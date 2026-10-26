@@ -1,5 +1,6 @@
 import type { BatchOptions } from "./batch";
-import type { Vars } from "./template";
+import { certificateForExport, type CertificateEntry, type CertificateExport } from "./certificates";
+import { applyTemplate, type Vars } from "./template";
 import type { KeyValue, RequestDef } from "./types";
 import pythonRunner from "./scriptExport/runner.py?raw";
 import bashRunner from "./scriptExport/runner.sh?raw";
@@ -16,6 +17,14 @@ export interface ScriptExportInput {
   csvName?: string;
   /** For the header comment. Defaults to now. */
   exportedAt?: Date;
+  /** The app's imported certificates. The one matching the request's address gets a settings block. */
+  certificates?: readonly CertificateEntry[];
+}
+
+/** The certificate the exported script would need, matched on the request's address with environment values filled in. */
+function exportedCertificate(input: ScriptExportInput): CertificateExport | null {
+  if (!input.certificates?.length) return null;
+  return certificateForExport(applyTemplate(input.def.url, input.defaults), input.certificates, input.def.noCertificate);
 }
 
 export const SCRIPT_LANGUAGES: Record<ScriptLanguage, { label: string; extension: string; filterName: string }> = {
@@ -34,7 +43,44 @@ export function scriptExportNotes(input: ScriptExportInput): string[] {
   if (Object.keys(input.defaults).length) {
     notes.push(`Values from ${input.envName ? `the ${input.envName} environment` : "the environment"} and earlier script runs are copied into the script as plain text. Check it before you share it.`);
   }
+  const cert = exportedCertificate(input);
+  if (cert?.client) {
+    notes.push(`The app sends the certificate "${cert.client.name}" to this address. The script has settings for it, but the files are not included: fill in your own copies${cert.client.client?.hasPassphrase ? " and set REST_RUNNER_CERT_PASSPHRASE" : ""}. The script sends it to every address it calls.`);
+  }
+  if (cert?.ca) {
+    notes.push(`The app also trusts the CA of "${cert.ca.name}" for this address; set CA_CERT to your copy of that file.`);
+  }
   return notes;
+}
+
+function certificateSettingsPython(cert: CertificateExport): string[] {
+  const client = cert.client?.client;
+  const lines = [""];
+  if (client) {
+    lines.push(
+      `# Client certificate "${oneLine(cert.client!.name)}". The files stay in the app: point these at your own copies.`,
+      `CLIENT_CERT = ""  # ${client.format === "pkcs12" ? "a .p12/.pfx file (Python cannot read it; the script prints the openssl command to convert it)" : "a .pem file"}`,
+    );
+    if (client.separateKey) lines.push('CLIENT_KEY = ""  # the private key, PEM');
+    if (client.hasPassphrase) lines.push("# The key's passphrase is read from the REST_RUNNER_CERT_PASSPHRASE environment variable.");
+  }
+  if (cert.ca) lines.push(`# Extra trusted CA from "${oneLine(cert.ca.name)}".`, 'CA_CERT = ""', `CA_ONLY = ${cert.ca.caOnly ? "True" : "False"}`);
+  return lines;
+}
+
+function certificateSettingsBash(cert: CertificateExport): string[] {
+  const client = cert.client?.client;
+  const lines = [""];
+  if (client) {
+    lines.push(
+      `# Client certificate "${oneLine(cert.client!.name)}". The files stay in the app: point these at your own copies.`,
+      `CLIENT_CERT=''  # ${client.format === "pkcs12" ? "a .p12/.pfx file" : "a .pem file"}`,
+    );
+    if (client.separateKey) lines.push("CLIENT_KEY=''  # the private key, PEM");
+    if (client.hasPassphrase) lines.push("# The key's passphrase is read from the REST_RUNNER_CERT_PASSPHRASE environment variable.");
+  }
+  if (cert.ca) lines.push(`# Extra trusted CA from "${oneLine(cert.ca.name)}". curl then trusts only this CA.`, "CA_CERT=''");
+  return lines;
 }
 
 const PLACEHOLDER = /\{\{\s*([^{}]+?)\s*\}\}/g;
@@ -137,6 +183,7 @@ export function buildPythonScript(input: ScriptExportInput): string {
       ["stop_on_failure", options.stopOnFailure],
       ["http_errors_fail", options.httpErrorsFail],
     ])}`,
+    ...(exportedCertificate(input) ? certificateSettingsPython(exportedCertificate(input)!) : []),
   ].join("\n");
   return fill(pythonRunner, { HEADER: headerComment(input), FILE: scriptFileName(def, "python"), CSV: csvArg(input), SETTINGS: settings });
 }
@@ -310,6 +357,7 @@ export function buildBashScript(input: ScriptExportInput): string {
     bashDefaults(input.defaults),
     "",
     bashBuild(def),
+    ...(exportedCertificate(input) ? certificateSettingsBash(exportedCertificate(input)!) : []),
   ].join("\n");
   return fill(bashRunner, { HEADER: headerComment(input), FILE: scriptFileName(def, "bash"), CSV: csvArg(input), SETTINGS: settings });
 }

@@ -319,6 +319,13 @@ run_row() {
     if [ -z "${HV[$k]}" ]; then args+=(-H "${HK[$k]};"); else args+=(-H "${HK[$k]}: ${HV[$k]}"); fi
     k=$((k + 1))
   done
+  if [ -n "${CLIENT_CERT:-}" ]; then
+    args+=(--cert "$CLIENT_CERT")
+    case "$CLIENT_CERT" in *.p12 | *.P12 | *.pfx | *.PFX) args+=(--cert-type P12) ;; esac
+    [ -n "${CLIENT_KEY:-}" ] && args+=(--key "$CLIENT_KEY")
+    [ -n "${REST_RUNNER_CERT_PASSPHRASE:-}" ] && args+=(--pass "$REST_RUNNER_CERT_PASSPHRASE")
+  fi
+  [ -n "${CA_CERT:-}" ] && args+=(--cacert "$CA_CERT")
   if [ "$REQ_HAS_BODY" = 1 ]; then
     printf '%s' "$REQ_BODY" >"$base.req"
     args+=(--data-binary "@$base.req")

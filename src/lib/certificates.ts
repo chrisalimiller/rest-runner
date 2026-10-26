@@ -39,6 +39,8 @@ export interface CertificateEntry {
   ca?: CaDetailsInfo;
   /** Trust only this entry's CA for the matching hosts, not the system roots. */
   caOnly?: boolean;
+  /** Came from a workspace file without its files. Disabled until the same certificate is imported. */
+  needsFile?: boolean;
 }
 
 /** What Rust gets for a call (`TlsSpec` in src-tauri/src/http.rs). */
@@ -155,7 +157,7 @@ export function matchCertificate(urlText: string, entries: readonly CertificateE
   const secure = url.protocol === "https:";
   const hits: Hit[] = [];
   for (const entry of entries) {
-    if (!entry.enabled) continue;
+    if (!entry.enabled || entry.needsFile) continue;
     let best: Hit | null = null;
     for (const text of entry.patterns) {
       const parsed = parsePattern(text);
@@ -211,7 +213,7 @@ export function findDuplicatePatterns(entries: readonly CertificateEntry[]): Rec
   };
   const owners = new Map<string, CertificateEntry[]>();
   for (const e of entries) {
-    if (!e.enabled || !e.client) continue;
+    if (!e.enabled || e.needsFile || !e.client) continue;
     for (const key of new Set(e.patterns.map(canonical))) {
       if (key) owners.set(key, [...(owners.get(key) ?? []), e]);
     }
@@ -224,6 +226,26 @@ export function findDuplicatePatterns(entries: readonly CertificateEntry[]): Rec
     }
   }
   return out;
+}
+
+/** What a command or script outside the app needs to send the same call: the entry's client certificate and CA. */
+export interface CertificateExport {
+  client: CertificateEntry | null;
+  /** Placeholder file names for the user to point at their own copies, e.g. `acme-staging`. */
+  stem: string;
+  /** The CA of the first matching entry with one. */
+  ca: CertificateEntry | null;
+}
+
+/** The certificates a URL would use, for Copy as cURL and script exports. Null when none apply. */
+export function certificateForExport(urlText: string, entries: readonly CertificateEntry[], skipClient = false): CertificateExport | null {
+  const match = matchCertificate(urlText, entries);
+  const client = skipClient ? null : match.client;
+  const ca = match.cas[0] ?? null;
+  if (!client && !ca) return null;
+  const name = (client ?? ca)!.name;
+  const stem = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || "certificate";
+  return { client, stem, ca };
 }
 
 /** `Acme staging (ab12cd34)` for reports. Empty when no certificate was used. */

@@ -28,6 +28,7 @@ pkcs8 = { version = "0.10", features = ["encryption", "pem", "std"] }
 pem-rfc7468 = { version = "0.7", features = ["alloc"] }
 x509-parser = "0.18"
 sha2 = "0.10"
+base64 = "0.22"
 # Passphrases go to the OS keychain; the platform backends are selected below.
 keyring = "3"
 

@@ -12,6 +12,7 @@ import {
   type CertDetails,
   type CertificateEntry,
 } from "../lib/certificates";
+import { fingerprintOf } from "../lib/certificatesFile";
 import { deleteCertificateFiles, importCertificate, setCertificatePassphrase } from "../lib/certificatesNative";
 import { isTauri } from "../lib/http";
 import { newId } from "../lib/ids";
@@ -68,6 +69,7 @@ export function CertificatesDialog({ entryId, onClose }: Props) {
           {entries.map((e) => (
             <button key={e.id} className={e.id === selectedId ? "active" : ""} onClick={() => setSelectedId(e.id)}>
               <span className={e.enabled ? "" : "muted"}>{e.name || "(unnamed)"}</span>
+              {e.needsFile && <span className="cert-badge soon">Needs file</span>}
               {e.client && <ExpiryBadge notAfter={e.client.details.notAfter} />}
             </button>
           ))}
@@ -79,11 +81,16 @@ export function CertificatesDialog({ entryId, onClose }: Props) {
           {selectedId === ADDING ? (
             <ImportForm
               onImported={(entry) => {
-                saveCertificates([...loadCertificates(), entry]);
-                setSelectedId(entry.id);
+                // Importing the same certificate an exported entry was waiting for completes that entry.
+                const fp = fingerprintOf(entry);
+                const waiting = loadCertificates().find((e) => e.needsFile && fp !== null && fingerprintOf(e) === fp);
+                const finished = waiting ? { ...waiting, id: entry.id, client: entry.client, ca: entry.ca, enabled: true, needsFile: undefined } : entry;
+                saveCertificates(waiting ? loadCertificates().map((e) => (e === waiting ? finished : e)) : [...loadCertificates(), entry]);
+                setSelectedId(finished.id);
               }}
               disabled={!desktop}
               firstOne={entries.length === 0}
+              hasWaiting={entries.some((e) => e.needsFile)}
             />
           ) : selected ? (
             <EntryEditor key={selected.id} entry={selected} duplicates={duplicates[selected.id]} entries={entries} desktop={desktop} />
@@ -95,7 +102,7 @@ export function CertificatesDialog({ entryId, onClose }: Props) {
   );
 }
 
-function ImportForm({ onImported, disabled, firstOne }: { onImported: (entry: CertificateEntry) => void; disabled: boolean; firstOne: boolean }) {
+function ImportForm({ onImported, disabled, firstOne, hasWaiting }: { onImported: (entry: CertificateEntry) => void; disabled: boolean; firstOne: boolean; hasWaiting: boolean }) {
   const [name, setName] = useState("");
   const [certPath, setCertPath] = useState("");
   const [keyPath, setKeyPath] = useState("");
@@ -125,7 +132,7 @@ function ImportForm({ onImported, disabled, firstOne }: { onImported: (entry: Ce
     else setCaPath(picked);
   };
 
-  const canImport = !disabled && !busy && (certPath || caPath) && lines.length > 0 && patternProblems.length === 0;
+  const canImport = !disabled && !busy && (certPath || caPath) && (lines.length > 0 || hasWaiting) && patternProblems.length === 0;
 
   const submit = async () => {
     setBusy(true);
@@ -183,7 +190,7 @@ function ImportForm({ onImported, disabled, firstOne }: { onImported: (entry: Ce
       )}
       <FileField label="CA certificate (optional)" hint="trust a private or self-signed server" value={caPath} onBrowse={() => browse("ca")} onClear={() => setCaPath("")} disabled={disabled} />
       <label className="cert-field">
-        <span>Use for these addresses (one per line)</span>
+        <span>Use for these addresses (one per line){hasWaiting ? ". Can stay empty when finishing an entry that needs its file." : ""}</span>
         <textarea value={patterns} onChange={(e) => setPatterns(e.target.value)} rows={3} spellCheck={false} placeholder={"api.acme.com\n*.staging.acme.com\napi.acme.com:8443/v2"} />
         {patternProblems.length > 0 && <small className="cert-error">{patternProblems[0]}</small>}
       </label>
@@ -270,7 +277,7 @@ function EntryEditor({ entry, duplicates, entries, desktop }: { entry: Certifica
       <div className="env-edit-head">
         <input value={entry.name} onChange={(e) => update({ name: e.target.value })} aria-label="Certificate name" />
         <label className="cert-enabled">
-          <input type="checkbox" checked={entry.enabled} onChange={(e) => update({ enabled: e.target.checked })} /> Enabled
+          <input type="checkbox" checked={entry.enabled} disabled={entry.needsFile} onChange={(e) => update({ enabled: e.target.checked })} /> Enabled
         </label>
         {confirmDelete ? (
           <button className="secondary danger" onClick={() => void remove()}>
@@ -283,6 +290,11 @@ function EntryEditor({ entry, duplicates, entries, desktop }: { entry: Certifica
         )}
       </div>
 
+      {entry.needsFile && (
+        <p className="cert-note warn">
+          This entry came from a workspace file without the certificate files, so it is switched off. Use <strong>+ Add certificate</strong> to import the same certificate: this entry is filled in and switched on by its fingerprint.
+        </p>
+      )}
       <label className="cert-field">
         <span>Use for these addresses (one per line)</span>
         <textarea

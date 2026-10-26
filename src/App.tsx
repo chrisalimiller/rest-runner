@@ -40,7 +40,9 @@ import { emptyRow, newRequest } from "./lib/defaults";
 import { earlierSendLabel, earlierSends, earlierSendTone, sendTooltip, whenLabel } from "./lib/earlierSends";
 import { fitHistory, historyLabel, historyOutcome, MAX_HISTORY_BODY, responseNotKept } from "./lib/history";
 import { environmentVars, guardFor, loadEnvironments, newEnvironment, type Environment } from "./lib/environments";
-import { sendRequest } from "./lib/http";
+import { loadCertificates, saveCertificates } from "./lib/certificates";
+import { certificatesForExport, describeCertificateImport, importCertificates } from "./lib/certificatesFile";
+import { isTauri, sendRequest } from "./lib/http";
 import { newId } from "./lib/ids";
 import { prepareRequest, unresolvedPlaceholders } from "./lib/request";
 import { secretValues } from "./lib/secrets";
@@ -399,18 +401,22 @@ export default function App({ active = true, shell, command }: Props) {
     setRenamingId(c.id);
   };
 
-  const exportWorkspace = async (includeSecrets: boolean) => {
+  /** Entries whose files the desktop app holds, so an export could carry them. */
+  const certificateFileCount = () => (isTauri() ? loadCertificates().filter((c) => !c.needsFile).length : 0);
+
+  const exportWorkspace = async (includeSecrets: boolean, includeCertificateFiles = false) => {
     try {
-      const result = await saveTextFile("rest-runner-export.json", toWorkspaceFile(collections, environments, { includeSecrets, suites: readWorkspace().suites, flows: readWorkspace().flows }), "REST Runner export", "json");
+      const certificates = await certificatesForExport(loadCertificates(), includeCertificateFiles && isTauri());
+      const result = await saveTextFile("rest-runner-export.json", toWorkspaceFile(collections, environments, { includeSecrets, suites: readWorkspace().suites, flows: readWorkspace().flows, certificates }), "REST Runner export", "json");
       if (result.saved) setNotice(result.path ? `Exported to ${result.path}` : "Export downloaded.");
     } catch (e) {
       setNotice(`Could not export: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
 
-  /** Asks about secret values first when there are any to ask about. */
+  /** Asks about secret values and certificate files first when there are any to ask about. */
   const startExport = () => {
-    if (secretValues(environments).length > 0) setExportDialog(true);
+    if (secretValues(environments).length > 0 || certificateFileCount() > 0) setExportDialog(true);
     else void exportWorkspace(false);
   };
 
@@ -437,18 +443,34 @@ export default function App({ active = true, shell, command }: Props) {
     setShowEnvEditor(true);
   };
 
+  /** Certificate rules in a workspace file, merged into the Certificates list. Returns text for the notice, or null when the file has none. */
+  const importCertificatesFrom = async (text: string): Promise<string | null> => {
+    let data: unknown;
+    try {
+      data = (JSON.parse(text) as { certificates?: unknown }).certificates;
+    } catch {
+      return null;
+    }
+    if (!Array.isArray(data) || data.length === 0) return null;
+    const r = await importCertificates(data, loadCertificates());
+    if (r.added + r.updated > 0) saveCertificates(r.entries);
+    return describeCertificateImport(r);
+  };
+
   const importWorkspace = async (file: File) => {
     try {
       const stored = readWorkspace();
-      const result = mergeWorkspace(await file.text(), { ...stored, collections, environments });
+      const text = await file.text();
+      const result = mergeWorkspace(text, { ...stored, collections, environments });
       const changed = result.counts.suites[0] + result.counts.suites[1] + result.counts.flows[0] + result.counts.flows[1] > 0;
       if (changed && !writeWorkspace(result)) throw new Error("local storage is full");
       setCollections(result.collections);
       expand(...result.collections.filter((c) => !collections.some((x) => x.id === c.id)).map((c) => c.id));
       setEnvironments(result.environments);
       if (changed) shell.onDataChanged(["suites", "flows"]);
+      const certificates = await importCertificatesFrom(text);
       const warned = result.warnings?.length ? ` ${result.warnings.length} warning${result.warnings.length === 1 ? "" : "s"}: ${result.warnings.join(" ")}` : "";
-      setNotice(`${describeWorkspaceImport(file.name, result.counts)}${warned}`);
+      setNotice(`${describeWorkspaceImport(file.name, result.counts)}${certificates ? ` ${certificates}` : ""}${warned}`);
     } catch (e) {
       setNotice(`Could not import ${file.name}: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -892,9 +914,10 @@ export default function App({ active = true, shell, command }: Props) {
         <ExportWorkspaceDialog
           secretCount={secretValues(environments).length}
           onClose={() => setExportDialog(false)}
-          onExport={(include) => {
+          certificateFileCount={certificateFileCount()}
+          onExport={(include, includeCertificateFiles) => {
             setExportDialog(false);
-            void exportWorkspace(include);
+            void exportWorkspace(include, includeCertificateFiles);
           }}
         />
       )}

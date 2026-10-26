@@ -14,6 +14,7 @@ import { ScriptEditor } from "../testing/ScriptEditor";
 import { ChevronDownIcon, CopyIcon } from "../shell/Icons";
 import { OverflowMenu } from "../shell/OverflowMenu";
 import { useToast } from "../shell/Toast";
+import { useCertificates } from "../CertificatesDialog";
 import { CertificateChip } from "./CertificateChip";
 import { CurlPanel } from "./CurlPanel";
 import { UrlInput } from "./UrlInput";
@@ -148,6 +149,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
     save(CURL_OPEN_KEY, curlOpen);
   }, [curlOpen]);
 
+  const certificates = useCertificates();
   const urlInputs = useDebounced({ def, envVars }, 150);
   const finalUrl = resolvedUrl(urlInputs.def, urlInputs.envVars);
 
@@ -225,13 +227,13 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
               { label: curlOpen ? "Hide cURL" : "Show cURL", onSelect: () => setCurlOpen((o) => !o) },
               {
                 label: "Copy as cURL (Bash)",
-                onSelect: () => copyToClipboard(requestToCurl(urlInputs.def, urlInputs.envVars, "bash").command, "Copied the cURL command (Bash)"),
+                onSelect: () => copyToClipboard(requestToCurl(urlInputs.def, urlInputs.envVars, "bash", certificates).command, "Copied the cURL command (Bash)"),
                 disabled: def.url.trim() === "",
                 separated: true,
               },
               {
                 label: "Copy as cURL (Windows cmd)",
-                onSelect: () => copyToClipboard(requestToCurl(urlInputs.def, urlInputs.envVars, "cmd").command, "Copied the cURL command (Windows cmd)"),
+                onSelect: () => copyToClipboard(requestToCurl(urlInputs.def, urlInputs.envVars, "cmd", certificates).command, "Copied the cURL command (Windows cmd)"),
                 disabled: def.url.trim() === "",
               },
             ]}

@@ -114,7 +114,7 @@ describe("combined workspace file", () => {
     const suite = { ...newSuite("Checks"), cases: [newTestCase()] };
     const flow = { ...newFlow("Nightly") };
     const text = toWorkspaceFile([col], [newEnvironment("Dev")], { suites: [suite], flows: [flow] });
-    expect(JSON.parse(text)).toMatchObject({ kind: "workspace", version: 3 });
+    expect(JSON.parse(text)).toMatchObject({ kind: "workspace", version: 4 });
     const r = importWorkspace(text, empty);
     expect(r.collections.map((c) => c.name)).toEqual(["API"]);
     expect(r.environments.map((e) => e.name)).toEqual(["Dev"]);
