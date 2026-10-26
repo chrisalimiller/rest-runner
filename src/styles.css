@@ -1938,3 +1938,8 @@ select {
   color: var(--patch);
   white-space: nowrap;
 }
+
+.cm-json-comment {
+  color: #8b949e;
+  font-style: italic;
+}

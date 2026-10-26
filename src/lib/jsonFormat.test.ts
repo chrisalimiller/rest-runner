@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findJsonProblem, formatJson } from "./jsonFormat";
+import { findJsonProblem, formatJson, stripJsonComments } from "./jsonFormat";
 
 describe("findJsonProblem", () => {
   it("accepts valid JSON and placeholders as values or keys", () => {
@@ -55,5 +55,31 @@ describe("formatJson", () => {
   it("returns null for invalid or blank input", () => {
     expect(formatJson('{"a":}')).toBeNull();
     expect(formatJson("")).toBeNull();
+  });
+});
+
+describe("comments in JSON", () => {
+  const text = '{\n  // the id\n  "id": 1, /* inline */\n  "url": "http://x//y", "q": "/* not a comment */"\n}';
+
+  it("accepts // and block comments", () => {
+    expect(findJsonProblem(text)).toBeNull();
+  });
+
+  it("still rejects trailing commas", () => {
+    expect(findJsonProblem('{"a": 1, // c\n}')?.message).toMatch(/Trailing comma/);
+  });
+
+  it("reports an unterminated block comment", () => {
+    expect(findJsonProblem('{"a": 1 /* oops')?.message).toMatch(/closing/);
+  });
+
+  it("strips comments but not text inside strings", () => {
+    const stripped = stripJsonComments(text);
+    expect(JSON.parse(stripped)).toEqual({ id: 1, url: "http://x//y", q: "/* not a comment */" });
+  });
+
+  it("returns text without comments unchanged and does not format text with comments", () => {
+    expect(stripJsonComments('{"a": 1}')).toBe('{"a": 1}');
+    expect(formatJson(text)).toBeNull();
   });
 });

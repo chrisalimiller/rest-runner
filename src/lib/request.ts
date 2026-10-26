@@ -1,3 +1,4 @@
+import { stripJsonComments } from "./jsonFormat";
 import { applyJsonTemplate, applyTemplate, findPlaceholders, type Vars } from "./template";
 import type { KeyValue, PreparedRequest, RequestDef } from "./types";
 
@@ -77,7 +78,7 @@ export function prepareRequest(def: RequestDef, vars: Vars = {}): PreparedReques
   const allowsBody = def.method !== "GET" && def.method !== "HEAD";
   if (allowsBody) {
     if (def.bodyMode === "json" || def.bodyMode === "text") {
-      body = def.bodyMode === "json" ? applyJsonTemplate(def.body, vars) : applyTemplate(def.body, vars);
+      body = def.bodyMode === "json" ? applyJsonTemplate(stripJsonComments(def.body), vars) : applyTemplate(def.body, vars);
       if (!hasHeader(headers, "Content-Type")) {
         headers.push(["Content-Type", def.bodyMode === "json" ? "application/json" : "text/plain"]);
       }
@@ -102,7 +103,7 @@ export function requestPlaceholders(def: RequestDef): string[] {
   addRows(def.params);
   addRows(def.headers);
   const allowsBody = def.method !== "GET" && def.method !== "HEAD";
-  if (allowsBody && (def.bodyMode === "json" || def.bodyMode === "text")) parts.push(def.body);
+  if (allowsBody && (def.bodyMode === "json" || def.bodyMode === "text")) parts.push(def.bodyMode === "json" ? stripJsonComments(def.body) : def.body);
   if (allowsBody && def.bodyMode === "urlencoded") addRows(def.formBody);
   const a = def.auth;
   if (a.type === "bearer") parts.push(a.token);

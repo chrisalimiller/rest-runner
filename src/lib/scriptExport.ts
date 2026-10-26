@@ -1,5 +1,6 @@
 import type { BatchOptions } from "./batch";
 import { certificateForExport, type CertificateEntry, type CertificateExport } from "./certificates";
+import { stripJsonComments } from "./jsonFormat";
 import { applyTemplate, type Vars } from "./template";
 import type { KeyValue, RequestDef } from "./types";
 import pythonRunner from "./scriptExport/runner.py?raw";
@@ -150,6 +151,11 @@ function pyBlock(fields: [string, unknown][]): string {
   return `{\n${fields.map(([k, v]) => `    ${py(k)}: ${py(v)},`).join("\n")}\n}`;
 }
 
+/** The body as it is sent: JSON comments are removed. */
+function requestBody(def: RequestDef): string {
+  return def.bodyMode === "json" ? stripJsonComments(def.body) : def.body;
+}
+
 function pyRequest(def: RequestDef): string {
   return pyBlock([
     ["name", def.name],
@@ -158,7 +164,7 @@ function pyRequest(def: RequestDef): string {
     ["params", activeRows(def.params)],
     ["headers", activeRows(def.headers)],
     ["bodyMode", def.bodyMode],
-    ["body", def.body],
+    ["body", requestBody(def)],
     ["form", activeRows(def.formBody)],
     ["auth", def.auth],
   ]);
@@ -317,7 +323,7 @@ function bashBuild(def: RequestDef): string {
   if (def.method !== "GET" && def.method !== "HEAD") {
     if (def.bodyMode === "json" || def.bodyMode === "text") {
       const type = def.bodyMode === "json" ? "application/json" : "text/plain";
-      lines.push("  # Body", ...bashTemplate(def.body, def.bodyMode === "json"), "  REQ_BODY=$s", "  REQ_HAS_BODY=1");
+      lines.push("  # Body", ...bashTemplate(requestBody(def), def.bodyMode === "json"), "  REQ_BODY=$s", "  REQ_HAS_BODY=1");
       if (!hasHeader(headers, "Content-Type")) lines.push(`  add_header Content-Type ${sq(type)}`);
     } else if (def.bodyMode === "urlencoded") {
       lines.push("  # Form body", ...bashPairs(activeRows(def.formBody), "FK", "FV"), "  encode_pairs FK FV", "  REQ_BODY=$REPLY", "  REQ_HAS_BODY=1");

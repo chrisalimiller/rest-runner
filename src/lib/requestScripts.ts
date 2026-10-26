@@ -1,3 +1,4 @@
+import { stripJsonComments } from "./jsonFormat";
 import type { SendFn } from "./batch";
 import { prepareRequest } from "./request";
 import type { Vars } from "./template";
@@ -64,7 +65,7 @@ function scriptContext(phase: "pre" | "post", input: ScriptedSendInput, vars: Va
       method: def.method,
       url: def.url,
       headers: def.headers.filter((h) => h.enabled && h.key.trim() !== "").map((h) => [h.key, h.value] as [string, string]),
-      body: def.bodyMode === "none" ? undefined : def.body,
+      body: def.bodyMode === "none" ? undefined : def.bodyMode === "json" ? stripJsonComments(def.body) : def.body,
     },
   };
 }
