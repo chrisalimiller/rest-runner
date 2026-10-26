@@ -14,10 +14,15 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
-tauri-plugin-http = "2"
 tauri-plugin-dialog = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+# Same TLS stack as before (rustls, plus the OS trust store) so certificates behave alike on macOS and Windows.
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "rustls-tls-native-roots", "http2", "gzip", "brotli", "deflate"] }
+tokio = { version = "1", features = ["rt", "sync", "time"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "net", "io-util", "time"] }
 
 [target.'cfg(windows)'.dependencies]
 # Colors the native title bar (see title_bar in src/lib.rs).
