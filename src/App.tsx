@@ -447,7 +447,8 @@ export default function App({ active = true, shell, command }: Props) {
       expand(...result.collections.filter((c) => !collections.some((x) => x.id === c.id)).map((c) => c.id));
       setEnvironments(result.environments);
       if (changed) shell.onDataChanged(["suites", "flows"]);
-      setNotice(describeWorkspaceImport(file.name, result.counts));
+      const warned = result.warnings?.length ? ` ${result.warnings.length} warning${result.warnings.length === 1 ? "" : "s"}: ${result.warnings.join(" ")}` : "";
+      setNotice(`${describeWorkspaceImport(file.name, result.counts)}${warned}`);
     } catch (e) {
       setNotice(`Could not import ${file.name}: ${e instanceof Error ? e.message : String(e)}`);
     }
