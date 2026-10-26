@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import App from "./App";
 import { QuickOpen } from "./components/shell/QuickOpen";
 import type { Mode } from "./components/shell/TopBar";
@@ -6,6 +6,7 @@ import { FlowsApp } from "./components/flows/FlowsApp";
 import { TestingApp } from "./components/testing/TestingApp";
 import type { QuickItem } from "./lib/quickOpen";
 import { FirstRun } from "./components/shell/FirstRun";
+import { modeForShortcut } from "./lib/topBar";
 import { load, save } from "./lib/storage";
 import { isFirstRun } from "./lib/workspaceStore";
 
@@ -36,11 +37,21 @@ export default function Root() {
     save(SECTION_KEY, section);
   }, [section]);
 
+  const quickOpenRef = useRef(false);
+  quickOpenRef.current = quickOpen;
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
         e.preventDefault();
         setQuickOpen((o) => !o);
+        return;
+      }
+      // Mod + 1/2/3 switch sections, even from a text field (nothing types with Mod held). Not while Quick open is up.
+      const next = quickOpenRef.current ? null : modeForShortcut(e);
+      if (next) {
+        e.preventDefault();
+        setSection(next);
       }
     };
     window.addEventListener("keydown", onKey);
