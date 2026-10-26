@@ -1,3 +1,20 @@
+mod http;
+
+/// Sends one request without following redirects (see src/lib/http.ts).
+#[tauri::command]
+async fn http_send(
+    state: tauri::State<'_, http::HttpState>,
+    request: http::HttpRequest,
+) -> Result<http::HttpResponse, String> {
+    state.send(request).await
+}
+
+/// Aborts a call started by `http_send`.
+#[tauri::command]
+fn http_cancel(state: tauri::State<'_, http::HttpState>, id: String) {
+    state.cancel(&id);
+}
+
 /// Writes a report file to the path the user picked in the Save dialog.
 #[tauri::command]
 fn write_text_file(path: String, contents: String) -> Result<(), String> {
@@ -7,10 +24,9 @@ fn write_text_file(path: String, contents: String) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        // Sends HTTP requests from Rust so the app is not limited by browser CORS rules.
-        .plugin(tauri_plugin_http::init())
         .plugin(tauri_plugin_dialog::init())
-        .invoke_handler(tauri::generate_handler![write_text_file])
+        .manage(http::HttpState::new().expect("could not start the HTTP client"))
+        .invoke_handler(tauri::generate_handler![write_text_file, http_send, http_cancel])
         .setup(|_app| {
             #[cfg(windows)]
             if let Some(window) = tauri::Manager::get_webview_window(_app, "main") {
