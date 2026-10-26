@@ -4,7 +4,7 @@ import { parseCsv, type CsvData } from "../lib/csv";
 import { statusClass } from "../lib/format";
 import { sendRequest } from "../lib/http";
 import { newId } from "../lib/ids";
-import { buildRun } from "../lib/run";
+import { buildRun, entryNotes, type RunEntry } from "../lib/run";
 import { saveRun } from "../lib/runStore";
 import { prepareRequest, requestPlaceholders } from "../lib/request";
 import { requestScriptRunner } from "../lib/requestScripts";
@@ -13,7 +13,8 @@ import { detectVarSets } from "../lib/testing/varsDetect";
 import { load, save } from "../lib/storage";
 import type { Vars } from "../lib/template";
 import type { RequestDef } from "../lib/types";
-import { ResponsePane } from "./ResponsePane";
+import { CallDetail } from "./CallDetail";
+import { CsvPreview } from "./CsvPreview";
 import { ScriptExportPanel } from "./ScriptExportPanel";
 
 interface Props {
@@ -23,6 +24,8 @@ interface Props {
   scriptVars?: Vars;
   envName?: string;
   onRunningChange: (running: boolean) => void;
+  /** True while a run is going or its results are on screen: the request column gives way to them. */
+  onWideChange?: (wide: boolean) => void;
   onRunSaved: (id: string) => void;
   onOpenRun: (id: string) => void;
 }
@@ -51,7 +54,7 @@ function formatElapsed(ms: number): string {
 
 const NO_VARS: Vars = {};
 
-export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunningChange, onRunSaved, onOpenRun }: Props) {
+export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunningChange, onWideChange, onRunSaved, onOpenRun }: Props) {
   const [file, setFile] = useState<LoadedFile | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [options, setOptions] = useState<BatchOptions>(() => ({ ...DEFAULT_BATCH_OPTIONS, ...load(OPTIONS_KEY, {}) }));
@@ -67,6 +70,8 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [savedRunId, setSavedRunId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  /** The request and options a run started with, to write notes for the call detail. */
+  const snapshotRef = useRef<{ def: RequestDef; options: BatchOptions } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const bufferRef = useRef<BatchItemResult[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -75,6 +80,8 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
     save(OPTIONS_KEY, options);
   }, [options]);
   useEffect(() => onRunningChange(running), [running, onRunningChange]);
+  const wide = running || results.length > 0;
+  useEffect(() => onWideChange?.(wide), [wide, onWideChange]);
 
   // While running, move buffered results into state a few times a second instead of on every response.
   useEffect(() => {
@@ -136,6 +143,7 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
     setRunning(true);
     const snapshot = structuredClone(def);
     const runOptions = { ...options };
+    snapshotRef.current = { def: snapshot, options: runOptions };
     const startVars = { ...scriptVars };
     const all: BatchItemResult[] = [];
     const result = await runBatch(
@@ -209,11 +217,14 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
   const filtered = filter === "failed" ? sorted.filter((r) => r.failed) : sorted;
   const visible = filtered.slice(0, limit);
   const selectedResult = selected === null ? null : results.find((r) => r.index === selected) ?? null;
+  const selectedEntry: RunEntry | null = selectedResult
+    ? { ...selectedResult, notes: entryNotes(selectedResult, snapshotRef.current?.options ?? options, snapshotRef.current?.def ?? def) }
+    : null;
 
   const num = (v: string, min: number, max: number) => Math.min(max, Math.max(min, Math.round(Number(v) || 0)));
 
   return (
-    <section className="batch">
+    <section className={`batch ${wide ? "wide" : ""}`}>
       <div className="batch-setup">
         <div className="batch-file">
           <input ref={inputRef} type="file" accept=".csv,.tsv,.txt,text/csv" hidden onChange={(e) => void onPick(e.target.files?.[0])} />
@@ -233,6 +244,7 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
         </div>
 
         {fileError && <p className="warning small">{fileError}</p>}
+        {file && !wide && <CsvPreview csv={file.data} />}
         {file?.data.warnings.map((w) => (
           <p key={w} className="warning small">
             {w}
@@ -394,14 +406,29 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
           <div className="progress-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
             <div className={`progress-fill ${failed ? "has-failures" : ""}`} style={{ width: `${pct}%` }} />
           </div>
-          <div className="progress-stats">
-            <span>
-              {running ? "Running" : end ? describeEnd(end) : ""} · {done} / {rows.length}
-            </span>
-            <span className="status ok">{passed} passed</span>
-            <span className={failed ? "status bad" : "muted"}>{failed} failed</span>
-            <span className="muted">{formatElapsed(elapsed)}</span>
-            <span className="muted">avg {avgMs} ms</span>
+          <div className="batch-tiles">
+            <div className="batch-tile">
+              <span className="muted small">{running ? "Running" : end ? describeEnd(end) : ""}</span>
+              <strong>
+                {done} / {rows.length}
+              </strong>
+            </div>
+            <div className="batch-tile">
+              <span className="muted small">Passed</span>
+              <strong className="status ok">{passed}</strong>
+            </div>
+            <div className="batch-tile">
+              <span className="muted small">Failed</span>
+              <strong className={failed ? "status bad" : "muted"}>{failed}</strong>
+            </div>
+            <div className="batch-tile">
+              <span className="muted small">Elapsed</span>
+              <strong>{formatElapsed(elapsed)}</strong>
+            </div>
+            <div className="batch-tile">
+              <span className="muted small">Average</span>
+              <strong>{avgMs} ms</strong>
+            </div>
             {savedRunId && !running && (
               <button className="link-btn" onClick={() => onOpenRun(savedRunId)}>
                 Open in run explorer and export reports →
@@ -466,13 +493,8 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
             </div>
           </div>
           <div className="result-detail">
-            {selectedResult ? (
-              <ResponsePane
-                outcome={selectedResult.outcome}
-                sending={false}
-                scripts={selectedResult.preScript || selectedResult.postScript ? { pre: selectedResult.preScript, post: selectedResult.postScript } : null}
-                scriptVars={selectedResult.scriptVars}
-              />
+            {selectedEntry ? (
+              <CallDetail entry={selectedEntry} />
             ) : (
               <p className="muted small">Click a row to see its request and response.</p>
             )}

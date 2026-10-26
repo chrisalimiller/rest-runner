@@ -49,7 +49,7 @@ import { hasScripts, requestScriptRunner, sendWithScripts } from "./lib/requestS
 import type { Vars } from "./lib/template";
 import type { ScriptOutput } from "./lib/testing/types";
 import type { RunSummary } from "./lib/run";
-import type { QuickItem } from "./lib/quickOpen";
+import { readableUrl, type QuickItem } from "./lib/quickOpen";
 import { deleteRun, listRuns } from "./lib/runStore";
 import { saveTextFile } from "./lib/saveFile";
 import { describeWorkspaceImport, importWorkspace as mergeWorkspace, toWorkspaceFile } from "./lib/workspace";
@@ -109,6 +109,8 @@ export default function App({ active = true, shell, command }: Props) {
   const [sending, setSending] = useState(false);
   const [pane, setPane] = useState<LowerPane>("response");
   const [batchVisited, setBatchVisited] = useState(false);
+  /** A batch is running or its results are on screen: the request column folds into a summary bar. */
+  const [batchWide, setBatchWide] = useState(false);
   const [batchRunning, setBatchRunning] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>(() => load(HISTORY_KEY, []));
   const [runs, setRuns] = useState<RunSummary[]>([]);
@@ -539,6 +541,8 @@ export default function App({ active = true, shell, command }: Props) {
   };
 
   const unfilled = unresolvedPlaceholders(def, sendVars);
+  const foldRequest = pane === "batch" && batchWide && openRun === null;
+  const summaryUrl = foldRequest ? prepareRequest(def, sendVars).url : "";
   const guard = guardFor(activeEnv);
   const sends = earlierSends(history, runs.filter((r) => !runDelete.hidden.has(r.id)), def);
   const shownEntry = outcomeIsSample && shownHistoryId ? history.find((h) => h.id === shownHistoryId) : undefined;
@@ -666,8 +670,22 @@ export default function App({ active = true, shell, command }: Props) {
         </main>
       )}
 
+      {foldRequest && (
+        <div className="request-summary-bar" aria-label="Request">
+          <span className={`method m-${def.method.toLowerCase()}`}>{def.method}</span>
+          <strong className="request-summary-name" title={def.name}>
+            {def.name || "Untitled request"}
+          </strong>
+          <span className="request-summary-url mono" title={summaryUrl}>
+            {readableUrl(summaryUrl)}
+          </span>
+          <button className="secondary" onClick={() => setPane("response")} title="Show the request again. The batch results stay where they are.">
+            Edit request
+          </button>
+        </div>
+      )}
       <div
-        className="inspector"
+        className={`inspector ${foldRequest ? "request-folded" : ""}`}
         hidden={openRun !== null}
         ref={inspectorRef}
         style={{ "--split-a": `${split}fr`, "--split-b": `${1 - split}fr` } as React.CSSProperties}
@@ -801,7 +819,7 @@ export default function App({ active = true, shell, command }: Props) {
             )}
           </div>
           <div className="batch-main" hidden={pane !== "batch"}>
-            <BatchPane def={def} envVars={envVars} scriptVars={scriptVars} envName={activeEnv?.name} onRunningChange={setBatchRunning} onRunSaved={refreshRuns} onOpenRun={setOpenRun} />
+            <BatchPane def={def} envVars={envVars} scriptVars={scriptVars} envName={activeEnv?.name} onRunningChange={setBatchRunning} onWideChange={setBatchWide} onRunSaved={refreshRuns} onOpenRun={setOpenRun} />
           </div>
         </section>
       </div>

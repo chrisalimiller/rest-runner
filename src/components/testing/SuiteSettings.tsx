@@ -1,3 +1,4 @@
+import { CsvPreview } from "../CsvPreview";
 import { useMemo, useRef, useState } from "react";
 import { parseCsv } from "../../lib/csv";
 import { requestPlaceholders } from "../../lib/request";
@@ -127,31 +128,7 @@ export function SuiteSettings({ suite, onChange, envVarNames }: Props) {
           {w}
         </p>
       ))}
-      {csv && csv.rows.length > 0 && (
-        <div className="csv-preview">
-          <table className="results">
-            <thead>
-              <tr>
-                <th>#</th>
-                {csv.headers.map((h) => (
-                  <th key={h}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {csv.rows.slice(0, 5).map((r, i) => (
-                <tr key={i}>
-                  <td>{i + 1}</td>
-                  {csv.headers.map((h) => (
-                    <td key={h}>{r[h]}</td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {csv.rows.length > 5 && <p className="muted small">…and {csv.rows.length - 5} more rows</p>}
-        </div>
-      )}
+      {csv && <CsvPreview csv={csv} />}
 
       <h3>Placeholders</h3>
       {used.length === 0 ? (

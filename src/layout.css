@@ -595,6 +595,48 @@ body.dragging-split {
   display: none;
 }
 
+/* A batch run is on screen: the request folds into a bar and the results take the full width. */
+.inspector.request-folded {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.inspector.request-folded .request-col,
+.inspector.request-folded .splitter {
+  display: none;
+}
+
+.request-summary-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-muted);
+  background: var(--bg-soft);
+  min-width: 0;
+}
+
+.request-summary-bar .method {
+  width: auto;
+}
+
+.request-summary-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.request-summary-url {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .request-col {
   display: flex;
   flex-direction: column;
