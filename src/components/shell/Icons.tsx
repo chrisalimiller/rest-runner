@@ -154,3 +154,37 @@ export function MoreIcon({ size = 16 }: IconProps) {
     </svg>
   );
 }
+
+export function RequestsIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M4 7h11" />
+      <path d="M12 4l3 3-3 3" />
+      <path d="M20 17H9" />
+      <path d="M12 14l-3 3 3 3" />
+    </svg>
+  );
+}
+
+export function TestingIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M9 3h6" />
+      <path d="M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3" />
+      <path d="M7.5 14h9" />
+    </svg>
+  );
+}
+
+export function FlowsIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="6" cy="6" r="2.5" />
+      <circle cx="18" cy="6" r="2.5" />
+      <circle cx="12" cy="18" r="2.5" />
+      <path d="M8.5 6h7" />
+      <path d="M7.2 8.2l3.6 7.4" />
+      <path d="M16.8 8.2l-3.6 7.4" />
+    </svg>
+  );
+}

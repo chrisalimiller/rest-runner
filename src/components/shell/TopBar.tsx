@@ -2,10 +2,10 @@ import { useRef } from "react";
 import { ENV_COLOR_VARS, type Environment } from "../../lib/environments";
 import { BrandLockup } from "../BrandMark";
 import { overlayTitleBar } from "../../lib/windowChrome";
-import { topBarLayout } from "../../lib/topBar";
+import { MODES, nextModeIndex, topBarLayout } from "../../lib/topBar";
 import { useViewportWidth } from "../useViewportWidth";
 import { openCertificates } from "../../lib/certificatesDialog";
-import { ChevronDownIcon, LockIcon, PencilIcon, SearchIcon } from "./Icons";
+import { ChevronDownIcon, FlowsIcon, LockIcon, PencilIcon, RequestsIcon, SearchIcon, TestingIcon } from "./Icons";
 import { OverflowMenu } from "./OverflowMenu";
 
 export type Mode = "requests" | "testing" | "flows";
@@ -28,12 +28,18 @@ interface Props {
   variablesOpen?: boolean;
 }
 
-const MODE_LABELS: Record<Mode, string> = { requests: "Requests", testing: "Testing", flows: "Flows" };
+export const MODE_LABELS: Record<Mode, string> = { requests: "Requests", testing: "Testing", flows: "Flows" };
+
+const MODE_ICONS: Record<Mode, () => React.ReactNode> = {
+  requests: () => <RequestsIcon />,
+  testing: () => <TestingIcon />,
+  flows: () => <FlowsIcon />,
+};
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 export const MOD_KEY = isMac ? "⌘" : "Ctrl";
 
-/** The one bar at the top of both modes: brand, switcher, quick open, environment, mode tabs. */
+/** The one bar at the top of both modes: brand, switcher, quick open, environment, section switcher. */
 export function TopBar(props: Props) {
   const layout = topBarLayout(useViewportWidth(), props.environments.length);
   return (
@@ -75,14 +81,45 @@ export function TopBar(props: Props) {
       <button className="icon-btn topbar-certs" onClick={() => openCertificates()} aria-label="Certificates" title="Client certificates and custom CAs, matched to addresses">
         <LockIcon />
       </button>
-      <nav className="mode-tabs" aria-label="Mode">
-        {(["requests", "testing", "flows"] as const).map((m) => (
-          <button key={m} className={props.mode === m ? "active" : ""} aria-current={props.mode === m ? "page" : undefined} onClick={() => props.onMode(m)}>
-            {MODE_LABELS[m]}
-          </button>
-        ))}
-      </nav>
+      <ModeSwitch mode={props.mode} onMode={props.onMode} />
     </header>
+  );
+}
+
+/** One segmented control for the three sections: the selected one shows its name, the others are icons. Arrow keys move focus. */
+export function ModeSwitch({ mode, onMode }: { mode: Mode; onMode: (mode: Mode) => void }) {
+  const ref = useRef<HTMLElement>(null);
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    const buttons = ref.current?.querySelectorAll<HTMLButtonElement>("button");
+    if (!buttons) return;
+    const current = Array.from(buttons).indexOf(document.activeElement as HTMLButtonElement);
+    if (current < 0) return;
+    const next = nextModeIndex(current, e.key, MODES.length);
+    if (next === null) return;
+    e.preventDefault();
+    buttons[next]?.focus();
+  };
+  return (
+    <nav className="mode-switch" aria-label="Section" ref={ref} onKeyDown={onKeyDown}>
+      {MODES.map((m, i) => {
+        const on = mode === m;
+        return (
+          <button
+            key={m}
+            type="button"
+            className={on ? "on" : ""}
+            aria-pressed={on}
+            aria-current={on ? "page" : undefined}
+            aria-keyshortcuts={`Control+${i + 1} Meta+${i + 1}`}
+            title={`${MODE_LABELS[m]} (${MOD_KEY} ${i + 1})`}
+            onClick={() => onMode(m)}
+          >
+            {MODE_ICONS[m]()}
+            <span className={on ? "mode-switch-label" : "visually-hidden"}>{MODE_LABELS[m]}</span>
+          </button>
+        );
+      })}
+    </nav>
   );
 }
 
