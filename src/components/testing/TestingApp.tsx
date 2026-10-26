@@ -3,7 +3,7 @@ import { useToast } from "../shell/Toast";
 import { useDeferredDelete } from "../shell/useDeferredDelete";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { parseCsv } from "../../lib/csv";
-import { environmentVars, type Environment } from "../../lib/environments";
+import { environmentVars, guardFor, loadEnvironments, type Environment } from "../../lib/environments";
 import { sendRequest } from "../../lib/http";
 import { newId } from "../../lib/ids";
 import { saveTextFile } from "../../lib/saveFile";
@@ -30,7 +30,6 @@ import { TestRunExplorer } from "./TestRunExplorer";
 const SUITES_KEY = "rest-runner.test-suites";
 const OPEN_SUITE_KEY = "rest-runner.test-open-suite";
 const TEST_ENV_KEY = "rest-runner.test-environment";
-const ENVIRONMENTS_KEY = "rest-runner.environments";
 const FLUSH_MS = 150;
 
 /** Saves suites, leaving out CSV data too large for local storage. Returns false when storage refused. */
@@ -67,7 +66,7 @@ export function TestingApp({ active, shell, command }: Props) {
   const [openCases, setOpenCases] = useState<Record<string, string | null>>({});
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [latestRun, setLatestRun] = useState<TestRun | null>(null);
-  const [environments, setEnvironments] = useState<Environment[]>(() => load(ENVIRONMENTS_KEY, []));
+  const [environments, setEnvironments] = useState<Environment[]>(loadEnvironments);
   const [envId, setEnvId] = useState<string | null>(() => load(TEST_ENV_KEY, null));
   const [runs, setRuns] = useState<TestRunSummary[]>([]);
   const [report, setReport] = useState<OpenReport | null>(null);
@@ -99,7 +98,7 @@ export function TestingApp({ active, shell, command }: Props) {
 
   // Environments are edited in the Requests section; pick up changes whenever Testing is shown.
   useEffect(() => {
-    if (active) setEnvironments(load(ENVIRONMENTS_KEY, []));
+    if (active) setEnvironments(loadEnvironments());
   }, [active]);
 
   const refreshRuns = useCallback(() => {
@@ -269,7 +268,11 @@ export function TestingApp({ active, shell, command }: Props) {
     if (!command || lastCommand.current === command.nonce) return;
     lastCommand.current = command.nonce;
     if (command.type === "open") openItem(command.item);
-    if (command.type === "reload") setSuites(cleanSuites(load(SUITES_KEY, [])));
+    if (command.type === "reload") {
+      setSuites(cleanSuites(load(SUITES_KEY, [])));
+      setEnvironments(loadEnvironments());
+      setEnvId(load(TEST_ENV_KEY, null));
+    }
   }, [command]);
 
   useEffect(() => {
@@ -360,6 +363,7 @@ export function TestingApp({ active, shell, command }: Props) {
               latestRun={latestRun && latestRun.suiteId === suite.id ? latestRun : null}
               envVars={envVars}
               envName={env?.name}
+              guard={guardFor(env)}
               notice={notice}
             />
             <LastRunPanel
@@ -390,6 +394,7 @@ export function TestingApp({ active, shell, command }: Props) {
               <p className="muted">
                 Build suites of test cases from your saved requests, add assertions and scripts, and run them in order, in parallel, or once per CSV row.
               </p>
+              {suites.length === 0 && <p className="muted">Create a suite, then add cases from saved requests.</p>}
               {notice && <p className="small notice">{notice}</p>}
               <button className="send" onClick={createSuite}>
                 Create a test suite

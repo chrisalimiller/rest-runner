@@ -7,20 +7,39 @@ import {
   updateRequest,
   type Collection,
 } from "./collections";
-import type { Environment } from "./environments";
+import { cleanEnvironments, type Environment } from "./environments";
+import { importFlowsFile } from "./flows/flowFile";
+import { cleanFlows } from "./flows/flows";
+import type { Flow } from "./flows/types";
+import { importSuitesFile } from "./testing/suiteFile";
+import { cleanSuites } from "./testing/suites";
+import type { TestSuite } from "./testing/types";
 import { detectPostmanFile, importPostmanCollection, importPostmanEnvironment } from "./postman";
 import type { RequestDef } from "./types";
 
 /**
- * File format for exporting and importing collections and environments.
- * Version 1 files (a flat `savedRequests` list) still import.
+ * File format for exporting and importing a whole workspace: collections,
+ * environments, test suites and flows. Version 2 files (no suites or flows) and
+ * version 1 files (a flat `savedRequests` list) still import, and so do the
+ * separate suites and flows files.
  */
 export interface WorkspaceFile {
   app: "rest-runner";
-  version: 2;
+  kind: "workspace";
+  version: 3;
   exportedAt: string;
   collections: Collection[];
   environments: Environment[];
+  suites: TestSuite[];
+  flows: Flow[];
+}
+
+/** Everything a workspace file holds. */
+export interface Workspace {
+  collections: Collection[];
+  environments: Environment[];
+  suites: TestSuite[];
+  flows: Flow[];
 }
 
 export const IMPORTED_COLLECTION_NAME = "Imported requests";
@@ -31,9 +50,22 @@ export function exportEnvironments(environments: Environment[], includeSecrets: 
   return environments.map((env) => ({ ...env, vars: env.vars.map((v) => (v.secret ? { ...v, value: "" } : v)) }));
 }
 
-export function toWorkspaceFile(collections: Collection[], environments: Environment[], options: { includeSecrets?: boolean } = {}): string {
+export function toWorkspaceFile(
+  collections: Collection[],
+  environments: Environment[],
+  options: { includeSecrets?: boolean; suites?: TestSuite[]; flows?: Flow[] } = {},
+): string {
   environments = exportEnvironments(environments, options.includeSecrets ?? false);
-  const file: WorkspaceFile = { app: "rest-runner", version: 2, exportedAt: new Date().toISOString(), collections, environments };
+  const file: WorkspaceFile = {
+    app: "rest-runner",
+    kind: "workspace",
+    version: 3,
+    exportedAt: new Date().toISOString(),
+    collections,
+    environments,
+    suites: options.suites ?? [],
+    flows: options.flows ?? [],
+  };
   return JSON.stringify(file, null, 2);
 }
 
@@ -44,6 +76,13 @@ export interface ImportResult {
   replaced: number;
   /** Things in a Postman file that could not be carried over. */
   warnings?: string[];
+}
+
+export interface WorkspaceImport extends Workspace {
+  /** Things in a Postman file that could not be carried over. */
+  warnings?: string[];
+  /** What changed, as [added, updated] pairs. */
+  counts: { collections: [number, number]; environments: [number, number]; suites: [number, number]; flows: [number, number]; requests: [number, number] };
 }
 
 function isEnvironment(x: unknown): x is Environment {
@@ -82,36 +121,106 @@ function mergeById<T extends { id: string }>(current: T[], incoming: T[]): { lis
 }
 
 /**
- * Reads an exported file, or a Postman collection (v2.0/v2.1) or environment
- * file, and merges it in. A collection or environment with the
+ * Reads an exported file and merges it in. A collection or environment with the
  * same id replaces the current one; others are added. Requests from an old
  * version 1 file replace saved requests with the same id wherever they are, and
  * new ones go into an "Imported requests" collection.
  */
-function importPostman(kind: "collection" | "environment", data: unknown, collections: Collection[], environments: Environment[]): ImportResult {
-  if (kind === "environment") {
-    const { environment, warnings } = importPostmanEnvironment(data);
-    const e = mergeById(environments, [environment]);
-    return { collections, environments: e.list, added: e.added, replaced: e.replaced, warnings };
+export function importWorkspaceFile(text: string, collections: Collection[], environments: Environment[]): ImportResult {
+  const postman = detectPostman(text);
+  if (postman) {
+    const zero: [number, number] = [0, 0];
+    const r = importPostman(postman.kind, postman.data, { collections, environments, suites: [], flows: [] }, { collections: zero, environments: zero, suites: zero, flows: zero, requests: zero });
+    const added = r.counts.collections[0] + r.counts.environments[0];
+    const replaced = r.counts.collections[1] + r.counts.environments[1];
+    return { collections: r.collections, environments: r.environments, added, replaced, warnings: r.warnings };
   }
-  const { collection, variables, warnings } = importPostmanCollection(data);
-  const c = mergeById(collections, [collection]);
-  const e = mergeById(environments, variables ? [variables] : []);
-  return { collections: c.list, environments: e.list, added: c.added + e.added, replaced: c.replaced + e.replaced, warnings };
+  return importCollectionsAndEnvironments(parseExport(text), collections, environments);
 }
 
-export function importWorkspaceFile(text: string, collections: Collection[], environments: Environment[]): ImportResult {
+function parseExport(text: string): Record<string, unknown> {
   let data: Record<string, unknown>;
   try {
     data = JSON.parse(text);
   } catch {
     throw new Error("The file is not valid JSON.");
   }
-  const postman = detectPostmanFile(data);
-  if (postman) return importPostman(postman, data, collections, environments);
   if (!data || data.app !== "rest-runner") throw new Error("This is not a REST Runner export file.");
+  return data;
+}
 
-  const envs = (Array.isArray(data.environments) ? data.environments : []).filter(isEnvironment);
+function detectPostman(text: string): { kind: "collection" | "environment"; data: unknown } | null {
+  let data: unknown;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  const kind = detectPostmanFile(data);
+  return kind ? { kind, data } : null;
+}
+
+/** A Postman collection (with its variables as an environment) or environment file, merged by id so importing it again replaces it. */
+function importPostman(kind: "collection" | "environment", data: unknown, current: Workspace, counts: WorkspaceImport["counts"]): WorkspaceImport {
+  if (kind === "environment") {
+    const { environment, warnings } = importPostmanEnvironment(data);
+    const e = mergeById(current.environments, [environment]);
+    return { ...current, environments: e.list, warnings, counts: { ...counts, environments: [e.added, e.replaced] } };
+  }
+  const { collection, variables, warnings } = importPostmanCollection(data);
+  const c = mergeById(current.collections, [collection]);
+  const e = mergeById(current.environments, variables ? [variables] : []);
+  return {
+    ...current,
+    collections: c.list,
+    environments: e.list,
+    warnings,
+    counts: { ...counts, collections: [c.added, c.replaced], environments: [e.added, e.replaced] },
+  };
+}
+
+/**
+ * Reads any REST Runner export (a workspace file of any version, a test suites
+ * file or a flows file) and merges everything in it into the current workspace.
+ */
+export function importWorkspace(text: string, current: Workspace): WorkspaceImport {
+  const zero: [number, number] = [0, 0];
+  const counts: WorkspaceImport["counts"] = { collections: zero, environments: zero, suites: zero, flows: zero, requests: zero };
+  const postman = detectPostman(text);
+  if (postman) return importPostman(postman.kind, postman.data, current, counts);
+  const data = parseExport(text);
+  if (data.kind === "flows") {
+    const r = importFlowsFile(text, current);
+    return { ...current, flows: r.flows, suites: r.suites, collections: r.collections, counts: { ...counts, flows: r.counts.flows, suites: r.counts.suites, requests: r.counts.requests } };
+  }
+  if (data.kind === "test-suites") {
+    const r = importSuitesFile(text, current.suites);
+    return { ...current, suites: r.suites, counts: { ...counts, suites: [r.added, r.replaced] } };
+  }
+  const base = importCollectionsAndEnvironments(data, current.collections, current.environments);
+  const suites = mergeById(current.suites, cleanSuites(data.suites));
+  const flows = mergeById(current.flows, cleanFlows(data.flows));
+  const incomingEnvs = (Array.isArray(data.environments) ? data.environments : []).filter(isEnvironment);
+  const envReplaced = incomingEnvs.filter((e) => current.environments.some((x) => x.id === e.id)).length;
+  const envCount: [number, number] = [incomingEnvs.length - envReplaced, envReplaced];
+  return {
+    collections: base.collections,
+    environments: base.environments,
+    suites: suites.list,
+    flows: flows.list,
+    counts: {
+      ...counts,
+      collections: [base.added - envCount[0], base.replaced - envCount[1]],
+      environments: envCount,
+      suites: [suites.added, suites.replaced],
+      flows: [flows.added, flows.replaced],
+    },
+  };
+}
+
+function importCollectionsAndEnvironments(data: Record<string, unknown>, collections: Collection[], environments: Environment[]): ImportResult {
+
+  const envs = cleanEnvironments((Array.isArray(data.environments) ? data.environments : []).filter(isEnvironment));
   const e = mergeById(
     environments,
     envs.map((env) => keepSecretValues(env, environments.find((x) => x.id === env.id))),
@@ -152,4 +261,17 @@ export function importWorkspaceFile(text: string, collections: Collection[], env
   }
 
   return { collections: nextCollections, environments: e.list, added, replaced };
+}
+
+/** One line for the notice after an import: "Imported x.json: collections: 1 added; flows: 1 added." */
+export function describeWorkspaceImport(name: string, c: WorkspaceImport["counts"]): string {
+  const part = (label: string, [a, r]: [number, number]) => (a || r ? `${label}: ${[a ? `${a} added` : "", r ? `${r} updated` : ""].filter(Boolean).join(", ")}` : null);
+  const parts = [
+    part("collections", c.collections),
+    part("saved requests", c.requests),
+    part("environments", c.environments),
+    part("suites", c.suites),
+    part("flows", c.flows),
+  ].filter(Boolean);
+  return `Imported ${name}: ${parts.join("; ") || "nothing new"}.`;
 }

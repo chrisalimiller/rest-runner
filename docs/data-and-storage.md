@@ -45,8 +45,8 @@ Because environments, collections and suites can hold tokens and passwords you t
 
 ## Backing up and moving to another computer
 
-- **Collections and environments:** Export from the request switcher's popover, Import on the other computer. See [Export and import](collections.md#export-and-import).
-- **Test suites** (with their CSV data): **Export** and **Import** in the Testing sidebar. See [Testing](testing.md#exporting-suites).
+- **Everything at once:** **Export workspace…** in the request switcher's popover writes collections, environments, test suites (with their CSV data) and flows to one file, and **Import** reads it on the other computer. See [Export and import](collections.md#export-and-import).
+- **Test suites** and **flows** also export and import on their own, from the Testing and Flows sidebars. See [Testing](testing.md#exporting-suites).
 - **Run history** (batch runs, test runs) is not part of those exports. Export the HTML or CSV report of a run if you want to keep it.
 
 ## Clearing data

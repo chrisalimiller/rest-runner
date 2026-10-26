@@ -98,16 +98,38 @@
   flex: 1;
   min-height: 0;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+}
+
+.flow-canvas {
+  flex: 1;
+  min-width: 0;
 }
 
 .flow-palette {
+  flex: 0 0 148px;
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--border-muted);
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 8px;
+  border-right: 1px solid var(--border-muted);
   background: var(--bg-soft);
+  overflow-y: auto;
+}
+
+.palette-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.palette-group-title {
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 .flow-palette[hidden] {
@@ -115,7 +137,7 @@
 }
 
 .palette-item {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 6px;
   height: 26px;
@@ -789,4 +811,170 @@ table.results.flow-report-steps td {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* "+" on an output: add a step already wired */
+.flow-add {
+  position: absolute;
+  right: -44px;
+  top: -2px;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--btn-bg);
+  color: var(--text-soft);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+}
+
+.flow-node:hover .flow-add,
+.flow-node.selected .flow-add,
+.flow-add:focus-visible,
+.flow-add.hint {
+  opacity: 1;
+}
+
+.flow-add:hover {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+}
+
+.flow-add.hint {
+  border-color: var(--accent-fg);
+  color: var(--accent-fg);
+  animation: flow-add-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes flow-add-pulse {
+  50% {
+    box-shadow: 0 0 0 5px var(--accent-subtle);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-add.hint {
+    animation: none;
+    box-shadow: 0 0 0 4px var(--accent-subtle);
+  }
+}
+
+.flow-canvas-hint {
+  position: absolute;
+  left: 50%;
+  top: 16px;
+  transform: translateX(-50%);
+  margin: 0;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.step-picker {
+  position: fixed;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  max-height: 320px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 8px 24px rgba(1, 4, 9, 0.6);
+}
+
+.step-picker-search {
+  margin: 8px;
+}
+
+.step-picker-list {
+  overflow-y: auto;
+  padding: 0 4px 8px;
+}
+
+.step-picker-group {
+  padding: 6px 8px 2px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.step-picker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 8px;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.step-picker-item:hover,
+.step-picker-item:focus-visible {
+  background: var(--bg-hover);
+}
+
+.step-picker-empty {
+  padding: 8px;
+}
+
+/* Settings while the flow runs */
+.flow-lock {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.flow-lock:disabled {
+  opacity: 0.6;
+}
+
+.flow-locked {
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--accent-fg);
+  border-radius: var(--radius);
+  background: var(--accent-subtle);
+  color: var(--text);
+}
+
+.flow-running-line {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-soft);
+  white-space: nowrap;
+}
+
+.flow-node.st-running {
+  animation: flow-node-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes flow-node-pulse {
+  50% {
+    box-shadow: 0 0 0 5px var(--accent-subtle), 0 0 0 2px var(--accent-fg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .flow-node.st-running {
+    animation: none;
+  }
 }

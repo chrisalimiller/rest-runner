@@ -15,7 +15,8 @@ Flows are saved automatically as you edit. Like the other modes, Flows stays ali
 
 ## Building a flow
 
-- **Add a step:** click it in the step bar (it lands in the middle of the canvas), or drag it onto the canvas.
+- **Add a step already wired:** point at an output dot on a step (or tab to it) and click the **+** next to it. A small list opens, grouped as Run, Logic and Utility, with type-to-filter (Enter takes the first match). The new step lands 260 px to the right (lower down if that spot is taken), is wired from that output and is selected. The **+** shows on outputs that have no wire yet, and on Parallel's branches. In a new flow, the **+** next to Start is highlighted.
+- **The palette** is the rail on the left of the canvas, grouped Triggers (Start, Schedule), Run (Run case, Run suite, Run request), Logic (If, Parallel, Join, Loop over CSV) and Utility (Wait, Set variable, Sticky note). **Click** an item to add it to the right of the selected step, wired from its first free output; with nothing selected it goes next to the last step. **Drag** it onto the canvas to place it yourself.
 - **Wire steps:** drag from an output dot on the right of a step to the input dot on the left of another. Dragging a new wire from an output that already has one replaces the old wire.
 - **Select** a step to edit it on the right. **Delete** or **Backspace** removes the selected step or wire; so does **Delete step** in its settings. Nothing asks first; use [undo](#undo).
 - **Move around:** drag the background to pan, scroll or pinch to zoom, and use the buttons at the bottom left to zoom or fit the flow. The small map at the bottom right also pans and zooms.
@@ -32,7 +33,7 @@ A red **!** on a step means the flow can't run until it is fixed (for example, a
 
 ## Running
 
-Press **Run**. The run begins at **Start** (or, in a flow with no Start and one Schedule, at the Schedule) and the step running now shows a spinner. Finished steps turn green or red, and the right-hand panel lists every step with its result, time and the wire it took. Click a step there for its notes, tries, the case and check counts, and the variables it changed. **Show on canvas** finds the step.
+Press **Run**. The right-hand panel switches to the live run even if a step was selected, and the header shows **Running · Loop row 2 of 3 · 8.1 s** (the loop part only inside a Loop over CSV) next to **Stop**. The wire the run just took animates and the step running now has a pulsing outline. A step that ran more than once shows **2 runs**; hover for the explanation. If you select a step while the flow runs, its settings are read-only until the run ends (a banner says so). The run begins at **Start** (or, in a flow with no Start and one Schedule, at the Schedule) and the step running now shows a spinner. Finished steps turn green or red, and the right-hand panel lists every step with its result, time and the wire it took. Click a step there for its notes, tries, the case and check counts, and the variables it changed. **Show on canvas** finds the step.
 
 Finished runs are saved (the last 50) and listed under **Flow runs**. Opening one shows its [report](#reports). **Open report** under the result in the right-hand panel does the same for the run you just watched.
 

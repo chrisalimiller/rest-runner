@@ -81,6 +81,7 @@ An environment is a named set of variables, such as Dev and Prod, each with its 
 - Click the **pencil** next to the environment switch in the top bar to open the environment editor. **+ Add environment** creates one. You can rename, **Duplicate** or **Delete** the selected one, and edit its variables in a key/value table (with on/off checkboxes).
 - Pick the active environment on the switch. With up to four environments you get one button each plus **None** (arrow keys move between them). With more than four it becomes a drop-down.
 - A request that uses `{{baseUrl}}` and `{{token}}` now works against whichever environment is selected.
+- Each environment has a **colour** (none, green, blue, amber or red), picked with the swatches at the top of the editor. It shows as a dot on the switch. Environments named Prod, Production or PRD start red. An environment with a colour also marks the buttons that act on it: **Send**, **Run suite** and **Run** (in Flows) get an outline in that colour and say where they will go, for example **Send to Prod**. There is no confirmation dialog; the colour and the label are the guard.
 - Only enabled variables with a non-empty name are used.
 - Environments are edited in Requests mode. Testing mode has its own environment switch (its choice is remembered separately from Requests), and it picks up edits when you switch over.
 - Environment values are stored on this computer only, in the app's local storage. Workspace exports leave [secret values](#secret-values) out unless you ask for them.

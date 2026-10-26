@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import { listRequests, newCollection, requestNode } from "./collections";
 import { newRequest } from "./defaults";
 import { environmentVars, newEnvironment, type Environment } from "./environments";
-import { IMPORTED_COLLECTION_NAME, importWorkspaceFile, toWorkspaceFile } from "./workspace";
+import sample from "../assets/sample-workspace.json";
+import { toFlowsFile } from "./flows/flowFile";
+import { newFlow } from "./flows/flows";
+import { toSuitesFile } from "./testing/suiteFile";
+import { newSuite, newTestCase } from "./testing/suites";
+import { IMPORTED_COLLECTION_NAME, describeWorkspaceImport, importWorkspace, importWorkspaceFile, toWorkspaceFile } from "./workspace";
 
 describe("environmentVars", () => {
   it("uses enabled rows with a name", () => {
@@ -98,5 +103,56 @@ describe("secrets in a workspace file", () => {
     const old = { app: "rest-runner", version: 2, collections: [], environments: [{ id: "e", name: "Dev", vars: [{ id: "1", key: "k", value: "v", enabled: true }] }] };
     const result = importWorkspaceFile(JSON.stringify(old), [], []);
     expect(result.environments[0].vars[0].secret).toBeUndefined();
+  });
+});
+
+describe("combined workspace file", () => {
+  const empty = { collections: [], environments: [], suites: [], flows: [] };
+
+  it("round-trips collections, environments, suites and flows", () => {
+    const col = { ...newCollection("API"), items: [requestNode({ ...newRequest(), name: "A" })] };
+    const suite = { ...newSuite("Checks"), cases: [newTestCase()] };
+    const flow = { ...newFlow("Nightly") };
+    const text = toWorkspaceFile([col], [newEnvironment("Dev")], { suites: [suite], flows: [flow] });
+    expect(JSON.parse(text)).toMatchObject({ kind: "workspace", version: 3 });
+    const r = importWorkspace(text, empty);
+    expect(r.collections.map((c) => c.name)).toEqual(["API"]);
+    expect(r.environments.map((e) => e.name)).toEqual(["Dev"]);
+    expect(r.suites.map((s) => s.name)).toEqual(["Checks"]);
+    expect(r.flows.map((f) => f.name)).toEqual(["Nightly"]);
+    expect(r.counts).toMatchObject({ suites: [1, 0], flows: [1, 0], environments: [1, 0] });
+    const again = importWorkspace(text, r);
+    expect(again.counts).toMatchObject({ suites: [0, 1], flows: [0, 1], environments: [0, 1] });
+    expect(again.flows).toHaveLength(1);
+  });
+
+  it("still imports version 2 files, and suites and flows files", () => {
+    const col = { ...newCollection("Old"), items: [requestNode(newRequest())] };
+    const v2 = JSON.stringify({ app: "rest-runner", version: 2, collections: [col], environments: [] });
+    expect(importWorkspace(v2, empty).collections.map((c) => c.name)).toEqual(["Old"]);
+    const suite = newSuite("S");
+    const suites = importWorkspace(toSuitesFile([suite]), empty);
+    expect(suites.suites.map((s) => s.name)).toEqual(["S"]);
+    const flows = importWorkspace(toFlowsFile([newFlow("F")], [], []), empty);
+    expect(flows.flows.map((f) => f.name)).toEqual(["F"]);
+    expect(() => importWorkspace('{"x":1}', empty)).toThrow(/not a REST Runner/);
+  });
+
+  it("describes what changed", () => {
+    expect(describeWorkspaceImport("a.json", { collections: [1, 0], environments: [0, 0], suites: [0, 2], flows: [0, 0], requests: [0, 0] })).toBe(
+      "Imported a.json: collections: 1 added; suites: 2 updated.",
+    );
+    expect(describeWorkspaceImport("a.json", { collections: [0, 0], environments: [0, 0], suites: [0, 0], flows: [0, 0], requests: [0, 0] })).toBe("Imported a.json: nothing new.");
+  });
+
+  it("ships a sample workspace that imports cleanly and keeps its flow wired", () => {
+    const r = importWorkspace(JSON.stringify(sample), empty);
+    expect(listRequests(r.collections)).toHaveLength(3);
+    expect(r.suites[0].cases).toHaveLength(2);
+    expect(r.suites[0].data?.text).toContain("Ada");
+    expect(r.flows[0].nodes).toHaveLength(3);
+    expect(r.flows[0].edges).toHaveLength(2);
+    expect(r.environments[0].vars.find((v) => v.key === "baseUrl")?.value).toMatch(/^https:\/\//);
+    expect(JSON.stringify(sample)).not.toMatch(/naap|secret/i);
   });
 });

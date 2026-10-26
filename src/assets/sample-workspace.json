@@ -1,0 +1,393 @@
+{
+  "app": "rest-runner",
+  "kind": "workspace",
+  "version": 3,
+  "exportedAt": "2026-10-26T00:00:00.000Z",
+  "collections": [
+    {
+      "id": "sample-col",
+      "name": "Sample: Echo API",
+      "items": [
+        {
+          "kind": "request",
+          "id": "sample-req-get",
+          "request": {
+            "id": "sample-req-get",
+            "name": "Echo a GET",
+            "method": "GET",
+            "url": "{{baseUrl}}/get",
+            "params": [
+              {
+                "id": "sample-p1",
+                "key": "name",
+                "value": "{{name}}",
+                "enabled": true
+              },
+              {
+                "id": "empty-sample-req-getp",
+                "key": "",
+                "value": "",
+                "enabled": true
+              }
+            ],
+            "headers": [
+              {
+                "id": "empty-sample-req-geth",
+                "key": "",
+                "value": "",
+                "enabled": true
+              }
+            ],
+            "bodyMode": "none",
+            "body": "",
+            "formBody": [
+              {
+                "id": "empty-sample-req-getf",
+                "key": "",
+                "value": "",
+                "enabled": true
+              }
+            ],
+            "auth": {
+              "type": "none"
+            }
+          },
+          "examples": []
+        },
+        {
+          "kind": "request",
+          "id": "sample-req-post",
+          "request": {
+            "id": "sample-req-post",
+            "name": "Echo a POST",
+            "method": "POST",
+            "url": "{{baseUrl}}/post",
+            "params": [
+              {
+                "id": "empty-sample-req-postp",
+                "key": "",
+                "value": "",
+                "enabled": true
+              }
+            ],
+            "headers": [
+              {
+                "id": "sample-h1",
+                "key": "Content-Type",
+                "value": "application/json",
+                "enabled": true
+              },
+              {
+                "id": "empty-sample-req-posth",
+                "key": "",
+                "value": "",
+                "enabled": true
+              }
+            ],
+            "bodyMode": "json",
+            "body": "{\n  \"name\": \"{{name}}\",\n  \"city\": \"{{city}}\"\n}",
+            "formBody": [
+              {
+                "id": "empty-sample-req-postf",
+                "key": "",
+                "value": "",
+                "enabled": true
+              }
+            ],
+            "auth": {
+              "type": "none"
+            }
+          },
+          "examples": []
+        },
+        {
+          "kind": "request",
+          "id": "sample-req-404",
+          "request": {
+            "id": "sample-req-404",
+            "name": "Ask for a missing page",
+            "method": "GET",
+            "url": "{{baseUrl}}/status/404",
+            "params": [
+              {
+                "id": "empty-sample-req-404p",
+                "key": "",
+                "value": "",
+                "enabled": true
+              }
+            ],
+            "headers": [
+              {
+                "id": "empty-sample-req-404h",
+                "key": "",
+                "value": "",
+                "enabled": true
+              }
+            ],
+            "bodyMode": "none",
+            "body": "",
+            "formBody": [
+              {
+                "id": "empty-sample-req-404f",
+                "key": "",
+                "value": "",
+                "enabled": true
+              }
+            ],
+            "auth": {
+              "type": "none"
+            }
+          },
+          "examples": []
+        }
+      ]
+    }
+  ],
+  "environments": [
+    {
+      "id": "sample-env",
+      "name": "Sample",
+      "color": "none",
+      "vars": [
+        {
+          "id": "kv-baseUrl-7154",
+          "key": "baseUrl",
+          "value": "https://postman-echo.com",
+          "enabled": true
+        },
+        {
+          "id": "kv-name-3145",
+          "key": "name",
+          "value": "Ada",
+          "enabled": true
+        },
+        {
+          "id": "kv-city-3227",
+          "key": "city",
+          "value": "London",
+          "enabled": true
+        },
+        {
+          "id": "empty-env",
+          "key": "",
+          "value": "",
+          "enabled": true
+        }
+      ]
+    }
+  ],
+  "suites": [
+    {
+      "id": "sample-suite",
+      "name": "Echo checks",
+      "description": "Runs once for each row of the CSV, so {{name}} and {{city}} change every time.",
+      "cases": [
+        {
+          "id": "sample-case-1",
+          "name": "Echo a GET",
+          "enabled": true,
+          "request": {
+            "id": "sample-case-1-req",
+            "name": "Echo a GET",
+            "method": "GET",
+            "url": "{{baseUrl}}/get",
+            "params": [
+              {
+                "id": "sample-p1",
+                "key": "name",
+                "value": "{{name}}",
+                "enabled": true
+              },
+              {
+                "id": "empty-sample-req-getp",
+                "key": "",
+                "value": "",
+                "enabled": true
+              }
+            ],
+            "headers": [
+              {
+                "id": "empty-sample-req-geth",
+                "key": "",
+                "value": "",
+                "enabled": true
+              }
+            ],
+            "bodyMode": "none",
+            "body": "",
+            "formBody": [
+              {
+                "id": "empty-sample-req-getf",
+                "key": "",
+                "value": "",
+                "enabled": true
+              }
+            ],
+            "auth": {
+              "type": "none"
+            }
+          },
+          "sourceRequestId": "sample-req-get",
+          "preScript": "",
+          "postScript": "",
+          "assertions": [
+            {
+              "id": "sa1",
+              "enabled": true,
+              "source": "status",
+              "property": "",
+              "op": "eq",
+              "expected": "200"
+            },
+            {
+              "id": "sa2",
+              "enabled": true,
+              "source": "json",
+              "property": "$.args.name",
+              "op": "eq",
+              "expected": "{{name}}"
+            }
+          ]
+        },
+        {
+          "id": "sample-case-2",
+          "name": "Echo a POST",
+          "enabled": true,
+          "request": {
+            "id": "sample-case-2-req",
+            "name": "Echo a POST",
+            "method": "POST",
+            "url": "{{baseUrl}}/post",
+            "params": [
+              {
+                "id": "empty-sample-req-postp",
+                "key": "",
+                "value": "",
+                "enabled": true
+              }
+            ],
+            "headers": [
+              {
+                "id": "sample-h1",
+                "key": "Content-Type",
+                "value": "application/json",
+                "enabled": true
+              },
+              {
+                "id": "empty-sample-req-posth",
+                "key": "",
+                "value": "",
+                "enabled": true
+              }
+            ],
+            "bodyMode": "json",
+            "body": "{\n  \"name\": \"{{name}}\",\n  \"city\": \"{{city}}\"\n}",
+            "formBody": [
+              {
+                "id": "empty-sample-req-postf",
+                "key": "",
+                "value": "",
+                "enabled": true
+              }
+            ],
+            "auth": {
+              "type": "none"
+            }
+          },
+          "sourceRequestId": "sample-req-post",
+          "preScript": "",
+          "postScript": "",
+          "assertions": [
+            {
+              "id": "sa3",
+              "enabled": true,
+              "source": "status",
+              "property": "",
+              "op": "eq",
+              "expected": "200"
+            },
+            {
+              "id": "sa4",
+              "enabled": true,
+              "source": "json",
+              "property": "$.json.city",
+              "op": "eq",
+              "expected": "{{city}}"
+            }
+          ]
+        }
+      ],
+      "options": {
+        "mode": "sequential",
+        "concurrency": 5,
+        "delayMs": 0,
+        "repeat": 1,
+        "stopOnFailure": false,
+        "httpErrorsFail": true,
+        "scriptTimeoutMs": 5000
+      },
+      "data": {
+        "name": "people.csv",
+        "text": "name,city\nAda,London\nGrace,New York\nLinus,Helsinki\n"
+      }
+    }
+  ],
+  "flows": [
+    {
+      "id": "sample-flow",
+      "name": "Echo check, then a missing page",
+      "description": "Runs the Echo checks suite, then asks for a page that does not exist and expects the 404.",
+      "nodes": [
+        {
+          "id": "fn1",
+          "type": "start",
+          "position": {
+            "x": 80,
+            "y": 160
+          }
+        },
+        {
+          "id": "fn2",
+          "type": "run-suite",
+          "position": {
+            "x": 340,
+            "y": 160
+          },
+          "suiteId": "sample-suite",
+          "retry": {
+            "times": 0,
+            "delayMs": 1000
+          }
+        },
+        {
+          "id": "fn3",
+          "type": "run-request",
+          "position": {
+            "x": 600,
+            "y": 160
+          },
+          "requestId": "sample-req-404",
+          "retry": {
+            "times": 0,
+            "delayMs": 1000
+          },
+          "httpErrorsFail": false
+        }
+      ],
+      "edges": [
+        {
+          "id": "fe1",
+          "source": "fn1",
+          "sourceHandle": "next",
+          "target": "fn2"
+        },
+        {
+          "id": "fe2",
+          "source": "fn2",
+          "sourceHandle": "passed",
+          "target": "fn3"
+        }
+      ]
+    }
+  ]
+}

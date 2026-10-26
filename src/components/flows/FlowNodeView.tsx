@@ -18,6 +18,10 @@ export interface StepData extends Record<string, unknown> {
   statusCode?: number | null;
   problem?: "error" | "warning";
   problemText?: string;
+  /** Outputs that can take another wire: these get a "+". */
+  addable?: FlowOutput[];
+  /** An empty flow (only Start): its "+" is highlighted to say where to begin. */
+  hintAdd?: boolean;
 }
 
 export type StepRFNode = Node<StepData, "step">;
@@ -28,7 +32,9 @@ export const CanvasActions = createContext<{
   onNoteText: (id: string, text: string) => void;
   onNoteResize: (id: string, width: number, height: number) => void;
   readOnly: boolean;
-}>({ onNoteText: () => {}, onNoteResize: () => {}, readOnly: false });
+  /** Open the step picker for an output; `anchor` is where the "+" is on screen. */
+  onAdd: (nodeId: string, output: FlowOutput, anchor: { x: number; y: number }) => void;
+}>({ onNoteText: () => {}, onNoteResize: () => {}, readOnly: false, onAdd: () => {} });
 
 const OUTPUT_LABELS: Record<FlowOutput, string> = {
   next: "",
@@ -55,7 +61,8 @@ function StatusMark({ status }: { status: CanvasStatus }) {
 
 /** Every runnable node: a card with an input on the left and its outputs on the right. */
 export function StepNodeView({ data, selected }: NodeProps<StepRFNode>) {
-  const { node, label, detail, status, runs, statusCode, problem, problemText } = data;
+  const { node, label, detail, status, runs, statusCode, problem, problemText, addable, hintAdd } = data;
+  const actions = useContext(CanvasActions);
   const outputs = NODE_OUTPUTS[node.type];
   const retry = "retry" in node && node.retry.times > 0 ? node.retry.times : 0;
   // Zoomed far out, a card keeps only its colour and name, drawn big enough to read. 0 means normal size.
@@ -93,9 +100,9 @@ export function StepNodeView({ data, selected }: NodeProps<StepRFNode>) {
             off
           </span>
         )}
-        {runs && runs > 1 && (
-          <span className="flow-node-badge" title={`Ran ${runs} times`}>
-            ×{runs}
+        {runs !== undefined && runs > 1 && (
+          <span className="flow-node-badge" title={`Ran ${runs} times in this run (a loop, a retry or a repeated branch)`}>
+            {runs} runs
           </span>
         )}
         {node.type === "run-request" && statusCode !== undefined && (
@@ -122,6 +129,20 @@ export function StepNodeView({ data, selected }: NodeProps<StepRFNode>) {
         {outputs.map((o) => (
           <div key={o} className={`flow-node-output out-${o}`}>
             {OUTPUT_LABELS[o] && <span>{OUTPUT_LABELS[o]}</span>}
+            {!actions.readOnly && addable?.includes(o) && (
+              <button
+                className={`flow-add nodrag nopan ${hintAdd ? "hint" : ""}`}
+                aria-label={`Add a step after ${label}${OUTPUT_LABELS[o] ? `, on ${OUTPUT_LABELS[o]}` : ""}`}
+                title={hintAdd ? "Add a Run step after Start" : "Add a step"}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  const r = e.currentTarget.getBoundingClientRect();
+                  actions.onAdd(node.id, o, { x: r.right, y: r.top });
+                }}
+              >
+                +
+              </button>
+            )}
             <Handle type="source" position={Position.Right} id={o} className={`flow-handle out-${o}`} />
           </div>
         ))}

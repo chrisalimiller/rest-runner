@@ -12,6 +12,10 @@ The builds are not signed with a paid certificate, so the first launch needs one
 - **macOS:** right-click the app and choose **Open**. If macOS says the app is damaged, run `xattr -cr "/Applications/REST Runner.app"` once in Terminal.
 - **Windows:** on the SmartScreen prompt, click **More info**, then **Run anyway**.
 
+## First launch
+
+A fresh install opens a welcome screen: import a workspace file a teammate exported, open the sample workspace, or start empty. See [First run](collections.md#first-run).
+
 ## Run it from source
 
 You need Node 22 or newer and Rust (stable). On Windows also install the WebView2 runtime (already on Windows 11) and the Visual Studio C++ build tools. See the [Tauri prerequisites](https://tauri.app/start/prerequisites/).

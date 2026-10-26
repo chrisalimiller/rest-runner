@@ -39,7 +39,7 @@ import {
 import { emptyRow, newRequest } from "./lib/defaults";
 import { earlierSendLabel, earlierSends, earlierSendTone, sendTooltip, whenLabel } from "./lib/earlierSends";
 import { fitHistory, historyLabel, historyOutcome, MAX_HISTORY_BODY, responseNotKept } from "./lib/history";
-import { environmentVars, newEnvironment, type Environment } from "./lib/environments";
+import { environmentVars, guardFor, loadEnvironments, newEnvironment, type Environment } from "./lib/environments";
 import { sendRequest } from "./lib/http";
 import { newId } from "./lib/ids";
 import { prepareRequest, unresolvedPlaceholders } from "./lib/request";
@@ -49,10 +49,11 @@ import { hasScripts, requestScriptRunner, sendWithScripts } from "./lib/requestS
 import type { Vars } from "./lib/template";
 import type { ScriptOutput } from "./lib/testing/types";
 import type { RunSummary } from "./lib/run";
-import type { QuickItem } from "./lib/quickOpen";
+import { readableUrl, type QuickItem } from "./lib/quickOpen";
 import { deleteRun, listRuns } from "./lib/runStore";
 import { saveTextFile } from "./lib/saveFile";
-import { importWorkspaceFile, toWorkspaceFile } from "./lib/workspace";
+import { describeWorkspaceImport, importWorkspace as mergeWorkspace, toWorkspaceFile } from "./lib/workspace";
+import { readWorkspace, writeWorkspace } from "./lib/workspaceStore";
 import { load, save } from "./lib/storage";
 import type { HistoryEntry, RequestDef, SendOutcome } from "./lib/types";
 
@@ -108,6 +109,8 @@ export default function App({ active = true, shell, command }: Props) {
   const [sending, setSending] = useState(false);
   const [pane, setPane] = useState<LowerPane>("response");
   const [batchVisited, setBatchVisited] = useState(false);
+  /** A batch is running or its results are on screen: the request column folds into a summary bar. */
+  const [batchWide, setBatchWide] = useState(false);
   const [batchRunning, setBatchRunning] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>(() => load(HISTORY_KEY, []));
   const [runs, setRuns] = useState<RunSummary[]>([]);
@@ -121,7 +124,7 @@ export default function App({ active = true, shell, command }: Props) {
   const [outcomeIsSample, setOutcomeIsSample] = useState(false);
   const [sampleLabel, setSampleLabel] = useState<string | undefined>(undefined);
   const [shownHistoryId, setShownHistoryId] = useState<string | null>(null);
-  const [environments, setEnvironments] = useState<Environment[]>(() => load(ENVIRONMENTS_KEY, []));
+  const [environments, setEnvironments] = useState<Environment[]>(loadEnvironments);
   const [activeEnvId, setActiveEnvId] = useState<string | null>(() => load(ACTIVE_ENV_KEY, null));
   const [showEnvEditor, setShowEnvEditor] = useState(false);
   const [focusVarId, setFocusVarId] = useState<string | undefined>(undefined);
@@ -398,7 +401,7 @@ export default function App({ active = true, shell, command }: Props) {
 
   const exportWorkspace = async (includeSecrets: boolean) => {
     try {
-      const result = await saveTextFile("rest-runner-export.json", toWorkspaceFile(collections, environments, { includeSecrets }), "REST Runner export", "json");
+      const result = await saveTextFile("rest-runner-export.json", toWorkspaceFile(collections, environments, { includeSecrets, suites: readWorkspace().suites, flows: readWorkspace().flows }), "REST Runner export", "json");
       if (result.saved) setNotice(result.path ? `Exported to ${result.path}` : "Export downloaded.");
     } catch (e) {
       setNotice(`Could not export: ${e instanceof Error ? e.message : String(e)}`);
@@ -436,12 +439,16 @@ export default function App({ active = true, shell, command }: Props) {
 
   const importWorkspace = async (file: File) => {
     try {
-      const result = importWorkspaceFile(await file.text(), collections, environments);
+      const stored = readWorkspace();
+      const result = mergeWorkspace(await file.text(), { ...stored, collections, environments });
+      const changed = result.counts.suites[0] + result.counts.suites[1] + result.counts.flows[0] + result.counts.flows[1] > 0;
+      if (changed && !writeWorkspace(result)) throw new Error("local storage is full");
       setCollections(result.collections);
       expand(...result.collections.filter((c) => !collections.some((x) => x.id === c.id)).map((c) => c.id));
       setEnvironments(result.environments);
+      if (changed) shell.onDataChanged(["suites", "flows"]);
       const warned = result.warnings?.length ? ` ${result.warnings.length} warning${result.warnings.length === 1 ? "" : "s"}: ${result.warnings.join(" ")}` : "";
-      setNotice(`Imported ${file.name}: ${result.added} added, ${result.replaced} updated.${warned}`);
+      setNotice(`${describeWorkspaceImport(file.name, result.counts)}${warned}`);
     } catch (e) {
       setNotice(`Could not import ${file.name}: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -478,7 +485,11 @@ export default function App({ active = true, shell, command }: Props) {
     if (!command || lastCommand.current === command.nonce) return;
     lastCommand.current = command.nonce;
     if (command.type === "clear-history") setHistory([]);
-    else if (command.type === "reload") setCollections(loadCollections());
+    else if (command.type === "reload") {
+      setCollections(loadCollections());
+      setEnvironments(loadEnvironments());
+      setActiveEnvId(load(ACTIVE_ENV_KEY, null));
+    }
     else openItem(command.item);
   }, [command]);
 
@@ -531,6 +542,9 @@ export default function App({ active = true, shell, command }: Props) {
   };
 
   const unfilled = unresolvedPlaceholders(def, sendVars);
+  const foldRequest = pane === "batch" && batchWide && openRun === null;
+  const summaryUrl = foldRequest ? prepareRequest(def, sendVars).url : "";
+  const guard = guardFor(activeEnv);
   const sends = earlierSends(history, runs.filter((r) => !runDelete.hidden.has(r.id)), def);
   const shownEntry = outcomeIsSample && shownHistoryId ? history.find((h) => h.id === shownHistoryId) : undefined;
   const openBatch = () => {
@@ -557,7 +571,7 @@ export default function App({ active = true, shell, command }: Props) {
           <button className="link-btn" onClick={addCollection} title="Add a collection">
             New
           </button>
-          <label className="link-btn" title="Import collections and environments from a file">
+          <label className="link-btn" title="Import a workspace file: collections, environments, test suites and flows">
             Import
             <input
               type="file"
@@ -570,8 +584,8 @@ export default function App({ active = true, shell, command }: Props) {
               }}
             />
           </label>
-          <button className="link-btn" onClick={startExport} title="Export collections and environments to a file">
-            Export
+          <button className="link-btn" onClick={startExport} title="Export collections, environments, test suites and flows to one file">
+            Export workspace…
           </button>
         </span>
       </div>
@@ -657,8 +671,22 @@ export default function App({ active = true, shell, command }: Props) {
         </main>
       )}
 
+      {foldRequest && (
+        <div className="request-summary-bar" aria-label="Request">
+          <span className={`method m-${def.method.toLowerCase()}`}>{def.method}</span>
+          <strong className="request-summary-name" title={def.name}>
+            {def.name || "Untitled request"}
+          </strong>
+          <span className="request-summary-url mono" title={summaryUrl}>
+            {readableUrl(summaryUrl)}
+          </span>
+          <button className="secondary" onClick={() => setPane("response")} title="Show the request again. The batch results stay where they are.">
+            Edit request
+          </button>
+        </div>
+      )}
       <div
-        className="inspector"
+        className={`inspector ${foldRequest ? "request-folded" : ""}`}
         hidden={openRun !== null}
         ref={inspectorRef}
         style={{ "--split-a": `${split}fr`, "--split-b": `${1 - split}fr` } as React.CSSProperties}
@@ -681,13 +709,14 @@ export default function App({ active = true, shell, command }: Props) {
               </button>
             ) : (
               <button
-                className="send"
+                className={`send ${guard ? "guarded" : ""}`}
+                style={guard ? ({ "--guard": guard.cssColor } as React.CSSProperties) : undefined}
                 onClick={() => void send()}
                 disabled={def.url.trim() === ""}
                 title={unfilled.length > 0 ? `Sends with ${unfilled.map((n) => `{{${n}}}`).join(", ")} as written` : "Send (Ctrl/Cmd + Enter)"}
               >
                 {unfilled.length > 0 && <span aria-hidden>⚠ </span>}
-                Send
+                {guard ? guard.send : "Send"}
               </button>
             )}
             <button className="secondary" onClick={saveCurrent} title="Save (Ctrl/Cmd + S)">
@@ -791,7 +820,7 @@ export default function App({ active = true, shell, command }: Props) {
             )}
           </div>
           <div className="batch-main" hidden={pane !== "batch"}>
-            <BatchPane def={def} envVars={envVars} scriptVars={scriptVars} envName={activeEnv?.name} onRunningChange={setBatchRunning} onRunSaved={refreshRuns} onOpenRun={setOpenRun} />
+            <BatchPane def={def} envVars={envVars} scriptVars={scriptVars} envName={activeEnv?.name} onRunningChange={setBatchRunning} onWideChange={setBatchWide} onRunSaved={refreshRuns} onOpenRun={setOpenRun} />
           </div>
         </section>
       </div>

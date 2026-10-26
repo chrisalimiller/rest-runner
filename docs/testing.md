@@ -25,11 +25,8 @@ Add cases at the bottom of the suite:
 
 Each case card has:
 
-- A checkbox to include or skip it in runs.
-- A name.
-- **Update from saved request** (if it was made from one): replaces the case's request (including the request's own scripts) with the current saved version, after a confirmation. The case's own Pre-request and Post-response scripts and its assertions are kept.
-- **↑ ↓** to reorder, **duplicate**, **delete**, and collapse.
-- **Try case**: sends this one case now, with its scripts and assertions, and shows the result. See [Try case](#try-case).
+- A header with a checkbox to include or skip it in runs, its name, "from saved request" when it was copied from one, **Try case** (sends this one case now, with its scripts and assertions; see [Try case](#try-case)), and a collapse button.
+- A **⋯** menu with **Move up**, **Move down**, **Duplicate**, **Delete case**, and (if it was made from a saved request) **Update from saved request**, which replaces the case's request (including the request's own scripts) with the current saved version, after a confirmation. The case's own Pre-request and Post-response scripts and its assertions are kept.
 - A request summary line (method, URL, "Params 1 · Bearer · Headers 3 · JSON body") and **Edit request**, which opens the same request editor as Requests mode in a dialog (params, auth, headers, body, and the request's own scripts). Changes apply to this case only. The request's scripts run before the case's own (see [Scripting](scripting.md#when-scripts-run)).
 - Tabs: **Assertions**, **Pre-request** and **Post-response**. A bullet marks scripts that have content, and the Assertions tab shows how many are enabled.
 - **Passes on**: below the tabs, lists the variables the case's scripts set with `rr.vars.set("name", …)`, with the expression, and the last value seen.
@@ -62,6 +59,8 @@ How they compare:
 - **Expected** and **Property** may contain `{{placeholders}}`, filled from the environment, the CSV row, and run variables (including ones a post-response script has just set).
 
 **JSON path syntax** (a small subset): `$.data.items[0].id`, a path without the leading `$` (`items[0].name`), bracket keys for odd names (`$["key with spaces"]`), negative indexes counted from the end (`$.items[-1]`), and `.length` for the length of an array or string (`$.items.length`). Wildcards (`[*]`) are not supported. A step that does not exist gives "missing", not an error.
+
+On a narrow card (under 560 px) Last result moves under each Expected value instead of taking its own column.
 
 The **Last result** column shows each assertion's outcome (✓ or ✕) and the value seen, from the last **Try case** or, if none, the latest run of the suite.
 
@@ -118,6 +117,10 @@ For each iteration, a case runs like this:
 A case **passes when every check passes**: its enabled assertions, every `rr.test` in the scripts, both scripts finishing without an error, and a response arriving. A case with no checks at all passes whenever a response comes back, and its notes say so.
 
 Each result also gets plain-language notes (placeholders that had no value, an HTTP status that was judged by the case's own assertion, and so on).
+
+### Reordering cases
+
+The numbered circle at the left of each case is its drag handle. Drag it up or down, or focus it and press **Space** to pick the case up, **↑ / ↓** to move it, **Space** to drop it (**Esc** puts it back). A screen reader announces the position as it moves. **Move up** and **Move down** in the ⋯ menu do the same one step at a time.
 
 ### Try case
 

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { parseCsv } from "../../lib/csv";
 import type { Vars } from "../../lib/template";
 import { checkCounts, failureLine, latestCaseResult } from "../../lib/testing/caseStatus";
@@ -12,6 +12,7 @@ import { CheckIcon, CopyIcon, CrossIcon, PlayFilledIcon, SlidersIcon, TrashIcon 
 import { OverflowMenu } from "../shell/OverflowMenu";
 import { useToast } from "../shell/Toast";
 import { reinsert, removeById } from "../../lib/listUndo";
+import { dropIndex, moveItem, reorderAnnouncement } from "../../lib/reorder";
 import { CaseEditor } from "./CaseEditor";
 import { RequestPicker } from "./RequestPicker";
 
@@ -40,6 +41,8 @@ interface Props {
   latestRun: TestRun | null;
   envVars: Vars;
   envName?: string;
+  /** The selected environment has a colour: Run suite is outlined and says where it runs. */
+  guard?: { cssColor: string; runSuite: string } | null;
   notice: string | null;
 }
 
@@ -65,13 +68,80 @@ export function SuiteEditor(props: Props) {
 
   const setCases = (cases: TestCase[]) => onChange({ ...suite, cases });
   const updateCase = (tc: TestCase) => setCases(suite.cases.map((c) => (c.id === tc.id ? tc : c)));
-  const move = (index: number, by: number) => {
-    const to = index + by;
-    if (to < 0 || to >= suite.cases.length) return;
-    const cases = [...suite.cases];
-    const [item] = cases.splice(index, 1);
-    cases.splice(to, 0, item);
-    setCases(cases);
+  const move = (index: number, by: number) => setCases(moveItem(suite.cases, index, index + by));
+
+  // Reordering by dragging a case's disc (pointer) or with Space and the arrow keys.
+  const [lifted, setLifted] = useState<{ id: string; how: "pointer" | "keyboard"; original: TestCase[] } | null>(null);
+  const [announcement, setAnnouncement] = useState("");
+  const stepsRef = useRef<HTMLDivElement>(null);
+  const liftedId = lifted?.id;
+  const liftedHow = lifted?.how;
+  /** Moves a case to a position (0-based). Returns where it ended up. */
+  const moveCaseTo = (id: string, to: number): number => {
+    const cur = propsRef.current.suite;
+    const from = cur.cases.findIndex((c) => c.id === id);
+    const next = moveItem(cur.cases, from, to);
+    if (next !== cur.cases) propsRef.current.onChange({ ...cur, cases: next });
+    return next.findIndex((c) => c.id === id);
+  };
+  const say = (id: string, phase: Parameters<typeof reorderAnnouncement>[1]) => {
+    const cases = propsRef.current.suite.cases;
+    const i = cases.findIndex((c) => c.id === id);
+    if (i >= 0) setAnnouncement(reorderAnnouncement(cases[i].name || `Case ${i + 1}`, phase, i + 1, cases.length));
+  };
+  useEffect(() => {
+    if (!liftedId || liftedHow !== "pointer") return;
+    const onMove = (e: PointerEvent) => {
+      const els = [...(stepsRef.current?.querySelectorAll<HTMLElement>("[data-case-id]") ?? [])];
+      const middles = els.map((el) => {
+        const r = el.getBoundingClientRect();
+        return r.top + r.height / 2;
+      });
+      const from = els.findIndex((el) => el.dataset.caseId === liftedId);
+      if (from >= 0) moveCaseTo(liftedId, dropIndex(middles, from, e.clientY));
+    };
+    const onUp = () => {
+      setLifted(null);
+      say(liftedId, "drop");
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onUp);
+    document.body.classList.add("dragging-case");
+    return () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+      document.body.classList.remove("dragging-case");
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liftedId, liftedHow]);
+
+  const onHandleKey = (e: React.KeyboardEvent, c: TestCase) => {
+    const cases = propsRef.current.suite.cases;
+    const i = cases.findIndex((x) => x.id === c.id);
+    if (e.key === " " || e.key === "Enter") {
+      e.preventDefault();
+      if (lifted?.id === c.id) {
+        setLifted(null);
+        say(c.id, "drop");
+      } else {
+        setLifted({ id: c.id, how: "keyboard", original: cases });
+        say(c.id, "lift");
+      }
+    } else if (lifted?.id === c.id && lifted.how === "keyboard") {
+      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        e.preventDefault();
+        moveCaseTo(c.id, i + (e.key === "ArrowUp" ? -1 : 1));
+        // Say it after the move has been applied.
+        queueMicrotask(() => say(c.id, "move"));
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        propsRef.current.onChange({ ...propsRef.current.suite, cases: lifted.original });
+        setLifted(null);
+        setAnnouncement(reorderAnnouncement(c.name || `Case ${i + 1}`, "cancel", lifted.original.findIndex((x) => x.id === c.id) + 1, lifted.original.length));
+      }
+    }
   };
   const addCases = (list: TestCase[]) => {
     if (!list.length) return;
@@ -126,19 +196,23 @@ export function SuiteEditor(props: Props) {
           </button>
         ) : (
           <button
-            className="send icon-label"
+            className={`send icon-label ${props.guard ? "guarded" : ""}`}
+            style={props.guard ? ({ "--guard": props.guard.cssColor } as React.CSSProperties) : undefined}
             onClick={props.onRun}
             disabled={enabledCount === 0 || props.anyRunning}
             title={props.anyRunning ? "Another suite is running" : enabledCount === 0 ? "Add or enable a test case first" : "Run every enabled case"}
           >
             <PlayFilledIcon />
-            Run suite
+            {props.guard ? props.guard.runSuite : "Run suite"}
           </button>
         )}
       </div>
 
       <div className="suite-steps">
-        <div className="suite-steps-inner">
+        <div className="suite-steps-inner" ref={stepsRef}>
+          <div className="visually-hidden" aria-live="assertive" role="status">
+            {announcement}
+          </div>
           {suite.cases.length === 0 && <p className="muted pad">No cases yet. Add saved requests, or start a blank case.</p>}
           {suite.cases.map((c, i) => {
             const latest = latestCaseResult(c.id, props.tryResults[c.id], props.latestRun);
@@ -146,9 +220,26 @@ export function SuiteEditor(props: Props) {
             const open = openCaseId === c.id;
             const source = c.sourceRequestId ? sources.find((r) => r.id === c.sourceRequestId) : undefined;
             return (
-              <section key={c.id} className="step" aria-label={`Case ${i + 1}: ${c.name}`}>
+              <section key={c.id} className={`step ${lifted?.id === c.id ? "lifted" : ""}`} data-case-id={c.id} aria-label={`Case ${i + 1}: ${c.name}`}>
                 <div className="step-rail">
-                  <StatusDisc disc={disc} n={i + 1} />
+                  <button
+                    type="button"
+                    className="step-handle"
+                    aria-roledescription="draggable case"
+                    aria-label={`Reorder case ${i + 1}: ${c.name}`}
+                    title="Drag to reorder, or press Space, then the arrow keys"
+                    aria-pressed={lifted?.id === c.id}
+                    onPointerDown={(e) => {
+                      if (e.button !== 0) return;
+                      e.preventDefault();
+                      e.currentTarget.focus();
+                      setLifted({ id: c.id, how: "pointer", original: suite.cases });
+                    }}
+                    onKeyDown={(e) => onHandleKey(e, c)}
+                    onBlur={() => lifted?.id === c.id && lifted.how === "keyboard" && setLifted(null)}
+                  >
+                    <StatusDisc disc={disc} n={i + 1} />
+                  </button>
                   <span className="step-line" />
                 </div>
                 <div className="step-body">

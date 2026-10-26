@@ -35,6 +35,16 @@ export function AssertionEditor({ assertions, onChange, results }: Props) {
       }),
     );
 
+  const lastResult = (a: Assertion) => {
+    const r = a.enabled ? results?.get(a.id) : undefined;
+    if (!r) return <span className="muted">—</span>;
+    return (
+      <span className={r.passed ? "tone-ok" : "tone-bad"} title={r.actual}>
+        {r.passed ? "✓" : "✕"} {r.actual}
+      </span>
+    );
+  };
+
   return (
     <div className="assertions">
       <div className="table-scroll">
@@ -81,7 +91,7 @@ export function AssertionEditor({ assertions, onChange, results }: Props) {
                   ))}
                 </select>
               </td>
-              <td>
+              <td className="expected-cell">
                 {opNeedsValue(a.op) ? (
                   <input
                     value={a.expected}
@@ -94,20 +104,9 @@ export function AssertionEditor({ assertions, onChange, results }: Props) {
                 ) : (
                   <span className="muted small">—</span>
                 )}
+                {results && <div className="last-result-inline small">{lastResult(a)}</div>}
               </td>
-              {results && (
-                <td className="last-result">
-                  {(() => {
-                    const r = a.enabled ? results.get(a.id) : undefined;
-                    if (!r) return <span className="muted">—</span>;
-                    return (
-                      <span className={r.passed ? "tone-ok" : "tone-bad"} title={r.actual}>
-                        {r.passed ? "✓" : "✕"} {r.actual}
-                      </span>
-                    );
-                  })()}
-                </td>
-              )}
+              {results && <td className="last-result">{lastResult(a)}</td>}
               <td className="kv-del">
                 <button className="icon-btn" onClick={() => onChange(assertions.filter((x) => x.id !== a.id))} aria-label="Remove assertion" title="Remove">
                   ×

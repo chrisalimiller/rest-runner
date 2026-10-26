@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import type { Environment } from "../../lib/environments";
+import { ENV_COLOR_VARS, type Environment } from "../../lib/environments";
 import { BrandLockup } from "../BrandMark";
 import { overlayTitleBar } from "../../lib/windowChrome";
 import { PencilIcon, SearchIcon } from "./Icons";
@@ -82,7 +82,10 @@ interface EnvProps {
 /** One button per environment plus None; a select when there are more than four. Arrow keys move between options. */
 export function EnvSwitch({ environments, activeId, onChange, onEdit, title }: EnvProps) {
   const groupRef = useRef<HTMLDivElement>(null);
-  const options: { id: string | null; name: string }[] = [{ id: null, name: "None" }, ...environments.map((e) => ({ id: e.id, name: e.name || "(unnamed)" }))];
+  const options: { id: string | null; name: string; color?: string }[] = [
+    { id: null, name: "None" },
+    ...environments.map((e) => ({ id: e.id, name: e.name || "(unnamed)", color: e.color && e.color !== "none" ? ENV_COLOR_VARS[e.color] : undefined })),
+  ];
   const current = environments.some((e) => e.id === activeId) ? activeId : null;
 
   const edit = onEdit && (
@@ -97,7 +100,7 @@ export function EnvSwitch({ environments, activeId, onChange, onEdit, title }: E
         <select value={current ?? ""} onChange={(e) => onChange(e.target.value || null)} aria-label="Environment">
           {options.map((o) => (
             <option key={o.id ?? ""} value={o.id ?? ""}>
-              {o.name}
+              {o.color ? "● " : ""}{o.name}
             </option>
           ))}
         </select>
@@ -126,7 +129,7 @@ export function EnvSwitch({ environments, activeId, onChange, onEdit, title }: E
           const on = o.id === current;
           return (
             <button key={o.id ?? ""} role="radio" aria-checked={on} tabIndex={on ? 0 : -1} className={on ? "on" : ""} onClick={() => onChange(o.id)}>
-              {on && o.id !== null && <span className="env-dot" aria-hidden />}
+              {o.color ? <span className="env-dot" style={{ background: o.color }} aria-hidden /> : on && o.id !== null && <span className="env-dot" aria-hidden />}
               {o.name}
             </button>
           );

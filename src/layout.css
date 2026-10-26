@@ -595,6 +595,48 @@ body.dragging-split {
   display: none;
 }
 
+/* A batch run is on screen: the request folds into a bar and the results take the full width. */
+.inspector.request-folded {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.inspector.request-folded .request-col,
+.inspector.request-folded .splitter {
+  display: none;
+}
+
+.request-summary-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--border-muted);
+  background: var(--bg-soft);
+  min-width: 0;
+}
+
+.request-summary-bar .method {
+  width: auto;
+}
+
+.request-summary-name {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.request-summary-url {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .request-col {
   display: flex;
   flex-direction: column;
@@ -1399,6 +1441,58 @@ body.dragging-split {
   border: 1px solid var(--border-muted);
   border-radius: var(--radius-lg);
   min-width: 0;
+  container: case / inline-size;
+}
+
+/* A narrow case card: Last result moves under the expected value instead of taking a column. */
+.last-result-inline {
+  display: none;
+  margin-top: 2px;
+  font-family: var(--mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@container case (max-width: 560px) {
+  .assertion-table .last-result,
+  .assertion-table th.col-result {
+    display: none;
+  }
+
+  .last-result-inline {
+    display: block;
+  }
+}
+
+.step-handle {
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 50%;
+  cursor: grab;
+  touch-action: none;
+  color: inherit;
+  font: inherit;
+}
+
+.step-handle:focus-visible {
+  outline: 2px solid var(--accent-fg);
+  outline-offset: 2px;
+}
+
+.step.lifted .case-card {
+  border-color: var(--accent-fg);
+  box-shadow: 0 0 0 1px var(--accent-fg), 0 6px 18px rgba(1, 4, 9, 0.5);
+}
+
+.step.lifted .step-handle {
+  cursor: grabbing;
+}
+
+body.dragging-case {
+  cursor: grabbing;
+  user-select: none;
 }
 
 .case-card.failed {
@@ -2251,6 +2345,36 @@ select:focus-visible,
   font-weight: 600;
   padding: 0;
   margin-bottom: 4px;
+}
+
+.guarded {
+  outline: 2px solid var(--guard);
+  outline-offset: 2px;
+}
+
+.env-color-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+
+.env-swatch {
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: var(--bg-soft);
+  cursor: pointer;
+}
+
+.env-swatch.none {
+  border: 1px dashed var(--muted);
+}
+
+.env-swatch.on {
+  border-color: var(--text);
 }
 
 /* URL field: a transparent-text input over a copy of its text with {{placeholders}} marked. */

@@ -39,9 +39,9 @@ An example is a named copy of a request's payload (URL, params, headers, body, a
 
 ## Export and import
 
-**Export** (in the switcher popover) writes one JSON file with all collections (with folders and examples) and all environments. If any environment variable is marked [secret](requests.md#secret-values), a dialog asks **Include secret values?** and leaves them out by default (the variables stay in the file with empty values). Use it to back up or to move between computers. **Import** reads such a file and merges it:
+**Export workspace…** (in the switcher popover) writes one JSON file, the *workspace file*, with all collections (with folders and examples), all environments, all test suites (with their CSV data) and all flows. It is the file to hand to a teammate or to back up with. If any environment variable is marked [secret](requests.md#secret-values), a dialog asks **Include secret values?** and leaves them out by default (the variables stay in the file with empty values). **Import** reads a workspace file and merges it, and the notice afterwards says how many collections, environments, suites and flows were added or updated:
 
-- A collection or environment with the same id replaces the one you have. Others are added. A secret variable that comes in empty keeps the value you already have.
+- A collection, environment, suite or flow with the same id replaces the one you have. Others are added. A secret variable that comes in empty keeps the value you already have.
 - Files from the first version of the app (a flat list of saved requests) still import. Requests whose id you already have are updated where they sit, and new ones go into a collection called **Imported requests**.
 - **Postman files** also import with the same button: a collection export (v2.0 or v2.1) or an environment or globals export. See below.
 - Malformed entries are skipped, and a file that is not a REST Runner export is rejected with a message.
@@ -60,4 +60,8 @@ Export from Postman (**Export** on a collection, or on an environment), then use
 
 The export file contains environment values. Secret values are left out unless you chose to include them; other values, such as non-secret tokens, are always included. Keep the file safe.
 
-Test suites have their own export and import in the [Testing sidebar](testing.md#exporting-suites).
+Older files still import: workspace files from before suites and flows were included (version 2), the first version's flat list of saved requests, and the separate test suites and flows files. Test suites and flows also keep their own **Export** and **Import** in the [Testing sidebar](testing.md#exporting-suites) and the Flows sidebar.
+
+### First run
+
+On a fresh install (nothing saved yet) a welcome screen offers three ways to start: **Import a shared workspace** (pick a workspace file from a teammate), **Open the sample workspace** (a few requests, a test suite with CSV data and a flow against the public `postman-echo.com` echo API, plus a *Sample* environment that is selected for you), or **Start empty**. It shows once; after you choose, or as soon as you have saved anything, it does not come back.

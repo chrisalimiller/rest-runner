@@ -46,9 +46,11 @@ Your option choices are remembered.
 
 ### Progress and results
 
-While running you see a progress bar, done / total, passed and failed counts, elapsed time and average response time. **Stop** cancels the run; requests already sent are kept in the results.
+Once a run starts, and while its results are on screen, the request column folds into a one-line bar (method, name, URL, **Edit request**) and the results use the full width. **Edit request** brings the request back; the **Response / Batch run** switch still works, and the results stay put. Before a run, the chosen CSV is shown as a small grid of its first rows.
 
-The result table shows Row, Status, Time and URL. It can be filtered to **All** or **Failed**, shows 500 rows at a time (there is a control to show more), and clicking a row shows its full request, response, headers and notes. Results arrive as they complete, not in row order, and are sorted by row.
+While running you see a progress bar and tiles for done / total, passed, failed, elapsed time and average response time. **Stop** cancels the run; requests already sent are kept in the results.
+
+The result table shows Row, Status, Time and the full URL. It can be filtered to **All** or **Failed**, shows 500 rows at a time (there is a control to show more), and clicking a row opens the same call detail as the run explorer: notes and CSV values, the request, the response, headers and script output. Results arrive as they complete, not in row order, and are sorted by row.
 
 When a run ends (finished, stopped, or stopped after a failure) it is saved automatically, and a link **Open in run explorer and export reports →** appears.
 
