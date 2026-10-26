@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { requestToCurl } from "../../lib/curl";
 import { findJsonProblem, formatJson } from "../../lib/jsonFormat";
 import { readableUrl } from "../../lib/quickOpen";
 import { unresolvedPlaceholders } from "../../lib/request";
-import { authSummary, BODY_LABELS, bodySummary, countsLabel, headersText, paramsText, resolvedUrl, rowCounts, splitPlaceholders } from "../../lib/requestSummary";
+import { activeSection, authSummary, BODY_LABELS, bodySummary, countsLabel, headersText, paramsText, resolvedUrl, rowCounts, sectionBarItems, splitPlaceholders } from "../../lib/requestSummary";
 import { load, save } from "../../lib/storage";
 import type { Vars } from "../../lib/template";
 import { HTTP_METHODS, type BodyMode, type HttpMethod, type RequestDef } from "../../lib/types";
@@ -113,6 +113,26 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
     save(sectionsKey, openState);
   }, [sectionsKey, openState]);
 
+  const scroller = useRef<HTMLDivElement>(null);
+  const [spy, setSpy] = useState<SectionId | null>("params");
+  /** Which section is at the top of the scrolling area. */
+  const readSpy = useCallback(() => {
+    const box = scroller.current;
+    if (!box) return;
+    const top = box.getBoundingClientRect().top;
+    const tops = [...box.querySelectorAll<HTMLElement>("[data-section]")].map((el) => ({ id: el.dataset.section as SectionId, top: el.getBoundingClientRect().top - top }));
+    setSpy(activeSection(tops));
+  }, []);
+  const jumpTo = (id: SectionId) => {
+    setOpenState((s) => ({ ...s, [id]: true }));
+    requestAnimationFrame(() => {
+      const box = scroller.current;
+      const el = box?.querySelector<HTMLElement>(`[data-section="${id}"]`);
+      if (box && el) box.scrollTo({ top: el.offsetTop - box.offsetTop, behavior: "smooth" });
+      setSpy(id);
+    });
+  };
+
   const methodAllowsBody = def.method !== "GET" && def.method !== "HEAD";
   const isOpen = (id: SectionId) => openState[id] ?? (methodAllowsBody ? id === "body" : id === "params");
   const toggle = (id: SectionId) => setOpenState((s) => ({ ...s, [id]: !isOpen(id) }));
@@ -218,7 +238,21 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
         {curlOpen && <CurlPanel def={urlInputs.def} vars={urlInputs.envVars} envName={envName} />}
       </div>
 
-      <div className="req-sections">
+      <nav className="section-bar" aria-label="Jump to a section">
+        {sectionBarItems(def).map((item) => (
+          <button
+            key={item.id}
+            className={`section-chip ${spy === item.id ? "current" : ""}`}
+            aria-current={spy === item.id ? "true" : undefined}
+            onClick={() => jumpTo(item.id)}
+          >
+            {item.label}
+            {item.mark && <span className="section-chip-mark">{item.mark}</span>}
+          </button>
+        ))}
+      </nav>
+
+      <div className="req-sections" ref={scroller} onScroll={readSpy}>
         <Section
           id="params"
           label="Params"
@@ -235,7 +269,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
           }
           meta={countsLabel(params)}
         >
-          <KeyValueEditor rows={def.params} onChange={(rows) => onChange({ params: rows })} />
+          <KeyValueEditor rows={def.params} onChange={(rows) => onChange({ params: rows })} placeholderVars={envVars} />
         </Section>
 
         <Section
@@ -268,7 +302,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
           }
           meta={countsLabel(headers) || "None"}
         >
-          <KeyValueEditor rows={def.headers} onChange={(rows) => onChange({ headers: rows })} />
+          <KeyValueEditor rows={def.headers} onChange={(rows) => onChange({ headers: rows })} placeholderVars={envVars} />
         </Section>
 
         <Section
@@ -316,6 +350,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
             mode={def.bodyMode}
             body={def.body}
             formBody={def.formBody}
+            placeholderVars={envVars}
             methodAllowsBody={methodAllowsBody}
             onModeChange={(bodyMode) => onChange({ bodyMode })}
             onBodyChange={(b) => onChange({ body: b })}

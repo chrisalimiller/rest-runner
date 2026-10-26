@@ -20,7 +20,7 @@ export function Section({ id, label, open, onToggle, summary, meta, controls, ch
   const bodyId = `section-${id}`;
   const showControls = open && !!controls;
   return (
-    <div className={`req-section ${open ? "open" : ""} ${grow && open ? "grow" : ""}`}>
+    <div className={`req-section ${open ? "open" : ""} ${grow && open ? "grow" : ""}`} data-section={id}>
       <div className="req-section-head">
         <button className={`req-section-toggle ${showControls ? "" : "fill"}`} onClick={onToggle} aria-expanded={open} aria-controls={bodyId}>
           <ChevronIcon open={open} />

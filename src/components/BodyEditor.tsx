@@ -1,12 +1,15 @@
 import { findJsonProblem, formatJson } from "../lib/jsonFormat";
 import type { BodyMode, KeyValue } from "../lib/types";
 import { CodeEditor } from "./CodeEditor";
+import type { Vars } from "../lib/template";
 import { KeyValueEditor } from "./KeyValueEditor";
 
 interface Props {
   mode: BodyMode;
   body: string;
   formBody: KeyValue[];
+  /** Highlights placeholders in form values. */
+  placeholderVars?: Vars;
   methodAllowsBody: boolean;
   onModeChange: (mode: BodyMode) => void;
   onBodyChange: (body: string) => void;
@@ -30,7 +33,7 @@ function lineCol(text: string, offset: number): string {
   return `line ${line}, column ${col}`;
 }
 
-export function BodyEditor({ mode, body, formBody, methodAllowsBody, onModeChange, onBodyChange, onFormChange, toolbar = true }: Props) {
+export function BodyEditor({ mode, body, formBody, placeholderVars, methodAllowsBody, onModeChange, onBodyChange, onFormChange, toolbar = true }: Props) {
   const problem = mode === "json" ? findJsonProblem(body) : null;
 
   const format = () => {
@@ -86,7 +89,7 @@ export function BodyEditor({ mode, body, formBody, methodAllowsBody, onModeChang
         </>
       )}
 
-      {mode === "urlencoded" && <KeyValueEditor rows={formBody} onChange={onFormChange} />}
+      {mode === "urlencoded" && <KeyValueEditor rows={formBody} onChange={onFormChange} placeholderVars={placeholderVars} />}
     </div>
   );
 }

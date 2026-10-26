@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { emptyRow } from "../lib/defaults";
+import type { Vars } from "../lib/template";
 import type { KeyValue } from "../lib/types";
+import { PlaceholderInput } from "./PlaceholderInput";
 import { EyeIcon, EyeOffIcon, LockIcon } from "./shell/Icons";
 
 interface Props {
@@ -10,10 +12,12 @@ interface Props {
   valuePlaceholder?: string;
   /** Adds a lock toggle per row; locked values show as dots with a reveal button (environment variables). */
   secrets?: boolean;
+  /** Highlights {{placeholders}} in the value column: filled when this has a value for them, missing when not. */
+  placeholderVars?: Vars;
 }
 
 /** Postman-style table of key/value rows. A blank row is always kept at the end. */
-export function KeyValueEditor({ rows, onChange, keyPlaceholder = "Key", valuePlaceholder = "Value", secrets = false }: Props) {
+export function KeyValueEditor({ rows, onChange, keyPlaceholder = "Key", valuePlaceholder = "Value", secrets = false, placeholderVars }: Props) {
   // Which secret rows are showing their value. Not saved.
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const reveal = (id: string) =>
@@ -69,16 +73,27 @@ export function KeyValueEditor({ rows, onChange, keyPlaceholder = "Key", valuePl
                 />
               </td>
               <td>
-                <input
-                  value={row.value}
-                  placeholder={valuePlaceholder}
-                  data-row-value={row.id}
-                  onChange={(e) => update(row.id, { value: e.target.value })}
-                  spellCheck={false}
-                  type={row.secret && !revealed.has(row.id) ? "password" : "text"}
-                  autoComplete={row.secret ? "new-password" : undefined}
-                  aria-label={row.secret ? `${row.key || "Variable"} value (secret)` : undefined}
-                />
+                {placeholderVars && !row.secret ? (
+                  <PlaceholderInput
+                    value={row.value}
+                    vars={placeholderVars}
+                    placeholder={valuePlaceholder}
+                    data-row-value={row.id}
+                    onChange={(value) => update(row.id, { value })}
+                    spellCheck={false}
+                  />
+                ) : (
+                  <input
+                    value={row.value}
+                    placeholder={valuePlaceholder}
+                    data-row-value={row.id}
+                    onChange={(e) => update(row.id, { value: e.target.value })}
+                    spellCheck={false}
+                    type={row.secret && !revealed.has(row.id) ? "password" : "text"}
+                    autoComplete={row.secret ? "new-password" : undefined}
+                    aria-label={row.secret ? `${row.key || "Variable"} value (secret)` : undefined}
+                  />
+                )}
               </td>
               {secrets && (
                 <td className="kv-secret">

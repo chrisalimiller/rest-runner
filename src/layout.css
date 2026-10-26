@@ -2472,3 +2472,79 @@ select:focus-visible,
 .env-swatch.on {
   border-color: var(--text);
 }
+
+/* An input that draws {{placeholders}} in their own style (key/value value cells). */
+.ph-input {
+  position: relative;
+}
+
+.ph-input input {
+  position: relative;
+}
+
+.ph-input.marked input {
+  color: transparent;
+  caret-color: var(--text);
+  background: transparent;
+}
+
+.ph-mirror {
+  position: absolute;
+  inset: 0;
+  padding: 7px 9px;
+  overflow: hidden;
+  white-space: pre;
+  font: inherit;
+  font-family: var(--mono);
+  pointer-events: none;
+  color: var(--text);
+}
+
+.ph-mirror .ph {
+  padding: 0;
+  box-shadow: 0 0 0 1px var(--placeholder-bg);
+}
+
+.kv tr.disabled .ph-mirror {
+  opacity: 0.5;
+}
+
+/* Section bar under the URL */
+.section-bar {
+  flex: none;
+  display: flex;
+  gap: 4px;
+  padding: 0 22px 8px;
+  overflow-x: auto;
+}
+
+.section-chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 24px;
+  padding: 0 10px;
+  border: 1px solid var(--border-muted);
+  border-radius: 999px;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.section-chip:hover {
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.section-chip.current {
+  color: var(--text);
+  border-color: var(--accent-fg);
+  background: var(--accent-subtle);
+}
+
+.section-chip-mark {
+  color: var(--accent-fg);
+  font-weight: 600;
+}
