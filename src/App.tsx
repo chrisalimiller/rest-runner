@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BatchPane } from "./components/BatchPane";
-import { ExampleDialog, MoveDialog, SaveRequestDialog, type DestinationChoice } from "./components/CollectionDialogs";
+import { ExampleDialog, ExportWorkspaceDialog, MoveDialog, SaveRequestDialog, type DestinationChoice } from "./components/CollectionDialogs";
 import { CollectionTree, type TreeAction } from "./components/CollectionTree";
 import { EnvironmentEditor } from "./components/EnvironmentEditor";
 import { RequestEditor } from "./components/request/RequestEditor";
@@ -8,6 +8,8 @@ import { RequestSwitcher } from "./components/request/RequestSwitcher";
 import { ResponsePane } from "./components/ResponsePane";
 import { RunExplorer } from "./components/RunExplorer";
 import { TopBar } from "./components/shell/TopBar";
+import { useToast } from "./components/shell/Toast";
+import { VariablesPopover } from "./components/shell/VariablesPopover";
 import type { ShellCommand, ShellProps } from "./Root";
 import {
   addExample,
@@ -21,7 +23,7 @@ import {
   move,
   newCollection,
   newFolder,
-  remove,
+  removeWithRestore,
   rename,
   requestNode,
   sampleFromResponse,
@@ -33,13 +35,15 @@ import {
   type RequestExample,
   type SampleResponse,
 } from "./lib/collections";
-import { newRequest } from "./lib/defaults";
+import { emptyRow, newRequest } from "./lib/defaults";
 import { earlierSendLabel, earlierSends, earlierSendTone, whenLabel } from "./lib/earlierSends";
 import { fitHistory, historyLabel, historyOutcome, MAX_HISTORY_BODY, responseNotKept } from "./lib/history";
-import { environmentVars, type Environment } from "./lib/environments";
+import { environmentVars, newEnvironment, type Environment } from "./lib/environments";
 import { sendRequest } from "./lib/http";
 import { newId } from "./lib/ids";
-import { prepareRequest } from "./lib/request";
+import { prepareRequest, unresolvedPlaceholders } from "./lib/request";
+import { secretValues } from "./lib/secrets";
+import { requestVariableRows, type VariableRow } from "./lib/variables";
 import { hasScripts, requestScriptRunner, sendWithScripts } from "./lib/requestScripts";
 import type { Vars } from "./lib/template";
 import type { ScriptOutput } from "./lib/testing/types";
@@ -119,6 +123,12 @@ export default function App({ active = true, shell, command }: Props) {
   const [environments, setEnvironments] = useState<Environment[]>(() => load(ENVIRONMENTS_KEY, []));
   const [activeEnvId, setActiveEnvId] = useState<string | null>(() => load(ACTIVE_ENV_KEY, null));
   const [showEnvEditor, setShowEnvEditor] = useState(false);
+  const [focusVarId, setFocusVarId] = useState<string | undefined>(undefined);
+  const [showVariables, setShowVariables] = useState(false);
+  const [exportDialog, setExportDialog] = useState(false);
+  /** Runs deleted a moment ago: hidden now, removed for good when the Undo toast expires. */
+  const [pendingRunDeletes, setPendingRunDeletes] = useState<Set<string>>(new Set());
+  const toast = useToast();
   const [notice, setNotice] = useState<string | null>(null);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [renamingName, setRenamingName] = useState(false);
@@ -368,9 +378,13 @@ export default function App({ active = true, shell, command }: Props) {
         setDialog({ type: "move", id: a.id, name });
         break;
       }
-      case "delete":
-        if (window.confirm(`Delete ${a.label}?`)) setCollections((c) => remove(c, a.id));
+      case "delete": {
+        const taken = removeWithRestore(collections, a.id);
+        if (!taken) break;
+        setCollections(taken.collections);
+        toast.show({ message: `Deleted ${a.label}`, onUndo: () => setCollections((c) => taken.restore(c)) });
         break;
+      }
     }
   };
 
@@ -381,13 +395,42 @@ export default function App({ active = true, shell, command }: Props) {
     setRenamingId(c.id);
   };
 
-  const exportWorkspace = async () => {
+  const exportWorkspace = async (includeSecrets: boolean) => {
     try {
-      const result = await saveTextFile("rest-runner-export.json", toWorkspaceFile(collections, environments), "REST Runner export", "json");
+      const result = await saveTextFile("rest-runner-export.json", toWorkspaceFile(collections, environments, { includeSecrets }), "REST Runner export", "json");
       if (result.saved) setNotice(result.path ? `Exported to ${result.path}` : "Export downloaded.");
     } catch (e) {
       setNotice(`Could not export: ${e instanceof Error ? e.message : String(e)}`);
     }
+  };
+
+  /** Asks about secret values first when there are any to ask about. */
+  const startExport = () => {
+    if (secretValues(environments).length > 0) setExportDialog(true);
+    else void exportWorkspace(false);
+  };
+
+  /** Opens the Environment editor on a variable, adding it to the active environment first when nothing defines it yet. */
+  const editVariable = (row: VariableRow) => {
+    setShowVariables(false);
+    if (row.envVarId) {
+      setFocusVarId(row.envVarId);
+      setShowEnvEditor(true);
+      return;
+    }
+    const target = activeEnv ?? environments[0] ?? null;
+    const added = { id: newId(), key: row.name, value: "", enabled: true };
+    if (target) {
+      const vars = target.vars.filter((v) => v.key !== "" || v.value !== "");
+      setEnvironments(environments.map((e) => (e.id === target.id ? { ...e, vars: [...vars, added, emptyRow()] } : e)));
+      if (!activeEnv) setActiveEnvId(target.id);
+    } else {
+      const env = { ...newEnvironment("Environment 1"), vars: [added, emptyRow()] };
+      setEnvironments([env]);
+      setActiveEnvId(env.id);
+    }
+    setFocusVarId(added.id);
+    setShowEnvEditor(true);
   };
 
   const importWorkspace = async (file: File) => {
@@ -485,7 +528,8 @@ export default function App({ active = true, shell, command }: Props) {
     setSplit((s) => Math.min(1 - min, Math.max(min, s + (e.key === "ArrowLeft" ? -0.02 : 0.02))));
   };
 
-  const sends = earlierSends(history, runs, def);
+  const unfilled = unresolvedPlaceholders(def, sendVars);
+  const sends = earlierSends(history, runs.filter((r) => !pendingRunDeletes.has(r.id)), def);
   const shownEntry = outcomeIsSample && shownHistoryId ? history.find((h) => h.id === shownHistoryId) : undefined;
   const openBatch = () => {
     setPane("batch");
@@ -524,7 +568,7 @@ export default function App({ active = true, shell, command }: Props) {
               }}
             />
           </label>
-          <button className="link-btn" onClick={() => void exportWorkspace()} title="Export collections and environments to a file">
+          <button className="link-btn" onClick={startExport} title="Export collections and environments to a file">
             Export
           </button>
         </span>
@@ -572,8 +616,29 @@ export default function App({ active = true, shell, command }: Props) {
         environments={environments}
         activeEnvId={activeEnvId}
         onEnvChange={setActiveEnvId}
-        onEditEnvironments={() => setShowEnvEditor(true)}
+        onEditEnvironments={() => {
+          setFocusVarId(undefined);
+          setShowEnvEditor(true);
+        }}
+        onVariables={() => setShowVariables((v) => !v)}
+        variablesOpen={showVariables}
       />
+      {showVariables && (
+        <VariablesPopover
+          rows={requestVariableRows(def, activeEnv, scriptVars)}
+          scriptVars={scriptVars}
+          envName={activeEnv?.name}
+          onEdit={editVariable}
+          onClearScriptVar={(name) =>
+            setScriptVars((v) => {
+              const { [name]: _gone, ...rest } = v;
+              return rest;
+            })
+          }
+          onClearAllScriptVars={() => setScriptVars({})}
+          onClose={() => setShowVariables(false)}
+        />
+      )}
 
       {openRun !== null && (
         <main className="workspace full-view">
@@ -582,8 +647,23 @@ export default function App({ active = true, shell, command }: Props) {
             onBack={() => setOpenRun(null)}
             onLoadRequest={(run) => openRunRequest(run.request, run.csvName)}
             onDelete={(id) => {
-              void deleteRun(id).finally(refreshRuns);
+              const name = runs.find((r) => r.id === id)?.csvName;
+              setPendingRunDeletes((s) => new Set(s).add(id));
               setOpenRun(null);
+              const settle = () =>
+                setPendingRunDeletes((s) => {
+                  const next = new Set(s);
+                  next.delete(id);
+                  return next;
+                });
+              toast.show({
+                message: `Deleted the batch run${name ? ` of ${name}` : ""}`,
+                onUndo: settle,
+                onExpire: () => void deleteRun(id).finally(() => {
+                  refreshRuns();
+                  settle();
+                }),
+              });
             }}
           />
         </main>
@@ -604,7 +684,7 @@ export default function App({ active = true, shell, command }: Props) {
             onEnter={() => void send()}
             sectionsKey={SECTIONS_KEY}
             scriptVars={scriptVars}
-            onClearScriptVars={() => setScriptVars({})}
+            onOpenVariables={() => setShowVariables(true)}
           />
           <div className="action-footer">
             {sending ? (
@@ -612,7 +692,13 @@ export default function App({ active = true, shell, command }: Props) {
                 Cancel
               </button>
             ) : (
-              <button className="send" onClick={() => void send()} disabled={def.url.trim() === ""} title="Send (Ctrl/Cmd + Enter)">
+              <button
+                className="send"
+                onClick={() => void send()}
+                disabled={def.url.trim() === ""}
+                title={unfilled.length > 0 ? `Sends with ${unfilled.map((n) => `{{${n}}}`).join(", ")} as written` : "Send (Ctrl/Cmd + Enter)"}
+              >
+                {unfilled.length > 0 && <span aria-hidden>⚠ </span>}
                 Send
               </button>
             )}
@@ -782,6 +868,17 @@ export default function App({ active = true, shell, command }: Props) {
             if (activeEnvId && !envs.some((e) => e.id === activeEnvId)) setActiveEnvId(null);
           }}
           onClose={() => setShowEnvEditor(false)}
+          focusVarId={focusVarId}
+        />
+      )}
+      {exportDialog && (
+        <ExportWorkspaceDialog
+          secretCount={secretValues(environments).length}
+          onClose={() => setExportDialog(false)}
+          onExport={(include) => {
+            setExportDialog(false);
+            void exportWorkspace(include);
+          }}
         />
       )}
     </div>

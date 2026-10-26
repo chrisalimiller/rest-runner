@@ -1,3 +1,4 @@
+import { currentMasker } from "../../lib/secrets";
 import { useEffect, useState } from "react";
 import { formatMs, whenLabel } from "../../lib/earlierSends";
 import type { FlowRunEnd, FlowStep } from "../../lib/flows/types";
@@ -43,7 +44,8 @@ function elapsed(ms: number): string {
 
 function StepRow({ step, onFocus }: { step: FlowStep; onFocus: () => void }) {
   const [open, setOpen] = useState(false);
-  const changes = varChanges(step.varsBefore, step.varsAfter);
+  const mask = currentMasker();
+  const changes = varChanges(step.varsBefore, step.varsAfter).map(mask);
   const mark = step.status === "passed" || step.status === "done" ? "✓" : step.status === "failed" ? "✕" : "■";
   const child = step.child;
   return (

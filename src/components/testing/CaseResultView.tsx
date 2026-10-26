@@ -1,3 +1,4 @@
+import { currentMasker } from "../../lib/secrets";
 import { useState } from "react";
 import { formatBytes, statusClass } from "../../lib/format";
 import type { CaseResult, ScriptOutput } from "../../lib/testing/types";
@@ -41,6 +42,7 @@ function ScriptBlock({ title, output }: { title: string; output?: ScriptOutput }
 
 /** Everything about one test case result: checks, notes, request, response, script output and variables. */
 export function CaseResultView({ result, title }: { result: CaseResult; title?: string }) {
+  const mask = currentMasker();
   const [tab, setTab] = useState<Tab>("checks");
   const o = result.outcome;
   const res = o?.ok ? o.response : null;
@@ -119,18 +121,18 @@ export function CaseResultView({ result, title }: { result: CaseResult; title?: 
         {tab === "request" && o && (
           <>
             <p className="mono">
-              <strong>{o.request.method}</strong> {o.request.url}
+              <strong>{o.request.method}</strong> {mask(o.request.url)}
             </p>
             <h4>Headers</h4>
-            <PairTable rows={o.request.headers} />
+            <PairTable rows={o.request.headers.map(([k, v]) => [k, mask(v)])} />
             <h4>Body</h4>
-            {o.request.body ? <BodyView body={o.request.body} /> : <p className="muted small">No body</p>}
+            {o.request.body ? <BodyView body={mask(o.request.body)} /> : <p className="muted small">No body</p>}
           </>
         )}
         {tab === "response" &&
           o &&
           (res ? (
-            <BodyView body={res.body} />
+            <BodyView body={mask(res.body)} />
           ) : (
             <div className="error-box">
               <strong>No response.</strong>

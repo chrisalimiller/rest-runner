@@ -1,3 +1,4 @@
+import { maskSecrets, storedSecrets } from "../../lib/secrets";
 import { useEffect, useMemo, useState } from "react";
 import { saveTextFile } from "../../lib/saveFile";
 import { describeMode } from "../../lib/testing/describe";
@@ -99,7 +100,7 @@ export function TestRunExplorer({ runId, preloaded, onBack, backLabel = "← Bac
   const exportReport = async (kind: "html" | "csv") => {
     setMessage(null);
     try {
-      const content = kind === "html" ? toTestHtmlReport(run) : toTestCsvReport(run);
+      const content = kind === "html" ? maskSecrets(toTestHtmlReport(run), storedSecrets()) : maskSecrets(toTestCsvReport(run), storedSecrets());
       const result = await saveTextFile(testReportFileName(run, kind), content, kind === "html" ? "HTML report" : "CSV report", kind);
       if (result.saved) setMessage(result.path ? `Saved to ${result.path}` : "Report downloaded.");
     } catch (e) {

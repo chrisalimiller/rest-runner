@@ -73,4 +73,8 @@ describe("splitPlaceholders", () => {
     ]);
     expect(splitPlaceholders("plain")).toEqual([{ text: "plain", placeholder: false }]);
   });
+
+  it("flags each placeholder as resolved or not when vars are given", () => {
+    expect(splitPlaceholders("{{a}}/%7B%7Bb%7D%7D/{{ c }}", { a: "1", c: "" }).filter((p) => p.placeholder).map((p) => p.resolved)).toEqual([true, false, true]);
+  });
 });

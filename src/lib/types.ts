@@ -8,6 +8,8 @@ export interface KeyValue {
   key: string;
   value: string;
   enabled: boolean;
+  /** Environment variables only: the value is masked on screen and left out of exports. Missing means not secret. */
+  secret?: boolean;
 }
 
 export type BodyMode = "none" | "json" | "text" | "urlencoded";

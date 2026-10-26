@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { currentMasker } from "../lib/secrets";
 import { formatBytes, statusClass } from "../lib/format";
 import { BodyView } from "./BodyView";
 import { ScriptResults, scriptsTabLabel } from "./ScriptResults";
@@ -26,6 +27,7 @@ function HeaderTable({ headers }: { headers: [string, string][] }) {
 export function CallDetail({ entry }: { entry: RunEntry }) {
   const [tab, setTab] = useState<Tab>("overview");
   const o = entry.outcome;
+  const mask = currentMasker();
   const res = o.ok ? o.response : null;
   const scripts = entry.preScript || entry.postScript ? { pre: entry.preScript, post: entry.postScript } : null;
 
@@ -77,7 +79,7 @@ export function CallDetail({ entry }: { entry: RunEntry }) {
               <p className="muted small">Nothing unusual.</p>
             )}
             <h4>CSV values</h4>
-            <HeaderTable headers={Object.entries(entry.vars)} />
+            <HeaderTable headers={Object.entries(entry.vars).map(([k, v]) => [k, mask(String(v))])} />
             <h4>Timing</h4>
             <p className="small">
               Sent {new Date(o.sentAt).toLocaleString()} · took {res ? res.durationMs : o.ok ? 0 : o.durationMs} ms
@@ -87,17 +89,17 @@ export function CallDetail({ entry }: { entry: RunEntry }) {
         {tab === "request" && (
           <>
             <p className="mono">
-              <strong>{o.request.method}</strong> {o.request.url}
+              <strong>{o.request.method}</strong> {mask(o.request.url)}
             </p>
             <h4>Headers</h4>
-            <HeaderTable headers={o.request.headers} />
+            <HeaderTable headers={o.request.headers.map(([k, v]) => [k, mask(v)])} />
             <h4>Body</h4>
-            {o.request.body ? <BodyView body={o.request.body} /> : <p className="muted small">No body</p>}
+            {o.request.body ? <BodyView body={mask(o.request.body)} /> : <p className="muted small">No body</p>}
           </>
         )}
         {tab === "response" &&
           (res ? (
-            <BodyView body={res.body} />
+            <BodyView body={mask(res.body)} />
           ) : (
             <div className="error-box">
               <strong>No response.</strong>

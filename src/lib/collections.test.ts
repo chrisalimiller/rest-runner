@@ -14,6 +14,7 @@ import {
   newCollection,
   newFolder,
   remove,
+  removeWithRestore,
   rename,
   requestNode,
   updateExample,
@@ -121,5 +122,57 @@ describe("collections", () => {
   it("cleans bad data from storage", () => {
     expect(cleanCollections("x")).toEqual([]);
     expect(cleanCollections([{ id: "c", name: "C", items: [{ kind: "nope" }] }])).toEqual([{ id: "c", name: "C", items: [] }]);
+  });
+});
+
+describe("removeWithRestore", () => {
+  const build = () => {
+    const a = { ...newRequest(), name: "A" };
+    const b = { ...newRequest(), name: "B" };
+    const c = { ...newRequest(), name: "C" };
+    const folder = { ...newFolder("F"), items: [requestNode(a), requestNode(b)] };
+    const col = { ...newCollection("Col"), items: [folder, requestNode(c)] };
+    return { a, b, c, folder, col, cols: [col, newCollection("Other")] };
+  };
+
+  it("puts a request back at its old position", () => {
+    const { a, b, cols, folder } = build();
+    const r = removeWithRestore(cols, a.id)!;
+    expect(listRequests(r.collections).map((x) => x.request.name)).toEqual(["B", "C"]);
+    const back = r.restore(r.collections);
+    expect(listRequests(back).map((x) => x.request.name)).toEqual(["A", "B", "C"]);
+    expect((back[0].items[0] as typeof folder).items.map((n) => n.id)).toEqual([a.id, b.id]);
+  });
+
+  it("restores into the current state, keeping changes made since", () => {
+    const { a, cols } = build();
+    const r = removeWithRestore(cols, a.id)!;
+    const edited = [...r.collections, newCollection("Added meanwhile")];
+    expect(r.restore(edited).map((c) => c.name)).toEqual(["Col", "Other", "Added meanwhile"]);
+    expect(listRequests(r.restore(edited))).toHaveLength(3);
+  });
+
+  it("restores a folder with its contents, and a collection in place", () => {
+    const { folder, cols } = build();
+    const f = removeWithRestore(cols, folder.id)!;
+    expect(listRequests(f.collections)).toHaveLength(1);
+    expect(listRequests(f.restore(f.collections))).toHaveLength(3);
+    const c = removeWithRestore(cols, cols[0].id)!;
+    expect(c.collections.map((x) => x.name)).toEqual(["Other"]);
+    expect(c.restore(c.collections).map((x) => x.name)).toEqual(["Col", "Other"]);
+  });
+
+  it("restores an example, and does not duplicate on a second restore", () => {
+    const { a } = build();
+    const node = addExample([{ ...newCollection("X"), items: [requestNode(a)] }], a.id, "Ex", a);
+    const r = removeWithRestore(node.collections, node.example.id)!;
+    expect(locate(r.collections, node.example.id)).toBeNull();
+    const back = r.restore(r.collections);
+    expect(locate(back, node.example.id)?.kind).toBe("example");
+    expect(r.restore(back)).toEqual(back);
+  });
+
+  it("returns null for an unknown id", () => {
+    expect(removeWithRestore([], "nope")).toBeNull();
   });
 });

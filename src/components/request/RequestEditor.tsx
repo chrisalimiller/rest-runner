@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { findJsonProblem, formatJson } from "../../lib/jsonFormat";
-import { authSummary, BODY_LABELS, bodySummary, countsLabel, paramsText, resolvedUrl, rowCounts, splitPlaceholders } from "../../lib/requestSummary";
+import { unresolvedPlaceholders } from "../../lib/request";
+import { authSummary, BODY_LABELS, bodySummary, countsLabel, headersText, paramsText, resolvedUrl, rowCounts, splitPlaceholders } from "../../lib/requestSummary";
 import { load, save } from "../../lib/storage";
 import type { Vars } from "../../lib/template";
 import { HTTP_METHODS, type BodyMode, type HttpMethod, type RequestDef } from "../../lib/types";
@@ -27,13 +28,14 @@ interface Props {
   urlPlaceholder?: string;
   /** Variables set by scripts on earlier sends, shown under the script editor. */
   scriptVars?: Vars;
-  onClearScriptVars?: () => void;
   /** Extra line under the script editor, e.g. how request scripts mix with a test case's. */
   scriptsNote?: string;
+  /** Opens the Variables popover (the unfilled-placeholder chip and the Scripts section link to it). */
+  onOpenVariables?: () => void;
 }
 
 /** The Scripts section: Pre-request / Post-response switch, the editor, and the variables scripts have set. */
-function ScriptsPanel({ def, onChange, scriptVars, onClearScriptVars, scriptsNote }: Pick<Props, "def" | "onChange" | "scriptVars" | "onClearScriptVars" | "scriptsNote">) {
+function ScriptsPanel({ def, onChange, scriptVars, onOpenVariables, scriptsNote }: Pick<Props, "def" | "onChange" | "scriptVars" | "onOpenVariables" | "scriptsNote">) {
   const [phase, setPhase] = useState<"pre" | "post">(() => ((def.preScript ?? "").trim() === "" && (def.postScript ?? "").trim() !== "" ? "post" : "pre"));
   const varNames = Object.keys(scriptVars ?? {});
   // An emptied script is removed so the request matches its saved copy again.
@@ -54,36 +56,25 @@ function ScriptsPanel({ def, onChange, scriptVars, onClearScriptVars, scriptsNot
         <ScriptEditor key="post" context="request" phase="post" value={def.postScript ?? ""} onChange={(v) => set("postScript", v)} />
       )}
       {scriptsNote && <p className="muted small">{scriptsNote}</p>}
-      {scriptVars && (
-        <div className="script-vars small">
-          <span className="muted">Script variables:</span>
-          {varNames.length === 0 ? (
-            <span className="muted">none yet</span>
-          ) : (
-            varNames.map((n) => (
-              <code key={n} className="chip" title={scriptVars[n]}>
-                {n}
-              </code>
-            ))
-          )}
-          {varNames.length > 0 && onClearScriptVars && (
-            <button className="link-btn small" onClick={onClearScriptVars} title="Forget every variable scripts have set">
-              Clear
-            </button>
-          )}
-        </div>
+      {scriptVars && onOpenVariables && (
+        <p className="small script-vars">
+          <span className="muted">{varNames.length === 0 ? "No script variables yet." : `${varNames.length} script variable${varNames.length === 1 ? "" : "s"}.`}</span>{" "}
+          <button className="link-btn small" onClick={onOpenVariables}>
+            Open Variables
+          </button>
+        </p>
       )}
     </div>
   );
 }
 
 /** Text with {{placeholders}} drawn in the placeholder style. */
-export function WithPlaceholders({ text }: { text: string }) {
+export function WithPlaceholders({ text, vars }: { text: string; vars?: Vars }) {
   return (
     <>
-      {splitPlaceholders(text).map((p, i) =>
+      {splitPlaceholders(text, vars).map((p, i) =>
         p.placeholder ? (
-          <span key={i} className="ph">
+          <span key={i} className={p.resolved === false ? "ph missing" : "ph"} title={p.resolved === false ? "No value for this yet" : undefined}>
             {p.text}
           </span>
         ) : (
@@ -111,7 +102,7 @@ const CURL_OPEN_KEY = "rest-runner.curl-open";
  * Headers / Body / Scripts as collapsible sections. Requests mode and the Testing "Edit request"
  * dialog both use it.
  */
-export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectionsKey, urlPlaceholder, scriptVars, onClearScriptVars, scriptsNote }: Props) {
+export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectionsKey, urlPlaceholder, scriptVars, scriptsNote, onOpenVariables }: Props) {
   const [openState, setOpenState] = useState<OpenState>(() => load<OpenState>(sectionsKey, {}));
   useEffect(() => {
     save(sectionsKey, openState);
@@ -128,6 +119,8 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
 
   const urlInputs = useDebounced({ def, envVars }, 150);
   const finalUrl = resolvedUrl(urlInputs.def, urlInputs.envVars);
+
+  const unfilled = unresolvedPlaceholders(urlInputs.def, urlInputs.envVars);
 
   const params = rowCounts(def.params);
   const headers = rowCounts(def.headers);
@@ -169,8 +162,17 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
                 →
               </span>
               <span className="resolved-text">
-                <WithPlaceholders text={finalUrl} />
+                <WithPlaceholders text={finalUrl} vars={urlInputs.envVars} />
               </span>
+              {unfilled.length > 0 && (
+                <button
+                  className="unfilled-chip"
+                  onClick={onOpenVariables}
+                  title={`No value for: ${unfilled.map((n) => `{{${n}}}`).join(", ")}${onOpenVariables ? "\nClick to open Variables" : ""}`}
+                >
+                  {unfilled.length === 1 ? `1 unfilled: ${unfilled[0]}` : `${unfilled.length} unfilled`}
+                </button>
+              )}
               <span className="resolved-legend">{envName ? `values from ${envName}` : "no environment"}</span>
             </>
           ) : (
@@ -197,7 +199,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
           summary={
             paramsText(def.params) ? (
               <span className="mono">
-                <WithPlaceholders text={paramsText(def.params)} />
+                <WithPlaceholders text={paramsText(def.params)} vars={envVars} />
               </span>
             ) : (
               <span className="muted">None</span>
@@ -218,7 +220,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
               <span className="muted">{auth.label}</span>
               {auth.value && (
                 <span className="mono">
-                  <WithPlaceholders text={auth.value} />
+                  <WithPlaceholders text={auth.value} vars={envVars} />
                 </span>
               )}
             </>
@@ -227,7 +229,17 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
           <AuthEditor auth={def.auth} onChange={(a) => onChange({ auth: a })} />
         </Section>
 
-        <Section id="headers" label="Headers" open={isOpen("headers")} onToggle={() => toggle("headers")} summary={<span />} meta={countsLabel(headers) || "None"}>
+        <Section id="headers" label="Headers" open={isOpen("headers")} onToggle={() => toggle("headers")} summary={
+            headersText(def.headers) ? (
+              <span className="mono">
+                <WithPlaceholders text={headersText(def.headers)} vars={envVars} />
+              </span>
+            ) : (
+              <span />
+            )
+          }
+          meta={countsLabel(headers) || "None"}
+        >
           <KeyValueEditor rows={def.headers} onChange={(rows) => onChange({ headers: rows })} />
         </Section>
 
@@ -290,7 +302,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
           onToggle={() => toggle("scripts")}
           summary={scriptNames ? <span className="mono">{scriptNames}</span> : <span className="muted">None</span>}
         >
-          <ScriptsPanel def={def} onChange={onChange} scriptVars={scriptVars} onClearScriptVars={onClearScriptVars} scriptsNote={scriptsNote} />
+          <ScriptsPanel def={def} onChange={onChange} scriptVars={scriptVars} onOpenVariables={onOpenVariables} scriptsNote={scriptsNote} />
         </Section>
       </div>
     </>

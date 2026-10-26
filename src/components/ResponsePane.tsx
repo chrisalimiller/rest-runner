@@ -1,3 +1,4 @@
+import { currentMasker } from "../lib/secrets";
 import { useEffect, useRef, useState } from "react";
 import { formatMs, statusTone } from "../lib/earlierSends";
 import { formatBytes } from "../lib/format";
@@ -77,6 +78,7 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
   const tab: Tab =
     (isSample && chosenTab === "request") || ((!res || bodyNote) && chosenTab === "headers") || (!hasScripts && chosenTab === "scripts") ? "body" : chosenTab;
   const tone = statusTone(res ? res.status : null);
+  const mask = currentMasker();
 
   return (
     <section className="response">
@@ -181,9 +183,9 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
 
         {tab === "request" && (
           <pre className="code-view">
-            {`${outcome.request.method} ${outcome.request.url}\n`}
-            {outcome.request.headers.map(([k, v]) => `${k}: ${v}\n`).join("")}
-            {outcome.request.body ? `\n${outcome.request.body}` : ""}
+            {mask(`${outcome.request.method} ${outcome.request.url}\n`)}
+            {mask(outcome.request.headers.map(([k, v]) => `${k}: ${v}\n`).join(""))}
+            {outcome.request.body ? `\n${mask(outcome.request.body)}` : ""}
           </pre>
         )}
       </div>

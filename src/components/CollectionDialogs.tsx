@@ -201,3 +201,49 @@ export function ExampleDialog({ requestName, initialName, responseLabel, onSave,
     </SmallModal>
   );
 }
+
+interface ExportProps {
+  /** How many environment variables are marked secret and have a value. */
+  secretCount: number;
+  onExport: (includeSecrets: boolean) => void;
+  onClose: () => void;
+}
+
+/** Asks whether secret environment values go into the exported file. Leaving them out is the default. */
+export function ExportWorkspaceDialog({ secretCount, onExport, onClose }: ExportProps) {
+  const [include, setInclude] = useState(false);
+  return (
+    <SmallModal title="Export workspace" onClose={onClose}>
+      <form
+        className="dialog-body"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onExport(include);
+        }}
+      >
+        <fieldset className="field radio-group">
+          <legend>Include secret values?</legend>
+          <p className="muted small">
+            {secretCount} environment variable{secretCount === 1 ? " is" : "s are"} marked secret.
+          </p>
+          <label className="check">
+            <input type="radio" name="include-secrets" checked={!include} onChange={() => setInclude(false)} autoFocus />
+            Leave them out (recommended). Whoever imports the file sees which values to fill in.
+          </label>
+          <label className="check">
+            <input type="radio" name="include-secrets" checked={include} onChange={() => setInclude(true)} />
+            Include them. Anyone with the file can read them.
+          </label>
+        </fieldset>
+        <div className="dialog-actions">
+          <button type="button" className="secondary" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" className="send">
+            Export
+          </button>
+        </div>
+      </form>
+    </SmallModal>
+  );
+}

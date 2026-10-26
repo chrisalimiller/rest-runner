@@ -1,3 +1,4 @@
+import { currentMasker, maskSecrets, storedSecrets } from "../../lib/secrets";
 import { useEffect, useMemo, useState } from "react";
 import { formatMs } from "../../lib/earlierSends";
 import { getFlowRun } from "../../lib/flows/flowRunStore";
@@ -25,6 +26,7 @@ const MARK: Record<FlowStep["status"], string> = { passed: "✓", done: "✓", f
 
 function StepDetail({ step, onOpenChild }: { step: FlowStep; onOpenChild: () => void }) {
   const rows = variableRows(step.varsBefore, step.varsAfter);
+  const mask = currentMasker();
   const changed = rows.filter((r) => r.change !== null).length;
   const child = step.child;
   return (
@@ -78,7 +80,7 @@ function StepDetail({ step, onOpenChild }: { step: FlowStep; onOpenChild: () => 
             {rows.map((r) => (
               <tr key={r.name} className={r.change ? `var-${r.change}` : undefined}>
                 <td>{r.name}</td>
-                <td>{r.change === "removed" ? <s>{r.value}</s> : r.value}</td>
+                <td>{r.change === "removed" ? <s>{mask(r.value)}</s> : mask(r.value)}</td>
                 <td className="var-change">{r.change ?? ""}</td>
               </tr>
             ))}
@@ -139,7 +141,7 @@ export function FlowRunReport({ runId, onBack, onDelete, onShowCanvas }: Props) 
   const exportReport = async (kind: "html" | "csv") => {
     setMessage(null);
     try {
-      const content = kind === "html" ? toFlowHtmlReport(run) : toFlowCsvReport(run);
+      const content = kind === "html" ? maskSecrets(toFlowHtmlReport(run), storedSecrets()) : maskSecrets(toFlowCsvReport(run), storedSecrets());
       const result = await saveTextFile(flowReportFileName(run, kind), content, kind === "html" ? "HTML report" : "CSV report", kind);
       if (result.saved) setMessage(result.path ? `Saved to ${result.path}` : "Report downloaded.");
     } catch (e) {

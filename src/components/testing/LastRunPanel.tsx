@@ -1,3 +1,4 @@
+import { maskSecrets, storedSecrets } from "../../lib/secrets";
 import { useMemo, useState } from "react";
 import { formatMs, whenLabel } from "../../lib/earlierSends";
 import { saveTextFile } from "../../lib/saveFile";
@@ -46,7 +47,7 @@ export function LastRunPanel({ live, run, onOpenReport }: Props) {
   const exportReport = async (kind: "html" | "csv") => {
     setMessage(null);
     try {
-      const content = kind === "html" ? toTestHtmlReport(run) : toTestCsvReport(run);
+      const content = kind === "html" ? maskSecrets(toTestHtmlReport(run), storedSecrets()) : maskSecrets(toTestCsvReport(run), storedSecrets());
       const result = await saveTextFile(testReportFileName(run, kind), content, kind === "html" ? "HTML report" : "CSV report", kind);
       if (result.saved) setMessage(result.path ? `Saved to ${result.path}` : "Report downloaded.");
     } catch (e) {

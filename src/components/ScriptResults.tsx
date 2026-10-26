@@ -1,3 +1,4 @@
+import { currentMasker } from "../lib/secrets";
 import type { Vars } from "../lib/template";
 import type { ScriptOutput } from "../lib/testing/types";
 
@@ -51,6 +52,7 @@ function Block({ title, output }: { title: string; output?: ScriptOutput }) {
 /** What a request's pre/post scripts did: errors, rr.test results, console output and, optionally, the variables afterwards. */
 export function ScriptResults({ run, vars }: { run: ScriptRun; vars?: Vars }) {
   const names = Object.keys(vars ?? {});
+  const mask = currentMasker();
   return (
     <div className="script-results">
       <Block title="Pre-request script" output={run.pre} />
@@ -64,7 +66,7 @@ export function ScriptResults({ run, vars }: { run: ScriptRun; vars?: Vars }) {
                 {names.map((n) => (
                   <tr key={n}>
                     <td>{n}</td>
-                    <td>{vars[n]}</td>
+                    <td>{mask(vars[n])}</td>
                   </tr>
                 ))}
               </tbody>

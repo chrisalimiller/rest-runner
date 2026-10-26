@@ -34,6 +34,14 @@ export function paramsText(rows: KeyValue[]): string {
     .join("&");
 }
 
+/** Enabled headers as "Name: value · Name: value", before placeholders are filled. */
+export function headersText(rows: KeyValue[]): string {
+  return namedRows(rows)
+    .filter((r) => r.enabled)
+    .map((r) => `${r.key.trim()}: ${r.value}`)
+    .join(" · ");
+}
+
 export const AUTH_LABELS: Record<AuthConfig["type"], string> = {
   none: "None",
   bearer: "Bearer",
@@ -95,19 +103,32 @@ export function resolvedUrl(def: RequestDef, vars: Vars): string {
 export interface TextPart {
   text: string;
   placeholder: boolean;
+  /** Only for placeholders, and only when vars were given: whether a value exists for it. */
+  resolved?: boolean;
 }
 
 // A {{name}} as written, or as it looks after URL encoding (%7B%7Bname%7D%7D).
 const PLACEHOLDER_PARTS = /\{\{\s*[^{}]+?\s*\}\}|%7B%7B.+?%7D%7D/gi;
 
-/** Splits text into plain runs and {{placeholder}} runs, so placeholders can be drawn in their own style. */
-export function splitPlaceholders(text: string): TextPart[] {
+/** Splits text into plain runs and {{placeholder}} runs, so placeholders can be drawn in their own style. With `vars`, each placeholder also says whether it has a value. */
+export function splitPlaceholders(text: string, vars?: Vars): TextPart[] {
   const out: TextPart[] = [];
   let last = 0;
   for (const m of text.matchAll(PLACEHOLDER_PARTS)) {
     const at = m.index ?? 0;
     if (at > last) out.push({ text: text.slice(last, at), placeholder: false });
-    out.push({ text: m[0], placeholder: true });
+    const part: TextPart = { text: m[0], placeholder: true };
+    if (vars) {
+      let name = m[0].replace(/^\{\{|\}\}$/g, "");
+      if (m[0].startsWith("%")) name = m[0].slice(6, -6);
+      try {
+        name = decodeURIComponent(name);
+      } catch {
+        // keep the raw text
+      }
+      part.resolved = Object.prototype.hasOwnProperty.call(vars, name.trim());
+    }
+    out.push(part);
     last = at + m[0].length;
   }
   if (last < text.length) out.push({ text: text.slice(last), placeholder: false });

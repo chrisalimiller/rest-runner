@@ -1,3 +1,4 @@
+import { currentMasker, maskSecrets, storedSecrets } from "../lib/secrets";
 import { useEffect, useMemo, useState } from "react";
 import { statusClass } from "../lib/format";
 import { toCsvReport, toHtmlReport, reportFileName } from "../lib/report";
@@ -24,6 +25,7 @@ function formatDuration(ms: number): string {
 }
 
 export function RunExplorer({ runId, onBack, onDelete, onLoadRequest }: Props) {
+  const mask = currentMasker();
   const [run, setRun] = useState<Run | null | undefined>(undefined);
   const [filter, setFilter] = useState<ResultFilter>("all");
   const [status, setStatus] = useState<string | null>(null);
@@ -82,7 +84,7 @@ export function RunExplorer({ runId, onBack, onDelete, onLoadRequest }: Props) {
   const exportReport = async (kind: "html" | "csv") => {
     setMessage(null);
     try {
-      const content = kind === "html" ? toHtmlReport(run) : toCsvReport(run);
+      const content = kind === "html" ? maskSecrets(toHtmlReport(run), storedSecrets()) : maskSecrets(toCsvReport(run), storedSecrets());
       const result = await saveTextFile(reportFileName(run, kind), content, kind === "html" ? "HTML report" : "CSV report", kind);
       if (result.saved) setMessage(result.path ? `Saved to ${result.path}` : "Report downloaded.");
     } catch (e) {
@@ -230,8 +232,8 @@ export function RunExplorer({ runId, onBack, onDelete, onLoadRequest }: Props) {
                       <span className={`status ${e.outcome.ok ? statusClass(e.outcome.response.status) : "bad"}`}>{statusLabel(e.outcome)}</span>
                     </td>
                     <td>{durationOf(e.outcome)} ms</td>
-                    <td className="url-cell" title={e.outcome.request.url}>
-                      {e.outcome.request.url}
+                    <td className="url-cell" title={mask(e.outcome.request.url)}>
+                      {mask(e.outcome.request.url)}
                     </td>
                   </tr>
                 ))}
