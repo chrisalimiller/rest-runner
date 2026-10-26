@@ -6,7 +6,8 @@ import { detectVarSets } from "../../lib/testing/varsDetect";
 import type { CaseResult, TestCase } from "../../lib/testing/types";
 import type { RequestDef } from "../../lib/types";
 import { RequestEditor, WithPlaceholders } from "../request/RequestEditor";
-import { ArrowDownIcon, CopyIcon, PlayFilledIcon } from "../shell/Icons";
+import { ArrowDownIcon, CopyIcon, PlayFilledIcon, TrashIcon } from "../shell/Icons";
+import { OverflowMenu } from "../shell/OverflowMenu";
 import { AssertionEditor } from "./AssertionEditor";
 import { CaseResultView } from "./CaseResultView";
 import { ScriptEditor } from "./ScriptEditor";
@@ -76,18 +77,15 @@ export function CaseEditor(props: Props) {
         )}
         <span className="flex-gap" />
         <div className="case-actions-group">
-          <button className="square-btn" onClick={() => props.onMove(-1)} disabled={props.index === 0} aria-label="Move up" title="Move up">
-            ↑
-          </button>
-          <button className="square-btn" onClick={() => props.onMove(1)} disabled={props.index === props.count - 1} aria-label="Move down" title="Move down">
-            ↓
-          </button>
-          <button className="square-btn" onClick={props.onDuplicate} aria-label="Duplicate case" title="Duplicate">
-            <CopyIcon />
-          </button>
-          <button className="square-btn" onClick={props.onDelete} aria-label="Delete case" title="Delete">
-            ×
-          </button>
+          <OverflowMenu
+            label="Case actions"
+            items={[
+              { label: "Move up", icon: "↑", onSelect: () => props.onMove(-1), disabled: props.index === 0 },
+              { label: "Move down", icon: "↓", onSelect: () => props.onMove(1), disabled: props.index === props.count - 1 },
+              { label: "Duplicate", icon: <CopyIcon />, onSelect: props.onDuplicate },
+              { label: "Delete case", icon: <TrashIcon />, onSelect: props.onDelete, danger: true, separated: true },
+            ]}
+          />
           <button className="secondary try-btn" onClick={props.onTry} disabled={props.trying || def.url.trim() === ""} title="Send this case once, with its scripts and assertions">
             <PlayFilledIcon size={10} />
             {props.trying ? "Running…" : "Try case"}

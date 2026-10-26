@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { newRequest } from "./defaults";
-import { appendQuery, normalizeUrl, prepareRequest, requestPlaceholders } from "./request";
+import { appendQuery, normalizeUrl, prepareRequest, requestPlaceholders, unresolvedPlaceholders } from "./request";
 import type { KeyValue, RequestDef } from "./types";
 
 const row = (key: string, value: string, enabled = true): KeyValue => ({ id: key, key, value, enabled });
@@ -104,5 +104,34 @@ describe("requestPlaceholders", () => {
     });
     expect(requestPlaceholders(def).sort()).toEqual(["id", "name", "q", "tenant", "token"]);
     expect(requestPlaceholders({ ...def, method: "GET" })).not.toContain("name");
+  });
+});
+
+describe("unresolvedPlaceholders", () => {
+  const def = req({
+    method: "POST",
+    url: "{{base}}/t/{{id}}",
+    params: [row("q", "{{q}}"), row("off", "{{offParam}}", false)],
+    headers: [row("X-T", "{{tenant}}")],
+    bodyMode: "json",
+    body: '{"a":"{{name}}"}',
+    auth: { type: "bearer", token: "{{token}}" },
+  });
+
+  it("lists names with no value across url, params, headers, body and auth", () => {
+    expect(unresolvedPlaceholders(def, { base: "x", id: "1" }).sort()).toEqual(["name", "q", "tenant", "token"]);
+  });
+
+  it("ignores disabled rows", () => {
+    expect(unresolvedPlaceholders(def, {})).not.toContain("offParam");
+  });
+
+  it("counts an empty value as filled", () => {
+    expect(unresolvedPlaceholders(req({ url: "{{a}}" }), { a: "" })).toEqual([]);
+  });
+
+  it("ignores the body on GET", () => {
+    const get = { ...def, method: "GET" as const };
+    expect(unresolvedPlaceholders(get, { base: "x", id: "1", q: "1", tenant: "t", token: "t" })).toEqual([]);
   });
 });

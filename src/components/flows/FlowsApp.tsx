@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cleanCollections } from "../../lib/collections";
 import { environmentVars, type Environment } from "../../lib/environments";
 import { FlowNotRunnableError, runFlow } from "../../lib/flows/engine";
+import { stepStatusCode } from "../../lib/flows/flowReport";
 import { describeImport, importFlowsFile, toFlowsFile } from "../../lib/flows/flowFile";
 import { deleteFlowRun, getFlowRun, listFlowRuns, saveFlowRun } from "../../lib/flows/flowRunStore";
 import { loadFlows, newFlow, nodeLabel, saveFlows } from "../../lib/flows/flows";
@@ -15,7 +16,13 @@ import { saveTextFile } from "../../lib/saveFile";
 import { load, save } from "../../lib/storage";
 import { createWorkerScriptRunner } from "../../lib/testing/scriptRunner";
 import type { ShellCommand, ShellProps } from "../../Root";
-import { TopBar } from "../shell/TopBar";
+import { CopyIcon, TrashIcon } from "../shell/Icons";
+import { OverflowMenu } from "../shell/OverflowMenu";
+import { useToast } from "../shell/Toast";
+import { MOD_KEY, TopBar } from "../shell/TopBar";
+import { useDeferredDelete } from "../shell/useDeferredDelete";
+import { reinsert, removeById } from "../../lib/listUndo";
+import { canRedo, canUndo, createUndoStack, pushUndo, redo, undo, type UndoStack } from "../../lib/undoStack";
 import { FlowCanvas, type NodeRunState } from "./FlowCanvas";
 import { FlowRunPanel, type FlowRunView } from "./FlowRunPanel";
 import { FlowRunReport } from "./FlowRunReport";
@@ -61,7 +68,7 @@ function viewOf(run: FlowRun): FlowRunView {
 function runStateOf(view: FlowRunView | null): Map<string, NodeRunState> {
   const map = new Map<string, NodeRunState>();
   if (!view) return map;
-  for (const s of [...view.steps].sort((a, b) => a.index - b.index)) map.set(s.nodeId, { status: s.status, runs: (map.get(s.nodeId)?.runs ?? 0) + 1 });
+  for (const s of [...view.steps].sort((a, b) => a.index - b.index)) map.set(s.nodeId, { status: s.status, runs: (map.get(s.nodeId)?.runs ?? 0) + 1, statusCode: stepStatusCode(s) });
   if (view.running) for (const id of view.runningNodeIds) map.set(id, { status: "running", runs: map.get(id)?.runs ?? 0 });
   return map;
 }
@@ -133,6 +140,8 @@ export function FlowsApp({ active, shell, command }: Props) {
       .catch(() => setRuns([]));
   }, []);
   useEffect(refreshRuns, [refreshRuns]);
+  const toast = useToast();
+  const runDelete = useDeferredDelete(deleteFlowRun, refreshRuns);
 
   const flow = viewed ? viewed.flow : (flows.find((f) => f.id === openFlowId) ?? null);
   const readOnly = viewed !== null;
@@ -163,13 +172,31 @@ export function FlowsApp({ active, shell, command }: Props) {
   }, [flow, viewed, live, latest]);
   const runState = useMemo(() => runStateOf(shownRun), [shownRun]);
 
-  const updateFlow = useCallback((next: Flow) => setFlows((list) => list.map((f) => (f.id === next.id ? next : f))), []);
-  const updateNode = (node: FlowNode) => flow && updateFlow({ ...flow, nodes: flow.nodes.map((n) => (n.id === node.id ? node : n)) });
+  /** Undo/redo history per flow (snapshots of the whole flow). */
+  const [stacks, setStacks] = useState<Record<string, UndoStack<Flow>>>({});
+  const stacksRef = useRef(stacks);
+  stacksRef.current = stacks;
+  /** An edit made by the person: saved, and recorded so it can be undone. `group` merges a burst of typing into one step. */
+  const updateFlow = useCallback((next: Flow, group?: string) => {
+    setFlows((list) => list.map((f) => (f.id === next.id ? next : f)));
+    setStacks((all) => ({ ...all, [next.id]: pushUndo(all[next.id] ?? createUndoStack(flowsRef.current.find((f) => f.id === next.id) ?? next), next, { group }) }));
+  }, []);
+  const updateNode = (node: FlowNode) => flow && updateFlow({ ...flow, nodes: flow.nodes.map((n) => (n.id === node.id ? node : n)) }, `node:${node.id}`);
   const deleteNode = (id: string) => {
     if (!flow) return;
     updateFlow({ ...flow, nodes: flow.nodes.filter((n) => n.id !== id), edges: flow.edges.filter((e) => e.source !== id && e.target !== id) });
     setSelectedId(null);
   };
+  const stepHistory = (direction: "undo" | "redo") => {
+    if (!flow || viewed) return;
+    const stack = stacksRef.current[flow.id] ?? createUndoStack(flow);
+    const next = direction === "undo" ? undo(stack) : redo(stack);
+    if (next === stack) return;
+    setStacks((all) => ({ ...all, [flow.id]: next }));
+    setFlows((list) => list.map((f) => (f.id === flow.id ? next.present : f)));
+    if (selectedId && !next.present.nodes.some((n) => n.id === selectedId)) closeSettings();
+  };
+  const flowStack = flow ? stacks[flow.id] : undefined;
 
   const openFlow = (id: string) => {
     setViewed(null);
@@ -313,6 +340,30 @@ export function FlowsApp({ active, shell, command }: Props) {
     // Recomputed when the scheduler state changes, which happens at least on every due time.
   }, [flows, schedules]);
 
+  const duplicateFlow = (source: Flow) => {
+    const copy = { ...structuredClone(source), id: newId(), name: `${source.name} copy` };
+    // Schedule steps get new ids so the copy keeps its own schedule state.
+    const ids = new Map(copy.nodes.map((n) => [n.id, n.type === "schedule" ? newId() : n.id]));
+    copy.nodes = copy.nodes.map((n) => ({ ...n, id: ids.get(n.id)! }));
+    copy.edges = copy.edges.map((e) => ({ ...e, source: ids.get(e.source)!, target: ids.get(e.target)! }));
+    setFlows((list) => [...list, copy]);
+    openFlow(copy.id);
+  };
+
+  const deleteFlow = (target: Flow) => {
+    const taken = removeById(flows, target.id);
+    if (!taken) return;
+    setFlows(taken.list);
+    setOpenFlowId(null);
+    toast.show({
+      message: `Deleted the flow "${target.name || "(unnamed)"}"`,
+      onUndo: () => {
+        setFlows((list) => reinsert(list, taken.item, taken.index));
+        setOpenFlowId(taken.item.id);
+      },
+    });
+  };
+
   const openRunReport = (id: string) => {
     setViewed(null);
     setSelectedId(null);
@@ -357,6 +408,21 @@ export function FlowsApp({ active, shell, command }: Props) {
       setNotice(`Could not import ${file.name}: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
+
+  useEffect(() => {
+    if (!active) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.metaKey || e.ctrlKey) || e.altKey || reportId) return;
+      const key = e.key.toLowerCase();
+      if (key !== "z" && key !== "y") return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.closest("input, textarea, select, [contenteditable=true], .cm-editor") || document.querySelector(".modal-backdrop, .sheet-backdrop"))) return;
+      e.preventDefault();
+      stepHistory(key === "y" || e.shiftKey ? "redo" : "undo");
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  });
 
   const lastCommand = useRef<number | null>(null);
   useEffect(() => {
@@ -407,7 +473,7 @@ export function FlowsApp({ active, shell, command }: Props) {
           onNewFlow={createFlow}
           onExport={() => void exportFlows(flows)}
           onImport={(f) => void importFlows(f)}
-          runs={runs}
+          runs={runs.filter((r) => !runDelete.hidden.has(r.id))}
           activeRunId={reportId ?? viewed?.id ?? null}
           onOpenRun={openRunReport}
           runningFlowIds={runningIds}
@@ -419,7 +485,7 @@ export function FlowsApp({ active, shell, command }: Props) {
               runId={reportId}
               onBack={() => setReportId(null)}
               onDelete={(id) => {
-                void deleteFlowRun(id).finally(refreshRuns);
+                runDelete.request(id, "Deleted the flow run");
                 setReportId(null);
               }}
               onShowCanvas={showRunOnCanvas}
@@ -450,11 +516,11 @@ export function FlowsApp({ active, shell, command }: Props) {
                 ) : (
                   <>
                     <div className="flow-title">
-                      <input className="flow-name" value={flow.name} onChange={(e) => updateFlow({ ...flow, name: e.target.value })} aria-label="Flow name" placeholder="Flow name" />
+                      <input className="flow-name" value={flow.name} onChange={(e) => updateFlow({ ...flow, name: e.target.value }, "name")} aria-label="Flow name" placeholder="Flow name" />
                       <input
                         className="flow-desc"
                         value={flow.description}
-                        onChange={(e) => updateFlow({ ...flow, description: e.target.value })}
+                        onChange={(e) => updateFlow({ ...flow, description: e.target.value }, "description")}
                         aria-label="Description"
                         placeholder="What this flow checks (optional)"
                       />
@@ -465,34 +531,20 @@ export function FlowsApp({ active, shell, command }: Props) {
                         {notice}
                       </span>
                     )}
-                    <button className="secondary ghost" onClick={() => void exportFlows([flow])} title="Save this flow, with the suites and saved requests it runs, to a file">
-                      Export
+                    <button className="icon-btn" onClick={() => stepHistory("undo")} disabled={!flowStack || !canUndo(flowStack)} aria-label="Undo" title={`Undo (${MOD_KEY}+Z)`}>
+                      ↶
                     </button>
-                    <button
-                      className="secondary ghost"
-                      onClick={() => {
-                        const copy = { ...structuredClone(flow), id: newId(), name: `${flow.name} copy` };
-                        // Schedule steps get new ids so the copy keeps its own schedule state.
-                        const ids = new Map(copy.nodes.map((n) => [n.id, n.type === "schedule" ? newId() : n.id]));
-                        copy.nodes = copy.nodes.map((n) => ({ ...n, id: ids.get(n.id)! }));
-                        copy.edges = copy.edges.map((e) => ({ ...e, source: ids.get(e.source)!, target: ids.get(e.target)! }));
-                        setFlows((list) => [...list, copy]);
-                        openFlow(copy.id);
-                      }}
-                    >
-                      Duplicate
+                    <button className="icon-btn" onClick={() => stepHistory("redo")} disabled={!flowStack || !canRedo(flowStack)} aria-label="Redo" title={`Redo (${MOD_KEY}+Shift+Z)`}>
+                      ↷
                     </button>
-                    <button
-                      className="secondary ghost danger"
-                      disabled={flowRunning}
-                      onClick={() => {
-                        if (!window.confirm(`Delete the flow "${flow.name}"? Its saved runs are kept.`)) return;
-                        setFlows((list) => list.filter((f) => f.id !== flow.id));
-                        setOpenFlowId(null);
-                      }}
-                    >
-                      Delete
-                    </button>
+                    <OverflowMenu
+                      label="Flow actions"
+                      items={[
+                        { label: "Export", icon: "⇪", onSelect: () => void exportFlows([flow]), title: "Save this flow, with the suites and saved requests it runs, to a file" },
+                        { label: "Duplicate", icon: <CopyIcon />, onSelect: () => duplicateFlow(flow) },
+                        { label: "Delete flow", icon: <TrashIcon />, onSelect: () => deleteFlow(flow), danger: true, separated: true, disabled: flowRunning, title: flowRunning ? "Stop the run first" : "Its saved runs are kept" },
+                      ]}
+                    />
                     {flowRunning ? (
                       <button className="send cancel" onClick={() => aborts.current.get(flow.id)?.abort()}>
                         Stop

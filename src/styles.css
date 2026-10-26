@@ -439,6 +439,7 @@ textarea.code {
 }
 
 .status.ok { color: var(--ok); }
+.status.warn { color: var(--warn); }
 .status.redirect { color: var(--redirect); }
 .status.bad { color: var(--bad); }
 .history-status.ok { color: var(--ok); }

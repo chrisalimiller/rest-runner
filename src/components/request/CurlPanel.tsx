@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { CURL_SHELL_LABELS, requestToCurl, type CurlShell } from "../../lib/curl";
+import { currentMasker } from "../../lib/secrets";
 import { load, save } from "../../lib/storage";
 import type { Vars } from "../../lib/template";
 import type { RequestDef } from "../../lib/types";
@@ -33,6 +34,8 @@ export function CurlPanel({ def, vars, envName }: Props) {
 
   const result = useMemo(() => requestToCurl(def, vars, shell), [def, vars, shell]);
   const empty = def.url.trim() === "";
+  const shown = useMemo(() => currentMasker()(result.command), [result.command]);
+  const hasSecret = shown !== result.command;
 
   const copy = () => {
     void navigator.clipboard?.writeText(result.command).then(() => setCopied(true));
@@ -57,8 +60,9 @@ export function CurlPanel({ def, vars, envName }: Props) {
       {empty ? (
         <p className="muted small">Enter a URL to see the command.</p>
       ) : (
-        <pre className="curl-command">{result.command}</pre>
+        <pre className="curl-command">{shown}</pre>
       )}
+      {!empty && hasSecret && <p className="muted small">Secret values are hidden here. Copy puts the real command on your clipboard.</p>}
       {!empty && result.unresolved.length > 0 && (
         <p className="warning small">
           No value for{" "}

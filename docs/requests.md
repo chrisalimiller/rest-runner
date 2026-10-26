@@ -6,7 +6,7 @@ Requests mode is where you build a request and read the response. The request is
 
 - Pick the **method**: GET, POST, PUT, PATCH, DELETE, HEAD or OPTIONS.
 - Type the **URL**. If it has no scheme (`http://`, `https://`), `http://` is added when it is sent.
-- Under the bar, the **resolved URL** line shows exactly what Send will use, with environment values, script variables and your enabled query params filled in. Placeholders that still have no value are shown in orange. It also says which environment the values came from.
+- Under the bar, the **resolved URL** line shows exactly what Send will use, with environment values, script variables and your enabled query params filled in. Placeholders that still have no value are shown in red, and an amber chip at the end of the line says how many are unfilled ("1 unfilled: token", or "3 unfilled"; hover for the names). Click the chip to open the [Variables popover](#the-variables-popover). Send then shows a small ⚠ and reads "Sends with {{token}} as written", but it still sends without asking. The line also says which environment the values came from.
 - Press **Enter** in the URL box to send.
 - Click **cURL** at the end of the resolved URL line to see the `curl` command Send would run, with environment values, script variables, auth and the body filled in. Pick **Bash / zsh** (macOS, Linux, Git Bash) or **Windows cmd**, then **Copy** it into a terminal. Placeholders with no value are listed under the command. Click **Hide cURL** to close it; whether it is open is remembered.
   - A pre-request script runs only when you press Send, so anything it changes is not in the command.
@@ -56,7 +56,7 @@ How a placeholder is filled in a JSON body:
 
 ### Scripts
 
-The Scripts section holds a **Pre-request** and a **Post-response** script. A bullet (•) on a tab means that script has content. Snippets next to the editor insert common code, and typing `rr.` offers autocomplete. Under the editor, **Script variables** lists the variables scripts have set on earlier sends, with a **Clear** button. See the [scripting reference](scripting.md) for the full API and when scripts run.
+The Scripts section holds a **Pre-request** and a **Post-response** script. A bullet (•) on a tab means that script has content. Snippets next to the editor insert common code, and typing `rr.` offers autocomplete. Under the editor, a line says how many script variables earlier sends have set and links to the Variables popover, where you can see and clear them. See the [scripting reference](scripting.md) for the full API and when scripts run.
 
 ## Placeholders and variables
 
@@ -70,6 +70,10 @@ A value for a placeholder can come from three places. Later ones win:
 
 For example, if the environment defines `baseUrl`, the CSV has a `baseUrl` column, and a script sets `baseUrl`, the script's value is used. (There is one exception for leftover variables from earlier sends in a batch run. See [Variable scoping](scripting.md#variable-scoping).)
 
+## The Variables popover
+
+Click **Variables** next to the environment switch in the top bar (Requests mode). It lists every `{{placeholder}}` the open request uses, with its value (masked when it is a [secret](#secret-values)) and where the value comes from: **Env · SIT**, **Script**, or **Unset**. **Edit** opens the environment editor on that variable (for an unset one it adds the variable to the active environment first). **Clear** forgets a script variable. A second section lists all script variables, with **Clear all**. Escape closes it.
+
 ## Environments
 
 An environment is a named set of variables, such as Dev and Prod, each with its own `baseUrl` and `token`.
@@ -79,7 +83,17 @@ An environment is a named set of variables, such as Dev and Prod, each with its 
 - A request that uses `{{baseUrl}}` and `{{token}}` now works against whichever environment is selected.
 - Only enabled variables with a non-empty name are used.
 - Environments are edited in Requests mode. Testing mode has its own environment switch (its choice is remembered separately from Requests), and it picks up edits when you switch over.
-- Environment values are stored on this computer only, in the app's local storage, and **are included in exports**, so treat an export file that holds tokens like a password.
+- Environment values are stored on this computer only, in the app's local storage. Workspace exports leave [secret values](#secret-values) out unless you ask for them.
+
+### Secret values
+
+Each variable row has a **lock** button. A locked (secret) value shows as dots with an **eye** button to reveal it while you edit (the reveal is not saved). Secret values are:
+
+- hidden as `••••••` in the cURL panel (the **Copy** button still copies the real command), the **Sent request** view, batch call details, and the test and flow reports;
+- always masked in the HTML and CSV report exports;
+- left out of **Export workspace** unless you choose **Include them** in the export dialog. Leaving them out is the default: the file keeps each secret variable with an empty value, so a teammate who imports it sees which values to fill in, and importing such a file never blanks a secret you already have.
+
+Masking matches the value wherever it appears, including inside JSON, URL-encoded text and the HTML report. It cannot hide a secret that was transformed first, for example inside a Basic auth header (which is base64).
 
 ## Sending
 
@@ -104,8 +118,8 @@ On the **Scripts** tab each script shows how long it took, its error if it threw
 
 Every send is kept in history (the last 50). Each entry holds the request as sent, the status, time, the response (the body is cut at 32 KB), or the error, and what its scripts did.
 
-- Open **Quick open** and look in the **History** group to load one. Loading puts the request back in the editor and shows its response as a sample, labeled for example "Sent 13:41 · 142 ms".
-- Under the response, **Earlier sends of this request** shows up to six pills from the history and batch runs of the open request. Click a send to see it again, or a batch pill to open that run in the [run explorer](batch-runs.md#the-run-explorer).
+- Open **Quick open** and look in the **History** group to load one. Loading puts the request back in the editor and shows its response as a sample, labeled for example "Sent 4m ago · 142 ms".
+- Under the response, **Earlier sends of this request** shows up to six pills from the history and batch runs of the open request. A pill reads for example `201 · 142 ms · 4m ago` (the time is "12s ago" or "4m ago" within the hour, then `13:41`, "Yesterday", or a short date), with `· Dev` added when that send used a different environment from the one selected now. Hover for the full time, the environment and what changed since the previous send of the request (for example "body changed"). Click a send to see it again, or a batch pill to open that run in the [run explorer](batch-runs.md#the-run-explorer).
 - Entries saved by older versions of the app kept only a status. They load with a note that the body and headers were not kept. If local storage is full, responses are dropped from the oldest entries first so the newest stay.
 - **Clear history** is in Quick open, in the History group.
 

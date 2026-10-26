@@ -25,7 +25,14 @@ export interface WorkspaceFile {
 
 export const IMPORTED_COLLECTION_NAME = "Imported requests";
 
-export function toWorkspaceFile(collections: Collection[], environments: Environment[]): string {
+/** The environments as they are written to a file: secret values are emptied (the flag stays) unless asked for. */
+export function exportEnvironments(environments: Environment[], includeSecrets: boolean): Environment[] {
+  if (includeSecrets) return environments;
+  return environments.map((env) => ({ ...env, vars: env.vars.map((v) => (v.secret ? { ...v, value: "" } : v)) }));
+}
+
+export function toWorkspaceFile(collections: Collection[], environments: Environment[], options: { includeSecrets?: boolean } = {}): string {
+  environments = exportEnvironments(environments, options.includeSecrets ?? false);
   const file: WorkspaceFile = { app: "rest-runner", version: 2, exportedAt: new Date().toISOString(), collections, environments };
   return JSON.stringify(file, null, 2);
 }
@@ -42,6 +49,19 @@ export interface ImportResult {
 function isEnvironment(x: unknown): x is Environment {
   const e = x as Environment;
   return !!e && typeof e.id === "string" && typeof e.name === "string" && Array.isArray(e.vars);
+}
+
+/** An imported secret with no value (the file was exported without secrets) keeps the value already on this computer. */
+function keepSecretValues(incoming: Environment, current: Environment | undefined): Environment {
+  if (!current) return incoming;
+  return {
+    ...incoming,
+    vars: incoming.vars.map((v) => {
+      if (!v.secret || v.value !== "") return v;
+      const mine = current.vars.find((c) => c.id === v.id) ?? current.vars.find((c) => c.key === v.key && c.key !== "");
+      return mine?.secret ? { ...v, value: mine.value } : v;
+    }),
+  };
 }
 
 function mergeById<T extends { id: string }>(current: T[], incoming: T[]): { list: T[]; added: number; replaced: number } {
@@ -92,7 +112,10 @@ export function importWorkspaceFile(text: string, collections: Collection[], env
   if (!data || data.app !== "rest-runner") throw new Error("This is not a REST Runner export file.");
 
   const envs = (Array.isArray(data.environments) ? data.environments : []).filter(isEnvironment);
-  const e = mergeById(environments, envs);
+  const e = mergeById(
+    environments,
+    envs.map((env) => keepSecretValues(env, environments.find((x) => x.id === env.id))),
+  );
 
   let nextCollections: Collection[];
   let added = e.added;

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { parseCsv } from "../../lib/csv";
 import type { Vars } from "../../lib/template";
 import { checkCounts, failureLine, latestCaseResult } from "../../lib/testing/caseStatus";
@@ -8,7 +8,10 @@ import type { TestRun } from "../../lib/testing/testRun";
 import type { CaseResult, RunMode, TestCase, TestSuite } from "../../lib/testing/types";
 import { detectVarSets } from "../../lib/testing/varsDetect";
 import { WithPlaceholders } from "../request/RequestEditor";
-import { CheckIcon, CrossIcon, PlayFilledIcon, SlidersIcon } from "../shell/Icons";
+import { CheckIcon, CopyIcon, CrossIcon, PlayFilledIcon, SlidersIcon, TrashIcon } from "../shell/Icons";
+import { OverflowMenu } from "../shell/OverflowMenu";
+import { useToast } from "../shell/Toast";
+import { reinsert, removeById } from "../../lib/listUndo";
 import { CaseEditor } from "./CaseEditor";
 import { RequestPicker } from "./RequestPicker";
 
@@ -52,6 +55,9 @@ type Disc = "passed" | "failed" | "skipped" | "running" | "none";
 export function SuiteEditor(props: Props) {
   const { suite, onChange, openCaseId, onOpenCase } = props;
   const [picking, setPicking] = useState(false);
+  const toast = useToast();
+  const propsRef = useRef(props);
+  propsRef.current = props;
   const enabledCount = suite.cases.filter((c) => c.enabled).length;
   const rows = useMemo(() => (suite.data ? parseCsv(suite.data.text).rows.length : 0), [suite.data]);
   // Re-read saved requests when a different case opens, to pick up edits made in Requests mode.
@@ -107,6 +113,13 @@ export function SuiteEditor(props: Props) {
           <SlidersIcon />
           Run settings &amp; data
         </button>
+        <OverflowMenu
+          label="Suite actions"
+          items={[
+            { label: "Duplicate suite", icon: <CopyIcon />, onSelect: props.onDuplicate },
+            { label: "Delete suite", icon: <TrashIcon />, onSelect: props.onDelete, danger: true, disabled: props.running, title: props.running ? "Stop the run first" : undefined, separated: true },
+          ]}
+        />
         {props.running ? (
           <button className="send cancel icon-label" onClick={props.onStop}>
             Stop
@@ -155,9 +168,17 @@ export function SuiteEditor(props: Props) {
                         onOpenCase(copy.id);
                       }}
                       onDelete={() => {
-                        if (!window.confirm(`Delete the test case "${c.name}"?`)) return;
-                        setCases(suite.cases.filter((x) => x.id !== c.id));
+                        const taken = removeById(suite.cases, c.id);
+                        if (!taken) return;
+                        setCases(taken.list);
                         onOpenCase(null);
+                        toast.show({
+                          message: `Deleted "${c.name}"`,
+                          onUndo: () => {
+                            const cur = propsRef.current.suite;
+                            propsRef.current.onChange({ ...cur, cases: reinsert(cur.cases, taken.item, taken.index) });
+                          },
+                        });
                       }}
                       onCollapse={() => onOpenCase(null)}
                       onTry={() => props.onTryCase(c)}
@@ -187,18 +208,6 @@ export function SuiteEditor(props: Props) {
               </button>
               <button className="dashed-btn" onClick={() => addCases([newTestCase()])}>
                 + Blank case
-              </button>
-              <span className="flex-gap" />
-              <button className="link-btn small" onClick={props.onDuplicate}>
-                Duplicate suite
-              </button>
-              <button
-                className="link-btn small danger-link"
-                onClick={() => {
-                  if (window.confirm(`Delete the suite "${suite.name}" and its ${suite.cases.length} cases? Saved test runs are kept.`)) props.onDelete();
-                }}
-              >
-                Delete suite
               </button>
             </div>
           </div>

@@ -19,6 +19,9 @@ interface Props {
   /** Shows the pencil that opens the environment editor. */
   onEditEnvironments?: () => void;
   envTitle?: string;
+  /** Shows the Variables button next to the environment switch. */
+  onVariables?: () => void;
+  variablesOpen?: boolean;
 }
 
 const MODE_LABELS: Record<Mode, string> = { requests: "Requests", testing: "Testing", flows: "Flows" };
@@ -46,6 +49,17 @@ export function TopBar(props: Props) {
         onEdit={props.onEditEnvironments}
         title={props.envTitle}
       />
+      {props.onVariables && (
+        <button
+          className={`secondary ghost topbar-variables ${props.variablesOpen ? "active" : ""}`}
+          data-variables-trigger
+          aria-expanded={!!props.variablesOpen}
+          onClick={props.onVariables}
+          title="Placeholders this request uses and script variables"
+        >
+          Variables
+        </button>
+      )}
       <nav className="mode-tabs" aria-label="Mode">
         {(["requests", "testing", "flows"] as const).map((m) => (
           <button key={m} className={props.mode === m ? "active" : ""} aria-current={props.mode === m ? "page" : undefined} onClick={() => props.onMode(m)}>

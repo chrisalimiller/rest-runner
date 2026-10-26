@@ -2208,6 +2208,51 @@ details.case-try .call-detail {
   min-width: 0;
 }
 
+.ph.missing {
+  color: var(--bad);
+  background: var(--bad-subtle);
+}
+
+.unfilled-chip {
+  font-size: 11px;
+  color: var(--warn);
+  background: rgba(210, 153, 34, 0.15);
+  border: 1px solid rgba(210, 153, 34, 0.5);
+  border-radius: 10px;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+.kv-secret {
+  width: 64px;
+  white-space: nowrap;
+  text-align: right;
+}
+
+.kv-secret .icon-btn.on {
+  color: var(--warn);
+}
+
+button:focus-visible,
+a:focus-visible,
+select:focus-visible,
+[role="tab"]:focus-visible {
+  outline: 2px solid var(--accent-fg);
+  outline-offset: 1px;
+}
+
+.radio-group {
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.radio-group legend {
+  font-weight: 600;
+  padding: 0;
+  margin-bottom: 4px;
+}
+
 /* URL field: a transparent-text input over a copy of its text with {{placeholders}} marked. */
 .url-bar .url-field {
   position: relative;

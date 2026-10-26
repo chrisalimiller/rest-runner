@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { listRequests, newCollection, requestNode } from "./collections";
 import { newRequest } from "./defaults";
-import { environmentVars, newEnvironment } from "./environments";
+import { environmentVars, newEnvironment, type Environment } from "./environments";
 import { IMPORTED_COLLECTION_NAME, importWorkspaceFile, toWorkspaceFile } from "./workspace";
 
 describe("environmentVars", () => {
@@ -59,5 +59,44 @@ describe("workspace export and import", () => {
     const v2 = JSON.stringify({ app: "rest-runner", version: 2, collections: [{ id: "c", name: "C", items: [{ kind: "request", request: { id: 2 } }, { kind: "folder", id: "f", name: "F", items: [] }] }] });
     const r2 = importWorkspaceFile(v2, [], []);
     expect(r2.collections[0].items).toHaveLength(1);
+  });
+});
+
+describe("secrets in a workspace file", () => {
+  const withSecret = (): Environment => ({
+    ...newEnvironment("Dev"),
+    vars: [
+      { id: "a", key: "baseUrl", value: "https://dev", enabled: true },
+      { id: "b", key: "token", value: "s3cret", enabled: true, secret: true },
+    ],
+  });
+
+  it("leaves secret values out by default but keeps the flag", () => {
+    const text = toWorkspaceFile([], [withSecret()]);
+    expect(text).not.toContain("s3cret");
+    const vars = (JSON.parse(text) as { environments: Environment[] }).environments[0].vars;
+    expect(vars[1]).toMatchObject({ key: "token", value: "", secret: true });
+    expect(vars[0].value).toBe("https://dev");
+  });
+
+  it("includes them when asked", () => {
+    expect(toWorkspaceFile([], [withSecret()], { includeSecrets: true })).toContain("s3cret");
+  });
+
+  it("importing a file without secrets keeps the values already here", () => {
+    const mine = withSecret();
+    const result = importWorkspaceFile(toWorkspaceFile([], [mine]), [], [mine]);
+    expect(result.environments[0].vars[1].value).toBe("s3cret");
+  });
+
+  it("a teammate gets the empty secret to fill in", () => {
+    const result = importWorkspaceFile(toWorkspaceFile([], [withSecret()]), [], []);
+    expect(result.environments[0].vars[1]).toMatchObject({ value: "", secret: true });
+  });
+
+  it("older environments load with nothing secret", () => {
+    const old = { app: "rest-runner", version: 2, collections: [], environments: [{ id: "e", name: "Dev", vars: [{ id: "1", key: "k", value: "v", enabled: true }] }] };
+    const result = importWorkspaceFile(JSON.stringify(old), [], []);
+    expect(result.environments[0].vars[0].secret).toBeUndefined();
   });
 });

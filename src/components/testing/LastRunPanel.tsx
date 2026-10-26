@@ -1,7 +1,8 @@
+import { maskSecrets, storedSecrets } from "../../lib/secrets";
 import { useMemo, useState } from "react";
 import { formatMs, whenLabel } from "../../lib/earlierSends";
 import { saveTextFile } from "../../lib/saveFile";
-import { runFailures } from "../../lib/testing/caseStatus";
+import { groupFailures, type FailureGroup } from "../../lib/testing/testReport";
 import { testReportFileName, toTestCsvReport, toTestHtmlReport } from "../../lib/testing/testReport";
 import { testRunTimes, type TestRun } from "../../lib/testing/testRun";
 import { LiveRun, type LiveRunState } from "./LiveRun";
@@ -11,16 +12,25 @@ interface Props {
   live: LiveRunState | null;
   /** The latest saved run of this suite. */
   run: TestRun | null;
-  onOpenReport: (runId: string, caseId?: string, index?: number) => void;
+  /** `check` limits the report to one failing check of a case. */
+  onOpenReport: (runId: string, caseId?: string, index?: number, check?: string) => void;
 }
 
-const SHOWN_FAILURES = 8;
+const SHOWN_GROUPS = 6;
+
+/** "8 of 12 rows · worst 371 ms". */
+function groupSummary(g: FailureGroup, total: number, csv: boolean): string {
+  const unit = csv ? "row" : "iteration";
+  const n = g.rows.length;
+  const where = total > 1 ? `${n} of ${total} ${unit}s` : g.count > 1 ? `${g.count} times` : "once";
+  return [where, g.worstActual ? `worst ${g.worstActual}` : ""].filter(Boolean).join(" · ");
+}
 
 /** The right-hand panel: live progress while running, otherwise a summary of the latest run. */
 export function LastRunPanel({ live, run, onOpenReport }: Props) {
   const [message, setMessage] = useState<string | null>(null);
   const times = useMemo(() => (run ? testRunTimes(run) : null), [run]);
-  const failures = useMemo(() => (run ? runFailures(run) : []), [run]);
+  const groups = useMemo(() => (run ? groupFailures(run.results) : []), [run]);
 
   // While a run is going, or when it finished but could not be saved, show its live progress.
   if (live && (live.running || !live.runId || !run || run.id !== live.runId)) {
@@ -46,7 +56,7 @@ export function LastRunPanel({ live, run, onOpenReport }: Props) {
   const exportReport = async (kind: "html" | "csv") => {
     setMessage(null);
     try {
-      const content = kind === "html" ? toTestHtmlReport(run) : toTestCsvReport(run);
+      const content = kind === "html" ? maskSecrets(toTestHtmlReport(run), storedSecrets()) : maskSecrets(toTestCsvReport(run), storedSecrets());
       const result = await saveTextFile(testReportFileName(run, kind), content, kind === "html" ? "HTML report" : "CSV report", kind);
       if (result.saved) setMessage(result.path ? `Saved to ${result.path}` : "Report downloaded.");
     } catch (e) {
@@ -97,21 +107,26 @@ export function LastRunPanel({ live, run, onOpenReport }: Props) {
           <b className="mono">{formatMs(times.p95Ms)}</b>
         </div>
       </div>
-      {failures.length > 0 && (
+      {groups.length > 0 && (
         <div className="failures">
           <span className="section-title">Failures</span>
           <div className="failure-list">
-            {failures.slice(0, SHOWN_FAILURES).map((f) => (
-              <button key={f.index} className="failure-row" onClick={() => onOpenReport(run.id, f.caseId, f.index)} title="Open the report at this case">
-                <span className="mono muted failure-where">{f.where}</span>
-                <span className="failure-case">{f.caseName}</span>
-                <span className="tone-bad failure-reason">{f.reason}</span>
+            {groups.slice(0, SHOWN_GROUPS).map((g) => (
+              <button
+                key={`${g.caseId}|${g.checkName}`}
+                className="failure-row failure-group"
+                onClick={() => onOpenReport(run.id, g.caseId, undefined, g.checkName)}
+                title="Open the report filtered to this case and check"
+              >
+                <span className="failure-case">{g.caseName}</span>
+                <span className="tone-bad failure-reason">{g.checkName}</span>
+                <span className="muted small failure-count">{groupSummary(g, run.iterations, run.csvName !== undefined)}</span>
               </button>
             ))}
           </div>
-          {run.failed > SHOWN_FAILURES && (
+          {groups.length > SHOWN_GROUPS && (
             <button className="link-btn small" onClick={() => onOpenReport(run.id)}>
-              {run.failed - SHOWN_FAILURES} more in the report
+              {groups.length - SHOWN_GROUPS} more in the report
             </button>
           )}
         </div>

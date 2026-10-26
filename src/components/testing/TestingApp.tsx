@@ -1,3 +1,6 @@
+import { reinsert, removeById } from "../../lib/listUndo";
+import { useToast } from "../shell/Toast";
+import { useDeferredDelete } from "../shell/useDeferredDelete";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { parseCsv } from "../../lib/csv";
 import { environmentVars, type Environment } from "../../lib/environments";
@@ -53,6 +56,7 @@ interface OpenReport {
   id: string;
   caseId?: string;
   index?: number;
+  check?: string;
 }
 
 /** The Testing section: suites of test cases, running them, and their reports. */
@@ -104,6 +108,8 @@ export function TestingApp({ active, shell, command }: Props) {
       .catch(() => setRuns([]));
   }, []);
   useEffect(refreshRuns, [refreshRuns]);
+  const runDelete = useDeferredDelete(deleteTestRun, refreshRuns);
+  const toast = useToast();
 
   const env = environments.find((e) => e.id === envId) ?? null;
   const envVars = useMemo(() => environmentVars(env), [env]);
@@ -299,7 +305,7 @@ export function TestingApp({ active, shell, command }: Props) {
           onNewSuite={createSuite}
           onExport={() => void exportSuites()}
           onImport={(f) => void importSuites(f)}
-          runs={runs}
+          runs={runs.filter((r) => !runDelete.hidden.has(r.id))}
           activeRunId={openRunId}
           onOpenRun={setOpenRunId}
           runningSuiteId={live?.running ? live.suiteId : null}
@@ -310,9 +316,10 @@ export function TestingApp({ active, shell, command }: Props) {
               runId={report.id}
               initialCaseId={report.caseId}
               initialIndex={report.index}
+              initialCheck={report.check}
               onBack={() => setOpenRunId(null)}
               onDelete={(id) => {
-                void deleteTestRun(id).finally(refreshRuns);
+                runDelete.request(id, "Deleted the test run");
                 setOpenRunId(null);
               }}
             />
@@ -323,8 +330,17 @@ export function TestingApp({ active, shell, command }: Props) {
               suite={suite}
               onChange={updateSuite}
               onDelete={() => {
-                setSuites((list) => list.filter((s) => s.id !== suite.id));
+                const taken = removeById(suites, suite.id);
+                if (!taken) return;
+                setSuites(taken.list);
                 setOpenSuiteId(null);
+                toast.show({
+                  message: `Deleted the suite "${suite.name}"`,
+                  onUndo: () => {
+                    setSuites((list) => reinsert(list, taken.item, taken.index));
+                    setOpenSuiteId(taken.item.id);
+                  },
+                });
               }}
               onDuplicate={() => {
                 const copy = { ...structuredClone(suite), id: newId(), name: `${suite.name} copy` };
@@ -349,7 +365,7 @@ export function TestingApp({ active, shell, command }: Props) {
             <LastRunPanel
               live={suiteLive}
               run={latestRun && latestRun.suiteId === suite.id ? latestRun : null}
-              onOpenReport={(id, caseId, index) => setReport({ id, caseId, index })}
+              onOpenReport={(id, caseId, index, check) => setReport({ id, caseId, index, check })}
             />
             {settingsOpen && (
               <div className="sheet-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setSettingsOpen(false)}>

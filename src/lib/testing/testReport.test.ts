@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { importSuitesFile, toSuitesFile } from "./suiteFile";
 import { newAssertion, newSuite, newTestCase } from "./suites";
 import { buildTestRun } from "./testRun";
-import { toTestCsvReport, toTestHtmlReport } from "./testReport";
+import { groupFailures, toTestCsvReport, toTestHtmlReport } from "./testReport";
 import type { CaseResult } from "./types";
 
 const suite = { ...newSuite("Smoke <tests>"), cases: [newTestCase()] };
@@ -77,5 +77,50 @@ describe("suite files", () => {
   it("rejects other files", () => {
     expect(() => importSuitesFile('{"app":"rest-runner","version":1}', [])).toThrow(/not a REST Runner test suites file/);
     expect(() => importSuitesFile("nope", [])).toThrow(/not valid JSON/);
+  });
+});
+
+describe("groupFailures", () => {
+  const timed = (row: number, caseId: string, ms: number, over = true): CaseResult => ({
+    ...result(!over, row),
+    caseId,
+    caseName: caseId === "a" ? "Get ticket" : "Create ticket",
+    rowIndex: row,
+    checks: [{ name: "Response time < 250 ms", passed: !over, message: `Got ${ms}`, source: "assertion" }],
+  });
+
+  it("groups by case and check, with rows ascending and the worst value", () => {
+    const groups = groupFailures([timed(5, "a", 300), timed(1, "a", 371), timed(3, "a", 260), timed(2, "a", 100, false), timed(0, "b", 999)]);
+    expect(groups).toHaveLength(2);
+    expect(groups[0]).toMatchObject({ caseId: "a", checkName: "Response time < 250 ms", rows: [1, 3, 5], count: 3, worstActual: "371 ms" });
+    expect(groups[1]).toMatchObject({ caseId: "b", rows: [0], count: 1 });
+  });
+
+  it("sorts by count, most first", () => {
+    const groups = groupFailures([timed(0, "b", 300), timed(0, "a", 300), timed(1, "a", 300)]);
+    expect(groups.map((g) => g.caseId)).toEqual(["a", "b"]);
+  });
+
+  it("keeps different checks of one case apart and ignores passes", () => {
+    const r = result(false, 0);
+    r.checks = [
+      { name: "Status code equals 200", passed: false, message: "Got 404", source: "assertion" },
+      { name: "Body contains id", passed: false, message: 'Got "x"', source: "assertion" },
+      { name: "Fine", passed: true, source: "assertion" },
+    ];
+    expect(groupFailures([r, result(true, 1)]).map((g) => g.checkName)).toEqual(["Status code equals 200", "Body contains id"]);
+  });
+
+  it("covers a case that failed without a check", () => {
+    const noResponse: CaseResult = { ...result(false, 0), checks: [], outcome: { ok: false, error: "timeout", durationMs: 5, sentAt: "x", request: { method: "GET", url: "u", headers: [] } } };
+    const notSent: CaseResult = { ...result(false, 1), checks: [], outcome: undefined };
+    const groups = groupFailures([noResponse, notSent]);
+    expect(groups.map((g) => g.checkName).sort()).toEqual(["No response", "Not sent"]);
+    expect(groups.find((g) => g.checkName === "No response")?.worstActual).toBe("timeout");
+  });
+
+  it("uses the iteration when there is no CSV", () => {
+    const r = { ...timed(0, "a", 300), rowIndex: null, iteration: 4 };
+    expect(groupFailures([r])[0].rows).toEqual([4]);
   });
 });

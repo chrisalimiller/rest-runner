@@ -8,6 +8,8 @@ export interface KeyValue {
   key: string;
   value: string;
   enabled: boolean;
+  /** Environment variables only: the value is masked on screen and left out of exports. Missing means not secret. */
+  secret?: boolean;
 }
 
 export type BodyMode = "none" | "json" | "text" | "urlencoded";
@@ -66,6 +68,8 @@ export interface HistoryEntry {
   def: RequestDef;
   /** Added later; older entries don't have these. */
   durationMs?: number;
+  /** Name of the environment selected when it was sent. Older entries don't have it. */
+  environmentName?: string;
   /** The response, with its body cut to a size local storage can hold. */
   response?: ResponseResult;
   /** Why no response came back. */

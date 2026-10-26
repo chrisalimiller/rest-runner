@@ -75,6 +75,8 @@ export interface RunRequestNode extends NodeBase {
   /** A saved request or saved example, by id. */
   requestId: string;
   retry: RetrySettings;
+  /** A 4xx/5xx response fails the step. Missing (flows saved before this) means true. */
+  httpErrorsFail?: boolean;
 }
 
 export interface IfNode extends NodeBase {
@@ -219,11 +221,12 @@ export interface FlowStep {
 }
 
 /**
- * passed: the flow reached a step with nothing wired after it, and every failure on the way had a failed wire.
+ * passed: the flow reached a step with nothing wired after it, and no Run step failed on the way.
+ * passed-handled: it got there, but only because a failed Run step had a wire for its failed output.
  * failed: a step failed with nothing wired to its failed output, or the flow could not go on.
  * cancelled: Stop was pressed.
  */
-export type FlowRunEnd = "passed" | "failed" | "cancelled";
+export type FlowRunEnd = "passed" | "passed-handled" | "failed" | "cancelled";
 
 export interface FlowRunSummary {
   id: string;

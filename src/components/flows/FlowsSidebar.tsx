@@ -1,3 +1,4 @@
+import { END_LABELS } from "../../lib/flows/flowReport";
 import { whenLabel } from "../../lib/earlierSends";
 import type { Flow, FlowRunSummary } from "../../lib/flows/types";
 
@@ -21,7 +22,7 @@ export interface ScheduleInfo {
   skipped?: string;
 }
 
-const END_MARK = { passed: "✓", failed: "✕", cancelled: "■" } as const;
+const END_MARK = { passed: "✓", "passed-handled": "✓", failed: "✕", cancelled: "■" } as const;
 
 /** Flows and recent flow runs on the left of Flows mode. Below 800px wide it turns into a select at the top. */
 export function FlowsSidebar({ flows, activeFlowId, onOpenFlow, onNewFlow, onExport, onImport, runs, activeRunId, onOpenRun, runningFlowIds, scheduleInfo }: Props) {
@@ -123,7 +124,7 @@ export function FlowsSidebar({ flows, activeFlowId, onOpenFlow, onNewFlow, onExp
             <button key={r.id} className={`nav-row run-row ${activeRunId === r.id ? "active" : ""}`} onClick={() => onOpenRun(r.id)} title={r.endReason ?? r.flowName}>
               <span className="nav-row-name">{r.flowName}</span>
               <span className="muted">{whenLabel(r.startedAt)}</span>
-              <span className={`mono ${r.end === "passed" ? "tone-ok" : r.end === "failed" ? "tone-bad" : "muted"}`}>{END_MARK[r.end]}</span>
+              <span className={`mono ${r.end === "passed" ? "tone-ok" : r.end === "passed-handled" ? "tone-warn" : r.end === "failed" ? "tone-bad" : "muted"}`} title={END_LABELS[r.end]}>{END_MARK[r.end]}</span>
               {r.failedSteps > 0 && <span className="mono tone-bad">{r.failedSteps}✕</span>}
             </button>
           ))}

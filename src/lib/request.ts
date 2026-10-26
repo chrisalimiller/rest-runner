@@ -110,3 +110,8 @@ export function requestPlaceholders(def: RequestDef): string[] {
   if (a.type === "apikey") parts.push(a.key, a.value);
   return [...new Set(parts.flatMap(findPlaceholders))];
 }
+
+/** The placeholders `requestPlaceholders` finds that have no value in `vars` (use the same vars Send uses). */
+export function unresolvedPlaceholders(def: RequestDef, vars: Vars): string[] {
+  return requestPlaceholders(def).filter((name) => !Object.prototype.hasOwnProperty.call(vars, name));
+}

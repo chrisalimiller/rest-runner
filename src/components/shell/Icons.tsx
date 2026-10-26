@@ -109,3 +109,48 @@ export function ArrowDownIcon({ size = 14 }: IconProps) {
     </svg>
   );
 }
+
+export function LockIcon({ size = 14 }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={2} strokeLinejoin="round">
+      <rect x="5" y="11" width="14" height="9" rx="2" />
+      <path d="M8 11V8a4 4 0 018 0v3" />
+    </svg>
+  );
+}
+
+export function EyeIcon({ size = 14 }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={2} strokeLinejoin="round">
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+  );
+}
+
+export function EyeOffIcon({ size = 14 }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={2} strokeLinejoin="round">
+      <path d="M3 3l18 18" />
+      <path d="M10.6 5.1A9.7 9.7 0 0112 5c6.5 0 10 7 10 7a17 17 0 01-3.2 4M6.5 6.6C3.7 8.4 2 12 2 12s3.5 7 10 7c1.6 0 3-.4 4.3-1" />
+    </svg>
+  );
+}
+
+export function TrashIcon({ size = 14 }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3" />
+    </svg>
+  );
+}
+
+export function MoreIcon({ size = 16 }: IconProps) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+      <circle cx="5" cy="12" r="2" />
+      <circle cx="12" cy="12" r="2" />
+      <circle cx="19" cy="12" r="2" />
+    </svg>
+  );
+}

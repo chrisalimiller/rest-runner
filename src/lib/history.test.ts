@@ -33,13 +33,13 @@ describe("historyOutcome", () => {
 
 describe("historyLabel", () => {
   it("names the time and duration", () => {
-    expect(historyLabel(entry({ response, durationMs: 142 }), now)).toBe("Sent 13:41 · 142 ms");
+    expect(historyLabel(entry({ response, durationMs: 142 }), now)).toBe("Sent 19m ago · 142 ms");
   });
   it("says when the response was not kept", () => {
-    expect(historyLabel(entry(), now)).toBe("Sent 13:41 · response not kept");
+    expect(historyLabel(entry(), now)).toBe("Sent 19m ago · response not kept");
   });
   it("says when the body was cut", () => {
-    expect(historyLabel(entry({ response: { ...response, sizeBytes: 40_000 } }), now)).toBe("Sent 13:41 · body cut to 32 KB");
+    expect(historyLabel(entry({ response: { ...response, sizeBytes: 40_000 } }), now)).toBe("Sent 19m ago · body cut to 32 KB");
   });
 });
 

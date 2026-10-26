@@ -125,7 +125,7 @@ export function flowItems(flows: Flow[]): QuickItem[] {
   });
 }
 
-const FLOW_END: Record<FlowRunSummary["end"], string> = { passed: "passed", failed: "failed", cancelled: "stopped" };
+const FLOW_END: Record<FlowRunSummary["end"], string> = { passed: "passed", "passed-handled": "passed with handled failures", failed: "failed", cancelled: "stopped" };
 
 export function flowRunItems(runs: FlowRunSummary[]): QuickItem[] {
   return runs.map((r) => ({

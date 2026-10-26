@@ -45,7 +45,7 @@ export function newNode(type: FlowNodeType, position: FlowPosition = { x: 0, y: 
     case "run-suite":
       return { ...base, type, suiteId: "", retry: { ...NO_RETRY } };
     case "run-request":
-      return { ...base, type, requestId: "", retry: { ...NO_RETRY } };
+      return { ...base, type, requestId: "", retry: { ...NO_RETRY }, httpErrorsFail: true };
     case "if":
       return { ...base, type, condition: { ...DEFAULT_CONDITION } };
     case "parallel":
@@ -173,7 +173,7 @@ function cleanNode(v: unknown): FlowNode | null {
     case "run-suite":
       return { ...base, type, suiteId: str(n.suiteId), retry: cleanRetry(n.retry) };
     case "run-request":
-      return { ...base, type, requestId: str(n.requestId), retry: cleanRetry(n.retry) };
+      return { ...base, type, requestId: str(n.requestId), retry: cleanRetry(n.retry), httpErrorsFail: n.httpErrorsFail === false ? false : true };
     case "if":
       return { ...base, type, condition: cleanCondition(n.condition) };
     case "parallel":

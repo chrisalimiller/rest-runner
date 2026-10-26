@@ -1,7 +1,10 @@
+import { OverflowMenu } from "../shell/OverflowMenu";
+import { TrashIcon } from "../shell/Icons";
+import { maskSecrets, storedSecrets } from "../../lib/secrets";
 import { useEffect, useMemo, useState } from "react";
 import { saveTextFile } from "../../lib/saveFile";
 import { describeMode } from "../../lib/testing/describe";
-import { testReportFileName, toTestCsvReport, toTestHtmlReport } from "../../lib/testing/testReport";
+import { failureCheckNames, testReportFileName, toTestCsvReport, toTestHtmlReport } from "../../lib/testing/testReport";
 import { caseStats, testRunTimes, type TestRun } from "../../lib/testing/testRun";
 import { getTestRun } from "../../lib/testing/testRunStore";
 import { CaseResultView } from "./CaseResultView";
@@ -18,6 +21,8 @@ interface Props {
   onDelete?: (id: string) => void;
   /** Open with the list filtered to this case, and this result selected (an index into the run's results). */
   initialCaseId?: string;
+  /** With a case: only results where this check failed (or the case failed without one). */
+  initialCheck?: string;
   initialIndex?: number;
 }
 
@@ -31,10 +36,12 @@ function formatDuration(ms: number): string {
 }
 
 /** A saved test run: summary, per-case breakdown, run log, and every case result. */
-export function TestRunExplorer({ runId, preloaded, onBack, backLabel = "← Back to suite", onDelete, initialCaseId, initialIndex }: Props) {
+export function TestRunExplorer({ runId, preloaded, onBack, backLabel = "← Back to suite", onDelete, initialCaseId, initialCheck, initialIndex }: Props) {
   const [run, setRun] = useState<TestRun | null | undefined>(undefined);
   const [filter, setFilter] = useState<Filter>("all");
   const [caseFilter, setCaseFilter] = useState<string | null>(null);
+  const [checkFilter, setCheckFilter] = useState<string | null>(initialCheck ?? null);
+  const [failuresFirst, setFailuresFirst] = useState(true);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<number | null>(null);
   const [limit, setLimit] = useState(PAGE_SIZE);
@@ -45,11 +52,12 @@ export function TestRunExplorer({ runId, preloaded, onBack, backLabel = "← Bac
     let live = true;
     setRun(undefined);
     setCaseFilter(initialCaseId ?? null);
+    setCheckFilter(initialCheck ?? null);
     (preloaded ? Promise.resolve(preloaded) : runId ? getTestRun(runId) : Promise.resolve(undefined))
       .then((r) => {
         if (!live) return;
         setRun(r ?? null);
-        const firstFail = r?.results.findIndex((x) => !x.passed) ?? -1;
+        const firstFail = r?.results.findIndex((x) => !x.passed && (!initialCheck || failureCheckNames(x).includes(initialCheck)) && (!initialCaseId || x.caseId === initialCaseId)) ?? -1;
         const wanted = initialIndex !== undefined && r && initialIndex < r.results.length ? initialIndex : null;
         setSelected(r && r.results.length ? (wanted ?? Math.max(0, firstFail)) : null);
       })
@@ -57,7 +65,7 @@ export function TestRunExplorer({ runId, preloaded, onBack, backLabel = "← Bac
     return () => {
       live = false;
     };
-  }, [runId, preloaded, initialCaseId, initialIndex]);
+  }, [runId, preloaded, initialCaseId, initialCheck, initialIndex]);
 
   const perCase = useMemo(() => (run ? caseStats(run) : []), [run]);
   const times = useMemo(() => (run ? testRunTimes(run) : null), [run]);
@@ -65,21 +73,24 @@ export function TestRunExplorer({ runId, preloaded, onBack, backLabel = "← Bac
   const filtered = useMemo(() => {
     if (!run) return [];
     const q = query.trim().toLowerCase();
-    return run.results
+    const list = run.results
       .map((r, index) => ({ r, index }))
       .filter(({ r }) => {
         if (filter === "passed" && !r.passed) return false;
         if (filter === "failed" && r.passed) return false;
         if (caseFilter && r.caseId !== caseFilter) return false;
+        if (checkFilter && !failureCheckNames(r).includes(checkFilter)) return false;
         if (!q) return true;
         const hay = `${r.iteration + 1} ${r.caseName} ${resultStatus(r).label} ${r.outcome?.request.url ?? ""} ${Object.values(r.vars).join(" ")} ${r.checks
           .map((c) => `${c.name} ${c.message ?? ""}`)
           .join(" ")} ${r.notes.join(" ")}`;
         return hay.toLowerCase().includes(q);
       });
-  }, [run, filter, caseFilter, query]);
+    // With CSV data, the rows that failed come first so they are not buried under hundreds of passes.
+    return run.csvName && failuresFirst ? [...list.filter(({ r }) => !r.passed), ...list.filter(({ r }) => r.passed)] : list;
+  }, [run, filter, caseFilter, checkFilter, failuresFirst, query]);
 
-  useEffect(() => setLimit(PAGE_SIZE), [filter, caseFilter, query]);
+  useEffect(() => setLimit(PAGE_SIZE), [filter, caseFilter, checkFilter, query]);
 
   if (run === undefined) return <section className="explorer muted">Loading test run…</section>;
   if (run === null || !times)
@@ -99,7 +110,7 @@ export function TestRunExplorer({ runId, preloaded, onBack, backLabel = "← Bac
   const exportReport = async (kind: "html" | "csv") => {
     setMessage(null);
     try {
-      const content = kind === "html" ? toTestHtmlReport(run) : toTestCsvReport(run);
+      const content = kind === "html" ? maskSecrets(toTestHtmlReport(run), storedSecrets()) : maskSecrets(toTestCsvReport(run), storedSecrets());
       const result = await saveTextFile(testReportFileName(run, kind), content, kind === "html" ? "HTML report" : "CSV report", kind);
       if (result.saved) setMessage(result.path ? `Saved to ${result.path}` : "Report downloaded.");
     } catch (e) {
@@ -139,14 +150,10 @@ export function TestRunExplorer({ runId, preloaded, onBack, backLabel = "← Bac
             Export CSV report
           </button>
           {onDelete && (
-            <button
-              className="secondary danger"
-              onClick={() => {
-                if (window.confirm("Delete this test run? Exported reports are not affected.")) onDelete(run.id);
-              }}
-            >
-              Delete
-            </button>
+            <OverflowMenu
+              label="Run actions"
+              items={[{ label: "Delete run", icon: <TrashIcon />, onSelect: () => onDelete(run.id), danger: true, title: "Exported reports are not affected" }]}
+            />
           )}
         </div>
       </div>
@@ -222,6 +229,17 @@ export function TestRunExplorer({ runId, preloaded, onBack, backLabel = "← Bac
           <button className="chip active" onClick={() => setCaseFilter(null)}>
             Case: {perCase.find((c) => c.caseId === caseFilter)?.caseName} ×
           </button>
+        )}
+        {checkFilter && (
+          <button className="chip active" onClick={() => setCheckFilter(null)}>
+            Check: {checkFilter} ×
+          </button>
+        )}
+        {run.csvName && (
+          <label className="check">
+            <input type="checkbox" checked={failuresFirst} onChange={(e) => setFailuresFirst(e.target.checked)} />
+            Failures first
+          </label>
         )}
         <button className="link-btn" onClick={() => setShowLog((v) => !v)}>
           {showLog ? "Hide run log" : `Show run log (${run.log.length})`}

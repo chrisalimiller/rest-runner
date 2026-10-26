@@ -240,6 +240,65 @@ export function remove(collections: Collection[], id: string): Collection[] {
   );
 }
 
+/**
+ * Like `remove`, but also returns a function that puts the item back where it was
+ * (same parent, same position) in whatever the collections look like by then.
+ * Used for Undo; returns null when the id isn't there.
+ */
+export function removeWithRestore(collections: Collection[], id: string): { collections: Collection[]; restore: (current: Collection[]) => Collection[] } | null {
+  const found = locate(collections, id);
+  if (!found) return null;
+  const next = remove(collections, id);
+  const insertInto = (items: TreeNode[], parentId: string | null, index: number, node: TreeNode, collectionItems: TreeNode[]): TreeNode[] => {
+    const put = (list: TreeNode[]) => (list.some((x) => x.id === node.id) ? list : [...list.slice(0, index), node, ...list.slice(index)]);
+    if (parentId === null) return put(items);
+    let placed = false;
+    const walk = (list: TreeNode[]): TreeNode[] =>
+      list.map((n) => {
+        if (n.kind !== "folder") return n;
+        if (n.id === parentId) {
+          placed = true;
+          return { ...n, items: put(n.items) };
+        }
+        return { ...n, items: walk(n.items) };
+      });
+    const out = walk(items);
+    // The folder is gone too: put the item at the top of the collection instead.
+    return placed ? out : [...collectionItems, node];
+  };
+
+  if (found.kind === "collection") {
+    const index = collections.findIndex((c) => c.id === id);
+    const collection = found.collection;
+    return {
+      collections: next,
+      restore: (cur) => (cur.some((c) => c.id === id) ? cur : [...cur.slice(0, index), collection, ...cur.slice(index)]),
+    };
+  }
+  if (found.kind === "example") {
+    const index = found.node.examples.findIndex((e) => e.id === id);
+    const example = found.example;
+    const requestId = found.node.id;
+    const addBack = (items: TreeNode[]): TreeNode[] =>
+      items.map((n) => {
+        if (n.kind === "folder") return { ...n, items: addBack(n.items) };
+        if (n.id !== requestId || n.examples.some((e) => e.id === id)) return n;
+        return { ...n, examples: [...n.examples.slice(0, index), example, ...n.examples.slice(index)] };
+      });
+    return { collections: next, restore: (cur) => cur.map((c) => ({ ...c, items: addBack(c.items) })) };
+  }
+  const node: TreeNode = found.kind === "folder" ? found.folder : found.node;
+  const path = found.path;
+  const parentId = path.length ? path[path.length - 1].id : null;
+  const siblings = parentId === null ? found.collection.items : path[path.length - 1].items;
+  const index = siblings.findIndex((x) => x.id === id);
+  const collectionId = found.collection.id;
+  return {
+    collections: next,
+    restore: (cur) => cur.map((c) => (c.id === collectionId ? { ...c, items: insertInto(c.items, parentId, index, node, c.items) } : c)),
+  };
+}
+
 /** Deep copy of a node with new ids throughout. */
 function cloneWithNewIds(node: TreeNode): TreeNode {
   if (node.kind === "folder") return { ...node, id: newId(), items: node.items.map(cloneWithNewIds) };

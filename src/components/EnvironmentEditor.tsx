@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { newEnvironment, type Environment } from "../lib/environments";
 import { KeyValueEditor } from "./KeyValueEditor";
+import { useToast } from "./shell/Toast";
 import { useEscape } from "./useEscape";
 
 interface Props {
@@ -8,11 +9,21 @@ interface Props {
   activeId: string | null;
   onChange: (environments: Environment[]) => void;
   onClose: () => void;
+  /** Open on the environment holding this variable row and put the cursor in its value. */
+  focusVarId?: string;
 }
 
 /** A dialog for adding, renaming, editing and deleting environments. */
-export function EnvironmentEditor({ environments, activeId, onChange, onClose }: Props) {
-  const [selectedId, setSelectedId] = useState<string | null>(activeId ?? environments[0]?.id ?? null);
+export function EnvironmentEditor({ environments, activeId, onChange, onClose, focusVarId }: Props) {
+  const toast = useToast();
+  const latest = useRef(environments);
+  latest.current = environments;
+  const [selectedId, setSelectedId] = useState<string | null>(
+    () => environments.find((e) => focusVarId && e.vars.some((v) => v.id === focusVarId))?.id ?? activeId ?? environments[0]?.id ?? null,
+  );
+  useEffect(() => {
+    if (focusVarId) document.querySelector<HTMLInputElement>(`[data-row-value="${focusVarId}"]`)?.focus();
+  }, [focusVarId]);
   const selected = environments.find((e) => e.id === selectedId) ?? null;
   useEscape(onClose);
 
@@ -31,10 +42,19 @@ export function EnvironmentEditor({ environments, activeId, onChange, onClose }:
   };
 
   const remove = (env: Environment) => {
-    if (!window.confirm(`Delete the environment "${env.name}"?`)) return;
+    const index = environments.findIndex((e) => e.id === env.id);
     const rest = environments.filter((e) => e.id !== env.id);
     onChange(rest);
     setSelectedId(rest[0]?.id ?? null);
+    toast.show({
+      message: `Deleted environment "${env.name || "(unnamed)"}"`,
+      onUndo: () => {
+        const cur = latest.current;
+        if (cur.some((e) => e.id === env.id)) return;
+        onChange([...cur.slice(0, index), env, ...cur.slice(index)]);
+        setSelectedId(env.id);
+      },
+    });
   };
 
   return (
@@ -70,9 +90,9 @@ export function EnvironmentEditor({ environments, activeId, onChange, onClose }:
                   </button>
                 </div>
                 <p className="muted small">
-                  Use these anywhere in a request as {"{{name}}"}. In a batch run, a CSV column with the same name wins.
+                  Use these anywhere in a request as {"{{name}}"}. In a batch run, a CSV column with the same name wins. Lock a value to mask it on screen and leave it out of exports.
                 </p>
-                <KeyValueEditor rows={selected.vars} onChange={(vars) => update({ ...selected, vars })} keyPlaceholder="Variable" />
+                <KeyValueEditor rows={selected.vars} onChange={(vars) => update({ ...selected, vars })} keyPlaceholder="Variable" secrets />
               </>
             ) : (
               <p className="muted">
