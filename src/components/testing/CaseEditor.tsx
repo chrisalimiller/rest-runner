@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { requestSummaryLine } from "../../lib/requestSummary";
 import type { Vars } from "../../lib/template";
 import { assertionResults, failureLine } from "../../lib/testing/caseStatus";
@@ -7,6 +7,7 @@ import type { CaseResult, TestCase } from "../../lib/testing/types";
 import type { RequestDef } from "../../lib/types";
 import { RequestEditor, WithPlaceholders } from "../request/RequestEditor";
 import { ArrowDownIcon, CopyIcon, PlayFilledIcon, TrashIcon } from "../shell/Icons";
+import { Modal } from "../shell/Modal";
 import { OverflowMenu } from "../shell/OverflowMenu";
 import { AssertionEditor } from "./AssertionEditor";
 import { CaseResultView } from "./CaseResultView";
@@ -47,13 +48,6 @@ export function CaseEditor(props: Props) {
   const results = useMemo(() => assertionResults(tc.assertions, latest), [tc.assertions, latest]);
   const varSets = useMemo(() => detectVarSets(tc.postScript), [tc.postScript]);
   const lastVars = latest?.postScript?.vars;
-
-  useEffect(() => {
-    if (!editing) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setEditing(false);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [editing]);
 
   return (
     <div className={`case-card open ${latest && !latest.passed ? "failed" : ""}`}>
@@ -168,33 +162,31 @@ export function CaseEditor(props: Props) {
       </div>
 
       {editing && (
-        <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setEditing(false)}>
-          <div className="modal request-modal" role="dialog" aria-label={`Edit request of ${tc.name}`}>
-            <div className="modal-head">
-              <h3>Edit request · {tc.name}</h3>
-              <button className="icon-btn" onClick={() => setEditing(false)} aria-label="Close">
-                ×
+        <Modal label={`Edit request of ${tc.name}`} onClose={() => setEditing(false)} className="request-modal">
+          <div className="modal-head">
+            <h3>Edit request · {tc.name}</h3>
+            <button className="icon-btn" onClick={() => setEditing(false)} aria-label="Close">
+              ×
+            </button>
+          </div>
+          <div className="request-col in-modal">
+            <RequestEditor
+              def={def}
+              onChange={patchReq}
+              envVars={props.envVars}
+              envName={props.envName}
+              sectionsKey="rest-runner.case-request-sections"
+              urlPlaceholder="Enter URL, e.g. {{baseUrl}}/users/{{id}}"
+              scriptsNote="In a test run, the request's scripts run first, then this case's own Pre-request and Post-response scripts."
+            />
+            <div className="action-footer">
+              <button className="send" onClick={() => setEditing(false)}>
+                Done
               </button>
-            </div>
-            <div className="request-col in-modal">
-              <RequestEditor
-                def={def}
-                onChange={patchReq}
-                envVars={props.envVars}
-                envName={props.envName}
-                sectionsKey="rest-runner.case-request-sections"
-                urlPlaceholder="Enter URL, e.g. {{baseUrl}}/users/{{id}}"
-                scriptsNote="In a test run, the request's scripts run first, then this case's own Pre-request and Post-response scripts."
-              />
-              <div className="action-footer">
-                <button className="send" onClick={() => setEditing(false)}>
-                  Done
-                </button>
-                <span className="muted small">Changes apply to this case only.</span>
-              </div>
+              <span className="muted small">Changes apply to this case only.</span>
             </div>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

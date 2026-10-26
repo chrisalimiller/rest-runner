@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useEscape } from "./useEscape";
 import {
   countRequests,
   type Collection,
@@ -41,19 +42,15 @@ export function CollectionTree(props: Props) {
   const { collections, expanded, onToggle, onAction, renamingId, onRenamingChange } = props;
   const [menu, setMenu] = useState<{ id: string; x: number; y: number; items: MenuItem[] } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  useEscape(() => setMenu(null), menu !== null);
 
   useEffect(() => {
     if (!menu) return;
     const close = (e: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) setMenu(null);
     };
-    const esc = (e: KeyboardEvent) => e.key === "Escape" && setMenu(null);
     window.addEventListener("mousedown", close);
-    window.addEventListener("keydown", esc);
-    return () => {
-      window.removeEventListener("mousedown", close);
-      window.removeEventListener("keydown", esc);
-    };
+    return () => window.removeEventListener("mousedown", close);
   }, [menu]);
 
   const openMenu = (e: React.MouseEvent, id: string, items: MenuItem[]) => {
@@ -326,7 +323,10 @@ function RenameInput({ initial, onDone }: { initial: string; onDone: (name: stri
       onBlur={() => finish(value)}
       onKeyDown={(e) => {
         if (e.key === "Enter") finish(value);
-        if (e.key === "Escape") finish(null);
+        if (e.key === "Escape") {
+          e.preventDefault();
+          finish(null);
+        }
       }}
       aria-label="New name"
     />

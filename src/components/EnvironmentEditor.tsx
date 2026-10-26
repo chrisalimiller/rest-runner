@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ENV_COLORS, ENV_COLOR_VARS, newEnvironment, type Environment, type EnvColor } from "../lib/environments";
 import { KeyValueEditor } from "./KeyValueEditor";
 import { useToast } from "./shell/Toast";
-import { useEscape } from "./useEscape";
+import { Modal } from "./shell/Modal";
 
 interface Props {
   environments: Environment[];
@@ -25,7 +25,6 @@ export function EnvironmentEditor({ environments, activeId, onChange, onClose, f
     if (focusVarId) document.querySelector<HTMLInputElement>(`[data-row-value="${focusVarId}"]`)?.focus();
   }, [focusVarId]);
   const selected = environments.find((e) => e.id === selectedId) ?? null;
-  useEscape(onClose);
 
   const update = (env: Environment) => onChange(environments.map((e) => (e.id === env.id ? env : e)));
 
@@ -58,66 +57,64 @@ export function EnvironmentEditor({ environments, activeId, onChange, onClose, f
   };
 
   return (
-    <div className="modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="modal" role="dialog" aria-label="Environments">
-        <div className="modal-head">
-          <h3>Environments</h3>
-          <button className="icon-btn" onClick={onClose} aria-label="Close">
-            ×
+    <Modal label="Environments" onClose={onClose}>
+      <div className="modal-head">
+        <h3>Environments</h3>
+        <button className="icon-btn" onClick={onClose} aria-label="Close">
+          ×
+        </button>
+      </div>
+      <div className="env-layout">
+        <div className="env-list">
+          {environments.map((e) => (
+            <button key={e.id} className={e.id === selectedId ? "active" : ""} onClick={() => setSelectedId(e.id)}>
+              {e.name || "(unnamed)"}
+            </button>
+          ))}
+          <button className="link-btn" onClick={add}>
+            + Add environment
           </button>
         </div>
-        <div className="env-layout">
-          <div className="env-list">
-            {environments.map((e) => (
-              <button key={e.id} className={e.id === selectedId ? "active" : ""} onClick={() => setSelectedId(e.id)}>
-                {e.name || "(unnamed)"}
-              </button>
-            ))}
-            <button className="link-btn" onClick={add}>
-              + Add environment
-            </button>
-          </div>
-          <div className="env-edit">
-            {selected ? (
-              <>
-                <div className="env-edit-head">
-                  <input value={selected.name} onChange={(e) => update({ ...selected, name: e.target.value })} aria-label="Environment name" />
-                  <button className="secondary" onClick={() => duplicate(selected)}>
-                    Duplicate
-                  </button>
-                  <button className="secondary danger" onClick={() => remove(selected)}>
-                    Delete
-                  </button>
-                </div>
-                <div className="env-color-row" role="radiogroup" aria-label="Environment colour">
-                  <span className="muted small">Colour</span>
-                  {ENV_COLORS.map((c) => (
-                    <button
-                      key={c}
-                      role="radio"
-                      aria-checked={(selected.color ?? "none") === c}
-                      aria-label={c === "none" ? "No colour" : c}
-                      title={c === "none" ? "No colour" : `${c[0].toUpperCase()}${c.slice(1)}`}
-                      className={`env-swatch ${(selected.color ?? "none") === c ? "on" : ""} ${c === "none" ? "none" : ""}`}
-                      style={c === "none" ? undefined : { background: ENV_COLOR_VARS[c as Exclude<EnvColor, "none">] }}
-                      onClick={() => update({ ...selected, color: c })}
-                    />
-                  ))}
-                  <span className="muted small">A coloured environment outlines Send, Run suite and Run, and puts its name on them.</span>
-                </div>
-                <p className="muted small">
-                  Use these anywhere in a request as {"{{name}}"}. In a batch run, a CSV column with the same name wins. Lock a value to mask it on screen and leave it out of exports.
-                </p>
-                <KeyValueEditor rows={selected.vars} onChange={(vars) => update({ ...selected, vars })} keyPlaceholder="Variable" secrets />
-              </>
-            ) : (
-              <p className="muted">
-                No environments yet. Add one to keep values like base URLs and tokens for Dev, Test and Prod in one place.
+        <div className="env-edit">
+          {selected ? (
+            <>
+              <div className="env-edit-head">
+                <input value={selected.name} onChange={(e) => update({ ...selected, name: e.target.value })} aria-label="Environment name" />
+                <button className="secondary" onClick={() => duplicate(selected)}>
+                  Duplicate
+                </button>
+                <button className="secondary danger" onClick={() => remove(selected)}>
+                  Delete
+                </button>
+              </div>
+              <div className="env-color-row" role="radiogroup" aria-label="Environment colour">
+                <span className="muted small">Colour</span>
+                {ENV_COLORS.map((c) => (
+                  <button
+                    key={c}
+                    role="radio"
+                    aria-checked={(selected.color ?? "none") === c}
+                    aria-label={c === "none" ? "No colour" : c}
+                    title={c === "none" ? "No colour" : `${c[0].toUpperCase()}${c.slice(1)}`}
+                    className={`env-swatch ${(selected.color ?? "none") === c ? "on" : ""} ${c === "none" ? "none" : ""}`}
+                    style={c === "none" ? undefined : { background: ENV_COLOR_VARS[c as Exclude<EnvColor, "none">] }}
+                    onClick={() => update({ ...selected, color: c })}
+                  />
+                ))}
+                <span className="muted small">A coloured environment outlines Send, Run suite and Run, and puts its name on them.</span>
+              </div>
+              <p className="muted small">
+                Use these anywhere in a request as {"{{name}}"}. In a batch run, a CSV column with the same name wins. Lock a value to mask it on screen and leave it out of exports.
               </p>
-            )}
-          </div>
+              <KeyValueEditor rows={selected.vars} onChange={(vars) => update({ ...selected, vars })} keyPlaceholder="Variable" secrets />
+            </>
+          ) : (
+            <p className="muted">
+              No environments yet. Add one to keep values like base URLs and tokens for Dev, Test and Prod in one place.
+            </p>
+          )}
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

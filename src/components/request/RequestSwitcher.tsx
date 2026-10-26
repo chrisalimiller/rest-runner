@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { HttpMethod } from "../../lib/types";
 import { ChevronDownIcon } from "../shell/Icons";
+import { useEscape } from "../useEscape";
 
 interface Props {
   crumbs: string[];
@@ -33,16 +34,11 @@ export function RequestSwitcher(props: Props) {
       // The tree's own menus render inside the popover; dialogs render elsewhere and close it.
       if (wrapRef.current && !wrapRef.current.contains(target)) onOpenChange(false);
     };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !document.querySelector(".menu")) onOpenChange(false);
-    };
     window.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
-    return () => {
-      window.removeEventListener("mousedown", onDown);
-      window.removeEventListener("keydown", onKey);
-    };
+    return () => window.removeEventListener("mousedown", onDown);
   }, [open, onOpenChange]);
+  // A tree menu or an inline rename inside the popover is a newer overlay, so Escape closes that first.
+  useEscape(() => onOpenChange(false), open);
 
   return (
     <div className="switcher" ref={wrapRef}>
@@ -111,7 +107,10 @@ function RenameField({ initial, onDone }: { initial: string; onDone: (name: stri
       onBlur={() => finish(value)}
       onKeyDown={(e) => {
         if (e.key === "Enter") finish(value);
-        if (e.key === "Escape") finish(null);
+        if (e.key === "Escape") {
+          e.preventDefault();
+          finish(null);
+        }
       }}
       aria-label="Request name"
     />

@@ -19,6 +19,8 @@ import { listTestRuns } from "../../lib/testing/testRunStore";
 import { listFlowRuns } from "../../lib/flows/flowRunStore";
 import { loadFlows } from "../../lib/flows/flows";
 import type { HistoryEntry } from "../../lib/types";
+import { useEscape } from "../useEscape";
+import { useFocusTrap } from "../useFocusTrap";
 import { SearchIcon } from "./Icons";
 import type { Mode } from "./TopBar";
 
@@ -71,11 +73,12 @@ export function QuickOpen({ mode, onClose, onPick, onClearHistory }: Props) {
     listRef.current?.querySelector(`[data-index="${active}"]`)?.scrollIntoView({ block: "nearest" });
   }, [active]);
 
+  const box = useRef<HTMLDivElement>(null);
+  useEscape(onClose);
+  useFocusTrap(box);
+
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      onClose();
-    } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
       if (flat.length) setActive((a) => (a + (e.key === "ArrowDown" ? 1 : -1) + flat.length) % flat.length);
     } else if (e.key === "Enter") {
@@ -88,7 +91,7 @@ export function QuickOpen({ mode, onClose, onPick, onClearHistory }: Props) {
   let index = -1;
   return (
     <div className="modal-backdrop quick-open-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="quick-open" role="dialog" aria-label="Quick open" onKeyDown={onKeyDown}>
+      <div ref={box} className="quick-open" role="dialog" aria-modal="true" aria-label="Quick open" onKeyDown={onKeyDown}>
         <label className="quick-open-input">
           <SearchIcon />
           <input

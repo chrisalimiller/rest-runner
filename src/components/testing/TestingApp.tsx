@@ -25,6 +25,7 @@ import type { LiveRunState } from "./LiveRun";
 import { SuiteEditor } from "./SuiteEditor";
 import { MAX_SAVED_CSV, SuiteSettings } from "./SuiteSettings";
 import { TestingSidebar } from "./TestingSidebar";
+import { Modal } from "../shell/Modal";
 import { TestRunExplorer } from "./TestRunExplorer";
 
 const SUITES_KEY = "rest-runner.test-suites";
@@ -275,13 +276,6 @@ export function TestingApp({ active, shell, command }: Props) {
     }
   }, [command]);
 
-  useEffect(() => {
-    if (!settingsOpen) return;
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setSettingsOpen(false);
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [settingsOpen]);
-
   const suiteLive = live && suite && live.suiteId === suite.id ? live : null;
 
   return (
@@ -372,19 +366,17 @@ export function TestingApp({ active, shell, command }: Props) {
               onOpenReport={(id, caseId, index, check) => setReport({ id, caseId, index, check })}
             />
             {settingsOpen && (
-              <div className="sheet-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setSettingsOpen(false)}>
-                <div className="sheet" role="dialog" aria-label="Run settings and data">
-                  <div className="modal-head">
-                    <h3>Run settings &amp; data</h3>
-                    <button className="icon-btn" onClick={() => setSettingsOpen(false)} aria-label="Close">
-                      ×
-                    </button>
-                  </div>
-                  <div className="sheet-body">
-                    <SuiteSettings suite={suite} onChange={updateSuite} envVarNames={Object.keys(envVars)} />
-                  </div>
+              <Modal sheet label="Run settings and data" onClose={() => setSettingsOpen(false)}>
+                <div className="modal-head">
+                  <h3>Run settings &amp; data</h3>
+                  <button className="icon-btn" onClick={() => setSettingsOpen(false)} aria-label="Close">
+                    ×
+                  </button>
                 </div>
-              </div>
+                <div className="sheet-body">
+                  <SuiteSettings suite={suite} onChange={updateSuite} envVarNames={Object.keys(envVars)} />
+                </div>
+              </Modal>
             )}
           </>
         ) : (

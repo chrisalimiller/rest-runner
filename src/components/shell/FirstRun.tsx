@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import sample from "../../assets/sample-workspace.json";
+import { useFocusTrap } from "../useFocusTrap";
 import { importWorkspace } from "../../lib/workspace";
 import { markOnboarded, readWorkspace, selectEnvironmentEverywhere, writeWorkspace } from "../../lib/workspaceStore";
 
@@ -12,6 +13,8 @@ interface Props {
 export function FirstRun({ onDone }: Props) {
   const [error, setError] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
+  const card = useRef<HTMLDivElement>(null);
+  useFocusTrap(card);
 
   const bringIn = (text: string, name: string, selectEnv?: string) => {
     try {
@@ -27,7 +30,7 @@ export function FirstRun({ onDone }: Props) {
 
   return (
     <div className="first-run" role="dialog" aria-modal="true" aria-labelledby="first-run-title">
-      <div className="first-run-card">
+      <div className="first-run-card" ref={card}>
         <h1 id="first-run-title">Welcome to REST Runner</h1>
         <p className="muted">Send requests, run them against a CSV, check the responses, and chain it all into flows. How do you want to start?</p>
         <div className="first-run-choices">
