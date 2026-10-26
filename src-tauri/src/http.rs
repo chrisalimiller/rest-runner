@@ -6,13 +6,15 @@
 use std::{
     collections::HashMap,
     error::Error,
-    sync::Mutex,
+    sync::{Arc, Mutex},
     time::{Duration, Instant},
 };
 
-use reqwest::{redirect::Policy, Client, Method};
+use reqwest::{redirect::Policy, Client, Identity, Method};
 use serde::{Deserialize, Serialize};
 use tokio::task::AbortHandle;
+
+use crate::certs::CertStore;
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -25,6 +27,30 @@ pub struct HttpRequest {
     pub body: Option<String>,
     /// No limit when missing, as before.
     pub timeout_ms: Option<u64>,
+    /// Which imported certificates this call uses. Chosen by the caller (see src/lib/certificates.ts).
+    #[serde(default)]
+    pub tls: TlsSpec,
+}
+
+#[derive(Deserialize, Default, Clone)]
+#[serde(rename_all = "camelCase")]
+pub struct TlsSpec {
+    /// Client certificate to present.
+    pub cert_id: Option<String>,
+    /// Extra trusted roots, added to the system ones.
+    #[serde(default)]
+    pub ca_ids: Vec<String>,
+    /// Trust only `ca_ids`, not the system roots.
+    #[serde(default)]
+    pub ca_only: bool,
+}
+
+impl TlsSpec {
+    fn cache_key(&self) -> String {
+        let mut cas = self.ca_ids.clone();
+        cas.sort();
+        format!("{}|{}|{}", self.cert_id.as_deref().unwrap_or(""), cas.join(","), self.ca_only)
+    }
 }
 
 #[derive(Serialize, Debug)]
@@ -41,22 +67,61 @@ pub struct HttpResponse {
 pub const CANCELLED: &str = "Request cancelled";
 
 pub struct HttpState {
-    client: Client,
+    certs: Arc<CertStore>,
+    /// One client per TLS setup, so a batch against one host reuses its connections and handshakes.
+    clients: Mutex<HashMap<String, Client>>,
     in_flight: Mutex<HashMap<String, AbortHandle>>,
 }
 
 impl HttpState {
-    pub fn new() -> Result<Self, String> {
-        let client = Client::builder()
-            .redirect(Policy::none())
-            .build()
-            .map_err(|e| format!("Could not start the HTTP client: {}", describe(&e)))?;
-        Ok(Self { client, in_flight: Mutex::new(HashMap::new()) })
+    pub fn new(certs: Arc<CertStore>) -> Self {
+        Self { certs, clients: Mutex::new(HashMap::new()), in_flight: Mutex::new(HashMap::new()) }
     }
 
-    pub async fn send(&self, req: HttpRequest) -> Result<HttpResponse, String> {
+    /// Forgets built clients. Call after a certificate changes or is deleted.
+    pub fn clear_clients(&self) {
+        self.clients.lock().unwrap().clear();
+    }
+
+    fn client_for(&self, tls: &TlsSpec) -> Result<Client, String> {
+        let key = tls.cache_key();
+        if let Some(client) = self.clients.lock().unwrap().get(&key) {
+            return Ok(client.clone());
+        }
+        let mut builder = Client::builder().redirect(Policy::none());
+        if let Some(id) = &tls.cert_id {
+            let identity = Identity::from_pem(&self.certs.identity_pem(id)?)
+                .map_err(|e| format!("Could not use the client certificate: {}", describe(&e)))?;
+            builder = builder.identity(identity);
+        }
+        if tls.ca_only && !tls.ca_ids.is_empty() {
+            builder = builder.tls_built_in_root_certs(false);
+        }
+        for id in &tls.ca_ids {
+            let roots = reqwest::Certificate::from_pem_bundle(&self.certs.ca_pem(id)?)
+                .map_err(|e| format!("Could not use the CA certificate: {}", describe(&e)))?;
+            for root in roots {
+                builder = builder.add_root_certificate(root);
+            }
+        }
+        let client = builder
+            .build()
+            .map_err(|e| format!("Could not start the HTTP client: {}", describe(&e)))?;
+        self.clients.lock().unwrap().insert(key, client.clone());
+        Ok(client)
+    }
+
+    pub async fn send(self: &Arc<Self>, req: HttpRequest) -> Result<HttpResponse, String> {
         let id = req.id.clone();
-        let task = tokio::spawn(perform(self.client.clone(), req));
+        let this = self.clone();
+        let task = tokio::spawn(async move {
+            // Building a client reads files and the keychain, which can block.
+            let tls = req.tls.clone();
+            let client = tokio::task::spawn_blocking(move || this.client_for(&tls))
+                .await
+                .map_err(|e| format!("The request stopped unexpectedly: {e}"))??;
+            perform(client, req).await
+        });
         self.in_flight.lock().unwrap().insert(id.clone(), task.abort_handle());
         let joined = task.await;
         self.in_flight.lock().unwrap().remove(&id);
@@ -153,13 +218,29 @@ mod tests {
             headers: vec![],
             body: None,
             timeout_ms: None,
+            tls: TlsSpec::default(),
         }
+    }
+
+    pub(crate) fn plain_state() -> Arc<HttpState> {
+        use crate::certs::PassphraseStore;
+        struct None_;
+        impl PassphraseStore for None_ {
+            fn get(&self, _: &str) -> Option<String> {
+                None
+            }
+            fn set(&self, _: &str, _: &str) -> Result<(), String> {
+                Ok(())
+            }
+            fn delete(&self, _: &str) {}
+        }
+        Arc::new(HttpState::new(Arc::new(CertStore::new(std::env::temp_dir().join("rr-none"), Arc::new(None_)))))
     }
 
     #[tokio::test]
     async fn returns_status_headers_and_body() {
         let url = serve("HTTP/1.1 201 Created\r\nX-Test: yes\r\nContent-Length: 5\r\nConnection: close\r\n\r\nhéllo", 0).await;
-        let state = HttpState::new().unwrap();
+        let state = plain_state();
         let res = state.send(request(&url)).await.unwrap();
         assert_eq!(res.status, 201);
         assert_eq!(res.status_text, "Created");
@@ -171,7 +252,7 @@ mod tests {
     #[tokio::test]
     async fn does_not_follow_redirects() {
         let url = serve("HTTP/1.1 302 Found\r\nLocation: /next\r\nContent-Length: 0\r\nConnection: close\r\n\r\n", 0).await;
-        let state = HttpState::new().unwrap();
+        let state = plain_state();
         let res = state.send(request(&url)).await.unwrap();
         assert_eq!(res.status, 302);
         assert!(res.headers.contains(&("location".to_string(), "/next".to_string())));
@@ -180,7 +261,7 @@ mod tests {
     #[tokio::test]
     async fn cancel_aborts_a_slow_call() {
         let url = serve("HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n", 5000).await;
-        let state = std::sync::Arc::new(HttpState::new().unwrap());
+        let state = plain_state();
         let running = {
             let state = state.clone();
             tokio::spawn(async move { state.send(request(&url)).await })
@@ -193,7 +274,7 @@ mod tests {
     #[tokio::test]
     async fn times_out() {
         let url = serve("HTTP/1.1 200 OK\r\nContent-Length: 0\r\nConnection: close\r\n\r\n", 5000).await;
-        let state = HttpState::new().unwrap();
+        let state = plain_state();
         let mut req = request(&url);
         req.timeout_ms = Some(100);
         assert!(state.send(req).await.is_err());
@@ -201,7 +282,7 @@ mod tests {
 
     #[tokio::test]
     async fn reports_why_a_connection_failed() {
-        let state = HttpState::new().unwrap();
+        let state = plain_state();
         let err = state.send(request("http://127.0.0.1:1/")).await.unwrap_err();
         assert!(err.contains("error sending request"), "{err}");
         assert!(err.len() > "error sending request".len() + 10, "{err}");

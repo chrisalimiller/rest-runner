@@ -4,7 +4,8 @@ import { BrandLockup } from "../BrandMark";
 import { overlayTitleBar } from "../../lib/windowChrome";
 import { MODES, nextModeIndex, topBarLayout } from "../../lib/topBar";
 import { useViewportWidth } from "../useViewportWidth";
-import { ChevronDownIcon, FlowsIcon, PencilIcon, RequestsIcon, SearchIcon, TestingIcon } from "./Icons";
+import { openCertificates } from "../../lib/certificatesDialog";
+import { ChevronDownIcon, FlowsIcon, LockIcon, PencilIcon, RequestsIcon, SearchIcon, TestingIcon } from "./Icons";
 import { OverflowMenu } from "./OverflowMenu";
 
 export type Mode = "requests" | "testing" | "flows";
@@ -77,6 +78,9 @@ export function TopBar(props: Props) {
           Variables
         </button>
       )}
+      <button className="icon-btn topbar-certs" onClick={() => openCertificates()} aria-label="Certificates" title="Client certificates and custom CAs, matched to addresses">
+        <LockIcon />
+      </button>
       <ModeSwitch mode={props.mode} onMode={props.onMode} />
     </header>
   );

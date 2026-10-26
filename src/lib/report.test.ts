@@ -72,3 +72,22 @@ describe("reportFileName", () => {
     expect(reportFileName(run, "csv")).not.toMatch(/[\\/:*?"|]/);
   });
 });
+
+describe("certificate in reports", () => {
+  const withCert = {
+    ...run,
+    entries: run.entries.map((e, i) => (i === 0 ? { ...e, outcome: { ...e.outcome, certificate: { id: "c", name: "Acme <staging>", sha256: "ab12cd34".repeat(8) } } } : e)),
+  };
+
+  it("adds a certificate column to the CSV, empty for calls without one", () => {
+    const [head, first, second] = parseRecords(toCsvReport(withCert).slice(1).trimEnd(), ",");
+    const col = head.indexOf("certificate");
+    expect(first[col]).toBe("Acme <staging> (ab12cd34)");
+    expect(second[col]).toBe("");
+  });
+
+  it("names the certificate in the HTML, escaped", () => {
+    expect(toHtmlReport(withCert)).toContain("Certificate: Acme &lt;staging&gt; (ab12cd34)");
+    expect(toHtmlReport(run)).not.toContain("Certificate:");
+  });
+});

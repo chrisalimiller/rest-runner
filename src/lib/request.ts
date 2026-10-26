@@ -90,7 +90,7 @@ export function prepareRequest(def: RequestDef, vars: Vars = {}): PreparedReques
   }
 
   const url = appendQuery(normalizeUrl(applyTemplate(def.url, vars)), query);
-  return { method: def.method, url, headers, body };
+  return { method: def.method, url, headers, body, ...(def.noCertificate ? { noCertificate: true } : {}) };
 }
 
 /** Lists the {{placeholders}} a request uses in the parts that will actually be sent. */

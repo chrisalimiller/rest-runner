@@ -4,7 +4,7 @@ import { formatMs, statusTone } from "../lib/earlierSends";
 import { formatBytes } from "../lib/format";
 import { BodyView } from "./BodyView";
 import { ScriptResults, ScriptsBadge, scriptsTabLabel, scriptTestCounts, type ScriptRun } from "./ScriptResults";
-import { AlertIcon, PlayIcon } from "./shell/Icons";
+import { AlertIcon, LockIcon, PlayIcon } from "./shell/Icons";
 import { MOD_KEY } from "./shell/TopBar";
 import type { SendOutcome } from "../lib/types";
 
@@ -97,6 +97,11 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
           {res && !bodyNote && (
             <span className="hero-meta">
               <span className="mono">{formatBytes(res.sizeBytes).replace(/ [KM]?B$/, "")}</span> {formatBytes(res.sizeBytes).replace(/^[\d.]+ /, "")}
+            </span>
+          )}
+          {!isSample && outcome.certificate && (
+            <span className="hero-meta" title={`Sent with the certificate "${outcome.certificate.name}"`}>
+              <LockIcon size={11} /> {outcome.certificate.name}
             </span>
           )}
           {!isSample && outcome.sentAt && <span className="hero-meta">{timeOfDay(outcome.sentAt)}</span>}

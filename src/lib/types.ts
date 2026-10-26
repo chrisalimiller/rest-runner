@@ -1,3 +1,4 @@
+import type { CertificateUse } from "./certificates";
 import type { ScriptOutput } from "./testing/types";
 
 export const HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"] as const;
@@ -36,6 +37,8 @@ export interface RequestDef {
   preScript?: string;
   /** JavaScript run after the response arrives. */
   postScript?: string;
+  /** Send without the client certificate that would match this URL (CAs still apply). Missing means use it. */
+  noCertificate?: boolean;
 }
 
 /** A request with placeholders filled in and auth applied, ready to send. */
@@ -44,6 +47,8 @@ export interface PreparedRequest {
   url: string;
   headers: [string, string][];
   body?: string;
+  /** Mirrors RequestDef.noCertificate. */
+  noCertificate?: boolean;
 }
 
 export interface ResponseResult {
@@ -56,8 +61,8 @@ export interface ResponseResult {
 }
 
 export type SendOutcome =
-  | { ok: true; request: PreparedRequest; response: ResponseResult; sentAt: string }
-  | { ok: false; request: PreparedRequest; error: string; durationMs: number; sentAt: string };
+  | { ok: true; request: PreparedRequest; response: ResponseResult; sentAt: string; certificate?: CertificateUse }
+  | { ok: false; request: PreparedRequest; error: string; durationMs: number; sentAt: string; certificate?: CertificateUse };
 
 export interface HistoryEntry {
   id: string;
