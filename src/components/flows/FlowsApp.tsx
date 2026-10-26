@@ -461,6 +461,7 @@ export function FlowsApp({ active, shell, command }: Props) {
     .filter((l) => l.running)
     .map((l) => l.flowId);
   const flowRunning = !!flow && runningIds.includes(flow.id);
+  const warningCount = problems.filter((p) => p.level === "warning").length;
   const chip = flow ? scheduleChip(flow, new Date()) : null;
   const guard = guardFor(environments.find((e) => e.id === envId));
   const selected = flow && selectedId ? (flow.nodes.find((n) => n.id === selectedId) ?? null) : null;
@@ -566,6 +567,11 @@ export function FlowsApp({ active, shell, command }: Props) {
                         {notice}
                       </span>
                     )}
+                    {selected && warningCount > 0 && (
+                      <button className="warning-chip" onClick={closeSettings} title="Show the list of warnings">
+                        ⚠ {warningCount} warning{warningCount === 1 ? "" : "s"}
+                      </button>
+                    )}
                     {chip && (
                       <label className={`schedule-chip ${chip.enabled ? "on" : "off"}`} title={`${chip.label}${chip.count > 1 ? ` (first of ${chip.count} schedules)` : ""}. Runs only while the app is open.`}>
                         <span aria-hidden>⏱</span>
@@ -611,7 +617,7 @@ export function FlowsApp({ active, shell, command }: Props) {
                         disabled={hasErrors(problems)}
                         title={hasErrors(problems) ? "Fix the problems listed on the right first" : hasStart ? "Run the flow from its Start step" : "Run the flow from its Schedule step now"}
                       >
-                        {guard ? guard.run : "Run"}
+                        {guard ? guard.run : "Run"}{warningCount > 0 && ` · ${warningCount} warning${warningCount === 1 ? "" : "s"}`}
                       </button>
                     )}
                   </>

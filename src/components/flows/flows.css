@@ -1007,3 +1007,18 @@ table.results.flow-report-steps td {
   color: var(--text-soft);
   font-size: 11px;
 }
+
+.flow-node.has-warning {
+  border-color: var(--warn);
+  outline: 1px solid var(--warn);
+}
+
+.warning-chip {
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 12px;
+  color: var(--warn);
+  background: transparent;
+  border: 1px solid var(--warn);
+  white-space: nowrap;
+}
