@@ -2,7 +2,10 @@ import { useRef } from "react";
 import { ENV_COLOR_VARS, type Environment } from "../../lib/environments";
 import { BrandLockup } from "../BrandMark";
 import { overlayTitleBar } from "../../lib/windowChrome";
-import { PencilIcon, SearchIcon } from "./Icons";
+import { topBarLayout } from "../../lib/topBar";
+import { useViewportWidth } from "../useViewportWidth";
+import { ChevronDownIcon, PencilIcon, SearchIcon } from "./Icons";
+import { OverflowMenu } from "./OverflowMenu";
 
 export type Mode = "requests" | "testing" | "flows";
 
@@ -31,12 +34,19 @@ export const MOD_KEY = isMac ? "⌘" : "Ctrl";
 
 /** The one bar at the top of both modes: brand, switcher, quick open, environment, mode tabs. */
 export function TopBar(props: Props) {
+  const layout = topBarLayout(useViewportWidth(), props.environments.length);
   return (
     // With the macOS overlay title bar, empty parts of the top bar drag the window; buttons and fields still click.
     <header className="topbar" data-tauri-drag-region={overlayTitleBar ? "deep" : undefined}>
       <BrandLockup />
       {props.switcher}
-      <button className="quick-open-field" onClick={props.onQuickOpen} aria-label="Quick open" aria-keyshortcuts="Control+K Meta+K">
+      <button
+        className={`quick-open-field ${layout.compactSearch ? "compact" : ""}`}
+        onClick={props.onQuickOpen}
+        aria-label="Quick open"
+        title={layout.compactSearch ? `${props.searchPlaceholder} (${MOD_KEY} K)` : undefined}
+        aria-keyshortcuts="Control+K Meta+K"
+      >
         <SearchIcon />
         <span className="quick-open-placeholder">{props.searchPlaceholder}</span>
         <kbd>{MOD_KEY} K</kbd>
@@ -48,6 +58,7 @@ export function TopBar(props: Props) {
         onChange={props.onEnvChange}
         onEdit={props.onEditEnvironments}
         title={props.envTitle}
+        dropdown={layout.envDropdown}
       />
       {props.onVariables && (
         <button
@@ -77,10 +88,12 @@ interface EnvProps {
   onChange: (id: string | null) => void;
   onEdit?: () => void;
   title?: string;
+  /** Show the choices in a dropdown (with colour dots) instead of one button each. */
+  dropdown?: boolean;
 }
 
 /** One button per environment plus None; a select when there are more than four. Arrow keys move between options. */
-export function EnvSwitch({ environments, activeId, onChange, onEdit, title }: EnvProps) {
+export function EnvSwitch({ environments, activeId, onChange, onEdit, title, dropdown }: EnvProps) {
   const groupRef = useRef<HTMLDivElement>(null);
   const options: { id: string | null; name: string; color?: string }[] = [
     { id: null, name: "None" },
@@ -94,16 +107,28 @@ export function EnvSwitch({ environments, activeId, onChange, onEdit, title }: E
     </button>
   );
 
-  if (environments.length > 4) {
+  if (dropdown) {
+    const shown = options.find((o) => o.id === current) ?? options[0];
     return (
       <div className="env-switch" title={title}>
-        <select value={current ?? ""} onChange={(e) => onChange(e.target.value || null)} aria-label="Environment">
-          {options.map((o) => (
-            <option key={o.id ?? ""} value={o.id ?? ""}>
-              {o.color ? "● " : ""}{o.name}
-            </option>
-          ))}
-        </select>
+        <OverflowMenu
+          label="Environment"
+          triggerTitle={`Environment: ${shown.name}`}
+          triggerClass="env-dropdown-btn"
+          trigger={
+            <>
+              {shown.color ? <span className="env-dot" style={{ background: shown.color }} aria-hidden /> : null}
+              <span className="env-dropdown-name">{shown.name}</span>
+              <ChevronDownIcon />
+            </>
+          }
+          items={options.map((o) => ({
+            label: o.name,
+            icon: o.color ? <span className="env-dot" style={{ background: o.color }} /> : undefined,
+            checked: o.id === current,
+            onSelect: () => onChange(o.id),
+          }))}
+        />
         {edit}
       </div>
     );

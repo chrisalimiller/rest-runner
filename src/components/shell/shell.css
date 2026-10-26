@@ -86,6 +86,16 @@
   outline: none;
 }
 
+.overflow-item.checked {
+  font-weight: 600;
+}
+
+.overflow-item.checked::after {
+  content: "✓";
+  margin-left: auto;
+  padding-left: 12px;
+}
+
 .overflow-item.danger {
   color: var(--danger);
 }

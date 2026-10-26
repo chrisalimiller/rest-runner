@@ -279,6 +279,44 @@ body.dragging-split {
   padding: 0 8px;
 }
 
+.env-dropdown-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  max-width: 180px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.env-dropdown-btn:hover,
+.env-dropdown-btn[aria-expanded="true"] {
+  background: var(--bg-hover);
+}
+
+.env-dropdown-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The search shrinks to a magnifier and its shortcut. */
+.quick-open-field.compact {
+  flex: 0 0 auto;
+  min-width: 0;
+}
+
+.quick-open-field.compact .quick-open-placeholder {
+  display: none;
+}
+
 .env-dot {
   width: 6px;
   height: 6px;
