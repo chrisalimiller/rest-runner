@@ -38,6 +38,7 @@ The group for the mode you are in comes first.
 | `Shift + Alt + F` | Format the JSON body (in the body editor) |
 | `Mod + Z` | Undo, including undoing the automatic format after pasting JSON. In Flows, outside text fields, it undoes the last canvas edit; `Mod + Shift + Z` redoes it |
 | `Tab` | Indent in the JSON and script editors |
+| `Space`, `↑ / ↓`, `Space` on a case's numbered circle | Pick up, move and drop a test case ([reordering](testing.md#reordering-cases)); `Esc` cancels |
 | `Ctrl + Space` | Show autocomplete in a script editor (it also appears when you type `rr.`) |
 | `←` / `→` on the column divider | Move the divider (2% steps). Double-click the divider to reset it |
 | `←` `→` `↑` `↓`, `Home`, `End` on the environment switch | Choose another environment |

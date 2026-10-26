@@ -30,7 +30,7 @@ Runs on macOS and Windows from one codebase, built with [Tauri 2](https://tauri.
 - Environments: named sets of variables such as `baseUrl` and `token`, picked from the switch in the top bar. The line under the URL shows the final URL with environment values and query params filled in
 - Params, Auth, Headers and Body are collapsible sections; closed, each shows a one-line summary. Open sections and the width of the two columns (drag the divider) are remembered
 - Quick open (Ctrl/Cmd + K): fuzzy search over requests, examples, history, batch runs, suites, test cases, test runs, flows and flow runs
-- Export and import collections (with folders and examples) and environments as one JSON file (older export files still import), to back up or move between computers
+- Export and import a whole workspace (collections with folders and examples, environments, test suites with their CSV data, and flows) as one JSON file (older export files still import), to back up or hand to a teammate. A fresh install opens a first-run screen: import a shared workspace, open a sample workspace, or start empty
 - History of the last 50 requests, in quick open and in the **Earlier sends of this request** strip under the response (click one to see that response again); your current request is kept between launches
 - Scripts: each request can have a pre-request and a post-response JavaScript script (`rr` API) for setting variables and checking responses. See [docs/scripting.md](docs/scripting.md)
 - Send with the button, Enter in the URL box, or Ctrl/Cmd + Enter
@@ -39,6 +39,8 @@ Runs on macOS and Windows from one codebase, built with [Tauri 2](https://tauri.
 ## Environments
 
 Click the pencil next to the environment switch in the top bar to add sets of variables, for example Dev and Prod, each with its own `baseUrl` and `token`. Pick one on the switch, and `{{baseUrl}}` or `{{token}}` anywhere in a request is filled from it. This works for single requests and batch runs. In a batch run, a CSV column with the same name takes priority over the environment.
+
+Each environment can have a colour (a dot on the switch). A coloured environment outlines **Send**, **Run suite** and **Run** and names it in the label, for example **Send to Prod**; environments named Prod start red.
 
 Environment values are stored on this computer only, in the app's local storage. A variable can be marked **secret** (lock button): it is masked on screen, in the cURL panel, and always in exported reports, and Export workspace leaves it out unless you choose to include it. The **Variables** button in the top bar lists the placeholders the open request uses and where each value comes from; an amber "unfilled" chip warns about placeholders with no value before you send.
 
