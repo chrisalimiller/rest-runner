@@ -396,7 +396,8 @@ export default function App({ active = true, shell, command }: Props) {
       setCollections(result.collections);
       expand(...result.collections.filter((c) => !collections.some((x) => x.id === c.id)).map((c) => c.id));
       setEnvironments(result.environments);
-      setNotice(`Imported ${file.name}: ${result.added} added, ${result.replaced} updated.`);
+      const warned = result.warnings?.length ? ` ${result.warnings.length} warning${result.warnings.length === 1 ? "" : "s"}: ${result.warnings.join(" ")}` : "";
+      setNotice(`Imported ${file.name}: ${result.added} added, ${result.replaced} updated.${warned}`);
     } catch (e) {
       setNotice(`Could not import ${file.name}: ${e instanceof Error ? e.message : String(e)}`);
     }
