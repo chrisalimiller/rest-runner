@@ -2548,3 +2548,22 @@ select:focus-visible,
   color: var(--accent-fg);
   font-weight: 600;
 }
+
+/* "Tests 2/2" on the Scripts tab */
+.tab-badge {
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.tab-badge.ok {
+  color: var(--ok);
+  background: var(--ok-subtle);
+}
+
+.tab-badge.bad {
+  color: var(--bad);
+  background: var(--bad-subtle);
+}

@@ -1,80 +1,92 @@
 import { currentMasker } from "../lib/secrets";
+import { summarizeScripts, testsBadge, type ScriptRunLike } from "../lib/scriptSummary";
 import type { Vars } from "../lib/template";
-import type { ScriptOutput } from "../lib/testing/types";
 
-export interface ScriptRun {
-  pre?: ScriptOutput;
-  post?: ScriptOutput;
-}
+export type ScriptRun = ScriptRunLike;
 
 /** Passed and total rr.test checks across both scripts. */
 export function scriptTestCounts(run: ScriptRun | null | undefined): { passed: number; total: number; failed: boolean } {
-  const tests = [...(run?.pre?.tests ?? []), ...(run?.post?.tests ?? [])];
-  const passed = tests.filter((t) => t.passed).length;
-  const failed = passed < tests.length || !!run?.pre?.error || !!run?.post?.error;
-  return { passed, total: tests.length, failed };
+  const { passed, total, failed } = summarizeScripts(run);
+  return { passed, total, failed };
 }
 
-/** Tab label like "Scripts 2/3" or "Scripts". */
-export function scriptsTabLabel(run: ScriptRun | null | undefined): string {
-  const c = scriptTestCounts(run);
-  return c.total ? `Scripts ${c.passed}/${c.total}` : "Scripts";
+/** The Scripts tab's label. The test count is a separate badge: see ScriptsBadge. */
+export function scriptsTabLabel(_run?: ScriptRun | null): string {
+  return "Scripts";
 }
 
-function Block({ title, output }: { title: string; output?: ScriptOutput }) {
-  if (!output) return null;
+/** "Tests 2/2" next to the tab label, red when something failed. Nothing when no script ran rr.test. */
+export function ScriptsBadge({ run }: { run: ScriptRun | null | undefined }) {
+  const label = testsBadge(run);
+  if (!label) return null;
+  return <span className={`tab-badge ${summarizeScripts(run).failed ? "bad" : "ok"}`}>{label}</span>;
+}
+
+/**
+ * What a request's pre/post scripts did: errors first, then the rr.test results, the variables set,
+ * and the console output. Secret values are masked.
+ */
+export function ScriptResults({ run, vars }: { run: ScriptRun; vars?: Vars }) {
+  const s = summarizeScripts(run);
+  const mask = currentMasker();
+  const shown = vars ?? s.vars;
+  const names = Object.keys(shown);
+  const ms = (phase: string) => (phase === "Pre-request" ? run.pre : run.post)?.durationMs;
   return (
-    <div className="script-result">
-      <h4>
-        {title} <span className="muted small">({output.durationMs} ms)</span>
-      </h4>
-      {output.error && (
-        <div className="error-box">
-          <strong>Script error.</strong>
-          <pre>{output.error}</pre>
+    <div className="script-results">
+      {s.errors.map((e) => (
+        <div key={e.phase} className="error-box">
+          <strong>{e.phase} script error.</strong>
+          <pre>{e.error}</pre>
         </div>
-      )}
-      {output.tests.length > 0 && (
+      ))}
+
+      <h4>
+        Tests{" "}
+        <span className="muted small">
+          {s.total ? `${s.passed} of ${s.total} passed` : "none: use rr.test(name, fn) in a script"}
+        </span>
+      </h4>
+      {s.tests.length > 0 && (
         <ul className="script-tests">
-          {output.tests.map((t, i) => (
-            <li key={`${t.name}-${i}`}>
+          {s.tests.map((t, i) => (
+            <li key={`${t.phase}-${t.name}-${i}`}>
               <span className={`pill ${t.passed ? "ok" : "bad"}`}>{t.passed ? "PASS" : "FAIL"}</span> {t.name}
+              <span className="muted small"> · {t.phase.toLowerCase()}</span>
               {t.error && <span className="muted"> · {t.error}</span>}
             </li>
           ))}
         </ul>
       )}
-      {output.logs.length ? <pre className="code-view script-log">{output.logs.join("\n")}</pre> : <p className="muted small">No console output.</p>}
-    </div>
-  );
-}
 
-/** What a request's pre/post scripts did: errors, rr.test results, console output and, optionally, the variables afterwards. */
-export function ScriptResults({ run, vars }: { run: ScriptRun; vars?: Vars }) {
-  const names = Object.keys(vars ?? {});
-  const mask = currentMasker();
-  return (
-    <div className="script-results">
-      <Block title="Pre-request script" output={run.pre} />
-      <Block title="Post-response script" output={run.post} />
-      {vars && (
-        <>
-          <h4>Script variables afterwards</h4>
-          {names.length ? (
-            <table className="kv readonly">
-              <tbody>
-                {names.map((n) => (
-                  <tr key={n}>
-                    <td>{n}</td>
-                    <td>{mask(vars[n])}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          ) : (
-            <p className="muted small">None</p>
-          )}
-        </>
+      <h4>Variables set</h4>
+      {names.length ? (
+        <table className="kv readonly">
+          <tbody>
+            {names.map((n) => (
+              <tr key={n}>
+                <td>{n}</td>
+                <td>{mask(shown[n])}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <p className="muted small">None</p>
+      )}
+
+      <h4>Console</h4>
+      {s.logs.length ? (
+        s.logs.map((l) => (
+          <div key={l.phase} className="script-result">
+            <span className="muted small">
+              {l.phase} script{ms(l.phase) !== undefined ? ` (${ms(l.phase)} ms)` : ""}
+            </span>
+            <pre className="code-view script-log">{mask(l.lines.join("\n"))}</pre>
+          </div>
+        ))
+      ) : (
+        <p className="muted small">No console output.</p>
       )}
     </div>
   );
