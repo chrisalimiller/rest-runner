@@ -8,6 +8,7 @@ import {
   type Collection,
 } from "./collections";
 import type { Environment } from "./environments";
+import { detectPostmanFile, importPostmanCollection, importPostmanEnvironment } from "./postman";
 import type { RequestDef } from "./types";
 
 /**
@@ -41,6 +42,8 @@ export interface ImportResult {
   environments: Environment[];
   added: number;
   replaced: number;
+  /** Things in a Postman file that could not be carried over. */
+  warnings?: string[];
 }
 
 function isEnvironment(x: unknown): x is Environment {
@@ -79,11 +82,24 @@ function mergeById<T extends { id: string }>(current: T[], incoming: T[]): { lis
 }
 
 /**
- * Reads an exported file and merges it in. A collection or environment with the
+ * Reads an exported file, or a Postman collection (v2.0/v2.1) or environment
+ * file, and merges it in. A collection or environment with the
  * same id replaces the current one; others are added. Requests from an old
  * version 1 file replace saved requests with the same id wherever they are, and
  * new ones go into an "Imported requests" collection.
  */
+function importPostman(kind: "collection" | "environment", data: unknown, collections: Collection[], environments: Environment[]): ImportResult {
+  if (kind === "environment") {
+    const { environment, warnings } = importPostmanEnvironment(data);
+    const e = mergeById(environments, [environment]);
+    return { collections, environments: e.list, added: e.added, replaced: e.replaced, warnings };
+  }
+  const { collection, variables, warnings } = importPostmanCollection(data);
+  const c = mergeById(collections, [collection]);
+  const e = mergeById(environments, variables ? [variables] : []);
+  return { collections: c.list, environments: e.list, added: c.added + e.added, replaced: c.replaced + e.replaced, warnings };
+}
+
 export function importWorkspaceFile(text: string, collections: Collection[], environments: Environment[]): ImportResult {
   let data: Record<string, unknown>;
   try {
@@ -91,6 +107,8 @@ export function importWorkspaceFile(text: string, collections: Collection[], env
   } catch {
     throw new Error("The file is not valid JSON.");
   }
+  const postman = detectPostmanFile(data);
+  if (postman) return importPostman(postman, data, collections, environments);
   if (!data || data.app !== "rest-runner") throw new Error("This is not a REST Runner export file.");
 
   const envs = (Array.isArray(data.environments) ? data.environments : []).filter(isEnvironment);
