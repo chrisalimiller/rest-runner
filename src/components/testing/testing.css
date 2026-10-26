@@ -262,12 +262,25 @@ ol.cases li.active .case-actions {
   width: 100%;
 }
 
-.assertion-table td:nth-child(2) {
-  width: 150px;
+/* table-layout: fixed takes widths from the header row; Property and Expected share what is left. */
+.assertion-table th.kv-check {
+  width: 32px;
 }
 
-.assertion-table td:nth-child(4) {
-  width: 140px;
+.assertion-table th.col-source {
+  width: 132px;
+}
+
+.assertion-table th.col-op {
+  width: 124px;
+}
+
+.assertion-table th.col-result {
+  width: 128px;
+}
+
+.assertion-table th.kv-del {
+  width: 32px;
 }
 
 .assertion-add {

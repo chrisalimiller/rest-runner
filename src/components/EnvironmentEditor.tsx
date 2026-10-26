@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { newEnvironment, type Environment } from "../lib/environments";
 import { KeyValueEditor } from "./KeyValueEditor";
+import { useEscape } from "./useEscape";
 
 interface Props {
   environments: Environment[];
@@ -13,6 +14,7 @@ interface Props {
 export function EnvironmentEditor({ environments, activeId, onChange, onClose }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(activeId ?? environments[0]?.id ?? null);
   const selected = environments.find((e) => e.id === selectedId) ?? null;
+  useEscape(onClose);
 
   const update = (env: Environment) => onChange(environments.map((e) => (e.id === env.id ? env : e)));
 

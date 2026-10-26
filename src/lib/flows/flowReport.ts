@@ -22,6 +22,27 @@ export function varChanges(before: Vars, after: Vars): string[] {
   return out;
 }
 
+export type VarChange = "new" | "changed" | "removed" | null;
+
+export interface VarRow {
+  name: string;
+  /** The value after the step. For a removed variable, the value it had before. */
+  value: string;
+  change: VarChange;
+}
+
+/** Every variable after a step, sorted by name, each marked new, changed or unchanged; removed ones are listed last. */
+export function variableRows(before: Vars, after: Vars): VarRow[] {
+  const rows: VarRow[] = Object.keys(after)
+    .sort((a, b) => a.localeCompare(b))
+    .map((name) => ({ name, value: after[name], change: !(name in before) ? "new" : before[name] !== after[name] ? "changed" : null }));
+  const removed: VarRow[] = Object.keys(before)
+    .filter((k) => !(k in after))
+    .sort((a, b) => a.localeCompare(b))
+    .map((name) => ({ name, value: before[name], change: "removed" }));
+  return [...rows, ...removed];
+}
+
 export function flowRunWallMs(run: FlowRun): number {
   return Math.max(0, Date.parse(run.finishedAt) - Date.parse(run.startedAt));
 }

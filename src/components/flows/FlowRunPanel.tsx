@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { formatMs, whenLabel } from "../../lib/earlierSends";
 import type { FlowRunEnd, FlowStep } from "../../lib/flows/types";
 import type { FlowProblem } from "../../lib/flows/validate";
-import type { Vars } from "../../lib/template";
+import { varChanges } from "../../lib/flows/flowReport";
 
 /** The run in progress, or the finished run being shown, for the open flow. */
 export interface FlowRunView {
@@ -40,12 +40,6 @@ function elapsed(ms: number): string {
   return s < 60 ? `${s.toFixed(1)} s` : `${Math.floor(s / 60)} m ${Math.round(s % 60)} s`;
 }
 
-function varChanges(before: Vars, after: Vars): string[] {
-  const out: string[] = [];
-  for (const [k, v] of Object.entries(after)) if (before[k] !== v) out.push(`${k} = ${JSON.stringify(v)}`);
-  for (const k of Object.keys(before)) if (!(k in after)) out.push(`${k} removed`);
-  return out;
-}
 
 function StepRow({ step, onFocus }: { step: FlowStep; onFocus: () => void }) {
   const [open, setOpen] = useState(false);

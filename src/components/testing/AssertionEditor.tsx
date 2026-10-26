@@ -42,11 +42,11 @@ export function AssertionEditor({ assertions, onChange, results }: Props) {
         <thead>
           <tr>
             <th className="kv-check" />
-            <th>Check</th>
+            <th className="col-source">Check</th>
             <th>Property</th>
-            <th>Condition</th>
+            <th className="col-op">Condition</th>
             <th>Expected</th>
-            {results && <th>Last result</th>}
+            {results && <th className="col-result">Last result</th>}
             <th className="kv-del" />
           </tr>
         </thead>

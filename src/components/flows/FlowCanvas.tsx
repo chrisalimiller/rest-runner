@@ -61,6 +61,8 @@ interface Props {
   focusNonce: number;
   /** Showing a past run: nothing can be moved, wired or changed. */
   readOnly: boolean;
+  /** Changes each time the selection should be cleared from outside (settings panel closed). */
+  deselectNonce: number;
 }
 
 type RFNode = Node<StepData>;
@@ -98,7 +100,7 @@ const EDGE_CLASS: Record<FlowOutput, string> = {
   done: "e-next",
 };
 
-function Canvas({ flow, items, problems, runState, onChange, onSelect, focusNodeId, focusNonce, readOnly }: Props) {
+function Canvas({ flow, items, problems, runState, onChange, onSelect, focusNodeId, focusNonce, readOnly, deselectNonce }: Props) {
   const rf = useReactFlow();
   const wrapRef = useRef<HTMLDivElement>(null);
   const flowRef = useRef(flow);
@@ -120,6 +122,13 @@ function Canvas({ flow, items, problems, runState, onChange, onSelect, focusNode
     const n = flowRef.current.nodes.find((x) => x.id === focusNodeId);
     if (n) rf.setCenter(n.position.x + 100, n.position.y + 40, { duration: 250, zoom: rf.getZoom() });
   }, [focusNodeId, focusNonce, rf]);
+
+  // Closing the settings panel clears the selection too, so clicking the same step opens it again.
+  useEffect(() => {
+    if (deselectNonce === 0) return;
+    setRfNodes((list) => list.map((n) => (n.selected ? { ...n, selected: false } : n)));
+    setSelectedEdges(new Set());
+  }, [deselectNonce]);
 
   const edges: Edge[] = useMemo(
     () =>

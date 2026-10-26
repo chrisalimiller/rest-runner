@@ -4,6 +4,7 @@ import type { TestRunSummary } from "./testing/testRun";
 import type { TestSuite } from "./testing/types";
 import type { HistoryEntry } from "./types";
 import type { Flow, FlowRunSummary } from "./flows/types";
+import { whenLabel } from "./earlierSends";
 
 /** Quick open (Ctrl/Cmd + K): one search over everything you can jump to. */
 
@@ -66,12 +67,22 @@ function shortUrl(url: string): string {
   return url.replace(/^https?:\/\//, "");
 }
 
+/** The URL without its scheme, with %-escapes decoded so it reads as typed. */
+export function readableUrl(url: string): string {
+  const short = shortUrl(url);
+  try {
+    return decodeURIComponent(short);
+  } catch {
+    return short;
+  }
+}
+
 export function historyItems(history: HistoryEntry[]): QuickItem[] {
   return history.map((h) => ({
     kind: "history",
     id: h.id,
-    title: shortUrl(h.url) || "(no URL)",
-    detail: `${h.status ?? "ERR"} · ${h.def?.name ?? ""}`,
+    title: h.def?.name?.trim() || readableUrl(h.url) || "(no URL)",
+    detail: [h.status ?? "ERR", whenLabel(h.sentAt), readableUrl(h.url)].filter(Boolean).join(" · "),
     method: h.method,
     at: h.sentAt,
   }));

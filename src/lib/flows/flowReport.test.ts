@@ -4,7 +4,7 @@ import { inlineScriptRunner } from "../testing/scriptRunner";
 import { newSuite, newTestCase } from "../testing/suites";
 import { DEFAULT_SUITE_OPTIONS, type TestSuite } from "../testing/types";
 import { runFlow } from "./engine";
-import { flowReportFileName, orderedSteps, toFlowCsvReport, toFlowHtmlReport } from "./flowReport";
+import { flowReportFileName, orderedSteps, toFlowCsvReport, toFlowHtmlReport, variableRows } from "./flowReport";
 import { newEdge, newFlow, newNode } from "./flows";
 import type { Flow, FlowNode, FlowRun } from "./types";
 
@@ -57,5 +57,21 @@ describe("flow reports", () => {
     const run = await sampleRun();
     expect(flowReportFileName(run, "csv")).toMatch(/^Nightly, smoke \d{4}-\d\d-\d\d \d\d-\d\d\.csv$/);
     expect(flowReportFileName({ ...run, flowName: 'a/b:c*"d"' }, "html")).toMatch(/^a b c d \d{4}/);
+  });
+});
+
+describe("variableRows", () => {
+  it("lists every variable once, marking new, changed and removed ones", () => {
+    const rows = variableRows({ token: "a", ticketId: "TT-1", old: "x" }, { ticketId: "TT-2", token: "a", siteId: "MN-1" });
+    expect(rows).toEqual([
+      { name: "siteId", value: "MN-1", change: "new" },
+      { name: "ticketId", value: "TT-2", change: "changed" },
+      { name: "token", value: "a", change: null },
+      { name: "old", value: "x", change: "removed" },
+    ]);
+  });
+
+  it("returns nothing when there are no variables", () => {
+    expect(variableRows({}, {})).toEqual([]);
   });
 });
