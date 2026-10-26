@@ -66,6 +66,24 @@ pub struct HttpResponse {
 
 pub const CANCELLED: &str = "Request cancelled";
 
+/// Sent when the request has no User-Agent of its own. Many firewalls and CDNs answer 403 to
+/// requests without one, and Postman and curl always send one.
+const DEFAULT_USER_AGENT: &str = concat!("RestRunner/", env!("CARGO_PKG_VERSION"));
+
+/// Headers added when the request does not set them, like Postman and curl do.
+/// Accept-Encoding is added by reqwest itself.
+fn default_headers(headers: &[(String, String)]) -> Vec<(&'static str, &'static str)> {
+    let has = |wanted: &str| headers.iter().any(|(name, _)| name.trim().eq_ignore_ascii_case(wanted));
+    let mut extra = Vec::new();
+    if !has("user-agent") {
+        extra.push(("User-Agent", DEFAULT_USER_AGENT));
+    }
+    if !has("accept") {
+        extra.push(("Accept", "*/*"));
+    }
+    extra
+}
+
 pub struct HttpState {
     certs: Arc<CertStore>,
     /// One client per TLS setup, so a batch against one host reuses its connections and handshakes.
@@ -145,6 +163,9 @@ async fn perform(client: Client, req: HttpRequest) -> Result<HttpResponse, Strin
     let method = Method::from_bytes(req.method.as_bytes())
         .map_err(|_| format!("Invalid HTTP method: {}", req.method))?;
     let mut builder = client.request(method, &req.url);
+    for (name, value) in default_headers(&req.headers) {
+        builder = builder.header(name, value);
+    }
     for (name, value) in &req.headers {
         builder = builder.header(name.as_str(), value.as_str());
     }
@@ -247,6 +268,43 @@ mod tests {
         assert!(res.headers.contains(&("x-test".to_string(), "yes".to_string())));
         assert_eq!(res.body, "héll"); // Content-Length 5 counts the two bytes of é
         assert_eq!(res.size_bytes, 5);
+    }
+
+    /// Answers with the request it received, so a test can read the headers that were sent.
+    async fn echo() -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut buf = vec![0u8; 8192];
+            let n = socket.read(&mut buf).await.unwrap();
+            let body = String::from_utf8_lossy(&buf[..n]).into_owned();
+            let reply = format!("HTTP/1.1 200 OK\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
+            let _ = socket.write_all(reply.as_bytes()).await;
+        });
+        format!("http://{addr}/")
+    }
+
+    #[tokio::test]
+    async fn sends_default_user_agent_and_accept() {
+        let url = echo().await;
+        let res = plain_state().send(request(&url)).await.unwrap();
+        let sent = res.body.to_lowercase();
+        assert!(sent.contains("user-agent: restrunner/"), "{sent}");
+        assert!(sent.contains("accept: */*"), "{sent}");
+    }
+
+    #[tokio::test]
+    async fn keeps_the_callers_user_agent_and_accept() {
+        let url = echo().await;
+        let mut req = request(&url);
+        req.headers = vec![("user-agent".into(), "Mine/1".into()), ("Accept".into(), "application/json".into())];
+        let res = plain_state().send(req).await.unwrap();
+        let sent = res.body.to_lowercase();
+        assert!(sent.contains("user-agent: mine/1"), "{sent}");
+        assert!(!sent.contains("restrunner"), "{sent}");
+        assert_eq!(sent.matches("accept:").count(), 1, "{sent}");
+        assert!(sent.contains("accept: application/json"), "{sent}");
     }
 
     #[tokio::test]
