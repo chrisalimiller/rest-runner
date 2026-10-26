@@ -7,7 +7,8 @@ A **flow** chains your saved work into one run. You place **steps** (nodes) on a
 Open it with the **Flows** tab at the top right.
 
 - **Left:** your **Flows** (with **New**, **Import** and **Export**) and recent **Flow runs**. A flow with a schedule shows when it runs next, and the last run it skipped. Below 1000 px wide this becomes a drop-down.
-- **Middle:** the flow's name and description (edit in place), undo and redo buttons, a ⋯ menu with **Export**, **Duplicate** and **Delete flow**, and **Run** (**Stop** while running). Under that, the **step bar**, then the **canvas**.
+- **Name in the top bar:** click the flow name to switch flows. The list on the left can be hidden with **«**; this is remembered.
+- **Middle:** the flow's name and description (edit in place), a **schedule chip** (see [Schedules](#schedules)), undo and redo buttons, a ⋯ menu with **Export**, **Duplicate** and **Delete flow**, and **Run** (**Stop** while running). Under that, the **step bar**, then the **canvas**.
 - **Right:** the settings of the selected step. With nothing selected: anything that stops the flow from running, then the live run or the latest run.
 - **Top bar:** Quick open, and an environment switch of its own. Environments are edited in Requests mode.
 
@@ -34,6 +35,8 @@ A red **!** on a step means the flow can't run until it is fixed (for example, a
 ## Running
 
 Press **Run**. The right-hand panel switches to the live run even if a step was selected, and the header shows **Running · Loop row 2 of 3 · 8.1 s** (the loop part only inside a Loop over CSV) next to **Stop**. The wire the run just took animates and the step running now has a pulsing outline. A step that ran more than once shows **2 runs**; hover for the explanation. If you select a step while the flow runs, its settings are read-only until the run ends (a banner says so). The run begins at **Start** (or, in a flow with no Start and one Schedule, at the Schedule) and the step running now shows a spinner. Finished steps turn green or red, and the right-hand panel lists every step with its result, time and the wire it took. Click a step there for its notes, tries, the case and check counts, and the variables it changed. **Show on canvas** finds the step.
+
+If the flow has warnings, **Run** says so (**Run · 1 warning**). Steps with a warning have an amber outline and a tooltip with the text. When a step is selected, the warning list is hidden behind its settings, so an amber **⚠ 1 warning** chip next to the buttons brings the list back.
 
 Finished runs are saved (the last 50) and listed under **Flow runs**. Opening one shows its [report](#reports). **Open report** under the result in the right-hand panel does the same for the run you just watched.
 
@@ -149,13 +152,13 @@ In its settings, pick:
 - **Every day** at a time.
 - **On chosen days** at a time, for example Monday to Friday at 07:30.
 
-Untick **Run on this schedule** to pause it without deleting it; the step shows **off**. Times are the computer's local time. Scheduled runs use the environment selected in the Flows top bar at the time they start.
+The flow's header shows the first schedule as a chip, for example **⏱ Daily at 09:00 · next 09:00**, with an on/off switch, so you can pause it without selecting the step. Untick **Run on this schedule** (or use the switch) to pause it without deleting it; the step shows **off**. Times are the computer's local time. Scheduled runs use the environment selected in the Flows top bar at the time they start.
 
 - A run that came due **while the app was closed** is skipped. It does not run when you open the app.
 - A run that comes due **while the same flow is still running** is skipped.
 - A run that comes due while the flow **has an error to fix** (for example a deleted case) is skipped.
 
-Each skip is noted in the Schedule step's settings and under the flow in the list, with the reason. The step's settings also show the next run and the last one. A scheduled run is saved under **Flow runs** like any other, and its report says which schedule started it.
+Each skip is noted in the Schedule step's settings and under the flow in the list, with the reason. The step's settings also show the next run and the last one. A scheduled run is saved under **Flow runs** like any other, marked with a ⏱ and **Scheduled · Daily at 09:00** in the list and in the report header.
 
 ## Export and import
 

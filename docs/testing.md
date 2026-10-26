@@ -5,6 +5,7 @@ Testing mode (the **Testing** tab at the top right) runs **test suites**. A suit
 ## The Testing window
 
 - **Left:** your **Suites** (with **New**, **Import** and **Export**) and your **Test runs**. Below 800 px wide this becomes a drop-down.
+- **Name in the top bar:** click the suite name to switch suites. The list on the left can be hidden with **«**; this is remembered.
 - **Middle:** the open suite, read as a runbook: one step per case, each with a status disc (✓ passed, ✕ failed, a number when it has not run, a grey number when skipped, a spinner while running). One case is open at a time.
 - **Right:** the **Last run** panel, then live progress while a suite runs. Below 1200 px wide it moves under the suite.
 - **Top bar:** Quick open, and an environment switch of its own. The pencil is not shown here: environments are edited in Requests mode, and this switch picks them up when you come back to Testing.
@@ -68,6 +69,10 @@ The **Last result** column shows each assertion's outcome (✓ or ✕) and the v
 
 **Run settings & data** (header button) opens a sheet. Settings are saved with the suite.
 
+### Planned runs
+
+At the top of the settings a line states what a run will do, for example **12 iterations × 5 cases = 60 case runs**, taking the CSV rows, repeat count and disabled cases into account. **Concurrency** is shown only for the parallel run orders.
+
 ### Run order
 
 | Mode | What it does |
@@ -122,15 +127,19 @@ Each result also gets plain-language notes (placeholders that had no value, an H
 
 The numbered circle at the left of each case is its drag handle. Drag it up or down, or focus it and press **Space** to pick the case up, **↑ / ↓** to move it, **Space** to drop it (**Esc** puts it back). A screen reader announces the position as it moves. **Move up** and **Move down** in the ⋯ menu do the same one step at a time.
 
+### While a run is going
+
+The suite header reads **Running · iteration 3 of 12** (or **Running · 2 of 5** for a single pass) and each case's disc shows a spinner with how many times it passed and failed so far, for example ✓3 ✕1. Cases cannot be edited while a run is in progress; they are read-only and the header says **Edits apply to the next run**.
+
 ### Try case
 
-**Try case** sends one case on its own using the suite's settings, so you can build a case without running everything. It uses the first CSV row (if the suite has data) and starts with no run variables, so values that earlier cases would have set are missing. The result appears under the case ("Last try") and fills the **Last result** column. Starting a suite run clears the try results of that suite's cases, so Last result then reflects the run.
+**Try case** sends one case on its own using the suite's settings, so you can build a case without running everything. It uses the first CSV row (if the suite has data) and starts with no run variables, so values that earlier cases would have set are missing. The result appears under the case ("Last try") and fills the **Last result** column. The **▾** next to Try case opens **Try up to here**: it runs the enabled cases before this one, then this one, once each, using the first CSV row. Variables set by earlier cases carry forward, as in a sequential run, so a case that needs a token from a login case can be tried without running the whole suite. Disabled cases are skipped (the case you pressed it on always runs), and it stops at the first failure when the suite is set to stop on failure. Each case shows its own try result. Starting a suite run clears the try results of that suite's cases, so Last result then reflects the run.
 
 ## Reports
 
 When a run ends it is saved (the last 50 runs are kept, as Test runs in the sidebar, with the passed and failed counts). The **Last run** panel shows the latest run of the open suite: cases passed, a pass/fail bar, iterations, checks, average time, 95th percentile, and the failures **grouped by case and check**, most frequent first, for example "Get ticket · Response time < 250 ms · 8 of 12 rows · worst 371 ms". Click a group to open the report filtered to that case and check. A case that failed without a check (a script error, or no response) appears as "Not sent", "No response" or "Failed". In the report, **Failures first** (on by default for runs that used CSV data) lists failed rows before passed ones, and a chip shows the case and check filter. **Export HTML** and **Export CSV** are in the panel.
 
-Opening a run (from the sidebar, the panel, or Quick open) shows the full report:
+Opening a run (from the sidebar, the panel, or Quick open) shows the full report. For a run that used a CSV file, switch **List / Grid** above the results: the grid has one row per CSV row and one column per case, each cell green or red with its status code, failures first when that is on. Click a cell to open that result.
 
 - Totals: cases and checks passed, timing, average and 95th percentile response.
 - **By test case** table. Click a case to show only its results.
