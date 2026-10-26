@@ -37,7 +37,7 @@ import {
   type SampleResponse,
 } from "./lib/collections";
 import { emptyRow, newRequest } from "./lib/defaults";
-import { earlierSendLabel, earlierSends, earlierSendTone, whenLabel } from "./lib/earlierSends";
+import { earlierSendLabel, earlierSends, earlierSendTone, sendTooltip, whenLabel } from "./lib/earlierSends";
 import { fitHistory, historyLabel, historyOutcome, MAX_HISTORY_BODY, responseNotKept } from "./lib/history";
 import { environmentVars, newEnvironment, type Environment } from "./lib/environments";
 import { sendRequest } from "./lib/http";
@@ -236,6 +236,7 @@ export default function App({ active = true, shell, command }: Props) {
           status: result.ok ? result.response.status : null,
           sentAt: result.sentAt,
           def: structuredClone(def),
+          environmentName: activeEnv?.name ?? "",
           durationMs: result.ok ? result.response.durationMs : result.durationMs,
           ...(result.ok
             ? { response: { ...result.response, body: result.response.body.slice(0, MAX_HISTORY_BODY) } }
@@ -245,7 +246,7 @@ export default function App({ active = true, shell, command }: Props) {
         ...h,
       ].slice(0, MAX_HISTORY),
     );
-  }, [def, sending, envVars, scriptVars, sendVars]);
+  }, [def, sending, envVars, scriptVars, sendVars, activeEnv]);
 
   const cancel = () => abortRef.current?.abort();
 
@@ -778,9 +779,9 @@ export default function App({ active = true, shell, command }: Props) {
                         key={key}
                         className={`send-pill tone-${earlierSendTone(item)} ${current ? "current" : ""}`}
                         onClick={() => (item.kind === "send" ? openHistory(item.entry) : setOpenRun(item.run.id))}
-                        title={item.kind === "send" ? `${item.entry.method} ${item.entry.url}` : `Open the batch run from ${item.run.csvName}`}
+                        title={item.kind === "send" ? sendTooltip(item.entry, history) : `Open the batch run from ${item.run.csvName}`}
                       >
-                        {earlierSendLabel(item)}
+                        {earlierSendLabel(item, new Date(), activeEnv?.name)}
                       </button>
                     );
                   })}

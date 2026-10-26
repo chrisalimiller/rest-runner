@@ -56,6 +56,7 @@ interface OpenReport {
   id: string;
   caseId?: string;
   index?: number;
+  check?: string;
 }
 
 /** The Testing section: suites of test cases, running them, and their reports. */
@@ -315,6 +316,7 @@ export function TestingApp({ active, shell, command }: Props) {
               runId={report.id}
               initialCaseId={report.caseId}
               initialIndex={report.index}
+              initialCheck={report.check}
               onBack={() => setOpenRunId(null)}
               onDelete={(id) => {
                 runDelete.request(id, "Deleted the test run");
@@ -363,7 +365,7 @@ export function TestingApp({ active, shell, command }: Props) {
             <LastRunPanel
               live={suiteLive}
               run={latestRun && latestRun.suiteId === suite.id ? latestRun : null}
-              onOpenReport={(id, caseId, index) => setReport({ id, caseId, index })}
+              onOpenReport={(id, caseId, index, check) => setReport({ id, caseId, index, check })}
             />
             {settingsOpen && (
               <div className="sheet-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setSettingsOpen(false)}>

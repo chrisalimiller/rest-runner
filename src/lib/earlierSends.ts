@@ -35,26 +35,63 @@ function pad(n: number): string {
   return String(n).padStart(2, "0");
 }
 
-/** "now" within a minute, "13:41" earlier today, otherwise the date. */
+/**
+ * "now" under 10 seconds, "12s ago" / "4m ago" under an hour, "13:41" earlier today,
+ * "Yesterday", then a short date ("Oct 20"). Sends a few minutes apart read differently.
+ */
 export function whenLabel(iso: string, now: Date = new Date()): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
   const age = now.getTime() - d.getTime();
-  if (age >= 0 && age < 60_000) return "now";
+  if (age >= 0 && age < 10_000) return "now";
+  if (age >= 0 && age < 60_000) return `${Math.floor(age / 1000)}s ago`;
+  if (age >= 0 && age < 3_600_000) return `${Math.floor(age / 60_000)}m ago`;
   if (d.toDateString() === now.toDateString()) return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
   const yesterday = new Date(now);
   yesterday.setDate(now.getDate() - 1);
   if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
-  return d.toLocaleDateString();
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
 }
 
-/** Pill text: "201 · 142 ms · now", "ERR · 2.0 s · 13:30" or "Batch · 48/50 · 11:52". */
-export function earlierSendLabel(item: EarlierSend, now: Date = new Date()): string {
+const sameRows = (a: RequestDef["params"], b: RequestDef["params"]) =>
+  JSON.stringify(a.filter((r) => r.key || r.value).map((r) => [r.key, r.value, r.enabled])) === JSON.stringify(b.filter((r) => r.key || r.value).map((r) => [r.key, r.value, r.enabled]));
+
+/** What changed between two versions of a request, in a few words: "body changed", "params changed", "URL changed". Null when nothing did. */
+export function diffSummary(prev: RequestDef, def: RequestDef): string | null {
+  const changed: string[] = [];
+  if (prev.method !== def.method) changed.push("method");
+  if (prev.url !== def.url) changed.push("URL");
+  if (!sameRows(prev.params, def.params)) changed.push("params");
+  if (!sameRows(prev.headers, def.headers)) changed.push("headers");
+  if (prev.bodyMode !== def.bodyMode || prev.body !== def.body || !sameRows(prev.formBody, def.formBody)) changed.push("body");
+  if (JSON.stringify(prev.auth) !== JSON.stringify(def.auth)) changed.push("auth");
+  return changed.length ? `${changed.join(", ")} changed` : null;
+}
+
+/** The send before this one for the same request, from the history (newest first). */
+export function previousSend(history: HistoryEntry[], entry: HistoryEntry): HistoryEntry | undefined {
+  const i = history.findIndex((h) => h.id === entry.id);
+  return history.slice(i + 1).find((h) => h.def?.id === entry.def?.id);
+}
+
+/** Tooltip for a pill: the full time, the environment, and what changed since the previous send. */
+export function sendTooltip(entry: HistoryEntry, history: HistoryEntry[]): string {
+  const prev = previousSend(history, entry);
+  const lines = [`${entry.method} ${entry.url}`, new Date(entry.sentAt).toLocaleString()];
+  if (entry.environmentName !== undefined) lines.push(`Environment: ${entry.environmentName || "none"}`);
+  if (prev && entry.def && prev.def) lines.push(`Since the previous send: ${diffSummary(prev.def, entry.def) ?? "nothing changed"}`);
+  return lines.join("\n");
+}
+
+/** Pill text: "201 · 142 ms · 4m ago" (plus "· Dev" for another environment), "ERR · 2.0 s · 13:30" or "Batch · 48/50 · 11:52". */
+export function earlierSendLabel(item: EarlierSend, now: Date = new Date(), currentEnvName?: string): string {
   if (item.kind === "batch") return `Batch · ${item.run.passed}/${item.run.totalRows} · ${whenLabel(item.at, now)}`;
   const h = item.entry;
   const status = h.status ?? "ERR";
   const time = h.durationMs !== undefined ? ` · ${formatMs(h.durationMs)}` : "";
-  return `${status}${time} · ${whenLabel(item.at, now)}`;
+  // Only name the environment when it isn't the one selected now.
+  const env = h.environmentName !== undefined && h.environmentName !== (currentEnvName ?? "") ? ` · ${h.environmentName || "no environment"}` : "";
+  return `${status}${time} · ${whenLabel(item.at, now)}${env}`;
 }
 
 /** Color class for a pill: ok (2xx), redirect (3xx), warn (4xx), bad (5xx and errors), muted (batch). */

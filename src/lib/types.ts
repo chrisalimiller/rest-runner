@@ -68,6 +68,8 @@ export interface HistoryEntry {
   def: RequestDef;
   /** Added later; older entries don't have these. */
   durationMs?: number;
+  /** Name of the environment selected when it was sent. Older entries don't have it. */
+  environmentName?: string;
   /** The response, with its body cut to a size local storage can hold. */
   response?: ResponseResult;
   /** Why no response came back. */

@@ -3,6 +3,66 @@ import { describeMode } from "./describe";
 import { caseStats, requestMs, testRunTimes, type TestRun } from "./testRun";
 import type { CaseResult, ScriptOutput } from "./types";
 
+/* ---------- failure groups ---------- */
+
+export interface FailureGroup {
+  caseId: string;
+  caseName: string;
+  /** The failing check, or "Not sent" / "No response" / "Failed" when the case failed without one. */
+  checkName: string;
+  /** 0-based CSV rows (or iterations when the suite has no CSV) where it failed, ascending. */
+  rows: number[];
+  /** Failed results in the group. */
+  count: number;
+  /** The most extreme value seen: the largest number when they are all numbers, otherwise the first one. */
+  worstActual: string;
+}
+
+function actualOf(message: string | undefined): string {
+  return (message ?? "").replace(/^Got /, "").trim();
+}
+
+/** The names a failed result is listed under in failure groups: its failing checks, or why it failed without one. */
+export function failureCheckNames(r: CaseResult): string[] {
+  if (r.passed) return [];
+  const failing = r.checks.filter((c) => !c.passed).map((c) => c.name);
+  if (failing.length) return failing;
+  return [!r.outcome ? "Not sent" : !r.outcome.ok ? "No response" : "Failed"];
+}
+
+/** Failed results grouped by case and failing check, most frequent first, so 40 failures of one check read as one line. */
+export function groupFailures(results: CaseResult[]): FailureGroup[] {
+  const groups = new Map<string, FailureGroup & { actuals: string[]; first: number }>();
+  results.forEach((r, order) => {
+    if (r.passed) return;
+    const failing = r.checks.filter((c) => !c.passed);
+    const entries: { name: string; actual: string }[] = failing.length
+      ? failing.map((c) => ({ name: c.name, actual: actualOf(c.message) }))
+      : [{ name: !r.outcome ? "Not sent" : !r.outcome.ok ? "No response" : "Failed", actual: !r.outcome ? "" : !r.outcome.ok ? r.outcome.error : "" }];
+    for (const e of entries) {
+      const key = `${r.caseId}\u0000${e.name}`;
+      let g = groups.get(key);
+      if (!g) {
+        g = { caseId: r.caseId, caseName: r.caseName, checkName: e.name, rows: [], count: 0, worstActual: "", actuals: [], first: order };
+        groups.set(key, g);
+      }
+      g.count += 1;
+      const row = r.rowIndex ?? r.iteration;
+      if (!g.rows.includes(row)) g.rows.push(row);
+      if (e.actual) g.actuals.push(e.actual);
+    }
+  });
+  return [...groups.values()]
+    .map(({ actuals, first, ...g }) => {
+      const nums = actuals.map((a) => (/^-?\d+(\.\d+)?$/.test(a) ? Number(a) : NaN));
+      const worst = actuals.length && nums.every((n) => !Number.isNaN(n)) ? String(Math.max(...nums)) : (actuals[0] ?? "");
+      const unit = /^Response time/i.test(g.checkName) && /^\d+(\.\d+)?$/.test(worst) ? " ms" : "";
+      return { order: first, group: { ...g, rows: [...g.rows].sort((a, b) => a - b), worstActual: worst + unit } };
+    })
+    .sort((a, b) => b.group.count - a.group.count || a.order - b.order)
+    .map((x) => x.group);
+}
+
 /* ---------- shared ---------- */
 
 function statusText(r: CaseResult): string {
