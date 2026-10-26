@@ -15,6 +15,8 @@ import {
   type FlowNodeType,
   type FlowPosition,
   type LoopData,
+  MULTI_WIRE_OUTPUTS,
+  type FlowOutput,
   type RetrySettings,
 } from "./types";
 
@@ -222,4 +224,79 @@ export function loadFlows(): Flow[] {
 /** Returns false when storage refused the value. */
 export function saveFlows(flows: Flow[]): boolean {
   return save(FLOWS_KEY, flows);
+}
+
+/** The palette and the step picker group step types like this, in this order. */
+export const STEP_GROUPS: { label: string; types: FlowNodeType[] }[] = [
+  { label: "Triggers", types: ["start", "schedule"] },
+  { label: "Run", types: ["run-case", "run-suite", "run-request"] },
+  { label: "Logic", types: ["if", "parallel", "join", "loop"] },
+  { label: "Utility", types: ["wait", "set-var", "note"] },
+];
+
+/** Step types with an input, so a wire can lead to them. */
+export function canFollow(type: FlowNodeType): boolean {
+  return type !== "start" && type !== "schedule" && type !== "note";
+}
+
+/** Groups that have a step matching the typed text (by name or group), with only the matching steps. Empty text keeps everything. */
+export function filterStepGroups(query: string, groups = STEP_GROUPS): { label: string; types: FlowNodeType[] }[] {
+  const q = query.trim().toLowerCase();
+  if (q === "") return groups;
+  return groups
+    .map((g) => ({ label: g.label, types: g.types.filter((t) => NODE_TYPE_LABELS[t].toLowerCase().includes(q) || g.label.toLowerCase().includes(q)) }))
+    .filter((g) => g.types.length > 0);
+}
+
+/** Whether a step output can take another wire: it has none yet, or it is one that takes many. */
+export function outputIsFree(flow: Flow, nodeId: string, output: FlowOutput): boolean {
+  return MULTI_WIRE_OUTPUTS.includes(output) || !flow.edges.some((e) => e.source === nodeId && e.sourceHandle === output);
+}
+
+/** The first output of a node that can take a wire, or null. */
+export function firstFreeOutput(flow: Flow, nodeId: string): FlowOutput | null {
+  const node = flow.nodes.find((n) => n.id === nodeId);
+  if (!node) return null;
+  return NODE_OUTPUTS[node.type].find((o) => outputIsFree(flow, nodeId, o)) ?? null;
+}
+
+export const STEP_OFFSET_X = 260;
+const STEP_STACK_Y = 90;
+
+/** A spot to the right of a position, moved down until it does not sit on another step. */
+export function freeSpotRightOf(flow: Flow, from: FlowPosition): FlowPosition {
+  const x = Math.round(from.x + STEP_OFFSET_X);
+  let y = Math.round(from.y);
+  while (flow.nodes.some((n) => n.type !== "note" && Math.abs(n.position.x - x) < 200 && Math.abs(n.position.y - y) < 80)) y += STEP_STACK_Y;
+  return { x, y };
+}
+
+/**
+ * Adds a step 260 px to the right of a step (lower down if that spot is taken) and, when the new
+ * step has an input and an output is given, wires it from that output. An output that already has a
+ * wire (and takes only one) is rewired to the new step. Returns the flow unchanged when the step is missing.
+ */
+export function addStepAfter(flow: Flow, nodeId: string, output: FlowOutput | null, type: FlowNodeType): { flow: Flow; node: FlowNode | null } {
+  const from = flow.nodes.find((n) => n.id === nodeId);
+  if (!from) return { flow, node: null };
+  const node = newNode(type, freeSpotRightOf(flow, from.position));
+  let edges = flow.edges;
+  if (output && canFollow(type) && NODE_OUTPUTS[from.type].includes(output)) {
+    const multi = MULTI_WIRE_OUTPUTS.includes(output);
+    edges = [...edges.filter((e) => multi || !(e.source === nodeId && e.sourceHandle === output)), newEdge(nodeId, output, node.id)];
+  }
+  return { flow: { ...flow, nodes: [...flow.nodes, node], edges }, node };
+}
+
+/**
+ * Adding from the palette by click: next to the selected step wired from its first free output, or
+ * (with nothing selected) next to the last step that is not a note.
+ */
+export function addStepFromPalette(flow: Flow, selectedId: string | null, type: FlowNodeType): { flow: Flow; node: FlowNode | null } {
+  const anchor = (selectedId && flow.nodes.find((n) => n.id === selectedId)) || [...flow.nodes].reverse().find((n) => n.type !== "note") || null;
+  if (!anchor) {
+    const node = newNode(type, { x: 80, y: 160 });
+    return { flow: { ...flow, nodes: [...flow.nodes, node] }, node };
+  }
+  return addStepAfter(flow, anchor.id, firstFreeOutput(flow, anchor.id), type);
 }
