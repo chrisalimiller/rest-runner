@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { listPickableRequests, type PickableRequest } from "../../lib/testing/requestSources";
+import { useEscape } from "../useEscape";
 
 interface Props {
   onPick: (requests: PickableRequest[]) => void;
@@ -13,6 +14,7 @@ export function RequestPicker({ onPick, onClose }: Props) {
   const [picked, setPicked] = useState<string[]>([]);
   const q = query.trim().toLowerCase();
   const shown = all.filter((r) => !q || `${r.path.join(" ")} ${r.request.method} ${r.request.url}`.toLowerCase().includes(q));
+  useEscape(onClose);
   const toggle = (id: string) => setPicked((p) => (p.includes(id) ? p.filter((x) => x !== id) : [...p, id]));
 
   return (

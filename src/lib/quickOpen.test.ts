@@ -3,7 +3,7 @@ import { newCollection, newFolder, requestNode, type Collection } from "./collec
 import { newRequest } from "./defaults";
 import { newFlow, newNode } from "./flows/flows";
 import type { FlowRunSummary } from "./flows/types";
-import { collectionItems, flowItems, flowRunItems, fuzzyScore, historyItems, KIND_ORDER, searchQuickOpen, suiteItems, type QuickItem } from "./quickOpen";
+import { collectionItems, flowItems, flowRunItems, fuzzyScore, historyItems, KIND_ORDER, readableUrl, searchQuickOpen, suiteItems, type QuickItem } from "./quickOpen";
 import { newSuite, newTestCase } from "./testing/suites";
 
 function sampleCollections(): Collection[] {
@@ -97,5 +97,34 @@ describe("flow items", () => {
     expect(flowRunItems([run])[0]).toMatchObject({ kind: "flow-run", title: "Nightly smoke", detail: "failed · 1 passed, 1 failed · scheduled" });
     const groups = searchQuickOpen([...flowItems([f]), ...flowRunItems([run])], "night", KIND_ORDER.flows);
     expect(groups.map((g) => g.kind)).toEqual(["flow", "flow-run"]);
+  });
+});
+
+describe("history items", () => {
+  it("lead with the request name, then status, time and decoded path", () => {
+    const [item] = historyItems([
+      { id: "h1", method: "POST", url: "https://api.x/troubleTicket?fields=id%2Cstatus", status: 201, sentAt: "2026-10-22T10:00:00Z", def: { ...newRequest(), name: "Create ticket" } },
+    ]);
+    expect(item.title).toBe("Create ticket");
+    expect(item.detail.startsWith("201 · ")).toBe(true);
+    expect(item.detail.endsWith(" · api.x/troubleTicket?fields=id,status")).toBe(true);
+  });
+
+  it("fall back to the URL when the request has no name", () => {
+    const [item] = historyItems([{ id: "h2", method: "GET", url: "https://api.x/health", status: null, sentAt: "", def: { ...newRequest(), name: "" } }]);
+    expect(item.title).toBe("api.x/health");
+    expect(item.detail).toBe("ERR · api.x/health");
+  });
+
+  it("still find history by URL", () => {
+    const items = historyItems([{ id: "h3", method: "GET", url: "https://api.x/tickets/42", status: 200, sentAt: "2026-10-22T10:00:00Z", def: { ...newRequest(), name: "Get ticket" } }]);
+    expect(searchQuickOpen(items, "tickets/42", KIND_ORDER.requests)[0].items[0].id).toBe("h3");
+  });
+});
+
+describe("readableUrl", () => {
+  it("drops the scheme and decodes escapes, keeping bad escapes as written", () => {
+    expect(readableUrl("https://a.b/x?q=a%20b%2Cc")).toBe("a.b/x?q=a b,c");
+    expect(readableUrl("http://a.b/%E0%A4%A")).toBe("a.b/%E0%A4%A");
   });
 });

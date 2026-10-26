@@ -645,6 +645,22 @@ button.flow-problem:hover:not(:disabled) {
   color: var(--placeholder-fg);
 }
 
+.flow-var-table td.var-change {
+  width: 1%;
+  white-space: nowrap;
+  font-size: 11px;
+  color: var(--placeholder-fg);
+}
+
+.flow-var-table tr.var-new td:first-child,
+.flow-var-table tr.var-changed td:first-child {
+  color: var(--placeholder-fg);
+}
+
+.flow-var-table tr.var-removed td {
+  color: var(--muted);
+}
+
 @media (max-width: 1200px) {
   .flows-layout {
     grid-template-columns: 220px minmax(0, 1fr) 280px;

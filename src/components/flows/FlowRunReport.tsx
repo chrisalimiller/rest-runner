@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { formatMs } from "../../lib/earlierSends";
 import { getFlowRun } from "../../lib/flows/flowRunStore";
-import { END_LABELS, flowReportFileName, flowRunWallMs, orderedSteps, stepWhere, toFlowCsvReport, toFlowHtmlReport, varChanges } from "../../lib/flows/flowReport";
+import { END_LABELS, flowReportFileName, flowRunWallMs, orderedSteps, stepWhere, toFlowCsvReport, toFlowHtmlReport, variableRows } from "../../lib/flows/flowReport";
 import { NODE_TYPE_LABELS } from "../../lib/flows/flows";
 import type { FlowRun, FlowStep } from "../../lib/flows/types";
 import { saveTextFile } from "../../lib/saveFile";
@@ -24,7 +24,8 @@ function formatDuration(ms: number): string {
 const MARK: Record<FlowStep["status"], string> = { passed: "✓", done: "✓", failed: "✕", cancelled: "■" };
 
 function StepDetail({ step, onOpenChild }: { step: FlowStep; onOpenChild: () => void }) {
-  const changes = varChanges(step.varsBefore, step.varsAfter);
+  const rows = variableRows(step.varsBefore, step.varsAfter);
+  const changed = rows.filter((r) => r.change !== null).length;
   const child = step.child;
   return (
     <div className="flow-report-detail">
@@ -65,23 +66,20 @@ function StepDetail({ step, onOpenChild }: { step: FlowStep; onOpenChild: () => 
           </button>
         </div>
       )}
-      <h4 className="section-title">Variables</h4>
-      {changes.length ? (
-        <div className="flow-var-changes mono small">
-          {changes.map((c) => (
-            <div key={c}>{c}</div>
-          ))}
-        </div>
+      <h4 className="section-title">
+        Variables after this step{" "}
+        <span className="muted">{changed === 0 ? "· none changed" : `· ${changed} changed`}</span>
+      </h4>
+      {rows.length === 0 ? (
+        <p className="muted small">No variables yet.</p>
       ) : (
-        <p className="muted small">No variables changed.</p>
-      )}
-      {Object.keys(step.varsAfter).length > 0 && (
-        <table className="kv readonly small">
+        <table className="kv readonly small flow-var-table">
           <tbody>
-            {Object.entries(step.varsAfter).map(([k, v]) => (
-              <tr key={k}>
-                <td>{k}</td>
-                <td>{v}</td>
+            {rows.map((r) => (
+              <tr key={r.name} className={r.change ? `var-${r.change}` : undefined}>
+                <td>{r.name}</td>
+                <td>{r.change === "removed" ? <s>{r.value}</s> : r.value}</td>
+                <td className="var-change">{r.change ?? ""}</td>
               </tr>
             ))}
           </tbody>

@@ -82,6 +82,11 @@ export function FlowsApp({ active, shell, command }: Props) {
   const [envId, setEnvId] = useState<string | null>(() => load(FLOW_ENV_KEY, null));
   const [items, setItems] = useState<FlowItems>(readFlowItems);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [deselectNonce, setDeselectNonce] = useState(0);
+  const closeSettings = () => {
+    setSelectedId(null);
+    setDeselectNonce((n) => n + 1);
+  };
   const [focus, setFocus] = useState<{ id: string; nonce: number } | null>(null);
   /** Runs in progress (or just finished), per flow. Several flows can run at once. */
   const [lives, setLives] = useState<Record<string, FlowRunView>>({});
@@ -515,6 +520,7 @@ export function FlowsApp({ active, shell, command }: Props) {
                 onSelect={setSelectedId}
                 focusNodeId={focus?.id ?? null}
                 focusNonce={focus?.nonce ?? 0}
+                deselectNonce={deselectNonce}
               />
             </main>
             {selected && !readOnly ? (
@@ -526,7 +532,7 @@ export function FlowsApp({ active, shell, command }: Props) {
                 scheduleState={selected.type === "schedule" ? schedules[selected.id] : undefined}
                 onChange={updateNode}
                 onDelete={() => deleteNode(selected.id)}
-                onClose={() => setSelectedId(null)}
+                onClose={closeSettings}
               />
             ) : (
               <FlowRunPanel

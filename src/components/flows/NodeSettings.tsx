@@ -7,6 +7,7 @@ import { nextDueAfter, scheduleProblem, WEEKDAY_NAMES, type Schedule, type Sched
 import type { ConditionSource, FlowCondition, FlowNode, LoopNode, RetrySettings, ScheduleNode } from "../../lib/flows/types";
 import type { FlowProblem } from "../../lib/flows/validate";
 import { OP_LABELS, opNeedsValue } from "../../lib/testing/assertions";
+import { useEscape } from "../useEscape";
 
 interface Props {
   node: FlowNode;
@@ -281,6 +282,7 @@ const MAX_LOOP_CSV = 2 * 1024 * 1024;
 
 /** Settings for the selected node, in the right-hand panel. */
 export function NodeSettings({ node, items, problems, scheduleState, onChange, onDelete, onClose }: Props) {
+  useEscape(onClose);
   const mine = problems.filter((p) => p.nodeId === node.id);
   const autoLabel = nodeLabel({ ...node, label: "" }, items.suites, items.findRequest);
   const suite = "suiteId" in node ? items.suites.find((s) => s.id === node.suiteId) : undefined;
