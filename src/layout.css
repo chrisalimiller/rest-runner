@@ -432,6 +432,31 @@ body.dragging-split {
   text-underline-offset: 3px;
 }
 
+.switcher-pencil {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: var(--radius);
+  background: none;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0;
+}
+
+.switcher-btn:hover .switcher-pencil,
+.switcher-btn:focus-within .switcher-pencil {
+  opacity: 1;
+}
+
+.switcher-pencil:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
 .switcher-rename {
   height: 24px;
   padding: 0 6px;
