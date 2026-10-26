@@ -14,7 +14,7 @@ Runs on macOS and Windows from one codebase, built with [Tauri 2](https://tauri.
 | 2 | CSV batches with `{{column}}` placeholders, live progress | Done |
 | 3a | Run explorer, HTML and CSV reports | Done |
 | 3b | Saved requests and environments | Done |
-| 4 | Extras: Postman import, retries, OAuth, chaining values between requests | Optional |
+| 4 | Extras: Postman import (done), retries, OAuth, chaining values between requests | Optional |
 
 ## Features so far
 
