@@ -188,3 +188,13 @@ export function FlowsIcon({ size = 16, className }: IconProps) {
     </svg>
   );
 }
+
+export function VariablesIcon({ size = 14 }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 4C5 4 5 6 5 8v2c0 1.5-1 2-2 2 1 0 2 .5 2 2v2c0 2 0 4 3 4" />
+      <path d="M16 4c3 0 3 2 3 4v2c0 1.5 1 2 2 2-1 0-2 .5-2 2v2c0 2 0 4-3 4" />
+      <path d="M9.5 9.5l5 5M14.5 9.5l-5 5" />
+    </svg>
+  );
+}

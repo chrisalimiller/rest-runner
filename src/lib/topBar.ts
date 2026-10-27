@@ -20,6 +20,21 @@ export function topBarLayout(width: number, environmentCount: number): TopBarLay
   };
 }
 
+/** Collapse levels the top bar steps through as space runs out: 1 request path, 2 search, 3 environment switch, 4 Variables button. */
+export const MAX_FIT_LEVEL = 4;
+/** Spare width needed beyond what the next level down takes back, so the bar does not flicker between two levels. */
+export const FIT_SLACK_PX = 24;
+
+/**
+ * The next collapse level for the top bar. `overflowPx` is how far the bar's content spills past its edge,
+ * `spareWidthPx` the free room it has, and `nextLevelNeedsPx` the width the next level down (one less collapsed) takes back.
+ */
+export function nextFitLevel(level: number, overflowPx: number, spareWidthPx: number, nextLevelNeedsPx: number): number {
+  if (overflowPx > 1) return Math.min(MAX_FIT_LEVEL, level + 1);
+  if (level > 0 && spareWidthPx >= nextLevelNeedsPx + FIT_SLACK_PX) return level - 1;
+  return level;
+}
+
 /** The sections in switcher order; Ctrl/Cmd + 1, 2, 3 pick them. */
 export const MODES: readonly Mode[] = ["requests", "testing", "flows"];
 

@@ -197,6 +197,13 @@
 
 .topbar-variables {
   font-size: 12px;
+  white-space: nowrap;
+}
+
+.topbar-variables.icon-only {
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .icon-btn.overflow-btn:hover,
