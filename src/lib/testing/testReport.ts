@@ -247,7 +247,7 @@ export function toTestHtmlReport(run: TestRun): string {
 
   const results = run.results
     .map((r) => {
-      const res = o?.ok ? o.response : null;
+      const o = r.outcome;
       const passedChecks = r.checks.filter((c) => c.passed).length;
       const search = `${r.caseName} ${statusText(r)} ${o?.request.url ?? ""} ${Object.values(r.vars).join(" ")} ${r.checks.map((c) => c.name).join(" ")}`.toLowerCase();
       return `<details class="call ${r.passed ? "passed" : "failed"}" data-search="${esc(search)}" data-case="${esc(r.caseId)}">
