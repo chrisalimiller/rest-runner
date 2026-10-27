@@ -10,6 +10,8 @@ export interface MenuItem {
   danger?: boolean;
   disabled?: boolean;
   title?: string;
+  /** A shortcut shown at the right, like "Ctrl S". */
+  hint?: string;
   /** Draws a divider above this item. */
   separated?: boolean;
   /** Makes it a choice in a group: the current one is marked. */
@@ -96,6 +98,7 @@ export function OverflowMenu({ items, label = "More actions", disabled, trigger,
                 {item.icon}
               </span>
               {item.label}
+              {item.hint && <kbd className="overflow-hint">{item.hint}</kbd>}
             </button>
           ))}
         </div>

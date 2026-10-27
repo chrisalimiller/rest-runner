@@ -6,20 +6,22 @@ Requests mode is where you build a request and read the response. The request is
 
 - Pick the **method**: GET, POST, PUT, PATCH, DELETE, HEAD or OPTIONS.
 - Type the **URL**. If it has no scheme (`http://`, `https://`), `http://` is added when it is sent.
-- Under the bar, the **resolved URL** line shows exactly what Send will use, with environment values, script variables and your enabled query params filled in. Placeholders that still have no value are shown in red, and an amber chip at the end of the line says how many are unfilled ("1 unfilled: token", or "3 unfilled"; hover for the names). Click the chip to open the [Variables popover](#the-variables-popover). Send then shows a small ⚠ and reads "Sends with {{token}} as written", but it still sends without asking. The line also says which environment the values came from.
+- Hover the URL box to see the **resolved URL**: exactly what Send will use, with environment values, script variables and your enabled query params filled in. Placeholders with no value are shown in red in the summary line, and an amber dot with a count inside the URL box says how many are unfilled (hover for the names). Click the dot to open the [Variables popover](#the-variables-popover). Send then shows a small ⚠ and reads "Sends with {{token}} as written", but it still sends without asking.
 - Press **Enter** in the URL box to send.
-- Click the copy button at the end of the resolved URL line to copy the full URL. The URL shows `{{placeholders}}` in colour while you type, and the same highlighting is used in the Params, Headers and form value fields.
-- Open the **cURL ▾** menu at the end of the resolved URL line to **Show cURL** (the `curl` command Send would run), or to **Copy as cURL (Bash)** or **Copy as cURL (Windows cmd)** in one click. The command includes with environment values, script variables, auth and the body filled in. Pick **Bash / zsh** (macOS, Linux, Git Bash) or **Windows cmd** in the panel, then **Copy** it into a terminal. Placeholders with no value are listed under the command. Choose **Hide cURL** to close it; whether it is open is remembered.
+- **Copy final URL** in the ⋯ menu copies the resolved URL. The URL shows `{{placeholders}}` in colour while you type, and the same highlighting is used in the Params, Headers and form value fields.
+- Open the ⋯ menu next to Send to **Show cURL** (the `curl` command Send would run), or to **Copy as cURL (Bash)** or **Copy as cURL (Windows cmd)** in one click. The command includes with environment values, script variables, auth and the body filled in. Pick **Bash / zsh** (macOS, Linux, Git Bash) or **Windows cmd** in the panel, then **Copy** it into a terminal. Placeholders with no value are listed under the command. Choose **Hide cURL** to close it; whether it is open is remembered.
   - A pre-request script runs only when you press Send, so anything it changes is not in the command.
   - cmd can't pass line breaks inside an argument, so a multi-line JSON body is put on one line there (it means the same thing).
 
-GET and HEAD requests never send a body, even if you filled one in. The Body section warns you ("not sent with GET").
+GET and HEAD requests never send a body, even if you filled one in. The summary line reads "No body for GET" and the details fill the space where the body would be.
 
-## The sections
+## The request column
 
-A **section bar** under the URL line has one chip per section (**Params**, **Auth**, **Headers**, **Body**, **Scripts**) with a count or a one-word summary, such as `Params 2` or `Auth Bearer`. Click a chip to scroll to that section and open it; the chip of the section you are in is highlighted.
+The column has three rows: the URL row (method, URL, **Send** and the ⋯ menu), a summary line, and the body editor, which fills the rest of the height. Params, Auth, Headers and Scripts are in Request details, opened from the summary line under the URL. Save, Save as example, Run with CSV and cURL are in the ⋯ menu next to Send.
 
-Below it are five collapsible sections: **Params**, **Auth**, **Headers**, **Body** and **Scripts**. When a section is closed it shows a one-line summary, so you can check it without opening it. Which sections are open, and the width of the two columns, are remembered. By default Body is open for methods that carry a body and Params is open for GET and HEAD.
+- **URL row.** Hover the URL box to see the final URL with environment values and query params filled in. An amber dot with a count inside the box means placeholders have no value; click it to open Variables. The ⋯ menu holds **Save**, **Save as example** (and **Set sample response** when an example has a live response), **Run with CSV…**, **Copy final URL**, **Show cURL** / **Hide cURL** and the two **Copy as cURL** items.
+- **Summary line.** The **Request details** button opens or closes the drawer. Next to it, `1 param · Bearer {{token}} · 3 headers · after-script` shows what each part holds; click one to open the drawer on that tab (an auth value with no value is shown in red). The body type, JSON validity and **Format** are at the right end.
+- **Request details drawer.** It slides over the body with tabs for Params, Auth, Headers and Scripts. Escape or × closes it and puts focus back on the button that opened it. Whether it is open and which tab are remembered. For GET and HEAD, which send no body, the details are always showing in place of the body.
 
 ### Params, Headers and form fields
 
@@ -63,7 +65,7 @@ The Scripts section holds a **Pre-request** and a **Post-response** script. The 
 
 ## Placeholders and variables
 
-`{{name}}` (spaces inside the braces are ignored, so `{{ name }}` works) can be used in the URL, param, header and form keys and values, the body, and every auth field. A placeholder with no value anywhere is **left as written** and sent that way. The resolved URL line and, in batch runs, the placeholder check make this easy to spot.
+`{{name}}` (spaces inside the braces are ignored, so `{{ name }}` works) can be used in the URL, param, header and form keys and values, the body, and every auth field. A placeholder with no value anywhere is **left as written** and sent that way. The unfilled dot and, in batch runs, the placeholder check make this easy to spot.
 
 A value for a placeholder can come from three places. Later ones win:
 

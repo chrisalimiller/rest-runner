@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { emptyRow, newRequest } from "./defaults";
 import { prepareRequest } from "./request";
-import { activeSection, authSummary, bodySummary, countsLabel, paramsText, requestSummaryLine, resolvedUrl, rowCounts, sectionBarItems, splitPlaceholders } from "./requestSummary";
+import { authSummary, bodySummary, countsLabel, loadDetailsState, paramsText, requestDetailsSummary, requestSummaryLine, resolvedUrl, rowCounts, splitPlaceholders } from "./requestSummary";
 import type { KeyValue, RequestDef } from "./types";
 
 const row = (key: string, value: string, enabled = true): KeyValue => ({ id: key + value, key, value, enabled });
@@ -79,30 +79,57 @@ describe("splitPlaceholders", () => {
   });
 });
 
-describe("section bar", () => {
-  it("shows counts for params and headers and a dot for the rest", () => {
-    const def = {
-      ...newRequest(),
-      params: [{ id: "1", key: "a", value: "1", enabled: true }, emptyRow()],
-      headers: [
-        { id: "2", key: "h", value: "v", enabled: true },
-        { id: "3", key: "g", value: "v", enabled: true },
-        { id: "4", key: "off", value: "v", enabled: false },
-      ],
-      bodyMode: "json" as const,
-      postScript: "rr.test('x', true)",
-    };
-    expect(sectionBarItems(def).map((i) => `${i.label}${i.mark ? ` ${i.mark}` : ""}`)).toEqual(["Params 1", "Auth", "Headers 2", "Body •", "Scripts •"]);
+describe("requestDetailsSummary", () => {
+  const text = (def: RequestDef, vars?: Record<string, string>) => requestDetailsSummary(def, vars).map((i) => i.text);
+
+  it("counts enabled rows, singular and plural", () => {
+    expect(text(req({ params: [row("a", "1")], headers: [row("h", "1"), row("g", "2"), row("k", "3")] }))).toEqual(["1 param", "No auth", "3 headers"]);
   });
 
-  it("finds the section the reader is in", () => {
-    const tops = [
-      { id: "params" as const, top: -300 },
-      { id: "headers" as const, top: -20 },
-      { id: "body" as const, top: 180 },
-    ];
-    expect(activeSection(tops)).toBe("headers");
-    expect(activeSection([{ id: "params" as const, top: 40 }])).toBe("params");
-    expect(activeSection([])).toBeNull();
+  it("does not count disabled or unnamed rows", () => {
+    const def = req({ params: [row("a", "1"), row("b", "2", false), emptyRow()], headers: [row("h", "1", false)] });
+    expect(text(def)).toEqual(["1 param", "No auth", "No headers"]);
+  });
+
+  it("says no params, no auth and no headers for an empty request, and nothing about scripts", () => {
+    expect(requestDetailsSummary(req({})).map((i) => `${i.id}:${i.text}`)).toEqual(["params:No params", "auth:No auth", "headers:No headers"]);
+  });
+
+  it("shows the auth type with its value", () => {
+    expect(text(req({ auth: { type: "bearer", token: "{{token}}" } }))[1]).toBe("Bearer {{token}}");
+    expect(text(req({ auth: { type: "basic", username: "ada", password: "x" } }))[1]).toBe("Basic ada");
+  });
+
+  it("marks an auth placeholder with no value as missing", () => {
+    const def = req({ auth: { type: "bearer", token: "{{token}}" } });
+    expect(requestDetailsSummary(def, {})[1].tone).toBe("missing");
+    expect(requestDetailsSummary(def, { token: "abc" })[1].tone).toBeUndefined();
+    expect(requestDetailsSummary(def)[1].tone).toBeUndefined();
+  });
+
+  it("names the scripts", () => {
+    const last = (p: Partial<RequestDef>) => requestDetailsSummary(req(p)).at(-1);
+    expect(last({ preScript: "rr.log(1)" })).toEqual({ id: "scripts", text: "before-script" });
+    expect(last({ postScript: "rr.log(1)" })).toEqual({ id: "scripts", text: "after-script" });
+    expect(last({ preScript: "a", postScript: "b" })).toEqual({ id: "scripts", text: "both scripts" });
+    expect(last({ preScript: "  ", postScript: "" })?.id).toBe("headers");
+  });
+});
+
+describe("loadDetailsState", () => {
+  it("is closed on Params when nothing is stored", () => {
+    expect(loadDetailsState(null)).toEqual({ open: false, tab: "params" });
+    expect(loadDetailsState(undefined)).toEqual({ open: false, tab: "params" });
+  });
+
+  it("reads a stored state", () => {
+    expect(loadDetailsState({ open: true, tab: "headers" })).toEqual({ open: true, tab: "headers" });
+  });
+
+  it("falls back for a bad value or an unknown tab", () => {
+    expect(loadDetailsState("oops")).toEqual({ open: false, tab: "params" });
+    expect(loadDetailsState(42)).toEqual({ open: false, tab: "params" });
+    expect(loadDetailsState({ open: "yes", tab: "body" })).toEqual({ open: false, tab: "params" });
+    expect(loadDetailsState({ open: true, tab: "nope" })).toEqual({ open: true, tab: "params" });
   });
 });

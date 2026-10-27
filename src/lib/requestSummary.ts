@@ -135,35 +135,51 @@ export function splitPlaceholders(text: string, vars?: Vars): TextPart[] {
   return out;
 }
 
-export type RequestSectionId = "params" | "auth" | "headers" | "body" | "scripts";
+export type DetailsTab = "params" | "auth" | "headers" | "scripts";
 
-export interface SectionBarItem {
-  id: RequestSectionId;
-  label: string;
-  /** A count (Params, Headers) or a dot (set up) for the chip; empty when the section has nothing. */
-  mark: string;
+export const DETAILS_TABS: readonly DetailsTab[] = ["params", "auth", "headers", "scripts"];
+
+export interface DetailsItem {
+  id: DetailsTab;
+  text: string;
+  /** "missing" when the text holds a {{placeholder}} that has no value. */
+  tone?: "missing";
 }
 
-/** The chips of the section bar under the URL: "Params 1 · Auth · Headers 3 · Body · Scripts •". */
-export function sectionBarItems(def: RequestDef): SectionBarItem[] {
-  const params = rowCounts(def.params).on;
-  const headers = rowCounts(def.headers).on;
-  return [
-    { id: "params", label: "Params", mark: params ? String(params) : "" },
-    { id: "auth", label: "Auth", mark: def.auth.type !== "none" ? "•" : "" },
-    { id: "headers", label: "Headers", mark: headers ? String(headers) : "" },
-    { id: "body", label: "Body", mark: def.bodyMode !== "none" ? "•" : "" },
-    { id: "scripts", label: "Scripts", mark: (def.preScript ?? "").trim() || (def.postScript ?? "").trim() ? "•" : "" },
-  ];
+function plural(n: number, noun: string): string {
+  return `${n} ${noun}${n === 1 ? "" : "s"}`;
 }
 
 /**
- * Scroll-spy: the section the reader is in. `tops` are the sections' distances from the top of the
- * scrolling area, in order; the answer is the last one that has reached `offset`, or the first.
+ * The items of the summary line under the URL: "1 param · Bearer {{token}} · 3 headers · after-script".
+ * Disabled and unnamed rows are not counted. With `vars`, an auth value whose placeholder has no value is marked missing.
+ * Scripts is left out when the request has none.
  */
-export function activeSection<T extends string>(tops: { id: T; top: number }[], offset = 12): T | null {
-  if (tops.length === 0) return null;
-  let current = tops[0].id;
-  for (const t of tops) if (t.top <= offset) current = t.id;
-  return current;
+export function requestDetailsSummary(def: RequestDef, vars?: Vars): DetailsItem[] {
+  const params = rowCounts(def.params).on;
+  const headers = rowCounts(def.headers).on;
+  const auth = authSummary(def.auth);
+  const authText = auth.value ? `${auth.label} ${auth.value}` : auth.label === AUTH_LABELS.none ? "No auth" : auth.label;
+  const missing = !!vars && splitPlaceholders(authText, vars).some((p) => p.placeholder && p.resolved === false);
+  const pre = (def.preScript ?? "").trim() !== "";
+  const post = (def.postScript ?? "").trim() !== "";
+  const items: DetailsItem[] = [
+    { id: "params", text: params ? plural(params, "param") : "No params" },
+    { id: "auth", text: authText, ...(missing ? { tone: "missing" as const } : {}) },
+    { id: "headers", text: headers ? plural(headers, "header") : "No headers" },
+  ];
+  if (pre || post) items.push({ id: "scripts", text: pre && post ? "both scripts" : pre ? "before-script" : "after-script" });
+  return items;
+}
+
+export interface DetailsState {
+  open: boolean;
+  tab: DetailsTab;
+}
+
+/** What was remembered about the Request details drawer, with anything unreadable or unknown replaced by closed on Params. */
+export function loadDetailsState(raw: unknown): DetailsState {
+  const r = raw !== null && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const tab = DETAILS_TABS.find((t) => t === r.tab) ?? "params";
+  return { open: r.open === true, tab };
 }

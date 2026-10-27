@@ -19,7 +19,7 @@ The app is a desktop window around a web view, and it keeps its data in that web
 | `rest-runner.active-environment` | The environment selected in Requests mode |
 | `rest-runner.script-vars` | [Script variables](scripting.md#variable-scoping) set by request scripts |
 | `rest-runner.batch-options` | Your batch run options |
-| `rest-runner.request-sections`, `rest-runner.case-request-sections`, `rest-runner.split` | Which sections are open and the column split |
+| `rest-runner.request-details`, `rest-runner.case-request-details`, `rest-runner.split` | Whether the Request details drawer is open and its tab, and the column split |
 | `rest-runner.section` | Whether Requests, Testing or Flows was open |
 | `rest-runner.test-suites` | Test suites, including their saved CSV data |
 | `rest-runner.test-open-suite`, `rest-runner.test-environment` | The open suite, and the environment selected in Testing |

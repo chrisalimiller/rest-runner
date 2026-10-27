@@ -191,7 +191,7 @@ export function CaseEditor(props: Props) {
               onChange={patchReq}
               envVars={props.envVars}
               envName={props.envName}
-              sectionsKey="rest-runner.case-request-sections"
+              detailsKey="rest-runner.case-request-details"
               urlPlaceholder="Enter URL, e.g. {{baseUrl}}/users/{{id}}"
               scriptsNote="In a test run, the request's scripts run first, then this case's own Pre-request and Post-response scripts."
             />

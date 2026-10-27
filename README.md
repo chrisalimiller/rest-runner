@@ -27,8 +27,8 @@ Runs on macOS and Windows from one codebase, built with [Tauri 2](https://tauri.
 - Response viewer: status, time, size, pretty or raw body, headers, and the exact request that was sent
 - Collections with nested folders, opened from the request switcher in the top bar (Save button or Ctrl/Cmd + S), with an unsaved-changes dot. Right-click or use the ⋯ button to add, rename, duplicate, move or delete. Click the request name in the switcher, or press F2, to rename it. Requests saved before collections existed are moved into a "My requests" collection automatically
 - Examples: each saved request can keep any number of named sample payloads (Save as example), optionally with the response they got
-- Environments: named sets of variables such as `baseUrl` and `token`, picked from the switch in the top bar. The line under the URL shows the final URL with environment values and query params filled in
-- Params, Auth, Headers and Body are collapsible sections; closed, each shows a one-line summary. Open sections and the width of the two columns (drag the divider) are remembered
+- Environments: named sets of variables such as `baseUrl` and `token`, picked from the switch in the top bar. Hover the URL box to see the final URL with environment values and query params filled in
+- The request column is the URL row, one summary line and the body. Params, Auth, Headers and Scripts are in Request details, opened from the summary line under the URL. Save, Save as example, Run with CSV and cURL are in the ⋯ menu next to Send. Whether the drawer is open, its tab, and the width of the two columns (drag the divider) are remembered
 - Quick open (Ctrl/Cmd + K): fuzzy search over requests, examples, history, batch runs, suites, test cases, test runs, flows and flow runs
 - Export and import a whole workspace (collections with folders and examples, environments, test suites with their CSV data, and flows) as one JSON file (older export files still import), to back up or hand to a teammate. A fresh install opens a first-run screen: import a shared workspace, open a sample workspace, or start empty
 - History of the last 50 requests, in quick open and in the **Earlier sends of this request** strip under the response (click one to see that response again); your current request is kept between launches
@@ -44,12 +44,12 @@ Click the pencil next to the environment switch in the top bar to add sets of va
 
 Each environment can have a colour (a dot on the switch). A coloured environment outlines **Send**, **Run suite** and **Run** and names it in the label, for example **Send to Prod**; environments named Prod start red.
 
-Environment values are stored on this computer only, in the app's local storage. A variable can be marked **secret** (lock button): it is masked on screen, in the cURL panel, and always in exported reports, and Export workspace leaves it out unless you choose to include it. The **Variables** button in the top bar lists the placeholders the open request uses and where each value comes from; an amber "unfilled" chip warns about placeholders with no value before you send.
+Environment values are stored on this computer only, in the app's local storage. A variable can be marked **secret** (lock button): it is masked on screen, in the cURL panel, and always in exported reports, and Export workspace leaves it out unless you choose to include it. The **Variables** button in the top bar lists the placeholders the open request uses and where each value comes from; an amber dot inside the URL box warns about placeholders with no value before you send.
 
 ## Batch runs from a CSV
 
 1. Write the request with `{{column name}}` placeholders anywhere: URL, params, headers, body, form fields or auth.
-2. Click **Run with CSV…** under the request (the response column turns into the batch view; switch back with **Response**) and choose a CSV file. The first line must be the column names. Comma, semicolon, tab and pipe separators are detected automatically.
+2. Choose **Run with CSV…** in the ⋯ menu next to Send (the response column turns into the batch view; switch back with **Response**) and choose a CSV file. The first line must be the column names. Comma, semicolon, tab and pipe separators are detected automatically.
 3. Check the placeholder list: green ones are filled from the CSV, blue ones from the selected environment, and red ones have no value and are sent as written.
 4. Click **Preview** to see the first three requests exactly as they will be sent, then **Run**.
 

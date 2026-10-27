@@ -5,7 +5,7 @@ A batch run sends the open request once per row of a CSV file, filling `{{column
 ## Running a batch
 
 1. Write the request with `{{column name}}` placeholders anywhere: URL, params, headers, body, form fields or auth.
-2. Click **Run with CSV…** under the request. The response column turns into the **Batch run** view. A **Response / Batch run** switch lets you go back.
+2. Choose **Run with CSV…** in the ⋯ menu next to Send. The response column turns into the **Batch run** view. A **Response / Batch run** switch lets you go back.
 3. Click **Choose CSV…** (file types `.csv`, `.tsv` and `.txt`).
 4. Check the placeholder list, then **Preview**, then **Run**.
 

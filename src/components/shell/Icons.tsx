@@ -40,14 +40,6 @@ export function ChevronDownIcon({ size = 12 }: IconProps) {
   );
 }
 
-export function ChevronIcon({ open, size = 12 }: IconProps & { open: boolean }) {
-  return (
-    <svg {...base(size)} strokeWidth={2.4} className={`section-chevron ${open ? "open" : ""}`}>
-      <path d="M9 6l6 6-6 6" />
-    </svg>
-  );
-}
-
 export function PencilIcon({ size = 14 }: IconProps) {
   return (
     <svg {...base(size)} strokeWidth={2}>
