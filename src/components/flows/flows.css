@@ -1022,3 +1022,7 @@ table.results.flow-report-steps td {
   border: 1px solid var(--warn);
   white-space: nowrap;
 }
+
+.flow-report-call {
+  margin: 10px 0;
+}

@@ -204,23 +204,11 @@ function scriptHtml(title: string, s?: ScriptOutput): string {
   }`;
 }
 
-/** A single self-contained HTML file: summary, per-case table, run log, and every case result with its checks, request and response. */
-export function toTestHtmlReport(run: TestRun): string {
-  const t = testRunTimes(run);
-  const perCase = caseStats(run);
-  const title = `${run.suiteName} · ${formatTime(run.startedAt)}`;
-  const total = run.checksPassed + run.checksFailed;
-
-  const results = run.results
-    .map((r) => {
-      const o = r.outcome;
-      const res = o?.ok ? o.response : null;
-      const passedChecks = r.checks.filter((c) => c.passed).length;
-      const search = `${r.caseName} ${statusText(r)} ${o?.request.url ?? ""} ${Object.values(r.vars).join(" ")} ${r.checks.map((c) => c.name).join(" ")}`.toLowerCase();
-      return `<details class="call ${r.passed ? "passed" : "failed"}" data-search="${esc(search)}" data-case="${esc(r.caseId)}">
-<summary><span class="row">#${r.iteration + 1}</span><span class="mark ${r.passed ? "ok" : "bad"}">${r.passed ? "✓" : "✕"}</span><span class="case">${esc(r.caseName)}</span><span class="status ${statusClass(r)}">${esc(statusText(r))}</span><span class="checks ${passedChecks === r.checks.length ? "" : "bad"}">${passedChecks}/${r.checks.length} checks</span><span class="ms">${requestMs(r)} ms</span>${r.notes.length ? `<span class="note-flag" title="Has notes">●</span>` : ""}</summary>
-<div class="call-body">
-<h4>Checks</h4>
+/** The inside of one call's expandable block: checks, notes, variables, request, response and script output. Shared with the flow report. */
+export function caseBodyHtml(r: CaseResult): string {
+  const o = r.outcome;
+  const res = o?.ok ? o.response : null;
+  return `<h4>Checks</h4>
 ${
   r.checks.length
     ? `<ul class="checks">${r.checks.map((c) => `<li class="${c.passed ? "ok" : "bad"}"><b>${c.passed ? "✓" : "✕"}</b> ${esc(c.name)} <span class="muted">${esc(c.source)}</span>${c.message ? ` <span class="msg">${esc(c.message)}</span>` : ""}</li>`).join("")}</ul>`
@@ -247,7 +235,25 @@ ${kvTable(res.headers)}
     : `<p class="status bad">The request was not sent.</p>`
 }
 ${scriptHtml("Pre-request script", r.preScript)}
-${scriptHtml("Post-response script", r.postScript)}
+${scriptHtml("Post-response script", r.postScript)}`;
+}
+
+/** A single self-contained HTML file: summary, per-case table, run log, and every case result with its checks, request and response. */
+export function toTestHtmlReport(run: TestRun): string {
+  const t = testRunTimes(run);
+  const perCase = caseStats(run);
+  const title = `${run.suiteName} · ${formatTime(run.startedAt)}`;
+  const total = run.checksPassed + run.checksFailed;
+
+  const results = run.results
+    .map((r) => {
+      const o = r.outcome;
+      const passedChecks = r.checks.filter((c) => c.passed).length;
+      const search = `${r.caseName} ${statusText(r)} ${o?.request.url ?? ""} ${Object.values(r.vars).join(" ")} ${r.checks.map((c) => c.name).join(" ")}`.toLowerCase();
+      return `<details class="call ${r.passed ? "passed" : "failed"}" data-search="${esc(search)}" data-case="${esc(r.caseId)}">
+<summary><span class="row">#${r.iteration + 1}</span><span class="mark ${r.passed ? "ok" : "bad"}">${r.passed ? "✓" : "✕"}</span><span class="case">${esc(r.caseName)}</span><span class="status ${statusClass(r)}">${esc(statusText(r))}</span><span class="checks ${passedChecks === r.checks.length ? "" : "bad"}">${passedChecks}/${r.checks.length} checks</span><span class="ms">${requestMs(r)} ms</span>${r.notes.length ? `<span class="note-flag" title="Has notes">●</span>` : ""}</summary>
+<div class="call-body">
+${caseBodyHtml(r)}
 </div>
 </details>`;
     })

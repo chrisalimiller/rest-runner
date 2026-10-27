@@ -4,7 +4,7 @@ import { inlineScriptRunner } from "../testing/scriptRunner";
 import { newSuite, newTestCase } from "../testing/suites";
 import { DEFAULT_SUITE_OPTIONS, type TestSuite } from "../testing/types";
 import { runFlow } from "./engine";
-import { END_LABELS, endTone, flowReportFileName, orderedSteps, stepStatusCode, toFlowCsvReport, toFlowHtmlReport, variableRows } from "./flowReport";
+import { END_LABELS, endTone, flowReportFileName, orderedSteps, singleCall, stepResultLabel, stepStatusCode, toFlowCsvReport, toFlowHtmlReport, variableRows } from "./flowReport";
 import { newEdge, newFlow, newNode } from "./flows";
 import type { Flow, FlowNode, FlowRun } from "./types";
 
@@ -42,12 +42,13 @@ describe("flow reports", () => {
     expect(lines[4]).toContain("500");
   });
 
-  it("builds a self-contained HTML report with each child report embedded and escaped", async () => {
+  it("builds a self-contained HTML report with each child report shown inline and escaped", async () => {
     const run = await sampleRun();
     const html = toFlowHtmlReport(run);
     expect(html).toMatch(/^<!doctype html>/);
     expect(html).toContain("Nightly, smoke");
-    expect(html).toContain("<iframe");
+    expect(html).toContain("https://api.test/fail");
+    expect(html).not.toContain("<iframe");
     expect(html).not.toContain("<ticket>");
     expect(html).not.toMatch(/<script[^>]+src=/);
     expect(orderedSteps(run).map((s) => s.index)).toEqual([0, 1, 2]);
@@ -96,5 +97,24 @@ describe("run results", () => {
     const steps = orderedSteps(run);
     expect(stepStatusCode(steps[0])).toBeUndefined();
     expect(stepStatusCode(steps[2])).toBe(500);
+  });
+
+  it("finds the single call of a one-result step only", async () => {
+    const step = orderedSteps(await sampleRun())[2];
+    expect(singleCall(step)?.caseName).toBe("Get <ticket>");
+    const result = step.child!.results[0];
+    expect(singleCall({ ...step, child: { ...step.child!, results: [] } })).toBeUndefined();
+    expect(singleCall({ ...step, child: { ...step.child!, results: [result, result] } })).toBeUndefined();
+    expect(singleCall({ ...step, child: undefined })).toBeUndefined();
+  });
+
+  it("keeps the embedded report for a multi-call step and adds the status to the result", async () => {
+    const run = await sampleRun();
+    const step = orderedSteps(run)[2];
+    const result = step.child!.results[0];
+    const multi = { ...run, stepList: run.stepList.map((s) => (s.index === 2 ? { ...s, child: { ...s.child!, results: [result, result] } } : s)) };
+    expect(toFlowHtmlReport(multi)).toContain("iframe");
+    expect(stepResultLabel(step)).toMatch(/ · 500$/);
+    expect(toFlowHtmlReport(run)).toContain(`· 500</span>`);
   });
 });
