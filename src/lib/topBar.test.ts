@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { modeForShortcut, nextModeIndex, topBarLayout } from "./topBar";
+import { modeForShortcut, nextFitLevel, nextModeIndex, topBarLayout } from "./topBar";
 
 describe("topBarLayout", () => {
   it("collapses the search below 1366 px", () => {
@@ -45,5 +45,29 @@ describe("nextModeIndex", () => {
     expect(nextModeIndex(1, "Home")).toBe(0);
     expect(nextModeIndex(1, "End")).toBe(2);
     expect(nextModeIndex(1, "a")).toBeNull();
+  });
+});
+
+describe("nextFitLevel", () => {
+  it("goes up one level while the bar overflows", () => {
+    expect(nextFitLevel(0, 40, 0, 100)).toBe(1);
+    expect(nextFitLevel(2, 2, 0, 100)).toBe(3);
+  });
+  it("never goes above 4", () => {
+    expect(nextFitLevel(4, 300, 0, 100)).toBe(4);
+  });
+  it("ignores a one-pixel overflow", () => {
+    expect(nextFitLevel(1, 1, 0, 100)).toBe(1);
+  });
+  it("comes down only with the next level's width plus 24px of slack", () => {
+    expect(nextFitLevel(3, 0, 124, 100)).toBe(2);
+    expect(nextFitLevel(3, 0, 300, 100)).toBe(2);
+  });
+  it("stays put inside the slack band", () => {
+    expect(nextFitLevel(3, 0, 100, 100)).toBe(3);
+    expect(nextFitLevel(3, 0, 123, 100)).toBe(3);
+  });
+  it("never goes below 0", () => {
+    expect(nextFitLevel(0, 0, 999, 10)).toBe(0);
   });
 });

@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { requestToCurl } from "../../lib/curl";
 import { findJsonProblem, formatJson } from "../../lib/jsonFormat";
 import { readableUrl } from "../../lib/quickOpen";
 import { unresolvedPlaceholders } from "../../lib/request";
-import { activeSection, authSummary, BODY_LABELS, bodySummary, countsLabel, headersText, paramsText, resolvedUrl, rowCounts, sectionBarItems, splitPlaceholders } from "../../lib/requestSummary";
+import { BODY_LABELS, loadDetailsState, requestDetailsSummary, resolvedUrl, rowCounts, splitPlaceholders, type DetailsState, type DetailsTab } from "../../lib/requestSummary";
 import { load, save } from "../../lib/storage";
 import type { Vars } from "../../lib/template";
 import { HTTP_METHODS, type BodyMode, type HttpMethod, type RequestDef } from "../../lib/types";
@@ -11,17 +11,13 @@ import { AuthEditor } from "../AuthEditor";
 import { BodyEditor } from "../BodyEditor";
 import { KeyValueEditor } from "../KeyValueEditor";
 import { ScriptEditor } from "../testing/ScriptEditor";
-import { ChevronDownIcon, CopyIcon } from "../shell/Icons";
-import { OverflowMenu } from "../shell/OverflowMenu";
+import { OverflowMenu, type MenuItem } from "../shell/OverflowMenu";
 import { useToast } from "../shell/Toast";
 import { useCertificates } from "../CertificatesDialog";
 import { CertificateChip } from "./CertificateChip";
 import { CurlPanel } from "./CurlPanel";
+import { RequestDetailsDrawer, RequestSummary } from "./RequestDetails";
 import { UrlInput } from "./UrlInput";
-import { Section } from "./Section";
-
-type SectionId = "params" | "auth" | "headers" | "body" | "scripts";
-type OpenState = Partial<Record<SectionId, boolean>>;
 
 interface Props {
   def: RequestDef;
@@ -31,18 +27,22 @@ interface Props {
   envName?: string;
   /** Enter in the URL box. */
   onEnter?: () => void;
-  /** Where the open/closed sections are remembered. */
-  sectionsKey: string;
+  /** Where the Request details drawer's open state and tab are remembered. */
+  detailsKey: string;
   urlPlaceholder?: string;
   /** Variables set by scripts on earlier sends, shown under the script editor. */
   scriptVars?: Vars;
   /** Extra line under the script editor, e.g. how request scripts mix with a test case's. */
   scriptsNote?: string;
-  /** Opens the Variables popover (the unfilled-placeholder chip and the Scripts section link to it). */
+  /** Opens the Variables popover (the unfilled-placeholder dot and the Scripts tab link to it). */
   onOpenVariables?: () => void;
+  /** The Send button, shown at the right of the URL row. Left out where the request is not sent from here. */
+  sendSlot?: React.ReactNode;
+  /** Items at the top of the ⋯ menu next to Send (Save and the like). The URL and cURL items follow. Without them there is no ⋯ menu. */
+  menuItems?: MenuItem[];
 }
 
-/** The Scripts section: Pre-request / Post-response switch, the editor, and the variables scripts have set. */
+/** The Scripts tab: Pre-request / Post-response switch, the editor, and the variables scripts have set. */
 function ScriptsPanel({ def, onChange, scriptVars, onOpenVariables, scriptsNote }: Pick<Props, "def" | "onChange" | "scriptVars" | "onOpenVariables" | "scriptsNote">) {
   const [phase, setPhase] = useState<"pre" | "post">(() => ((def.preScript ?? "").trim() === "" && (def.postScript ?? "").trim() !== "" ? "post" : "pre"));
   const varNames = Object.keys(scriptVars ?? {});
@@ -106,39 +106,39 @@ const BODY_MODES: BodyMode[] = ["none", "json", "text", "urlencoded"];
 const CURL_OPEN_KEY = "rest-runner.curl-open";
 
 /**
- * The request column of layout A: URL bar, the resolved URL, and Params / Auth /
- * Headers / Body / Scripts as collapsible sections. Requests mode and the Testing "Edit request"
- * dialog both use it.
+ * The request column: the URL row (with Send and the ⋯ menu), one summary line, and the body filling the rest.
+ * Params, Auth, Headers and Scripts live in a Request details drawer that slides over the body. Requests mode
+ * and the Testing "Edit request" dialog both use it.
  */
-export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectionsKey, urlPlaceholder, scriptVars, scriptsNote, onOpenVariables }: Props) {
-  const [openState, setOpenState] = useState<OpenState>(() => load<OpenState>(sectionsKey, {}));
+export function RequestEditor({ def, onChange, envVars, envName, onEnter, detailsKey, urlPlaceholder, scriptVars, scriptsNote, onOpenVariables, sendSlot, menuItems }: Props) {
+  const [details, setDetails] = useState<DetailsState>(() => loadDetailsState(load<unknown>(detailsKey, null)));
   useEffect(() => {
-    save(sectionsKey, openState);
-  }, [sectionsKey, openState]);
-
-  const scroller = useRef<HTMLDivElement>(null);
-  const [spy, setSpy] = useState<SectionId | null>("params");
-  /** Which section is at the top of the scrolling area. */
-  const readSpy = useCallback(() => {
-    const box = scroller.current;
-    if (!box) return;
-    const top = box.getBoundingClientRect().top;
-    const tops = [...box.querySelectorAll<HTMLElement>("[data-section]")].map((el) => ({ id: el.dataset.section as SectionId, top: el.getBoundingClientRect().top - top }));
-    setSpy(activeSection(tops));
-  }, []);
-  const jumpTo = (id: SectionId) => {
-    setOpenState((s) => ({ ...s, [id]: true }));
-    requestAnimationFrame(() => {
-      const box = scroller.current;
-      const el = box?.querySelector<HTMLElement>(`[data-section="${id}"]`);
-      if (box && el) box.scrollTo({ top: el.offsetTop - box.offsetTop, behavior: "smooth" });
-      setSpy(id);
-    });
-  };
+    save(detailsKey, details);
+  }, [detailsKey, details]);
 
   const methodAllowsBody = def.method !== "GET" && def.method !== "HEAD";
-  const isOpen = (id: SectionId) => openState[id] ?? (methodAllowsBody ? id === "body" : id === "params");
-  const toggle = (id: SectionId) => setOpenState((s) => ({ ...s, [id]: !isOpen(id) }));
+  // With no body to cover, the details fill its place and are always showing.
+  const docked = !methodAllowsBody;
+  const open = details.open || docked;
+  const detailsId = useId();
+  const opener = useRef<HTMLElement | null>(null);
+
+  const closeDetails = useCallback(() => {
+    setDetails((d) => ({ ...d, open: false }));
+    requestAnimationFrame(() => {
+      const back = opener.current?.isConnected ? opener.current : document.querySelector<HTMLElement>(".req-details-btn");
+      back?.focus();
+    });
+  }, []);
+  const toggleDetails = (from: HTMLElement) => {
+    if (details.open) return closeDetails();
+    opener.current = from;
+    setDetails((d) => ({ ...d, open: true }));
+  };
+  const pickTab = (tab: DetailsTab, from: HTMLElement) => {
+    if (!docked && !details.open) opener.current = from;
+    setDetails((d) => ({ ...d, tab, open: docked ? d.open : true }));
+  };
 
   const toast = useToast();
   const copyToClipboard = (text: string, message: string) => {
@@ -152,177 +152,88 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
   const certificates = useCertificates();
   const urlInputs = useDebounced({ def, envVars }, 150);
   const finalUrl = resolvedUrl(urlInputs.def, urlInputs.envVars);
-
   const unfilled = unresolvedPlaceholders(urlInputs.def, urlInputs.envVars);
+  const unfilledNames = unfilled.map((n) => `{{${n}}}`).join(", ");
 
-  const params = rowCounts(def.params);
-  const headers = rowCounts(def.headers);
-  const auth = authSummary(def.auth);
-  const body = bodySummary(def);
   const problem = def.bodyMode === "json" ? findJsonProblem(def.body) : null;
-  const scriptNames = [(def.preScript ?? "").trim() && "Pre-request", (def.postScript ?? "").trim() && "Post-response"].filter(Boolean).join(" · ");
+  const marks: Record<DetailsTab, string> = {
+    params: rowCounts(def.params).on ? String(rowCounts(def.params).on) : "",
+    auth: def.auth.type !== "none" ? "•" : "",
+    headers: rowCounts(def.headers).on ? String(rowCounts(def.headers).on) : "",
+    scripts: (def.preScript ?? "").trim() || (def.postScript ?? "").trim() ? "•" : "",
+  };
+
+  const noUrl = def.url.trim() === "";
+  const fullMenu: MenuItem[] | undefined = menuItems && [
+    ...menuItems,
+    { label: "Copy final URL", onSelect: () => copyToClipboard(finalUrl, "Copied the URL"), disabled: !finalUrl, separated: true },
+    { label: curlOpen ? "Hide cURL" : "Show cURL", onSelect: () => setCurlOpen((o) => !o) },
+    {
+      label: "Copy as cURL (Bash)",
+      onSelect: () => copyToClipboard(requestToCurl(urlInputs.def, urlInputs.envVars, "bash", certificates).command, "Copied the cURL command (Bash)"),
+      disabled: noUrl,
+    },
+    {
+      label: "Copy as cURL (Windows cmd)",
+      onSelect: () => copyToClipboard(requestToCurl(urlInputs.def, urlInputs.envVars, "cmd", certificates).command, "Copied the cURL command (Windows cmd)"),
+      disabled: noUrl,
+    },
+  ];
 
   return (
     <>
       <div className="url-block">
-        <div className="url-bar">
-          <select
-            className={`method-select m-${def.method.toLowerCase()}`}
-            value={def.method}
-            onChange={(e) => onChange({ method: e.target.value as HttpMethod })}
-            aria-label="Method"
-          >
-            {HTTP_METHODS.map((m) => (
-              <option key={m}>{m}</option>
-            ))}
-          </select>
-          <UrlInput
-            value={def.url}
-            onChange={(e) => onChange({ url: e.target.value })}
-            placeholder={urlPlaceholder ?? "Enter URL, e.g. https://api.example.com/users"}
-            spellCheck={false}
-            aria-label="URL"
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.metaKey && !e.ctrlKey && onEnter) onEnter();
-            }}
-          />
-        </div>
-        <div className="resolved-url" aria-label="Resolved URL" title="The URL Send will use">
-          {finalUrl ? (
-            <>
-              <span className="resolved-arrow" aria-hidden>
-                →
-              </span>
-              <span className="resolved-text" title={finalUrl}>
-                <WithPlaceholders text={readableUrl(finalUrl)} vars={urlInputs.envVars} />
-              </span>
-              <button className="icon-btn resolved-copy" onClick={() => copyToClipboard(finalUrl, "Copied the URL")} aria-label="Copy the full URL" title={`Copy the full URL\n${finalUrl}`}>
-                <CopyIcon size={12} />
-              </button>
-              {unfilled.length > 0 && (
-                <button
-                  className="unfilled-chip"
-                  onClick={onOpenVariables}
-                  title={`No value for: ${unfilled.map((n) => `{{${n}}}`).join(", ")}${onOpenVariables ? "\nClick to open Variables" : ""}`}
-                >
-                  {unfilled.length === 1 ? `1 unfilled: ${unfilled[0]}` : `${unfilled.length} unfilled`}
+        <div className="url-row">
+          <div className="url-bar">
+            <select
+              className={`method-select m-${def.method.toLowerCase()}`}
+              value={def.method}
+              onChange={(e) => onChange({ method: e.target.value as HttpMethod })}
+              aria-label="Method"
+            >
+              {HTTP_METHODS.map((m) => (
+                <option key={m}>{m}</option>
+              ))}
+            </select>
+            <UrlInput
+              value={def.url}
+              onChange={(e) => onChange({ url: e.target.value })}
+              placeholder={urlPlaceholder ?? "Enter URL, e.g. https://api.example.com/users"}
+              spellCheck={false}
+              aria-label="URL"
+              title={finalUrl ? readableUrl(finalUrl) : undefined}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.metaKey && !e.ctrlKey && onEnter) onEnter();
+              }}
+            />
+            {unfilled.length > 0 &&
+              (onOpenVariables ? (
+                <button className="unfilled-dot" onClick={onOpenVariables} title={`No value for ${unfilledNames}. Click to open Variables`} aria-label={`No value for ${unfilledNames}. Open Variables`}>
+                  <span className="unfilled-mark" aria-hidden />
+                  {unfilled.length}
                 </button>
-              )}
-              <CertificateChip url={finalUrl} skipped={!!def.noCertificate} onSkip={(skip) => onChange({ noCertificate: skip || undefined })} />
-              <span className="resolved-legend">{envName ? `values from ${envName}` : "no environment"}</span>
-            </>
-          ) : (
-            <span className="muted resolved-empty">The final URL, with environment values and query params filled in, shows here.</span>
-          )}
-          <OverflowMenu
-            label="cURL"
-            triggerClass={`link-btn small curl-toggle ${curlOpen ? "active" : ""}`}
-            triggerTitle="Show or copy the cURL command Send would run"
-            trigger={
-              <>
-                cURL <ChevronDownIcon size={10} />
-              </>
-            }
-            items={[
-              { label: curlOpen ? "Hide cURL" : "Show cURL", onSelect: () => setCurlOpen((o) => !o) },
-              {
-                label: "Copy as cURL (Bash)",
-                onSelect: () => copyToClipboard(requestToCurl(urlInputs.def, urlInputs.envVars, "bash", certificates).command, "Copied the cURL command (Bash)"),
-                disabled: def.url.trim() === "",
-                separated: true,
-              },
-              {
-                label: "Copy as cURL (Windows cmd)",
-                onSelect: () => copyToClipboard(requestToCurl(urlInputs.def, urlInputs.envVars, "cmd", certificates).command, "Copied the cURL command (Windows cmd)"),
-                disabled: def.url.trim() === "",
-              },
-            ]}
-          />
+              ) : (
+                <span className="unfilled-dot" title={`No value for ${unfilledNames}`} role="img" aria-label={`No value for ${unfilledNames}`}>
+                  <span className="unfilled-mark" aria-hidden />
+                  {unfilled.length}
+                </span>
+              ))}
+          </div>
+          {sendSlot}
+          {fullMenu && <OverflowMenu items={fullMenu} label="More actions" />}
         </div>
-        {curlOpen && <CurlPanel def={urlInputs.def} vars={urlInputs.envVars} envName={envName} />}
+        {curlOpen && fullMenu && <CurlPanel def={urlInputs.def} vars={urlInputs.envVars} envName={envName} />}
       </div>
 
-      <nav className="section-bar" aria-label="Jump to a section">
-        {sectionBarItems(def).map((item) => (
-          <button
-            key={item.id}
-            className={`section-chip ${spy === item.id ? "current" : ""}`}
-            aria-current={spy === item.id ? "true" : undefined}
-            onClick={() => jumpTo(item.id)}
-          >
-            {item.label}
-            {item.mark && <span className="section-chip-mark">{item.mark}</span>}
-          </button>
-        ))}
-      </nav>
-
-      <div className="req-sections" ref={scroller} onScroll={readSpy}>
-        <Section
-          id="params"
-          label="Params"
-          open={isOpen("params")}
-          onToggle={() => toggle("params")}
-          summary={
-            paramsText(def.params) ? (
-              <span className="mono">
-                <WithPlaceholders text={paramsText(def.params)} vars={envVars} />
-              </span>
-            ) : (
-              <span className="muted">None</span>
-            )
-          }
-          meta={countsLabel(params)}
-        >
-          <KeyValueEditor rows={def.params} onChange={(rows) => onChange({ params: rows })} placeholderVars={envVars} />
-        </Section>
-
-        <Section
-          id="auth"
-          label="Auth"
-          open={isOpen("auth")}
-          onToggle={() => toggle("auth")}
-          summary={
-            <>
-              <span className="muted">{auth.label}</span>
-              {auth.value && (
-                <span className="mono">
-                  <WithPlaceholders text={auth.value} vars={envVars} />
-                </span>
-              )}
-            </>
-          }
-        >
-          <AuthEditor auth={def.auth} onChange={(a) => onChange({ auth: a })} />
-        </Section>
-
-        <Section id="headers" label="Headers" open={isOpen("headers")} onToggle={() => toggle("headers")} summary={
-            headersText(def.headers) ? (
-              <span className="mono">
-                <WithPlaceholders text={headersText(def.headers)} vars={envVars} />
-              </span>
-            ) : (
-              <span />
-            )
-          }
-          meta={countsLabel(headers) || "None"}
-        >
-          <KeyValueEditor rows={def.headers} onChange={(rows) => onChange({ headers: rows })} placeholderVars={envVars} />
-        </Section>
-
-        <Section
-          id="body"
-          label="Body"
-          grow
-          open={isOpen("body")}
-          onToggle={() => toggle("body")}
-          summary={
-            <>
-              <span className="muted">{body.label}</span>
-              {body.status && <span className={`json-status ${body.status === "valid" ? "ok" : "bad"}`}>{body.status === "valid" ? "Valid" : "Invalid JSON"}</span>}
-              {!methodAllowsBody && def.bodyMode !== "none" && <span className="warning small">not sent with {def.method}</span>}
-            </>
-          }
-          controls={
+      <RequestSummary
+        items={requestDetailsSummary(def, envVars)}
+        showToggle={!docked}
+        open={open}
+        detailsId={detailsId}
+        onToggle={toggleDetails}
+        onPick={pickTab}
+        end={
+          methodAllowsBody ? (
             <>
               <select className="body-mode-select" value={def.bodyMode} onChange={(e) => onChange({ bodyMode: e.target.value as BodyMode })} aria-label="Body type">
                 {BODY_MODES.map((m) => (
@@ -331,7 +242,6 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
                   </option>
                 ))}
               </select>
-              <span className="req-section-fill" />
               {def.bodyMode === "json" && def.body.trim() !== "" && <span className={`json-status ${problem ? "bad" : "ok"}`}>{problem ? "Invalid JSON" : "Valid"}</span>}
               {def.bodyMode === "json" && (
                 <button
@@ -347,8 +257,16 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
                 </button>
               )}
             </>
-          }
-        >
+          ) : (
+            <span className="muted">No body for {def.method}</span>
+          )
+        }
+      >
+        <CertificateChip url={finalUrl} skipped={!!def.noCertificate} onSkip={(skip) => onChange({ noCertificate: skip || undefined })} />
+      </RequestSummary>
+
+      <div className="req-body-area">
+        {methodAllowsBody && (
           <BodyEditor
             toolbar={false}
             mode={def.bodyMode}
@@ -360,17 +278,13 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, sectio
             onBodyChange={(b) => onChange({ body: b })}
             onFormChange={(formBody) => onChange({ formBody })}
           />
-        </Section>
-
-        <Section
-          id="scripts"
-          label="Scripts"
-          open={isOpen("scripts")}
-          onToggle={() => toggle("scripts")}
-          summary={scriptNames ? <span className="mono">{scriptNames}</span> : <span className="muted">None</span>}
-        >
-          <ScriptsPanel def={def} onChange={onChange} scriptVars={scriptVars} onOpenVariables={onOpenVariables} scriptsNote={scriptsNote} />
-        </Section>
+        )}
+        <RequestDetailsDrawer id={detailsId} open={open} docked={docked} tab={details.tab} onTab={(tab) => setDetails((d) => ({ ...d, tab }))} onClose={closeDetails} marks={marks}>
+          {details.tab === "params" && <KeyValueEditor rows={def.params} onChange={(rows) => onChange({ params: rows })} placeholderVars={envVars} />}
+          {details.tab === "auth" && <AuthEditor auth={def.auth} onChange={(a) => onChange({ auth: a })} />}
+          {details.tab === "headers" && <KeyValueEditor rows={def.headers} onChange={(rows) => onChange({ headers: rows })} placeholderVars={envVars} />}
+          {details.tab === "scripts" && <ScriptsPanel def={def} onChange={onChange} scriptVars={scriptVars} onOpenVariables={onOpenVariables} scriptsNote={scriptsNote} />}
+        </RequestDetailsDrawer>
       </div>
     </>
   );

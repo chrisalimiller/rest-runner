@@ -40,14 +40,6 @@ export function ChevronDownIcon({ size = 12 }: IconProps) {
   );
 }
 
-export function ChevronIcon({ open, size = 12 }: IconProps & { open: boolean }) {
-  return (
-    <svg {...base(size)} strokeWidth={2.4} className={`section-chevron ${open ? "open" : ""}`}>
-      <path d="M9 6l6 6-6 6" />
-    </svg>
-  );
-}
-
 export function PencilIcon({ size = 14 }: IconProps) {
   return (
     <svg {...base(size)} strokeWidth={2}>
@@ -185,6 +177,16 @@ export function FlowsIcon({ size = 16, className }: IconProps) {
       <path d="M8.5 6h7" />
       <path d="M7.2 8.2l3.6 7.4" />
       <path d="M16.8 8.2l-3.6 7.4" />
+    </svg>
+  );
+}
+
+export function VariablesIcon({ size = 14 }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 4C5 4 5 6 5 8v2c0 1.5-1 2-2 2 1 0 2 .5 2 2v2c0 2 0 4 3 4" />
+      <path d="M16 4c3 0 3 2 3 4v2c0 1.5 1 2 2 2-1 0-2 .5-2 2v2c0 2 0 4-3 4" />
+      <path d="M9.5 9.5l5 5M14.5 9.5l-5 5" />
     </svg>
   );
 }

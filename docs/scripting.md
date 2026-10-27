@@ -185,7 +185,7 @@ Where variables live, and how long, depends on where the script runs.
 - **Script variables are global and persistent.** Every request shares one set. A variable set by one request's script can be used by any other request, and is saved between launches of the app.
 - They are listed under the script editor (**Script variables**). **Clear** forgets all of them.
 - After a send of a request that **has a script**, the script variables become whatever the scripts left (including anything unset). A request with no scripts leaves them untouched.
-- They are also used for the resolved URL line, the placeholder check and the preview, in addition to environment values.
+- They are also used for the resolved URL, the placeholder check and the preview, in addition to environment values.
 - Priority for `{{name}}`: environment, then script variables.
 
 ### CSV batch runs in Requests mode

@@ -23,7 +23,7 @@ export function VariablesPopover({ rows, scriptVars, envName, onEdit, onClearScr
     ref.current?.focus();
     const onDown = (e: MouseEvent) => {
       const t = e.target as HTMLElement;
-      if (!ref.current?.contains(t) && !t.closest("[data-variables-trigger]") && !t.closest(".unfilled-chip")) onClose();
+      if (!ref.current?.contains(t) && !t.closest("[data-variables-trigger]") && !t.closest(".unfilled-dot")) onClose();
     };
     window.addEventListener("mousedown", onDown);
     return () => window.removeEventListener("mousedown", onDown);

@@ -7,7 +7,7 @@ import { RequestEditor } from "./components/request/RequestEditor";
 import { RequestSwitcher } from "./components/request/RequestSwitcher";
 import { ResponsePane } from "./components/ResponsePane";
 import { RunExplorer } from "./components/RunExplorer";
-import { TopBar } from "./components/shell/TopBar";
+import { MOD_KEY, TopBar } from "./components/shell/TopBar";
 import { useToast } from "./components/shell/Toast";
 import { useDeferredDelete } from "./components/shell/useDeferredDelete";
 import { VariablesPopover } from "./components/shell/VariablesPopover";
@@ -70,7 +70,7 @@ const COLLECTIONS_KEY = "rest-runner.collections";
 const EXPANDED_KEY = "rest-runner.expanded";
 const ENVIRONMENTS_KEY = "rest-runner.environments";
 const ACTIVE_ENV_KEY = "rest-runner.active-environment";
-const SECTIONS_KEY = "rest-runner.request-sections";
+const DETAILS_KEY = "rest-runner.request-details";
 const SPLIT_KEY = "rest-runner.split";
 /** Variables set by request scripts (rr.vars.set), kept between sends. */
 const SCRIPT_VARS_KEY = "rest-runner.script-vars";
@@ -133,7 +133,7 @@ export default function App({ active = true, shell, command }: Props) {
   const [showVariables, setShowVariables] = useState(false);
   const [exportDialog, setExportDialog] = useState(false);
   const toast = useToast();
-  const [notice, setNotice] = useState<string | null>(null);
+  const notify = useCallback((message: string) => toast.show({ message }), [toast]);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [renamingName, setRenamingName] = useState(false);
   const [split, setSplit] = useState<number>(() => {
@@ -173,11 +173,6 @@ export default function App({ active = true, shell, command }: Props) {
   useEffect(() => {
     save(SCRIPT_VARS_KEY, scriptVars);
   }, [scriptVars]);
-  useEffect(() => {
-    if (!notice) return;
-    const t = setTimeout(() => setNotice(null), 5000);
-    return () => clearTimeout(t);
-  }, [notice]);
 
   const refreshRuns = useCallback(() => {
     listRuns()
@@ -259,10 +254,10 @@ export default function App({ active = true, shell, command }: Props) {
     const copy = structuredClone(def);
     if (located?.kind === "request") {
       setCollections((c) => updateRequest(c, copy));
-      setNotice(`Saved "${copy.name}".`);
+      notify(`Saved "${copy.name}".`);
     } else if (located?.kind === "example") {
       setCollections((c) => updateExample(c, copy));
-      setNotice(`Saved example "${copy.name}".`);
+      notify(`Saved example "${copy.name}".`);
     } else {
       setDialog({ type: "save", dest: null });
     }
@@ -310,7 +305,7 @@ export default function App({ active = true, shell, command }: Props) {
     setOutcomeIsSample(true);
     setSampleLabel(historyLabel(h));
     setPane("response");
-    setNotice(`Loaded the request as sent ${whenLabel(h.sentAt) === "now" ? "just now" : `at ${whenLabel(h.sentAt) || "an earlier time"}`}.`);
+    notify(`Loaded the request as sent ${whenLabel(h.sentAt) === "now" ? "just now" : `at ${whenLabel(h.sentAt) || "an earlier time"}`}.`);
   };
 
   /** Loads the request a batch run was made from, and shows the Batch run pane. */
@@ -318,7 +313,7 @@ export default function App({ active = true, shell, command }: Props) {
     openDef(request);
     setPane("batch");
     setBatchVisited(true);
-    setNotice(`Loaded the request from the batch run of ${runLabel}.`);
+    notify(`Loaded the request from the batch run of ${runLabel}.`);
   };
 
   /** Resolves a destination choice, creating a new collection if asked. */
@@ -408,9 +403,9 @@ export default function App({ active = true, shell, command }: Props) {
     try {
       const certificates = await certificatesForExport(loadCertificates(), includeCertificateFiles && isTauri());
       const result = await saveTextFile("rest-runner-export.json", toWorkspaceFile(collections, environments, { includeSecrets, suites: readWorkspace().suites, flows: readWorkspace().flows, certificates }), "REST Runner export", "json");
-      if (result.saved) setNotice(result.path ? `Exported to ${result.path}` : "Export downloaded.");
+      if (result.saved) notify(result.path ? `Exported to ${result.path}` : "Export downloaded.");
     } catch (e) {
-      setNotice(`Could not export: ${e instanceof Error ? e.message : String(e)}`);
+      notify(`Could not export: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
 
@@ -470,9 +465,9 @@ export default function App({ active = true, shell, command }: Props) {
       if (changed) shell.onDataChanged(["suites", "flows"]);
       const certificates = await importCertificatesFrom(text);
       const warned = result.warnings?.length ? ` ${result.warnings.length} warning${result.warnings.length === 1 ? "" : "s"}: ${result.warnings.join(" ")}` : "";
-      setNotice(`${describeWorkspaceImport(file.name, result.counts)}${certificates ? ` ${certificates}` : ""}${warned}`);
+      notify(`${describeWorkspaceImport(file.name, result.counts)}${certificates ? ` ${certificates}` : ""}${warned}`);
     } catch (e) {
-      setNotice(`Could not import ${file.name}: ${e instanceof Error ? e.message : String(e)}`);
+      notify(`Could not import ${file.name}: ${e instanceof Error ? e.message : String(e)}`);
     }
   };
 
@@ -488,7 +483,7 @@ export default function App({ active = true, shell, command }: Props) {
         } else if (found?.kind === "example") {
           expand(found.collection.id, ...found.path.map((f) => f.id), found.node.id);
           openExample(found.example);
-        } else setNotice("That item no longer exists.");
+        } else notify("That item no longer exists.");
         break;
       }
       case "history": {
@@ -720,57 +715,47 @@ export default function App({ active = true, shell, command }: Props) {
             envVars={sendVars}
             envName={activeEnv?.name}
             onEnter={() => void send()}
-            sectionsKey={SECTIONS_KEY}
+            detailsKey={DETAILS_KEY}
             scriptVars={scriptVars}
             onOpenVariables={() => setShowVariables(true)}
+            sendSlot={
+              sending ? (
+                <button className="send cancel" onClick={cancel}>
+                  Cancel
+                </button>
+              ) : (
+                <button
+                  className={`send ${guard ? "guarded" : ""}`}
+                  style={guard ? ({ "--guard": guard.cssColor } as React.CSSProperties) : undefined}
+                  onClick={() => void send()}
+                  disabled={def.url.trim() === ""}
+                  title={unfilled.length > 0 ? `Sends with ${unfilled.map((n) => `{{${n}}}`).join(", ")} as written` : "Send (Ctrl/Cmd + Enter)"}
+                >
+                  {unfilled.length > 0 && <span aria-hidden>⚠ </span>}
+                  {guard ? guard.send : "Send"}
+                </button>
+              )
+            }
+            menuItems={[
+              { label: savedVersion && isDirty ? "Save •" : "Save", hint: `${MOD_KEY} S`, onSelect: saveCurrent },
+              ...(located?.kind === "request" || located?.kind === "example"
+                ? [{ label: "Save as example", title: "Keep the current payload as a named example of this request", onSelect: () => startExample(located.node.id) }]
+                : []),
+              ...(located?.kind === "example" && liveResponse
+                ? [
+                    {
+                      label: "Set sample response",
+                      title: "Keep the last response as this example's sample response",
+                      onSelect: () => {
+                        setCollections((c) => setExampleResponse(c, def.id, sampleFromResponse(liveResponse)));
+                        notify("Saved the response as the sample.");
+                      },
+                    },
+                  ]
+                : []),
+              { label: "Run with CSV…", title: "Send this request once per CSV row", onSelect: openBatch },
+            ]}
           />
-          <div className="action-footer">
-            {sending ? (
-              <button className="send cancel" onClick={cancel}>
-                Cancel
-              </button>
-            ) : (
-              <button
-                className={`send ${guard ? "guarded" : ""}`}
-                style={guard ? ({ "--guard": guard.cssColor } as React.CSSProperties) : undefined}
-                onClick={() => void send()}
-                disabled={def.url.trim() === ""}
-                title={unfilled.length > 0 ? `Sends with ${unfilled.map((n) => `{{${n}}}`).join(", ")} as written` : "Send (Ctrl/Cmd + Enter)"}
-              >
-                {unfilled.length > 0 && <span aria-hidden>⚠ </span>}
-                {guard ? guard.send : "Send"}
-              </button>
-            )}
-            <button className="secondary" onClick={saveCurrent} title="Save (Ctrl/Cmd + S)">
-              Save{savedVersion && isDirty ? " •" : ""}
-            </button>
-            <button className={`secondary ghost ${pane === "batch" ? "active" : ""}`} onClick={openBatch} title="Send this request once per CSV row">
-              Run with CSV…
-            </button>
-            <span className="footer-gap" />
-            {notice && (
-              <span className="small notice" role="status">
-                {notice}
-              </span>
-            )}
-            {located?.kind === "example" && liveResponse && (
-              <button
-                className="link-btn small"
-                title="Keep the last response as this example's sample response"
-                onClick={() => {
-                  setCollections((c) => setExampleResponse(c, def.id, sampleFromResponse(liveResponse)));
-                  setNotice("Saved the response as the sample.");
-                }}
-              >
-                Set sample response
-              </button>
-            )}
-            {(located?.kind === "request" || located?.kind === "example") && (
-              <button className="link-btn small" onClick={() => startExample(located.node.id)} title="Keep the current payload as a named example of this request">
-                Save as example
-              </button>
-            )}
-          </div>
         </section>
 
         <div
@@ -860,7 +845,7 @@ export default function App({ active = true, shell, command }: Props) {
             setDef(copy);
             expand(dest.collectionId, dest.folderId);
             setDialog(null);
-            setNotice(`Saved "${name}".`);
+            notify(`Saved "${name}".`);
           }}
         />
       )}
@@ -894,7 +879,7 @@ export default function App({ active = true, shell, command }: Props) {
             if (!includeResponse) setOutcome(null);
             setOutcomeIsSample(false);
             setDialog(null);
-            setNotice(`Saved example "${name}".`);
+            notify(`Saved example "${name}".`);
           }}
         />
       )}

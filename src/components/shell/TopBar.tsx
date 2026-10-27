@@ -5,7 +5,8 @@ import { overlayTitleBar } from "../../lib/windowChrome";
 import { MODES, nextModeIndex, topBarLayout } from "../../lib/topBar";
 import { useViewportWidth } from "../useViewportWidth";
 import { openCertificates } from "../../lib/certificatesDialog";
-import { ChevronDownIcon, FlowsIcon, LockIcon, PencilIcon, RequestsIcon, SearchIcon, TestingIcon } from "./Icons";
+import { ChevronDownIcon, FlowsIcon, LockIcon, PencilIcon, RequestsIcon, SearchIcon, TestingIcon, VariablesIcon } from "./Icons";
+import { useTopBarFit } from "./useTopBarFit";
 import { OverflowMenu } from "./OverflowMenu";
 
 export type Mode = "requests" | "testing" | "flows";
@@ -41,10 +42,21 @@ export const MOD_KEY = isMac ? "⌘" : "Ctrl";
 
 /** The one bar at the top of both modes: brand, switcher, quick open, environment, section switcher. */
 export function TopBar(props: Props) {
-  const layout = topBarLayout(useViewportWidth(), props.environments.length);
+  const width = useViewportWidth();
+  const headerRef = useRef<HTMLElement>(null);
+  const fit = useTopBarFit(headerRef, `${props.mode}|${props.environments.length}|${!!props.onVariables}`);
+  // The width rule is the minimum; the measured level can only collapse more.
+  const rule = topBarLayout(width, props.environments.length);
+  const layout = { compactSearch: rule.compactSearch || fit >= 2, envDropdown: rule.envDropdown || fit >= 3 };
+  const variablesIcon = fit >= 4;
   return (
     // With the macOS overlay title bar, empty parts of the top bar drag the window; buttons and fields still click.
-    <header className="topbar" data-tauri-drag-region={overlayTitleBar ? "deep" : undefined}>
+    <header
+      className="topbar"
+      ref={headerRef}
+      data-fit-crumbs={fit >= 1 ? "off" : undefined}
+      data-tauri-drag-region={overlayTitleBar ? "deep" : undefined}
+    >
       <BrandLockup />
       {props.switcher}
       <button
@@ -69,16 +81,17 @@ export function TopBar(props: Props) {
       />
       {props.onVariables && (
         <button
-          className={`secondary ghost topbar-variables ${props.variablesOpen ? "active" : ""}`}
+          className={`secondary ghost topbar-variables ${variablesIcon ? "icon-only" : ""} ${props.variablesOpen ? "active" : ""}`}
           data-variables-trigger
           aria-expanded={!!props.variablesOpen}
+          aria-label={variablesIcon ? "Variables" : undefined}
           onClick={props.onVariables}
-          title="Placeholders this request uses and script variables"
+          title={variablesIcon ? "Variables: placeholders this request uses and script variables" : "Placeholders this request uses and script variables"}
         >
-          Variables
+          {variablesIcon ? <VariablesIcon /> : "Variables"}
         </button>
       )}
-      <button className="icon-btn topbar-certs" onClick={() => openCertificates()} aria-label="Certificates" title="Client certificates and custom CAs, matched to addresses">
+      <button className="icon-btn topbar-certs" onClick={() => openCertificates()} aria-label="Certificates" title="Certificates">
         <LockIcon />
       </button>
       <ModeSwitch mode={props.mode} onMode={props.onMode} />

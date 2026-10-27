@@ -24,7 +24,7 @@ If you had requests saved before collections existed, they were moved into a col
 
 ## Saving
 
-- **Save** (the footer button, or Ctrl/Cmd + S) updates the open request where it already lives. A dot on the button and in the switcher means unsaved changes.
+- **Save** (in the ⋯ menu next to Send, or Ctrl/Cmd + S) updates the open request where it already lives. A dot on the menu item and in the switcher means unsaved changes.
 - The first time you save a new request, a dialog asks for a name and where it goes: an existing collection or folder, or a new collection.
 - The switcher shows the breadcrumb (Collection › Folder) and an **Example** tag when an example is open. Click the request name, or press F2, to rename it.
 
@@ -32,7 +32,7 @@ If you had requests saved before collections existed, they were moved into a col
 
 An example is a named copy of a request's payload (URL, params, headers, body, auth and scripts), like Postman's examples, optionally with the response it got.
 
-- **Save as example** (footer) keeps the current payload as a named example of the open request. The dialog lets you include the last live response as the example's **sample response**.
+- **Save as example** (⋯ menu) keeps the current payload as a named example of the open request. The dialog lets you include the last live response as the example's **sample response**.
 - Examples are listed under their request in the tree. Opening one loads its payload, and shows its sample response if it has one.
 - With an example open, **Set sample response** replaces its sample with the last live response, and Ctrl/Cmd + S saves your edits to the example.
 - You can also use **Add example** in a request's menu.
