@@ -1026,3 +1026,60 @@ table.results.flow-report-steps td {
 .flow-report-call {
   margin: 10px 0;
 }
+
+/* Flow report: the step pane scrolls as one column, long values wrap */
+.flow-report .result-detail {
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.flow-report .flow-report-call .call-detail {
+  height: auto;
+  min-height: auto;
+  max-height: none;
+}
+
+.flow-report .flow-report-call .call-detail-body {
+  flex: none;
+  overflow: visible;
+}
+
+.flow-report .flow-report-call .call-detail-head,
+.flow-report .flow-report-call .tabs {
+  position: sticky;
+  background: var(--bg);
+  z-index: 2;
+}
+
+.flow-report .flow-report-call .call-detail-head {
+  top: 0;
+  flex-wrap: wrap;
+  padding-top: 4px;
+}
+
+.flow-report .flow-report-call .tabs {
+  top: var(--call-head-h, 34px);
+}
+
+.flow-report .flow-report-call .code-view-frame {
+  min-height: 0;
+  overflow: visible;
+}
+
+.flow-report .flow-report-call .cm-scroller {
+  overflow-x: hidden;
+}
+
+.flow-report .flow-report-call .cm-content,
+.flow-report .flow-report-call .cm-line {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  min-width: 0;
+}
+
+.flow-report .flow-report-call .kv td,
+.flow-report .flow-report-call .notes li {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
