@@ -789,7 +789,16 @@ body.dragging-split {
 .url-row .send {
   flex: none;
   height: 40px;
-  padding: 0 22px;
+  /* One size whatever the label ("Send", "Send to Prod", "⚠ Send"): only the text changes. */
+  width: 108px;
+  padding: 0 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.url-row .send.guarded {
+  outline-offset: -3px;
 }
 
 .url-row .send.cancel {
