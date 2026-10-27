@@ -5,10 +5,11 @@ import { currentMasker, maskSecrets, storedSecrets } from "../../lib/secrets";
 import { useEffect, useMemo, useState } from "react";
 import { formatMs } from "../../lib/earlierSends";
 import { getFlowRun } from "../../lib/flows/flowRunStore";
-import { END_LABELS, flowReportFileName, flowRunWallMs, orderedSteps, stepWhere, toFlowCsvReport, toFlowHtmlReport, variableRows } from "../../lib/flows/flowReport";
+import { END_LABELS, flowReportFileName, flowRunWallMs, orderedSteps, singleCall, stepResultLabel, stepWhere, toFlowCsvReport, toFlowHtmlReport, variableRows } from "../../lib/flows/flowReport";
 import { NODE_TYPE_LABELS } from "../../lib/flows/flows";
 import type { FlowRun, FlowStep } from "../../lib/flows/types";
 import { saveTextFile } from "../../lib/saveFile";
+import { CaseResultView } from "../testing/CaseResultView";
 import { TestRunExplorer } from "../testing/TestRunExplorer";
 
 interface Props {
@@ -32,6 +33,8 @@ function StepDetail({ step, onOpenChild }: { step: FlowStep; onOpenChild: () => 
   const mask = currentMasker();
   const changed = rows.filter((r) => r.change !== null).length;
   const child = step.child;
+  const call = singleCall(step);
+  const notSent = !!child && child.results.length === 0;
   return (
     <div className="flow-report-detail">
       <h3>{step.label}</h3>
@@ -60,7 +63,13 @@ function StepDetail({ step, onOpenChild }: { step: FlowStep; onOpenChild: () => 
           </ol>
         </>
       )}
-      {child && (
+      {call && (
+        <div className="flow-report-call">
+          <CaseResultView key={step.index} result={call} title={call.caseName} initialTab={call.passed ? "response" : "checks"} />
+        </div>
+      )}
+      {notSent && <p className="muted small">The request was not sent.</p>}
+      {child && !call && !notSent && (
         <div className="flow-report-child">
           <span>
             <strong>{child.suiteName}</strong>: {child.passed} of {child.completed} case{child.completed === 1 ? "" : "s"} passed · {child.checksPassed} of{" "}
@@ -254,7 +263,7 @@ export function FlowRunReport({ runId, onBack, onDelete, onShowCanvas }: Props) 
                       <span className="muted small"> · {NODE_TYPE_LABELS[s.nodeType]}</span>
                     </td>
                     <td className="muted small">{stepWhere(s)}</td>
-                    <td className={s.status === "failed" ? "status bad" : s.status === "passed" ? "status ok" : "muted"}>{s.output ?? s.status}</td>
+                    <td className={s.status === "failed" ? "status bad" : s.status === "passed" ? "status ok" : "muted"}>{stepResultLabel(s)}</td>
                     <td className="muted">{formatMs(s.durationMs)}</td>
                   </tr>
                 ))}

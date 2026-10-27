@@ -1,6 +1,7 @@
 import { durationOf } from "../run";
-import { toTestHtmlReport } from "../testing/testReport";
+import { caseBodyHtml, toTestHtmlReport } from "../testing/testReport";
 import type { Vars } from "../template";
+import type { CaseResult } from "../testing/types";
 import type { FlowRun, FlowRunEnd, FlowStep } from "./types";
 import { NODE_TYPE_LABELS } from "./flows";
 
@@ -14,6 +15,18 @@ export function stepStatusCode(step: FlowStep): number | null | undefined {
   const last = step.child?.results[step.child.results.length - 1];
   if (!last) return undefined;
   return last.outcome?.ok ? last.outcome.response.status : null;
+}
+
+/** The step's only call when its report holds exactly one, so the call can be shown inline; undefined for zero or several calls, or no report. */
+export function singleCall(step: FlowStep): CaseResult | undefined {
+  return step.child?.results.length === 1 ? step.child.results[0] : undefined;
+}
+
+/** "passed · 200" style label for the steps list: the step result with the HTTP status when it has one. */
+export function stepResultLabel(step: FlowStep): string {
+  const base = step.output ?? step.status;
+  const code = stepStatusCode(step);
+  return typeof code === "number" ? `${base} · ${code}` : base;
 }
 
 export const END_LABELS: Record<FlowRunEnd, string> = { passed: "Passed", "passed-handled": "Passed with handled failures", failed: "Failed", cancelled: "Stopped" };
@@ -162,9 +175,10 @@ function stepHtml(s: FlowStep): string {
   const where = stepWhere(s);
   const changes = varChanges(s.varsBefore, s.varsAfter);
   const child = s.child;
+  const call = singleCall(s);
   const search = `${s.label} ${NODE_TYPE_LABELS[s.nodeType]} ${s.status} ${s.output ?? ""} ${s.notes.join(" ")}`.toLowerCase();
   return `<details class="step ${s.status}" data-search="${esc(search)}">
-<summary><span class="n">${s.index + 1}</span><span class="mark ${tone}">${mark}</span><span class="name">${esc(s.label)}</span><span class="type">${esc(NODE_TYPE_LABELS[s.nodeType])}</span><span class="where">${esc(where)}</span><span class="out">${esc(s.output ?? "")}</span><span class="ms">${esc(formatDuration(s.durationMs))}</span></summary>
+<summary><span class="n">${s.index + 1}</span><span class="mark ${tone}">${mark}</span><span class="name">${esc(s.label)}</span><span class="type">${esc(NODE_TYPE_LABELS[s.nodeType])}</span><span class="where">${esc(where)}</span><span class="out">${esc(s.child ? stepResultLabel(s) : (s.output ?? ""))}</span><span class="ms">${esc(formatDuration(s.durationMs))}</span></summary>
 <div class="step-body">
 ${s.notes.length ? `<ul class="notes">${s.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
 ${
@@ -174,7 +188,9 @@ ${
 }
 ${changes.length ? `<h4>Variables changed</h4><pre>${esc(changes.join("\n"))}</pre>` : ""}
 ${
-  child
+  call
+    ? `<div class="call-inline"><h4>${esc(call.caseName)}</h4>${caseBodyHtml(call)}</div>`
+    : child
     ? `<h4>${esc(child.suiteName)}: ${child.passed} of ${child.completed} case${child.completed === 1 ? "" : "s"} passed</h4>
 <iframe class="child" loading="lazy" title="${esc(`Report for ${s.label}`)}" srcdoc="${esc(toTestHtmlReport(child))}"></iframe>`
     : ""
@@ -212,10 +228,13 @@ table { border-collapse: collapse; } .info td, .info th { text-align: left; padd
 details.step { border: 1px solid var(--border); border-radius: 6px; margin-bottom: 6px; } details.step.failed { border-left: 3px solid var(--bad); }
 summary { display: flex; gap: 12px; align-items: center; padding: 7px 10px; cursor: pointer; list-style: none; } summary::-webkit-details-marker { display: none; }
 summary .n { width: 32px; color: var(--muted); } summary .mark { width: 14px; font-weight: 700; } summary .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; }
-summary .type, summary .where, summary .out, summary .ms { color: var(--muted); font-size: 12px; } summary .type { width: 110px; } summary .where { width: 110px; } summary .out { width: 70px; } summary .ms { width: 70px; text-align: right; }
+summary .type, summary .where, summary .out, summary .ms { color: var(--muted); font-size: 12px; } summary .type { width: 110px; } summary .where { width: 110px; } summary .out { width: 110px; } summary .ms { width: 70px; text-align: right; }
 .step-body { padding: 4px 12px 12px; border-top: 1px solid var(--border); }
 .notes, .tries { margin: 6px 0; padding-left: 18px; }
 pre { background: var(--soft); padding: 10px; border-radius: 4px; white-space: pre-wrap; word-break: break-word; }
+.kv { width: 100%; } .kv th, .kv td { text-align: left; padding: 3px 8px; border-bottom: 1px solid var(--border); vertical-align: top; word-break: break-all; } .kv th { width: 28%; font-weight: 600; } .kv td, .mono { font-family: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12.5px; }
+.status { font-weight: 600; } .status.ok { color: var(--ok); } .status.bad { color: var(--bad); } .status.redir { color: #2563eb; }
+.checks { list-style: none; padding: 0; margin: 0; } .checks li { padding: 2px 0; } .checks li.ok b { color: var(--ok); } .checks li.bad b { color: var(--bad); } .checks .msg { color: var(--muted); font-size: 12px; }
 iframe.child { width: 100%; height: 600px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg); }
 @media print { .toolbar { display: none; } details.step { break-inside: avoid; } }
 </style>

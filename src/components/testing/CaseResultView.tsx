@@ -4,7 +4,7 @@ import { formatBytes, statusClass } from "../../lib/format";
 import type { CaseResult, ScriptOutput } from "../../lib/testing/types";
 import { BodyView } from "../BodyView";
 
-type Tab = "checks" | "request" | "response" | "headers" | "scripts" | "vars";
+export type Tab = "checks" | "request" | "response" | "headers" | "scripts" | "vars";
 
 function PairTable({ rows }: { rows: [string, string][] }) {
   if (!rows.length) return <p className="muted small">None</p>;
@@ -41,9 +41,9 @@ function ScriptBlock({ title, output }: { title: string; output?: ScriptOutput }
 }
 
 /** Everything about one test case result: checks, notes, request, response, script output and variables. */
-export function CaseResultView({ result, title }: { result: CaseResult; title?: string }) {
+export function CaseResultView({ result, title, initialTab = "checks" }: { result: CaseResult; title?: string; initialTab?: Tab }) {
   const mask = currentMasker();
-  const [tab, setTab] = useState<Tab>("checks");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const o = result.outcome;
   const res = o?.ok ? o.response : null;
   const failedChecks = result.checks.filter((c) => !c.passed).length;
