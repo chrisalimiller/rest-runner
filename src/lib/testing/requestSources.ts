@@ -26,15 +26,17 @@ function isRequest(r: unknown): r is RequestDef {
   return !!r && typeof (r as RequestDef).url === "string" && typeof (r as RequestDef).method === "string";
 }
 
-function walk(items: TreeLike[], path: string[], out: PickableRequest[]) {
-  for (const item of items) {
+function walk(items: unknown, path: string[], out: PickableRequest[]) {
+  if (!Array.isArray(items)) return;
+  for (const item of items as (TreeLike | null)[]) {
+    if (!item || typeof item !== "object") continue;
     if (item.kind === "folder" && Array.isArray(item.items)) {
       walk(item.items, [...path, item.name ?? "Folder"], out);
     } else if (item.kind === "request" && isRequest(item.request)) {
       const req = item.request;
       out.push({ id: req.id, path: [...path, req.name], request: req, isExample: false });
-      for (const ex of item.examples ?? []) {
-        if (isRequest(ex.request)) out.push({ id: ex.id, path: [...path, req.name, ex.name], request: { ...ex.request, name: `${req.name} – ${ex.name}` }, isExample: true });
+      for (const ex of Array.isArray(item.examples) ? item.examples : []) {
+        if (ex && isRequest(ex.request)) out.push({ id: ex.id, path: [...path, req.name, ex.name], request: { ...ex.request, name: `${req.name} – ${ex.name}` }, isExample: true });
       }
     }
   }
@@ -48,7 +50,7 @@ export function listPickableRequests(): PickableRequest[] {
   const collections = load<TreeLike[] | null>(COLLECTIONS_KEY, null);
   if (Array.isArray(collections)) {
     const out: PickableRequest[] = [];
-    for (const c of collections) walk(c.items ?? [], [c.name ?? "Collection"], out);
+    for (const c of collections) if (c && typeof c === "object") walk(c.items, [c.name ?? "Collection"], out);
     return out;
   }
   const saved = load<unknown[]>(SAVED_KEY, []);

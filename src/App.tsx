@@ -41,7 +41,7 @@ import {
 } from "./lib/collections";
 import { newRequest } from "./lib/defaults";
 import { earlierSendLabel, earlierSends, earlierSendTone, sendTooltip, whenLabel } from "./lib/earlierSends";
-import { fitHistory, historyLabel, historyOutcome, MAX_HISTORY_BODY, responseNotKept } from "./lib/history";
+import { cleanHistory, fitHistory, historyLabel, historyOutcome, MAX_HISTORY_BODY, responseNotKept } from "./lib/history";
 import { environmentVars, guardFor, loadEnvironments, type Environment } from "./lib/environments";
 import { loadCertificates, saveCertificates } from "./lib/certificates";
 import { certificatesForExport, describeCertificateImport, importCertificates } from "./lib/certificatesFile";
@@ -83,7 +83,7 @@ import {
   type RequestTab,
   type TabsState,
 } from "./lib/requestTabs";
-import { load, save } from "./lib/storage";
+import { isArray, isString, isStringArray, isStringRecord, load, save } from "./lib/storage";
 import type { HistoryEntry, RequestDef, SendOutcome } from "./lib/types";
 
 type LowerPane = "response" | "batch";
@@ -146,7 +146,7 @@ function readTabs(): TabsState {
 function loadCollections(): Collection[] {
   const stored = load<unknown>(COLLECTIONS_KEY, null);
   if (stored !== null) return cleanCollections(stored);
-  return migrateSavedRequests(load<unknown[]>(SAVED_KEY, []).filter(isRequestDef));
+  return migrateSavedRequests(load<unknown[]>(SAVED_KEY, [], isArray).filter(isRequestDef));
 }
 
 type Dialog =
@@ -200,18 +200,18 @@ export default function App({ active = true, shell, command }: Props) {
   const tabsRef = useRef(tabs);
   const [runtime, setRuntime] = useState<Record<string, TabRuntime>>({});
   const aborts = useRef(new Map<string, AbortController>());
-  const [scriptVars, setScriptVars] = useState<Vars>(() => load<Vars>(SCRIPT_VARS_KEY, {}));
-  const [history, setHistory] = useState<HistoryEntry[]>(() => load(HISTORY_KEY, []));
+  const [scriptVars, setScriptVars] = useState<Vars>(() => load<Vars>(SCRIPT_VARS_KEY, {}, isStringRecord));
+  const [history, setHistory] = useState<HistoryEntry[]>(() => cleanHistory(load<unknown>(HISTORY_KEY, [])));
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [openRun, setOpenRun] = useState<string | null>(null);
   const [collections, setCollections] = useState<Collection[]>(loadCollections);
   const [expanded, setExpanded] = useState<Set<string>>(
-    () => new Set(load<string[] | null>(EXPANDED_KEY, null) ?? collections.map((c) => c.id)),
+    () => new Set(load<string[] | null>(EXPANDED_KEY, null, isStringArray) ?? collections.map((c) => c.id)),
   );
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [environments, setEnvironments] = useState<Environment[]>(loadEnvironments);
-  const [activeEnvId, setActiveEnvId] = useState<string | null>(() => load(ACTIVE_ENV_KEY, null));
+  const [activeEnvId, setActiveEnvId] = useState<string | null>(() => load<string | null>(ACTIVE_ENV_KEY, null, isString));
   const [showEnvEditor, setShowEnvEditor] = useState(false);
   const [focusVarId, setFocusVarId] = useState<string | undefined>(undefined);
   const [variablesPanel, setVariablesPanel] = useState<VariablesPanelState>(loadPanelState);
@@ -689,7 +689,7 @@ export default function App({ active = true, shell, command }: Props) {
     else if (command.type === "reload") {
       setCollections(loadCollections());
       setEnvironments(loadEnvironments());
-      setActiveEnvId(load(ACTIVE_ENV_KEY, null));
+      setActiveEnvId(load<string | null>(ACTIVE_ENV_KEY, null, isString));
     }
     else openItem(command.item, command.permanent);
   }, [command]);

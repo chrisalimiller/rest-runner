@@ -1,3 +1,4 @@
+import { completeRequest } from "./defaults";
 import { formatMs, whenLabel } from "./earlierSends";
 import type { HistoryEntry, SendOutcome } from "./types";
 
@@ -48,4 +49,26 @@ export function fitHistory(history: HistoryEntry[], fits: (h: HistoryEntry[]) =>
     if (fits(list)) return list;
   }
   return null;
+}
+
+/** Stored history with broken entries dropped, so one bad entry never blanks the app. */
+export function cleanHistory(x: unknown): HistoryEntry[] {
+  if (!Array.isArray(x)) return [];
+  const out: HistoryEntry[] = [];
+  for (const e of x) {
+    if (!e || typeof e !== "object") continue;
+    const h = e as Record<string, unknown>;
+    const def = completeRequest(h.def);
+    if (typeof h.id !== "string" || typeof h.sentAt !== "string" || !def) continue;
+    const response = h.response && typeof h.response === "object" && typeof (h.response as { body?: unknown }).body === "string" && Array.isArray((h.response as { headers?: unknown }).headers) ? h.response : undefined;
+    out.push({
+      ...(h as unknown as HistoryEntry),
+      def,
+      method: def.method,
+      url: typeof h.url === "string" ? h.url : def.url,
+      status: typeof h.status === "number" ? h.status : null,
+      response: response as HistoryEntry["response"],
+    });
+  }
+  return out;
 }

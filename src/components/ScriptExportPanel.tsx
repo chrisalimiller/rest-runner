@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { saveTextFile } from "../lib/saveFile";
 import { buildScript, SCRIPT_LANGUAGES, scriptExportNotes, scriptFileName, scriptRunCommand, type ScriptExportInput, type ScriptLanguage } from "../lib/scriptExport";
-import { load, save } from "../lib/storage";
+import { isString, load, save } from "../lib/storage";
 import { CodeEditor } from "./CodeEditor";
 
 const LANGUAGE_KEY = "rest-runner.script-export-language";
@@ -14,8 +14,8 @@ interface Props {
 /** The batch as a Python or Bash script: shown in the app to copy, or saved to a file. */
 export function ScriptExportPanel({ input }: Props) {
   const [language, setLanguage] = useState<ScriptLanguage>(() => {
-    const saved = load<ScriptLanguage>(LANGUAGE_KEY, "python");
-    return saved in SCRIPT_LANGUAGES ? saved : "python";
+    const saved = load<ScriptLanguage>(LANGUAGE_KEY, "python", isString);
+    return Object.prototype.hasOwnProperty.call(SCRIPT_LANGUAGES, saved) ? saved : "python";
   });
   const [copied, setCopied] = useState(false);
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);

@@ -15,7 +15,7 @@ import { hasErrors, validateFlow } from "../../lib/flows/validate";
 import { sendRequest } from "../../lib/http";
 import { newId } from "../../lib/ids";
 import { saveTextFile } from "../../lib/saveFile";
-import { load, save } from "../../lib/storage";
+import { isPlainObject, isString, load, save } from "../../lib/storage";
 import { createWorkerScriptRunner } from "../../lib/testing/scriptRunner";
 import type { ShellCommand, ShellProps } from "../../Root";
 import { CopyIcon, TrashIcon } from "../shell/Icons";
@@ -89,9 +89,9 @@ function timeLabel(iso: string): string {
 export function FlowsApp({ active, shell, command }: Props) {
   const [navCollapsed, toggleNav] = useCollapsed("rest-runner.flows-nav-collapsed");
   const [flows, setFlows] = useState<Flow[]>(loadFlows);
-  const [openFlowId, setOpenFlowId] = useState<string | null>(() => load(OPEN_FLOW_KEY, null));
+  const [openFlowId, setOpenFlowId] = useState<string | null>(() => load<string | null>(OPEN_FLOW_KEY, null, isString));
   const [environments, setEnvironments] = useState<Environment[]>(loadEnvironments);
-  const [envId, setEnvId] = useState<string | null>(() => load(FLOW_ENV_KEY, null));
+  const [envId, setEnvId] = useState<string | null>(() => load<string | null>(FLOW_ENV_KEY, null, isString));
   const [items, setItems] = useState<FlowItems>(readFlowItems);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [deselectNonce, setDeselectNonce] = useState(0);
@@ -109,7 +109,7 @@ export function FlowsApp({ active, shell, command }: Props) {
   const [viewed, setViewed] = useState<FlowRun | null>(null);
   const [latest, setLatest] = useState<FlowRun | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [schedules, setSchedules] = useState<SchedulesState>(() => load(SCHEDULE_STATE_KEY, {}));
+  const [schedules, setSchedules] = useState<SchedulesState>(() => load(SCHEDULE_STATE_KEY, {}, isPlainObject));
   const aborts = useRef(new Map<string, AbortController>());
   const scripts = useMemo(() => createWorkerScriptRunner(), []);
   useEffect(() => () => scripts.dispose(), [scripts]);
@@ -442,7 +442,7 @@ export function FlowsApp({ active, shell, command }: Props) {
     if (command.type === "reload") {
       setFlows(loadFlows());
       setEnvironments(loadEnvironments());
-      setEnvId(load(FLOW_ENV_KEY, null));
+      setEnvId(load<string | null>(FLOW_ENV_KEY, null, isString));
       setItems(readFlowItems());
       return;
     }

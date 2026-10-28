@@ -10,7 +10,7 @@ import { prepareRequest, requestPlaceholders } from "../lib/request";
 import { requestScriptRunner } from "../lib/requestScripts";
 import type { ScriptExportInput } from "../lib/scriptExport";
 import { detectVarSets } from "../lib/testing/varsDetect";
-import { load, save } from "../lib/storage";
+import { isPlainObject, load, save } from "../lib/storage";
 import type { Vars } from "../lib/template";
 import type { RequestDef } from "../lib/types";
 import { useCertificates } from "./CertificatesDialog";
@@ -58,7 +58,7 @@ const NO_VARS: Vars = {};
 export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunningChange, onWideChange, onRunSaved, onOpenRun }: Props) {
   const [file, setFile] = useState<LoadedFile | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
-  const [options, setOptions] = useState<BatchOptions>(() => ({ ...DEFAULT_BATCH_OPTIONS, ...load(OPTIONS_KEY, {}) }));
+  const [options, setOptions] = useState<BatchOptions>(() => ({ ...DEFAULT_BATCH_OPTIONS, ...load(OPTIONS_KEY, {}, isPlainObject) }));
   const [results, setResults] = useState<BatchItemResult[]>([]);
   const [running, setRunning] = useState(false);
   const [end, setEnd] = useState<BatchEnd | null>(null);

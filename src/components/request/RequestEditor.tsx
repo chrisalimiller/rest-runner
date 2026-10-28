@@ -159,7 +159,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, detail
   const copyToClipboard = (text: string, message: string) => {
     void navigator.clipboard?.writeText(text).then(() => toast.show({ message }));
   };
-  const [curlOpen, setCurlOpen] = useState(() => load<boolean>(CURL_OPEN_KEY, false));
+  const [curlOpen, setCurlOpen] = useState(() => load<boolean>(CURL_OPEN_KEY, false) === true);
   useEffect(() => {
     save(CURL_OPEN_KEY, curlOpen);
   }, [curlOpen]);
