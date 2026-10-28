@@ -20,7 +20,8 @@ export function variableRow(name: string, env: Environment | null, scriptVars: V
   if (Object.prototype.hasOwnProperty.call(scriptVars, name)) {
     return { name, value: scriptVars[name], source: { kind: "script" }, secret: false };
   }
-  const v = env?.vars.find((x) => x.enabled && x.key.trim() === name);
+  // The last enabled row wins, as environmentVars() does when sending.
+  const v = env?.vars.filter((x) => x.enabled && x.key.trim() === name).pop();
   if (env && v) return { name, value: v.value, source: { kind: "env", envName: env.name }, secret: !!v.secret, envVarId: v.id };
   return { name, value: "", source: { kind: "unset" }, secret: false };
 }
