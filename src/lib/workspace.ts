@@ -207,6 +207,9 @@ export function importWorkspace(text: string, current: Workspace): WorkspaceImpo
     const r = importSuitesFile(text, current.suites);
     return { ...current, suites: r.suites, counts: { ...counts, suites: [r.added, r.replaced] } };
   }
+  if (!["collections", "savedRequests", "environments", "suites", "flows"].some((k) => Array.isArray(data[k]))) {
+    throw new Error("This REST Runner file has no collections, environments, test suites or flows to import.");
+  }
   const base = importCollectionsAndEnvironments(data, current.collections, current.environments);
   const suites = mergeById(current.suites, cleanSuites(data.suites));
   const flows = mergeById(current.flows, cleanFlows(data.flows));

@@ -1,5 +1,5 @@
 import { newId } from "./ids";
-import type { RequestDef, ResponseResult } from "./types";
+import type { KeyValue, RequestDef, ResponseResult } from "./types";
 
 /**
  * Saved requests live in collections. A collection holds folders and requests,
@@ -138,6 +138,12 @@ function allIds(items: TreeNode[]): string[] {
   return items.flatMap((i) => (i.kind === "folder" ? [i.id, ...allIds(i.items)] : [i.id, ...i.examples.map((e) => e.id)]));
 }
 
+/** The expanded ids that still exist, so deleted collections and folders are not remembered forever. */
+export function existingExpanded(expanded: Iterable<string>, collections: Collection[]): string[] {
+  const ids = new Set(collections.flatMap((c) => [c.id, ...allIds(c.items)]));
+  return [...expanded].filter((id) => ids.has(id));
+}
+
 // ---- Immutable tree edits -------------------------------------------------
 
 function mapItems(items: TreeNode[], fn: (node: TreeNode) => TreeNode | null): TreeNode[] {
@@ -190,7 +196,7 @@ export function addExample(
   response?: SampleResponse,
 ): { collections: Collection[]; example: RequestExample } {
   const id = newId();
-  const example: RequestExample = { id, name, request: { ...structuredClone(def), id, name }, ...(response ? { response } : {}) };
+  const example: RequestExample = { id, name, request: { ...cloneRequest(def, id), name }, ...(response ? { response } : {}) };
   const next = mapTree(collections, (n) => (n.kind === "request" && n.id === requestId ? { ...n, examples: [...n.examples, example] } : n));
   return { collections: next, example };
 }
@@ -299,6 +305,13 @@ export function removeWithRestore(collections: Collection[], id: string): { coll
   };
 }
 
+/** A deep copy of a request whose params, headers and form rows have their own ids. */
+function cloneRequest(def: RequestDef, id: string): RequestDef {
+  const copy = structuredClone(def);
+  const rows = (list: KeyValue[]) => list.map((r) => ({ ...r, id: newId() }));
+  return { ...copy, id, params: rows(copy.params), headers: rows(copy.headers), formBody: rows(copy.formBody ?? []) };
+}
+
 /** Deep copy of a node with new ids throughout. */
 function cloneWithNewIds(node: TreeNode): TreeNode {
   if (node.kind === "folder") return { ...node, id: newId(), items: node.items.map(cloneWithNewIds) };
@@ -306,10 +319,10 @@ function cloneWithNewIds(node: TreeNode): TreeNode {
   return {
     kind: "request",
     id,
-    request: { ...structuredClone(node.request), id },
+    request: cloneRequest(node.request, id),
     examples: node.examples.map((e) => {
       const eid = newId();
-      return { ...structuredClone(e), id: eid, request: { ...structuredClone(e.request), id: eid } };
+      return { ...structuredClone(e), id: eid, request: cloneRequest(e.request, eid) };
     }),
   };
 }
