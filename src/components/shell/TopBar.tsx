@@ -84,9 +84,10 @@ export function TopBar(props: Props) {
           className={`secondary ghost topbar-variables ${variablesIcon ? "icon-only" : ""} ${props.variablesOpen ? "active" : ""}`}
           data-variables-trigger
           aria-expanded={!!props.variablesOpen}
+          aria-controls="variables-panel"
           aria-label={variablesIcon ? "Variables" : undefined}
           onClick={props.onVariables}
-          title={variablesIcon ? "Variables: placeholders this request uses and script variables" : "Placeholders this request uses and script variables"}
+          title={variablesIcon ? "Variables: by priority, for this request and every environment" : "Variables by priority, for this request and every environment"}
         >
           {variablesIcon ? <VariablesIcon /> : "Variables"}
         </button>

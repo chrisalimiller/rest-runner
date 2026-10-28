@@ -10,7 +10,9 @@ import { RunExplorer } from "./components/RunExplorer";
 import { MOD_KEY, TopBar } from "./components/shell/TopBar";
 import { useToast } from "./components/shell/Toast";
 import { useDeferredDelete } from "./components/shell/useDeferredDelete";
-import { VariablesPopover } from "./components/shell/VariablesPopover";
+import { VariablesProvider } from "./components/variables/VariablesContext";
+import { loadPanelState, savePanelState, VariablesPanel, DOCK_MIN_WIDTH, type VariablesPanelState } from "./components/variables/VariablesPanel";
+import { useViewportWidth } from "./components/useViewportWidth";
 import type { ShellCommand, ShellProps } from "./Root";
 import {
   addExample,
@@ -36,17 +38,16 @@ import {
   type RequestExample,
   type SampleResponse,
 } from "./lib/collections";
-import { emptyRow, newRequest } from "./lib/defaults";
+import { newRequest } from "./lib/defaults";
 import { earlierSendLabel, earlierSends, earlierSendTone, sendTooltip, whenLabel } from "./lib/earlierSends";
 import { fitHistory, historyLabel, historyOutcome, MAX_HISTORY_BODY, responseNotKept } from "./lib/history";
-import { environmentVars, guardFor, loadEnvironments, newEnvironment, type Environment } from "./lib/environments";
+import { environmentVars, guardFor, loadEnvironments, type Environment } from "./lib/environments";
 import { loadCertificates, saveCertificates } from "./lib/certificates";
 import { certificatesForExport, describeCertificateImport, importCertificates } from "./lib/certificatesFile";
 import { isTauri, sendRequest } from "./lib/http";
 import { newId } from "./lib/ids";
-import { prepareRequest, unresolvedPlaceholders } from "./lib/request";
+import { prepareRequest, requestPlaceholders, unresolvedPlaceholders } from "./lib/request";
 import { secretValues } from "./lib/secrets";
-import { requestVariableRows, type VariableRow } from "./lib/variables";
 import { hasScripts, requestScriptRunner, sendWithScripts } from "./lib/requestScripts";
 import type { Vars } from "./lib/template";
 import type { ScriptOutput } from "./lib/testing/types";
@@ -130,7 +131,8 @@ export default function App({ active = true, shell, command }: Props) {
   const [activeEnvId, setActiveEnvId] = useState<string | null>(() => load(ACTIVE_ENV_KEY, null));
   const [showEnvEditor, setShowEnvEditor] = useState(false);
   const [focusVarId, setFocusVarId] = useState<string | undefined>(undefined);
-  const [showVariables, setShowVariables] = useState(false);
+  const [variablesPanel, setVariablesPanel] = useState<VariablesPanelState>(loadPanelState);
+  const viewportWidth = useViewportWidth();
   const [exportDialog, setExportDialog] = useState(false);
   const toast = useToast();
   const notify = useCallback((message: string) => toast.show({ message }), [toast]);
@@ -415,28 +417,16 @@ export default function App({ active = true, shell, command }: Props) {
     else void exportWorkspace(false);
   };
 
-  /** Opens the Environment editor on a variable, adding it to the active environment first when nothing defines it yet. */
-  const editVariable = (row: VariableRow) => {
-    setShowVariables(false);
-    if (row.envVarId) {
-      setFocusVarId(row.envVarId);
-      setShowEnvEditor(true);
-      return;
-    }
-    const target = activeEnv ?? environments[0] ?? null;
-    const added = { id: newId(), key: row.name, value: "", enabled: true };
-    if (target) {
-      const vars = target.vars.filter((v) => v.key !== "" || v.value !== "");
-      setEnvironments(environments.map((e) => (e.id === target.id ? { ...e, vars: [...vars, added, emptyRow()] } : e)));
-      if (!activeEnv) setActiveEnvId(target.id);
-    } else {
-      const env = { ...newEnvironment("Environment 1"), vars: [added, emptyRow()] };
-      setEnvironments([env]);
-      setActiveEnvId(env.id);
-    }
-    setFocusVarId(added.id);
-    setShowEnvEditor(true);
-  };
+  const patchVariablesPanel = useCallback((patch: Partial<VariablesPanelState>) => setVariablesPanel((p) => ({ ...p, ...patch })), []);
+  /** Opens the sidebar on the variables this request uses. */
+  const openVariables = useCallback(() => patchVariablesPanel({ open: true, filter: "request" }), [patchVariablesPanel]);
+  const closeVariables = useCallback(() => {
+    if (document.getElementById("variables-panel")?.contains(document.activeElement)) document.querySelector<HTMLElement>("[data-variables-trigger]")?.focus();
+    patchVariablesPanel({ open: false });
+  }, [patchVariablesPanel]);
+  useEffect(() => {
+    savePanelState(variablesPanel);
+  }, [variablesPanel]);
 
   /** Certificate rules in a workspace file, merged into the Certificates list. Returns text for the notice, or null when the file has none. */
   const importCertificatesFrom = async (text: string): Promise<string | null> => {
@@ -558,6 +548,7 @@ export default function App({ active = true, shell, command }: Props) {
     setSplit((s) => Math.min(1 - min, Math.max(min, s + (e.key === "ArrowLeft" ? -0.02 : 0.02))));
   };
 
+  const usedNames = useMemo(() => requestPlaceholders(def), [def]);
   const unfilled = unresolvedPlaceholders(def, sendVars);
   const foldRequest = pane === "batch" && batchWide && openRun === null;
   const summaryUrl = foldRequest ? prepareRequest(def, sendVars).url : "";
@@ -639,6 +630,15 @@ export default function App({ active = true, shell, command }: Props) {
   );
 
   return (
+    <VariablesProvider
+      environments={environments}
+      activeEnvId={activeEnvId}
+      scriptVars={scriptVars}
+      setEnvironments={setEnvironments}
+      setActiveEnvId={setActiveEnvId}
+      setScriptVars={setScriptVars}
+      onShowInSidebar={openVariables}
+    >
     <div className="mode requests-mode">
       <TopBar
         mode="requests"
@@ -653,26 +653,11 @@ export default function App({ active = true, shell, command }: Props) {
           setFocusVarId(undefined);
           setShowEnvEditor(true);
         }}
-        onVariables={() => setShowVariables((v) => !v)}
-        variablesOpen={showVariables}
+        onVariables={() => (variablesPanel.open ? closeVariables() : openVariables())}
+        variablesOpen={variablesPanel.open}
       />
-      {showVariables && (
-        <VariablesPopover
-          rows={requestVariableRows(def, activeEnv, scriptVars)}
-          scriptVars={scriptVars}
-          envName={activeEnv?.name}
-          onEdit={editVariable}
-          onClearScriptVar={(name) =>
-            setScriptVars((v) => {
-              const { [name]: _gone, ...rest } = v;
-              return rest;
-            })
-          }
-          onClearAllScriptVars={() => setScriptVars({})}
-          onClose={() => setShowVariables(false)}
-        />
-      )}
-
+      <div className="requests-body">
+        <div className="requests-main">
       {openRun !== null && (
         <main className="workspace full-view">
           <RunExplorer
@@ -717,7 +702,7 @@ export default function App({ active = true, shell, command }: Props) {
             onEnter={() => void send()}
             detailsKey={DETAILS_KEY}
             scriptVars={scriptVars}
-            onOpenVariables={() => setShowVariables(true)}
+            onOpenVariables={openVariables}
             sendSlot={
               sending ? (
                 <button className="send cancel" onClick={cancel}>
@@ -831,6 +816,20 @@ export default function App({ active = true, shell, command }: Props) {
           </div>
         </section>
       </div>
+        </div>
+        <VariablesPanel
+          state={variablesPanel}
+          onState={patchVariablesPanel}
+          used={usedNames}
+          docked={viewportWidth >= DOCK_MIN_WIDTH}
+          onClose={closeVariables}
+          onEditEnvironments={(varId) => {
+            setFocusVarId(varId);
+            setShowEnvEditor(true);
+          }}
+          onSwitchEnvironment={setActiveEnvId}
+        />
+      </div>
 
       {dialog?.type === "save" && (
         <SaveRequestDialog
@@ -907,5 +906,6 @@ export default function App({ active = true, shell, command }: Props) {
         />
       )}
     </div>
+    </VariablesProvider>
   );
 }
