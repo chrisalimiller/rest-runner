@@ -1,0 +1,375 @@
+/* Open-request tabs, directly under the top bar. */
+.rtab-bar {
+  flex: none;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px;
+  background: var(--bg-inset);
+  border-bottom: 1px solid var(--border-muted);
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.rtab-list {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rtab-pins {
+  flex: none;
+  display: flex;
+  gap: 4px;
+}
+
+.rtab-scroll {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scrollbar-width: none;
+  padding: 2px 0;
+}
+
+.rtab-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.rtab-scroll[data-fade="left"] {
+  mask-image: linear-gradient(to right, transparent 0, #000 24px);
+}
+
+.rtab-scroll[data-fade="right"] {
+  mask-image: linear-gradient(to right, #000 calc(100% - 24px), transparent 100%);
+}
+
+.rtab-scroll[data-fade="both"] {
+  mask-image: linear-gradient(to right, transparent 0, #000 24px, #000 calc(100% - 24px), transparent 100%);
+}
+
+.rtab-group {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.rtab-divider {
+  flex: none;
+  width: 1px;
+  height: 22px;
+  margin: 0 4px;
+  background: var(--border);
+}
+
+.rtab-label {
+  flex: none;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--group-neutral-bg);
+  color: var(--group-neutral-fg);
+}
+
+.rtab-label.tone-purple { background: var(--group-purple-bg); color: var(--group-purple-fg); }
+.rtab-label.tone-blue { background: var(--group-blue-bg); color: var(--group-blue-fg); }
+.rtab-label.tone-green { background: var(--group-green-bg); color: var(--group-green-fg); }
+.rtab-label.tone-amber { background: var(--group-amber-bg); color: var(--group-amber-fg); }
+.rtab-label.tone-pink { background: var(--group-pink-bg); color: var(--group-pink-fg); }
+
+/* One tab: the wrapper draws the tab, the buttons inside are transparent. */
+.rtab-wrap {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: 28px;
+  max-width: 180px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--muted);
+  transition: background-color 120ms;
+}
+
+.rtab-wrap:not(.pinned) {
+  padding: 0 6px 0 10px;
+}
+
+.rtab-wrap:hover {
+  background: var(--bg-soft);
+}
+
+.rtab-wrap.on {
+  background: var(--btn-bg);
+  border-color: var(--border);
+  color: var(--text);
+  font-weight: 600;
+}
+
+.rtab {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: left;
+}
+
+.rtab-method {
+  flex: none;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.rtab-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rtab-name.preview {
+  font-style: italic;
+}
+
+.rtab-spinner {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent-fg);
+  animation: spin 0.8s linear infinite;
+}
+
+/* The close/dirty slot: an amber dot until the tab is hovered or focused, then ×. */
+.rtab-slot {
+  position: relative;
+  flex: none;
+  width: 18px;
+  height: 18px;
+  margin-left: 4px;
+}
+
+.rtab-dot {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--warn);
+  pointer-events: none;
+}
+
+.rtab-x {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background-color 120ms;
+}
+
+.rtab-x:hover {
+  background: var(--btn-hover);
+  color: var(--text);
+}
+
+.rtab-wrap.dirty .rtab-x {
+  opacity: 0;
+}
+
+.rtab-wrap.dirty:hover .rtab-x,
+.rtab-wrap.dirty:focus-within .rtab-x,
+.rtab-wrap.dirty .rtab-x:focus-visible {
+  opacity: 1;
+}
+
+.rtab-wrap.dirty:hover .rtab-dot,
+.rtab-wrap.dirty:focus-within .rtab-dot {
+  opacity: 0;
+}
+
+/* Pinned: a 34 x 28 monogram. */
+.rtab-wrap.pinned {
+  width: 34px;
+  border-color: var(--border);
+  background: transparent;
+}
+
+.rtab-wrap.pinned:hover {
+  background: var(--bg-soft);
+}
+
+.rtab-wrap.pinned.on {
+  background: var(--btn-bg);
+  border-color: var(--brand);
+}
+
+.rtab-pin {
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rtab-pin-badge {
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 8px;
+  height: 8px;
+  pointer-events: none;
+}
+
+.rtab-pin-badge.rtab-dot {
+  inset: auto;
+  margin: 0;
+}
+
+.rtab-pin-badge .rtab-spinner {
+  width: 8px;
+  height: 8px;
+  border-width: 1.5px;
+}
+
+.rtab-add {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 16px;
+  cursor: pointer;
+  transition: background-color 120ms;
+}
+
+.rtab-add:hover,
+.rtab-add[aria-expanded="true"] {
+  background: var(--bg-soft);
+  color: var(--text);
+}
+
+/* The all-tabs popover. */
+.rtab-all-pop {
+  width: 320px;
+  max-width: calc(100vw - 16px);
+}
+
+.rtab-filter {
+  margin: 2px 2px 6px;
+  width: calc(100% - 4px);
+}
+
+.rtab-all-list {
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.rtab-all-head {
+  padding: 6px 8px 2px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.rtab-opt {
+  width: 100%;
+  gap: 8px;
+}
+
+.rtab-opt.cursor {
+  background: var(--bg-hover);
+}
+
+.rtab-opt.current .rtab-opt-name {
+  font-weight: 600;
+}
+
+.rtab-opt-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
+}
+
+.rtab-opt .rtab-dot {
+  position: static;
+  flex: none;
+}
+
+.rtab-pinned-tag {
+  flex: none;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.rtab-none {
+  padding: 8px;
+  margin: 0;
+}
+
+.rtab-all-foot {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--border-muted);
+  display: flex;
+  flex-direction: column;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rtab-wrap,
+  .rtab-x,
+  .rtab-add {
+    transition: none;
+  }
+  .rtab-spinner {
+    animation-duration: 2.4s;
+  }
+}

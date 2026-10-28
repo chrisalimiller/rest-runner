@@ -5,6 +5,7 @@ import { CollectionTree, type TreeAction } from "./components/CollectionTree";
 import { EnvironmentEditor } from "./components/EnvironmentEditor";
 import { RequestEditor } from "./components/request/RequestEditor";
 import { RequestSwitcher } from "./components/request/RequestSwitcher";
+import { RequestTabBar, showTabBar } from "./components/request/RequestTabBar";
 import { ResponsePane } from "./components/ResponsePane";
 import { RunExplorer } from "./components/RunExplorer";
 import { MOD_KEY, TopBar } from "./components/shell/TopBar";
@@ -58,7 +59,18 @@ import { saveTextFile } from "./lib/saveFile";
 import { describeWorkspaceImport, importWorkspace as mergeWorkspace, toWorkspaceFile } from "./lib/workspace";
 import { readWorkspace, writeWorkspace } from "./lib/workspaceStore";
 import {
+  activate,
+  closeOthers,
+  closeSaved,
+  closeTab,
+  displayOrder,
+  duplicateTab,
+  isTabDirty,
   loadTabs,
+  newTab,
+  pin,
+  reopenClosed,
+  unpin,
   openInTab,
   promote,
   savedVersionOf,
@@ -259,6 +271,58 @@ export default function App({ active = true, shell, command }: Props) {
   useEffect(() => {
     save(SCRIPT_VARS_KEY, scriptVars);
   }, [scriptVars]);
+
+  const dirtyIds = useMemo(() => new Set(tabs.tabs.filter((t) => isTabDirty(t, collections)).map((t) => t.id)), [tabs.tabs, collections]);
+  const busyIds = useMemo(() => new Set(tabs.tabs.filter((t) => runtime[t.id]?.sending || runtime[t.id]?.batchRunning).map((t) => t.id)), [tabs.tabs, runtime]);
+  const tabName = (t: RequestTab) => t.def.name || "Untitled request";
+
+  const activateTab = (id: string) => {
+    applyTabs((s) => activate(s, id));
+    setOpenRun(null);
+  };
+  const openNewTab = () => {
+    applyTabs(newTab);
+    setOpenRun(null);
+  };
+  /** Closes a tab. Unsaved changes are not asked about: the toast offers Undo instead. */
+  const closeTabById = (id: string) => {
+    const t = tabsRef.current.tabs.find((x) => x.id === id);
+    if (!t) return;
+    if (t.pinned) {
+      notify(`Unpin ${tabName(t)} to close it.`);
+      return;
+    }
+    if (runtime[id]?.batchRunning) {
+      notify(`Stop the batch in ${tabName(t)} before closing it.`);
+      return;
+    }
+    const dirty = isTabDirty(t, collections);
+    applyTabs((s) => closeTab(s, id, displayOrder(s.tabs, collections)));
+    if (dirty) toast.show({ message: `Closed ${tabName(t)} with unsaved changes`, onUndo: () => applyTabs((s) => reopenClosed(s, id)) });
+  };
+  const closeOtherTabs = (id: string) => {
+    const before = tabsRef.current;
+    const next = applyTabs((s) => closeOthers(s, id, (t) => !!runtime[t.id]?.batchRunning));
+    const gone = before.tabs.filter((t) => !next.tabs.some((x) => x.id === t.id));
+    const lost = gone.filter((t) => isTabDirty(t, collections));
+    if (lost.length > 0)
+      toast.show({
+        message: `Closed ${lost.length} ${lost.length === 1 ? "tab" : "tabs"} with unsaved changes`,
+        onUndo: () => applyTabs((s) => gone.reduce((acc, t) => reopenClosed(acc, t.id), s)),
+      });
+  };
+  const closeSavedTabs = () => applyTabs((s) => closeSaved(s, (t) => isTabDirty(t, collections) || !!runtime[t.id]?.batchRunning, displayOrder(s.tabs, collections)));
+  const reopenLast = () => applyTabs((s) => reopenClosed(s));
+  const revealTab = (id: string) => {
+    const t = tabsRef.current.tabs.find((x) => x.id === id);
+    if (!t) return;
+    activateTab(id);
+    const found = locate(collections, t.def.id);
+    if (found?.kind === "request" || found?.kind === "example") {
+      expand(found.collection.id, ...found.path.map((f) => f.id), ...(found.kind === "example" ? [found.node.id] : []));
+      setSwitcherOpen(true);
+    } else notify(`${tabName(t)} is not saved in a collection yet.`);
+  };
 
   const refreshRuns = useCallback(() => {
     listRuns()
@@ -767,6 +831,26 @@ export default function App({ active = true, shell, command }: Props) {
         onVariables={() => (variablesPanel.open ? closeVariables() : openVariables())}
         variablesOpen={variablesPanel.open}
       />
+      {showTabBar(tabs.tabs) && (
+        <RequestTabBar
+          tabs={tabs.tabs}
+          activeId={activeId}
+          collections={collections}
+          dirtyIds={dirtyIds}
+          busyIds={busyIds}
+          canReopen={tabs.closed.length > 0}
+          onActivate={activateTab}
+          onClose={closeTabById}
+          onNew={openNewTab}
+          onPin={(id) => applyTabs((s) => pin(s, id))}
+          onUnpin={(id) => applyTabs((s) => unpin(s, id))}
+          onDuplicate={(id) => applyTabs((s) => duplicateTab(s, id))}
+          onReveal={revealTab}
+          onCloseOthers={closeOtherTabs}
+          onCloseSaved={closeSavedTabs}
+          onReopen={reopenLast}
+        />
+      )}
       <div className="requests-body">
         <div className="requests-main">
       {openRun !== null && (
@@ -804,7 +888,7 @@ export default function App({ active = true, shell, command }: Props) {
         ref={inspectorRef}
         style={{ "--split-a": `${split}fr`, "--split-b": `${1 - split}fr` } as React.CSSProperties}
       >
-        <section className="request-col" aria-label="Request">
+        <section className="request-col" id="request-panel" role="tabpanel" aria-label="Request">
           <RequestEditor
             key={activeId}
             def={def}

@@ -146,10 +146,12 @@ export function closeSaved(s: TabsState, isDirty: (t: RequestTab) => boolean, or
   return removeTabs(s, new Set(s.tabs.filter((t) => !t.pinned && !isDirty(t)).map((t) => t.id)), order);
 }
 
-/** Reopens the most recently closed tab at the end (after the last tab). */
-export function reopenClosed(s: TabsState): TabsState {
-  const [tab, ...rest] = s.closed;
+/** Reopens the most recently closed tab (or the closed tab with this tab id) at the end. */
+export function reopenClosed(s: TabsState, tabId?: string): TabsState {
+  const at = tabId === undefined ? 0 : s.closed.findIndex((t) => t.id === tabId);
+  const tab = s.closed[at];
   if (!tab) return s;
+  const rest = s.closed.filter((_, i) => i !== at);
   const reopened = s.tabs.some((t) => t.def.id === tab.def.id) ? null : { ...tab, preview: false };
   if (!reopened) return { ...s, closed: rest, activeId: s.tabs.find((t) => t.def.id === tab.def.id)!.id };
   const tabs = reopened.pinned ? insertPinned(s.tabs, reopened) : [...s.tabs, reopened];
