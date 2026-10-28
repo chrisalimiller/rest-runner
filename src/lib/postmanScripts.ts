@@ -414,12 +414,13 @@ function walk(tree: Tree, code: string): PostmanCall[] {
         m = legacy;
       } else return;
       // The matched prefix covers the root plus `len` segments.
-      const end = m.len > 0 ? chain.segs[m.len - 1].to : chain.rootTo;
+      const len = Math.min(m.len, chain.segs.length);
+      const end = len > 0 ? chain.segs[len - 1].to : chain.rootTo;
       const [from, to] = m.range ?? [chain.from, end];
       out.push({
         from,
         to,
-        api: describe(chain, m.len),
+        api: describe(chain, len),
         fix: m.fix === undefined ? undefined : { insert: m.fix },
         message: m.message,
       });
