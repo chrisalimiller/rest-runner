@@ -17,6 +17,7 @@ import { useCertificates } from "../CertificatesDialog";
 import { CertificateChip } from "./CertificateChip";
 import { CurlPanel } from "./CurlPanel";
 import { RequestDetailsDrawer, RequestSummary } from "./RequestDetails";
+import { usesPostman } from "../../lib/postmanScripts";
 import { UrlInput } from "./UrlInput";
 
 interface Props {
@@ -42,6 +43,20 @@ interface Props {
   menuItems?: MenuItem[];
 }
 
+const POSTMAN_WARNING = "Uses Postman pm.* calls; this script will not run until they are converted";
+
+/** The dot after a script tab name; amber when the script still uses Postman calls. */
+function scriptMark(script: string | undefined) {
+  if (!(script ?? "").trim()) return "";
+  return usesPostman(script ?? "") ? (
+    <span className="req-details-mark warn" title={POSTMAN_WARNING}>
+      •
+    </span>
+  ) : (
+    " •"
+  );
+}
+
 /** The Scripts tab: Pre-request / Post-response switch, the editor, and the variables scripts have set. */
 function ScriptsPanel({ def, onChange, scriptVars, onOpenVariables, scriptsNote }: Pick<Props, "def" | "onChange" | "scriptVars" | "onOpenVariables" | "scriptsNote">) {
   const [phase, setPhase] = useState<"pre" | "post">(() => ((def.preScript ?? "").trim() === "" && (def.postScript ?? "").trim() !== "" ? "post" : "pre"));
@@ -52,10 +67,10 @@ function ScriptsPanel({ def, onChange, scriptVars, onOpenVariables, scriptsNote 
     <div className="req-scripts">
       <div className="segmented" role="tablist" aria-label="Script">
         <button role="tab" aria-selected={phase === "pre"} className={phase === "pre" ? "on" : ""} onClick={() => setPhase("pre")}>
-          Pre-request{(def.preScript ?? "").trim() ? " •" : ""}
+          Pre-request{scriptMark(def.preScript)}
         </button>
         <button role="tab" aria-selected={phase === "post"} className={phase === "post" ? "on" : ""} onClick={() => setPhase("post")}>
-          Post-response{(def.postScript ?? "").trim() ? " •" : ""}
+          Post-response{scriptMark(def.postScript)}
         </button>
       </div>
       {phase === "pre" ? (
@@ -163,6 +178,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, detail
     scripts: (def.preScript ?? "").trim() || (def.postScript ?? "").trim() ? "•" : "",
   };
 
+  const postmanWarning = usesPostman(def.preScript ?? "") || usesPostman(def.postScript ?? "") ? POSTMAN_WARNING : undefined;
   const noUrl = def.url.trim() === "";
   const fullMenu: MenuItem[] | undefined = menuItems && [
     ...menuItems,
@@ -279,7 +295,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, detail
             onFormChange={(formBody) => onChange({ formBody })}
           />
         )}
-        <RequestDetailsDrawer id={detailsId} open={open} docked={docked} tab={details.tab} onTab={(tab) => setDetails((d) => ({ ...d, tab }))} onClose={closeDetails} marks={marks}>
+        <RequestDetailsDrawer id={detailsId} open={open} docked={docked} tab={details.tab} onTab={(tab) => setDetails((d) => ({ ...d, tab }))} onClose={closeDetails} marks={marks} warnings={postmanWarning ? { scripts: postmanWarning } : undefined}>
           {details.tab === "params" && <KeyValueEditor rows={def.params} onChange={(rows) => onChange({ params: rows })} placeholderVars={envVars} />}
           {details.tab === "auth" && <AuthEditor auth={def.auth} onChange={(a) => onChange({ auth: a })} placeholderVars={envVars} />}
           {details.tab === "headers" && <KeyValueEditor rows={def.headers} onChange={(rows) => onChange({ headers: rows })} placeholderVars={envVars} />}

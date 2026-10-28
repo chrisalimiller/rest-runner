@@ -63,11 +63,13 @@ interface DrawerProps {
   onClose: () => void;
   /** Tab titles with a count or a dot: "Params 2", "Scripts •". */
   marks: Record<DetailsTab, string>;
+  /** Tabs to flag in amber, with the reason shown as a tooltip. */
+  warnings?: Partial<Record<DetailsTab, string>>;
   children: React.ReactNode;
 }
 
 /** Params, Auth, Headers and Scripts, in a panel that slides up over the body from the summary line. */
-export function RequestDetailsDrawer({ id, open, docked, tab, onTab, onClose, marks, children }: DrawerProps) {
+export function RequestDetailsDrawer({ id, open, docked, tab, onTab, onClose, marks, warnings, children }: DrawerProps) {
   const uid = useId();
   const tabs = useRef<HTMLDivElement>(null);
   const shown = open || docked;
@@ -108,7 +110,11 @@ export function RequestDetailsDrawer({ id, open, docked, tab, onTab, onClose, ma
               onClick={() => onTab(t)}
             >
               {TAB_LABELS[t]}
-              {marks[t] && <span className="req-details-mark">{marks[t]}</span>}
+              {marks[t] && (
+                <span className={`req-details-mark ${warnings?.[t] ? "warn" : ""}`} title={warnings?.[t]}>
+                  {marks[t]}
+                </span>
+              )}
             </button>
           ))}
         </div>

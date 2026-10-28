@@ -1,6 +1,7 @@
 import {
   cleanCollections,
   isRequestDef,
+  listRequests,
   locate,
   newCollection,
   requestNode,
@@ -173,8 +174,12 @@ function importPostman(kind: "collection" | "environment", data: unknown, curren
     return { ...current, environments: e.list, warnings, counts: { ...counts, environments: [e.added, e.replaced] } };
   }
   const { collection, variables, warnings } = importPostmanCollection(data);
+  const previous = current.collections.find((x) => x.id === collection.id);
   const c = mergeById(current.collections, [collection]);
   const e = mergeById(current.environments, variables ? [variables] : []);
+  if (previous && [previous, collection].every((col) => listRequests([col]).some((x) => (x.request.preScript ?? "") + (x.request.postScript ?? "") !== ""))) {
+    warnings.push("Re-importing replaced any scripts you converted.");
+  }
   return {
     ...current,
     collections: c.list,

@@ -5,7 +5,7 @@ import { json } from "@codemirror/lang-json";
 import { python } from "@codemirror/lang-python";
 import { bracketMatching, HighlightStyle, StreamLanguage, syntaxHighlighting } from "@codemirror/language";
 import { shell } from "@codemirror/legacy-modes/mode/shell";
-import { linter, type Diagnostic } from "@codemirror/lint";
+import { linter, lintGutter, type Diagnostic } from "@codemirror/lint";
 import { Compartment, EditorState, Prec, type Extension } from "@codemirror/state";
 import {
   Decoration,
@@ -61,6 +61,12 @@ const editorTheme = EditorView.theme(
     "&.hover-var .cm-content, &.hover-var .cm-line": { cursor: "help" },
     ".cm-tooltip": { backgroundColor: "var(--bg-overlay)", border: "1px solid var(--border)", color: "var(--text)", borderRadius: "6px" },
     ".cm-diagnostic-error": { borderLeft: "3px solid var(--danger)" },
+    ".cm-diagnostic-warning": { borderLeft: "3px solid var(--warn)" },
+    ".cm-lintRange-warning": {
+      backgroundImage: "none",
+      textDecoration: "underline wavy var(--warn)",
+      textUnderlineOffset: "3px",
+    },
     ".cm-lintRange-error": {
       backgroundImage: "none",
       textDecoration: "underline wavy var(--danger)",
@@ -102,6 +108,24 @@ const commentMarks = ViewPlugin.fromClass(
   },
   { decorations: (v) => v.decorations },
 );
+
+function issueLinter(find: (code: string) => CodeIssue[]): Extension {
+  return [
+    linter(
+      (view) =>
+        find(view.state.doc.toString()).map((issue): Diagnostic => {
+          const d: Diagnostic = { from: issue.from, to: issue.to, severity: "warning", message: issue.message };
+          if (issue.replacement !== undefined) {
+            const insert = issue.replacement;
+            d.actions = [{ name: "Replace", apply: (v, from, to) => v.dispatch({ changes: { from, to, insert } }) }];
+          }
+          return d;
+        }),
+      { delay: 300 },
+    ),
+    lintGutter(),
+  ];
+}
 
 /** Lets Ctrl/Cmd+/ comment lines in a JSON body with //. */
 const jsonCommentTokens = EditorState.languageData.of(() => [{ commentTokens: { line: "//", block: { open: "/*", close: "*/" } } }]);
@@ -148,6 +172,14 @@ export function formatEditorJson(view: EditorView): boolean {
   return true;
 }
 
+/** A warning to mark in the editor. With `replacement`, the hover offers a Replace button that swaps from..to for it. */
+export interface CodeIssue {
+  from: number;
+  to: number;
+  message: string;
+  replacement?: string;
+}
+
 interface Props {
   value: string;
   onChange?: (value: string) => void;
@@ -156,6 +188,10 @@ interface Props {
   /** JavaScript mode adds highlighting, plus the given autocomplete source when there is one. */
   javascript?: boolean;
   completions?: CompletionSource;
+  /** JavaScript mode only: finds warnings to underline in amber, e.g. Postman calls. */
+  findIssues?: (code: string) => CodeIssue[];
+  /** Receives the editor view once it exists (null when it goes away). */
+  onView?: (view: EditorView | null) => void;
   /** Python or Bash highlighting, for showing exported scripts. Long lines scroll instead of wrapping. */
   language?: ScriptViewLanguage;
   readOnly?: boolean;
@@ -231,6 +267,8 @@ export function CodeEditor({
   json: isJson = false,
   javascript: isJs = false,
   completions,
+  findIssues,
+  onView,
   language,
   readOnly = false,
   variableHover,
@@ -244,6 +282,8 @@ export function CodeEditor({
   const hoverRef = useRef(variableHover);
   hoverRef.current = variableHover;
   const modeCompartment = useRef(new Compartment());
+  const onViewRef = useRef(onView);
+  onViewRef.current = onView;
 
   const modeExtensions = (): Extension[] => {
     if (language) return [scriptLanguages[language](), syntaxHighlighting(githubDarkHighlight)];
@@ -252,6 +292,7 @@ export function CodeEditor({
         javascript(),
         syntaxHighlighting(githubDarkHighlight),
         completions && !readOnly ? autocompletion({ override: [completions] }) : [],
+        findIssues && !readOnly ? issueLinter(findIssues) : [],
       ];
     }
     return isJson ? [json(), jsonCommentTokens, commentMarks, syntaxHighlighting(githubDarkHighlight), readOnly ? [] : [jsonLinter, formatOnPaste]] : [];
@@ -288,7 +329,9 @@ export function CodeEditor({
     }
     if (placeholder) extensions.push(placeholderExt(placeholder));
     view.current = new EditorView({ state: EditorState.create({ doc: value, extensions }), parent: host.current });
+    onViewRef.current?.(view.current);
     return () => {
+      onViewRef.current?.(null);
       view.current?.destroy();
       view.current = null;
     };
@@ -307,7 +350,7 @@ export function CodeEditor({
   useEffect(() => {
     view.current?.dispatch({ effects: modeCompartment.current.reconfigure(modeExtensions()) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isJson, isJs, language]);
+  }, [isJson, isJs, language, findIssues]);
 
   return <div ref={host} className={`code-editor ${readOnly ? "readonly" : ""}`} />;
 }
