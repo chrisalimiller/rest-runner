@@ -64,6 +64,25 @@ rr.test("is 201", () => rr.expect(rr.response.status).toBe(201));`,
     expect(r?.scriptFailed).toBe(true);
   });
 
+  it("does not send when the pre-request script still uses pm.*", async () => {
+    const server = fakeServer();
+    const def = req({ preScript: `pm.environment.set("a", 1);` });
+    const r = await sendWithScripts({ ...base, def, send: server.send });
+    expect(server.sent).toHaveLength(0);
+    expect(r?.sent).toBe(false);
+    const o = r!.outcome;
+    expect(o.ok ? "" : o.error).toMatch(/Not sent: the pre-request script failed \(This script still uses Postman pm\.\* calls/);
+  });
+
+  it("counts a post-response script that still uses pm.* as a failure", async () => {
+    const server = fakeServer();
+    const def = req({ postScript: `pm.test("a", () => {});` });
+    const r = await sendWithScripts({ ...base, def, send: server.send });
+    expect(r?.sent).toBe(true);
+    expect(r?.postScript?.error).toMatch(/Postman pm\.\* calls/);
+    expect(r?.scriptFailed).toBe(true);
+  });
+
   it("behaves like a plain send when the request has no scripts", async () => {
     const server = fakeServer();
     const def = req({});
@@ -79,6 +98,7 @@ describe("combineScripts", () => {
   it("runs both parts in their own blocks so names do not clash", () => {
     expect(combineScripts("", "b()")).toBe("b()");
     expect(combineScripts("a()", undefined)).toBe("a()");
+    expect(combineScripts("a()", "", "c()")).toBe("{\na()\n}\n{\nc()\n}");
     const both = combineScripts("const x = 1;", "const x = 2;");
     expect(() => new Function(both)).not.toThrow();
   });

@@ -87,7 +87,8 @@ describe("importPostmanCollection", () => {
     expect(r.warnings.join("\n")).toMatch(/oauth2/);
     expect(r.warnings.join("\n")).toMatch(/PROPFIND/);
     expect(r.warnings.join("\n")).toMatch(/file field was dropped/);
-    expect(r.warnings.join("\n")).toMatch(/2 collection, folder or request scripts were not imported/);
+    expect(r.warnings.join("\n")).toMatch(/Imported scripts on 7 requests\. 7 still use Postman pm\.\* calls \(8 can be converted with one click, 0 need changes by hand\)/);
+    expect(r.warnings.join("\n")).toMatch(/copied into each request inside them \(7 requests\)/);
     expect(byName.Weird).toBeUndefined();
   });
 
@@ -96,6 +97,94 @@ describe("importPostmanCollection", () => {
     const d = listRequests([g.collection])[0].request;
     expect(JSON.parse(d.body)).toEqual({ query: "{a}", variables: { x: 1 } });
     expect(() => importPostmanCollection({})).toThrow(/not a Postman/);
+  });
+});
+
+describe("importPostmanCollection scripts", () => {
+  const exec = (...lines: string[]) => ({ exec: lines });
+  const scripted = {
+    info: { _postman_id: "s-1", name: "Scripts" },
+    event: [
+      { listen: "prerequest", script: exec("// c", "pm.environment.set('ts', Date.now());") },
+      { listen: "test", script: { exec: "pm.test('c', () => {});" } },
+    ],
+    item: [
+      {
+        name: "Outer",
+        event: [{ listen: "prerequest", script: exec("const x = 1;") }, { listen: "test", disabled: true, script: exec("pm.test('off', () => {});") }],
+        item: [
+          {
+            name: "Inner",
+            event: [{ listen: "prerequest", script: exec("const x = 2;") }],
+            item: [{ name: "Own", request: { method: "GET", url: "x" }, event: [{ listen: "prerequest", script: exec("const x = 3;") }, { listen: "test", script: exec("   ") }] }],
+          },
+        ],
+      },
+      { name: "Bare", request: { method: "GET", url: "y" }, event: [{ listen: "prerequest", script: exec("rr.log('hi');") }] },
+      { name: "Plain", request: { method: "GET", url: "z" } },
+    ],
+  };
+  const r = importPostmanCollection(scripted);
+  const byName = Object.fromEntries(listRequests([r.collection]).map((e) => [e.request.name, e.request]));
+
+  it("copies collection and folder scripts in front of the request's own, in Postman's order", () => {
+    expect(byName.Own.preScript).toBe(`// From Postman: collection "Scripts"
+{
+// c
+pm.environment.set('ts', Date.now());
+}
+// From Postman: folder "Outer"
+{
+const x = 1;
+}
+// From Postman: folder "Inner"
+{
+const x = 2;
+}
+// This request's own script
+{
+const x = 3;
+}`);
+    expect(byName.Own.postScript).toBe(`// From Postman: collection "Scripts"
+{
+pm.test('c', () => {});
+}`);
+  });
+
+  it("keeps a request's own script unchanged when nothing is inherited, and omits empty scripts", () => {
+    const only = importPostmanCollection({ info: { name: "O" }, item: scripted.item.slice(1) });
+    const by = Object.fromEntries(listRequests([only.collection]).map((e) => [e.request.name, e.request]));
+    expect(by.Bare.preScript).toBe("rr.log('hi');");
+    expect("postScript" in by.Bare).toBe(false);
+    expect("preScript" in by.Plain).toBe(false);
+    expect(only.warnings.join("\n")).toBe("Imported scripts on 1 request.");
+  });
+
+  it("skips disabled events and does not put scripts on examples", () => {
+    expect(byName.Own.postScript).not.toMatch(/off/);
+    const withExample = importPostmanCollection({
+      info: { name: "E" },
+      item: [{ name: "R", request: { method: "GET", url: "x" }, event: [{ listen: "prerequest", script: exec("a()") }], response: [{ name: "ex", code: 200 }] }],
+    });
+    const entry = listRequests([withExample.collection])[0];
+    expect(entry.request.preScript).toBe("a()");
+    expect(entry.examples[0].request.preScript).toBeUndefined();
+  });
+
+  it("counts calls that need manual changes", () => {
+    const out = importPostmanCollection({
+      info: { name: "M" },
+      item: [{ name: "R", request: { method: "GET", url: "x" }, event: [{ listen: "test", script: exec("pm.sendRequest('u');", "pm.test('a', () => {});") }] }],
+    });
+    expect(out.warnings.join("\n")).toMatch(/1 still uses Postman pm\.\* calls \(1 can be converted with one click, 1 need changes by hand\)/);
+  });
+
+  it("notes when a re-import replaced converted scripts", () => {
+    const text = JSON.stringify(scripted);
+    const first = importWorkspaceFile(text, [], []);
+    expect(first.warnings?.join("\n")).not.toMatch(/Re-importing/);
+    const again = importWorkspaceFile(text, first.collections, first.environments);
+    expect(again.warnings?.join("\n")).toMatch(/Re-importing replaced any scripts you converted/);
   });
 });
 

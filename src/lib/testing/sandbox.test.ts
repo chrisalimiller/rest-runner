@@ -70,3 +70,20 @@ describe("executeScript", () => {
     expect(out.tests[0]).toMatchObject({ passed: false, error: "rr.test functions cannot be async" });
   });
 });
+
+describe("executeScript Postman guard", () => {
+  it("refuses a script that still uses pm.* and runs nothing", () => {
+    const out = executeScript(`console.log("before"); pm.test("a", () => {}); pm.sendRequest("u");`, ctx);
+    expect(out.error).toMatch(/still uses Postman pm\.\* calls \(pm\.test, pm\.sendRequest\)/);
+    expect(out.error).toMatch(/Scripts tab/);
+    expect(out.logs).toEqual([]);
+    expect(out.tests).toEqual([]);
+  });
+
+  it("does not trip on pm in comments or strings", () => {
+    const out = executeScript(`// pm.test("a")\nrr.log("pm.response.json()");`, ctx);
+    expect(out.error).toBeUndefined();
+    expect(out.logs).toEqual(["pm.response.json()"]);
+  });
+});
+

@@ -2,12 +2,13 @@ import { requestNode, type Collection, type FolderNode, type RequestExample, typ
 import { emptyRow } from "./defaults";
 import type { Environment } from "./environments";
 import { newId } from "./ids";
+import { findPostmanCalls } from "./postmanScripts";
 import { HTTP_METHODS, type AuthConfig, type BodyMode, type HttpMethod, type KeyValue, type RequestDef } from "./types";
 
 /**
  * Reads Postman exports: collections (v2.0 and v2.1) and environment or globals
  * files. Pure functions, so they are easy to test. Anything that cannot be
- * carried over (scripts, file uploads, OAuth and so on) is reported in
+ * carried over (file uploads, OAuth and so on) is reported in
  * `warnings` instead of failing the import.
  */
 
@@ -240,8 +241,39 @@ function convertExamples(item: Json, request: RequestDef, auth: AuthConfig, warn
   return out;
 }
 
-function hasScripts(item: Json): boolean {
-  return Array.isArray(item.event) && item.event.some((e) => isObj(e) && isObj(e.script) && (Array.isArray(e.script.exec) ? e.script.exec.join("").trim() !== "" : str(e.script.exec).trim() !== ""));
+/** The script of one kind ("prerequest" or "test") on a collection, folder or request. Empty when there is none. */
+function eventScript(item: Json, listen: "prerequest" | "test"): string {
+  if (!Array.isArray(item.event)) return "";
+  const parts: string[] = [];
+  for (const e of item.event) {
+    if (!isObj(e) || e.listen !== listen || e.disabled === true || !isObj(e.script)) continue;
+    const exec = Array.isArray(e.script.exec) ? e.script.exec.map(str).join("\n") : str(e.script.exec);
+    if (exec.trim() !== "") parts.push(exec);
+  }
+  return parts.join("\n");
+}
+
+/** Scripts a request inherits from its collection and folders, outermost first. */
+interface InheritedScripts {
+  label: string;
+  pre: string;
+  post: string;
+}
+
+/**
+ * Postman runs collection, folder and request scripts in turn. Here scripts belong to a request, so
+ * the inherited ones are copied in front of the request's own, each in its own block with a comment
+ * saying where it came from. A request with only its own script keeps it unchanged.
+ */
+function chainScripts(inherited: string[], own: string): string {
+  if (inherited.length === 0) return own;
+  const blocks = [...inherited];
+  if (own !== "") blocks.push(`// This request's own script\n{\n${own}\n}`);
+  return blocks.join("\n");
+}
+
+function inheritedBlock(label: string, script: string): string {
+  return script === "" ? "" : `// From Postman: ${label}\n{\n${script}\n}`;
 }
 
 function variablesEnv(id: string, name: string, vars: KeyValue[]): Environment | null {
@@ -259,33 +291,54 @@ export function importPostmanCollection(data: unknown): PostmanCollectionImport 
   const postmanId = typeof data.info._postman_id === "string" && data.info._postman_id !== "" ? data.info._postman_id : null;
   const collectionId = postmanId ? `postman-${postmanId}` : newId();
   const variables: KeyValue[] = Array.isArray(data.variable) ? rows(data.variable) : [];
-  let scripted = 0;
+  const stats = { requests: 0, copies: 0, stillPm: 0, fixable: 0, manual: 0 };
 
-  const walk = (items: unknown[], inherited: AuthConfig): TreeNode[] => {
+  const walk = (items: unknown[], inherited: AuthConfig, scripts: InheritedScripts[]): TreeNode[] => {
     const nodes: TreeNode[] = [];
     for (const raw of items) {
       if (!isObj(raw)) continue;
       const itemName = typeof raw.name === "string" && raw.name !== "" ? raw.name : "Untitled";
       const auth = convertAuth(raw.auth, `"${itemName}"`, warnings);
-      if (hasScripts(raw)) scripted += 1;
       if (Array.isArray(raw.item)) {
         if (Array.isArray(raw.variable)) variables.push(...rows(raw.variable).filter((v) => v.key !== ""));
-        const folder: FolderNode = { kind: "folder", id: newId(), name: itemName, items: walk(raw.item, auth ?? inherited) };
+        const folder: FolderNode = { kind: "folder", id: newId(), name: itemName, items: walk(raw.item, auth ?? inherited, [...scripts, { label: `folder "${itemName}"`, pre: eventScript(raw, "prerequest"), post: eventScript(raw, "test") }]) };
         nodes.push(folder);
       } else if (raw.request !== undefined) {
         const effective = auth ?? inherited;
         const def = convertRequest(itemName, raw.request, effective, warnings);
-        if (def) nodes.push(requestNode(def, convertExamples(raw, def, effective, warnings)));
+        if (def) {
+          const examples = convertExamples(raw, def, effective, warnings);
+          const pre = chainScripts(scripts.map((x) => inheritedBlock(x.label, x.pre)).filter((b) => b !== ""), eventScript(raw, "prerequest"));
+          const post = chainScripts(scripts.map((x) => inheritedBlock(x.label, x.post)).filter((b) => b !== ""), eventScript(raw, "test"));
+          const copied = pre !== eventScript(raw, "prerequest") || post !== eventScript(raw, "test");
+          if (pre !== "") def.preScript = pre;
+          if (post !== "") def.postScript = post;
+          if (pre !== "" || post !== "") {
+            stats.requests += 1;
+            if (copied) stats.copies += 1;
+            const calls = [...findPostmanCalls(pre), ...findPostmanCalls(post)];
+            if (calls.length > 0) stats.stillPm += 1;
+            for (const c of calls) c.fix ? (stats.fixable += 1) : (stats.manual += 1);
+          }
+          nodes.push(requestNode(def, examples));
+        }
       }
     }
     return nodes;
   };
 
   const rootAuth = convertAuth(data.auth, "The collection", warnings) ?? { type: "none" };
-  if (hasScripts(data)) scripted += 1;
-  const items = walk(data.item, rootAuth);
-  if (scripted > 0) {
-    warnings.push(`${scripted} collection, folder or request script${scripted === 1 ? " was" : "s were"} not imported (Postman pm.* scripts do not run here).`);
+  const items = walk(data.item, rootAuth, [{ label: `collection "${name}"`, pre: eventScript(data, "prerequest"), post: eventScript(data, "test") }]);
+  if (stats.requests > 0) {
+    const s = stats.requests === 1 ? "" : "s";
+    warnings.push(
+      stats.stillPm > 0
+        ? `Imported scripts on ${stats.requests} request${s}. ${stats.stillPm} still use${stats.stillPm === 1 ? "s" : ""} Postman pm.* calls (${stats.fixable} can be converted with one click, ${stats.manual} need changes by hand). Open a request's Scripts tab to convert them. Requests with pm.* scripts will not run until they are converted.`
+        : `Imported scripts on ${stats.requests} request${s}.`,
+    );
+    if (stats.copies > 0) {
+      warnings.push(`Collection and folder scripts were copied into each request inside them (${stats.copies} request${stats.copies === 1 ? "" : "s"}), because REST Runner runs scripts per request.`);
+    }
   }
   return {
     collection: { id: collectionId, name, items },

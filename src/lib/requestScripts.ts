@@ -15,11 +15,11 @@ export function hasScripts(def: RequestDef): boolean {
 }
 
 /**
- * Joins a request's own script with a test case's script so both run in one go, request first.
+ * Joins scripts (a request's own, then a test case's, …) so they run in one go, in the order given.
  * Each part sits in its own block so their `const` names cannot clash.
  */
-export function combineScripts(first: string | undefined, second: string | undefined): string {
-  const parts = [first, second].filter((s): s is string => !!s && s.trim() !== "");
+export function combineScripts(...scripts: (string | undefined)[]): string {
+  const parts = scripts.filter((s): s is string => !!s && s.trim() !== "");
   if (parts.length <= 1) return parts[0] ?? "";
   return parts.map((p) => `{\n${p}\n}`).join("\n");
 }
