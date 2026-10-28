@@ -163,6 +163,11 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
     const rest = bufferRef.current;
     bufferRef.current = [];
     setResults((r) => r.concat(rest));
+    // The run is over whether or not saving it works, so leave "Running" before saving.
+    setElapsed(Date.now() - t0);
+    setEnd(result);
+    setRunning(false);
+    abortRef.current = null;
     if (all.length > 0) {
       const run = buildRun({
         id: newId(),
@@ -186,10 +191,6 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
         setSaveError(`The run finished but could not be saved: ${e instanceof Error ? e.message : String(e)}`);
       }
     }
-    setElapsed(Date.now() - t0);
-    setEnd(result);
-    setRunning(false);
-    abortRef.current = null;
   };
 
   const stop = () => abortRef.current?.abort();
