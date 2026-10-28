@@ -84,6 +84,14 @@ describe("prepareRequest", () => {
     );
   });
 
+  it("sends an API key with no name in the X-API-Key header, as documented", () => {
+    expect(prepareRequest(req({ url: "a.com", auth: { type: "apikey", key: " ", value: "k", addTo: "header" } })).headers).toEqual([
+      ["X-API-Key", "k"],
+    ]);
+    // A query parameter has no default name: nothing is added.
+    expect(prepareRequest(req({ url: "a.com", auth: { type: "apikey", key: "", value: "k", addTo: "query" } })).url).toBe("http://a.com");
+  });
+
   it("lets a manual Authorization header win over auth settings", () => {
     const p = prepareRequest(req({ url: "a.com", headers: [row("Authorization", "Custom x")], auth: { type: "bearer", token: "t" } }));
     expect(p.headers).toEqual([["Authorization", "Custom x"]]);

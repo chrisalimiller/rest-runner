@@ -109,6 +109,8 @@ const MIN_COLUMN = 380;
 interface TabRuntime {
   outcome: SendOutcome | null;
   scriptRun: { pre?: ScriptOutput; post?: ScriptOutput } | null;
+  /** Script variables right after the send shown, for the Scripts tab. Missing for samples and history. */
+  scriptVarsAfter?: Vars;
   outcomeIsSample: boolean;
   sampleLabel?: string;
   shownHistoryId: string | null;
@@ -241,7 +243,7 @@ export default function App({ active = true, shell, command }: Props) {
   const activeId = activeTab.id;
   const def = activeTab.def;
   const rt = runtime[activeId] ?? INITIAL_RUNTIME;
-  const { outcome, scriptRun, outcomeIsSample, sampleLabel, shownHistoryId, sending, pane, batchVisited, batchWide, batchRunning } = rt;
+  const { outcome, scriptRun, scriptVarsAfter, outcomeIsSample, sampleLabel, shownHistoryId, sending, pane, batchVisited, batchWide, batchRunning } = rt;
   const setPane = (p: LowerPane) => patchRuntime(activeId, { pane: p });
 
   const activeEnv = environments.find((e) => e.id === activeEnvId) ?? null;
@@ -413,7 +415,7 @@ export default function App({ active = true, shell, command }: Props) {
     const entryId = newId();
     const stillThere = tabsRef.current.tabs.some((t) => t.id === tabId) || tabsRef.current.closed.some((t) => t.id === tabId);
     if (stillThere)
-      patchRuntime(tabId, { sending: false, scriptRun: scripts, outcome: result, outcomeIsSample: false, sampleLabel: undefined, shownHistoryId: entryId });
+      patchRuntime(tabId, { sending: false, scriptRun: scripts, scriptVarsAfter: scripts ? scripted?.vars : undefined, outcome: result, outcomeIsSample: false, sampleLabel: undefined, shownHistoryId: entryId });
     setHistory((h) =>
       [
         {
@@ -476,7 +478,7 @@ export default function App({ active = true, shell, command }: Props) {
     const isNew = !before.tabs.some((t) => t.id === next.activeId);
     if (isNew) setRuntime((r) => ({ ...r, [next.activeId]: INITIAL_RUNTIME }));
     else if (o.load)
-      patchRuntime(next.activeId, { outcome: null, scriptRun: null, outcomeIsSample: false, sampleLabel: undefined, shownHistoryId: null });
+      patchRuntime(next.activeId, { outcome: null, scriptRun: null, scriptVarsAfter: undefined, outcomeIsSample: false, sampleLabel: undefined, shownHistoryId: null });
     setOpenRun(null);
     return { id: next.activeId, isNew };
   };
@@ -494,6 +496,7 @@ export default function App({ active = true, shell, command }: Props) {
       shownHistoryId: h.id,
       outcome: historyOutcome(h),
       scriptRun: h.preScript || h.postScript ? { pre: h.preScript, post: h.postScript } : null,
+      scriptVarsAfter: undefined,
       outcomeIsSample: true,
       sampleLabel: historyLabel(h),
       pane: "response",
@@ -909,7 +912,8 @@ export default function App({ active = true, shell, command }: Props) {
         className={`inspector ${foldRequest ? "request-folded" : ""}`}
         hidden={openRun !== null}
         ref={inspectorRef}
-        style={{ "--split-a": `${split}fr`, "--split-b": `${1 - split}fr` } as React.CSSProperties}
+        // Percent-sized factors: with factors below 1, a column held at its minimum width would leave the rest unused.
+        style={{ "--split-a": `${split * 100}fr`, "--split-b": `${(1 - split) * 100}fr` } as React.CSSProperties}
       >
         <section className="request-col" id="request-panel" role="tabpanel" aria-label="Request">
           <RequestEditor
@@ -998,6 +1002,7 @@ export default function App({ active = true, shell, command }: Props) {
               isSample={outcomeIsSample}
               sampleLabel={sampleLabel}
               scripts={scriptRun}
+              scriptVars={scriptVarsAfter}
               bodyNote={
                 shownEntry && responseNotKept(shownEntry)
                   ? "This send's response body and headers were not kept. Sends made before this version, or dropped when storage was full, keep only their status."

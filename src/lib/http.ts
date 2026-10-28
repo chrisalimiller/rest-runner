@@ -8,7 +8,8 @@ export function isTauri(): boolean {
   return typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 }
 
-const CANCELLED = "Request cancelled";
+/** The error of a send the user stopped. */
+export const CANCELLED = "Request cancelled";
 
 function errorMessage(err: unknown): string {
   if (err instanceof DOMException && err.name === "AbortError") return CANCELLED;

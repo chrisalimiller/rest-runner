@@ -715,7 +715,7 @@ body.dragging-split {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(380px, var(--split-a, 0.55fr)) 6px minmax(380px, var(--split-b, 0.45fr));
+  grid-template-columns: minmax(380px, var(--split-a, 55fr)) 6px minmax(380px, var(--split-b, 45fr));
 }
 
 .inspector[hidden] {
