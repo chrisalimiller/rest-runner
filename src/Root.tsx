@@ -16,7 +16,7 @@ const SECTION_KEY = "rest-runner.section";
 
 /** Something quick open asked a mode to do. The nonce makes the same pick twice count twice. */
 export type ShellCommand =
-  | { type: "open"; item: QuickItem; nonce: number }
+  | { type: "open"; item: QuickItem; nonce: number; permanent?: boolean }
   | { type: "clear-history"; nonce: number }
   /** Another mode changed saved data this mode keeps in memory: read it again from storage. */
   | { type: "reload"; nonce: number };
@@ -97,11 +97,11 @@ export default function Root() {
         <QuickOpen
           mode={section}
           onClose={() => setQuickOpen(false)}
-          onPick={(item) => {
+          onPick={(item, permanent) => {
             setQuickOpen(false);
             const mode = modeFor(item);
             setSection(mode);
-            send(mode, { type: "open", item, nonce: Date.now() });
+            send(mode, { type: "open", item, nonce: Date.now(), permanent });
           }}
           onClearHistory={() => send("requests", { type: "clear-history", nonce: Date.now() })}
         />
