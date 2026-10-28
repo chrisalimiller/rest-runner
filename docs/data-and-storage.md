@@ -70,3 +70,10 @@ To wipe everything, quit the app and delete its web view data folder. These are 
 - **Windows:** `%LOCALAPPDATA%\com.chrisalimiller.restrunner`
 
 Export anything you want to keep first. Deleting the folder cannot be undone, and uninstalling the app may not remove it.
+
+## If the app shows "Something went wrong"
+
+Stored data that cannot be read, for example a value edited by hand, is ignored rather than breaking the app. If REST Runner still hits an error it cannot recover from, it shows **Something went wrong** with the error message instead of a blank window:
+
+- **Reload** starts the app again.
+- **Reset view state and reload** first forgets what the screen remembers: the old single draft, which collections and folders are expanded, the Request details drawer and column split, which mode, suite and flow were open, the selected environments, and the hidden lists. Collections, environments, test suites, flows, open tabs, history and saved runs are kept.
