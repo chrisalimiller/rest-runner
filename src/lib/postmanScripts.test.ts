@@ -176,6 +176,13 @@ describe("findPostmanCalls", () => {
     expect(out.remaining.map((c) => c.api)).toEqual(["pm.sendRequest"]);
   });
 
+  it("copes with unfinished chains while typing", () => {
+    for (const code of ["pm", "pm.response", "pm.response.to", "pm.expect(a).to", "pm.environment", "postman", "pm.info", "pm.request.headers"]) {
+      expect(() => findPostmanCalls(code), code).not.toThrow();
+      expect(findPostmanCalls(code).length, code).toBeGreaterThan(0);
+    }
+  });
+
   it("reports ranges that cover the matched text", () => {
     const code = 'const x = pm.response.json().id;';
     const [c] = findPostmanCalls(code);
