@@ -1,5 +1,5 @@
 import { isRequestDef, locate, type Collection } from "./collections";
-import { newRequest } from "./defaults";
+import { completeRequest, newRequest } from "./defaults";
 import { newId } from "./ids";
 import type { RequestDef } from "./types";
 
@@ -323,16 +323,21 @@ export function serializeTabs(s: TabsState): StoredTabs {
  * draft (`rest-runner.draft`, already parsed) becomes the one tab. Bad data gives one new tab.
  */
 export function loadTabs(raw: string | null, legacyDraft: unknown): TabsState {
-  if (raw === null || raw === undefined) return isRequestDef(legacyDraft) ? initialTabs(legacyDraft) : initialTabs();
+  if (raw === null || raw === undefined) {
+    const draft = isRequestDef(legacyDraft) ? completeRequest(legacyDraft) : null;
+    return draft ? initialTabs(draft) : initialTabs();
+  }
   try {
     const data = JSON.parse(raw) as Partial<StoredTabs> | null;
     if (!data || data.v !== TABS_VERSION || !Array.isArray(data.tabs)) return initialTabs();
     const seen = new Set<string>();
     const tabs: RequestTab[] = [];
     for (const t of data.tabs) {
-      if (!t || typeof t.id !== "string" || !isRequestDef(t.def) || seen.has(t.id)) return initialTabs();
+      // A def that passes the basic check can still miss newer parts (auth, form body): fill them in.
+      const def = t && isRequestDef(t.def) ? completeRequest(t.def) : null;
+      if (!t || typeof t.id !== "string" || !def || seen.has(t.id)) return initialTabs();
       seen.add(t.id);
-      tabs.push({ id: t.id, def: t.def, pinned: t.pinned === true, preview: t.preview === true });
+      tabs.push({ id: t.id, def, pinned: t.pinned === true, preview: t.preview === true });
     }
     if (tabs.length === 0) return initialTabs();
     // Pinned tabs keep to the front, and only one preview survives.

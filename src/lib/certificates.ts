@@ -1,4 +1,4 @@
-import { load, save } from "./storage";
+import { isArray, load, save } from "./storage";
 
 export const CERTIFICATES_KEY = "rest-runner.certificates";
 
@@ -297,7 +297,7 @@ let current: CertificateEntry[] | null = null;
 const listeners = new Set<() => void>();
 
 export function loadCertificates(): CertificateEntry[] {
-  if (current === null) current = load<CertificateEntry[]>(CERTIFICATES_KEY, []);
+  if (current === null) current = load<CertificateEntry[]>(CERTIFICATES_KEY, [], isArray);
   return current;
 }
 

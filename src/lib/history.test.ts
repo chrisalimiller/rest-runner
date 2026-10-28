@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { newRequest } from "./defaults";
-import { fitHistory, historyLabel, historyOutcome, responseNotKept } from "./history";
+import { cleanHistory, fitHistory, historyLabel, historyOutcome, responseNotKept } from "./history";
 import type { HistoryEntry } from "./types";
 
 const now = new Date("2026-10-22T14:00:00");
@@ -56,5 +56,18 @@ describe("fitHistory", () => {
   });
   it("returns null when nothing fits", () => {
     expect(fitHistory(list, () => false)).toBeNull();
+  });
+});
+
+describe("cleanHistory", () => {
+  it("drops broken entries and keeps good ones", () => {
+    const good = { id: "h1", method: "GET", url: "u", status: 200, sentAt: "2026-01-01T00:00:00Z", def: { id: "r", url: "u", method: "GET", params: [], headers: [] } };
+    expect(cleanHistory(null)).toEqual([]);
+    expect(cleanHistory({})).toEqual([]);
+    const out = cleanHistory([null, 5, { id: "x" }, good, { ...good, id: "h2", response: "bad", status: "?" }]);
+    expect(out.map((h) => h.id)).toEqual(["h1", "h2"]);
+    expect(out[0].def.formBody).toHaveLength(1);
+    expect(out[1].response).toBeUndefined();
+    expect(out[1].status).toBeNull();
   });
 });

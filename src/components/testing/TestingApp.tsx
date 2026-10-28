@@ -7,7 +7,7 @@ import { environmentVars, guardFor, loadEnvironments, type Environment } from ".
 import { sendRequest } from "../../lib/http";
 import { newId } from "../../lib/ids";
 import { saveTextFile } from "../../lib/saveFile";
-import { load, save } from "../../lib/storage";
+import { isString, load, save } from "../../lib/storage";
 import { planIterations, runCase, runUpTo, runSuite } from "../../lib/testing/runner";
 import { createWorkerScriptRunner } from "../../lib/testing/scriptRunner";
 import { cleanSuites, newSuite } from "../../lib/testing/suites";
@@ -65,13 +65,13 @@ interface OpenReport {
 export function TestingApp({ active, shell, command }: Props) {
   const [navCollapsed, toggleNav] = useCollapsed("rest-runner.testing-nav-collapsed");
   const [suites, setSuites] = useState<TestSuite[]>(() => cleanSuites(load(SUITES_KEY, [])));
-  const [openSuiteId, setOpenSuiteId] = useState<string | null>(() => load(OPEN_SUITE_KEY, null));
+  const [openSuiteId, setOpenSuiteId] = useState<string | null>(() => load<string | null>(OPEN_SUITE_KEY, null, isString));
   /** The open case of each suite; null means all collapsed. Missing means the first case. */
   const [openCases, setOpenCases] = useState<Record<string, string | null>>({});
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [latestRun, setLatestRun] = useState<TestRun | null>(null);
   const [environments, setEnvironments] = useState<Environment[]>(loadEnvironments);
-  const [envId, setEnvId] = useState<string | null>(() => load(TEST_ENV_KEY, null));
+  const [envId, setEnvId] = useState<string | null>(() => load<string | null>(TEST_ENV_KEY, null, isString));
   const [runs, setRuns] = useState<TestRunSummary[]>([]);
   const [report, setReport] = useState<OpenReport | null>(null);
   const openRunId = report?.id ?? null;
@@ -295,7 +295,7 @@ export function TestingApp({ active, shell, command }: Props) {
     if (command.type === "reload") {
       setSuites(cleanSuites(load(SUITES_KEY, [])));
       setEnvironments(loadEnvironments());
-      setEnvId(load(TEST_ENV_KEY, null));
+      setEnvId(load<string | null>(TEST_ENV_KEY, null, isString));
     }
   }, [command]);
 

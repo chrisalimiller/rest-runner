@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import Root from "./Root";
+import { ErrorBoundary } from "./components/shell/ErrorBoundary";
 import { ToastProvider } from "./components/shell/Toast";
 import { setupWindowChrome } from "./lib/windowChrome";
 import "./assets/fonts/jetbrains-mono/jetbrains-mono.css";
@@ -12,8 +13,10 @@ setupWindowChrome();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
-    <ToastProvider>
-      <Root />
-    </ToastProvider>
+    <ErrorBoundary>
+      <ToastProvider>
+        <Root />
+      </ToastProvider>
+    </ErrorBoundary>
   </React.StrictMode>,
 );

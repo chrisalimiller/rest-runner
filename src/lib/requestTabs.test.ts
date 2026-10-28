@@ -489,3 +489,14 @@ describe("tabShortcut", () => {
     expect(tabShortcut({ ...key("KeyT", { ctrlKey: true }), key: "é" } as never)).toEqual({ type: "new" });
   });
 });
+
+describe("loadTabs with partly broken requests", () => {
+  it("fills in missing parts of a stored request instead of crashing later", () => {
+    const def = { id: "r", name: "Old", method: "GET", url: "u", params: [], headers: [] };
+    const raw = JSON.stringify({ v: 1, activeId: "t", tabs: [{ id: "t", def }] });
+    const s = loadTabs(raw, null);
+    expect(s.tabs[0].def.auth).toEqual({ type: "none" });
+    expect(s.tabs[0].def.formBody).toHaveLength(1);
+    expect(s.tabs[0].def.bodyMode).toBe("none");
+  });
+});

@@ -13,12 +13,12 @@ import {
   type QuickItem,
 } from "../../lib/quickOpen";
 import { listRuns } from "../../lib/runStore";
-import { load } from "../../lib/storage";
+import { isArray, load } from "../../lib/storage";
+import { cleanHistory } from "../../lib/history";
 import { cleanSuites } from "../../lib/testing/suites";
 import { listTestRuns } from "../../lib/testing/testRunStore";
 import { listFlowRuns } from "../../lib/flows/flowRunStore";
 import { loadFlows } from "../../lib/flows/flows";
-import type { HistoryEntry } from "../../lib/types";
 import { useEscape } from "../useEscape";
 import { useFocusTrap } from "../useFocusTrap";
 import { SearchIcon } from "./Icons";
@@ -35,10 +35,10 @@ interface Props {
 function readStoredItems(): QuickItem[] {
   // Each mode saves to local storage as it changes, so reading here sees the latest.
   const stored = load<unknown>("rest-runner.collections", null);
-  const collections = stored !== null ? cleanCollections(stored) : migrateSavedRequests(load<unknown[]>("rest-runner.saved", []).filter(isRequestDef));
+  const collections = stored !== null ? cleanCollections(stored) : migrateSavedRequests(load<unknown[]>("rest-runner.saved", [], isArray).filter(isRequestDef));
   return [
     ...collectionItems(collections),
-    ...historyItems(load<HistoryEntry[]>("rest-runner.history", [])),
+    ...historyItems(cleanHistory(load<unknown>("rest-runner.history", []))),
     ...suiteItems(cleanSuites(load("rest-runner.test-suites", []))),
     ...flowItems(loadFlows()),
   ];

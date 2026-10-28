@@ -23,7 +23,7 @@ interface Props {
 /** The curl command Send would run, with variables filled in, ready to copy into a terminal. */
 export function CurlPanel({ def, vars, envName }: Props) {
   const certificates = useCertificates();
-  const [shell, setShell] = useState<CurlShell>(() => load<CurlShell>(SHELL_KEY, defaultShell()));
+  const [shell, setShell] = useState<CurlShell>(() => load<CurlShell>(SHELL_KEY, defaultShell(), (x) => x === "bash" || x === "cmd"));
   const [copied, setCopied] = useState(false);
   useEffect(() => {
     save(SHELL_KEY, shell);
