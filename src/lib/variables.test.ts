@@ -32,4 +32,17 @@ describe("requestVariableRows", () => {
   it("marks everything unset without an environment", () => {
     expect(requestVariableRows(def, null, {}).every((r) => r.source.kind === "unset")).toBe(true);
   });
+
+  it("uses the last enabled row when an environment repeats a key, as sending does", () => {
+    const dup = {
+      ...newEnvironment("SIT"),
+      vars: [
+        { id: "a", key: "base", value: "first", enabled: true },
+        { id: "b", key: "base", value: "second", enabled: true },
+        { id: "c", key: "base", value: "off", enabled: false },
+      ],
+    };
+    const row = requestVariableRows({ ...newRequest(), url: "{{base}}" }, dup, {})[0];
+    expect(row).toMatchObject({ value: "second", envVarId: "b" });
+  });
 });
