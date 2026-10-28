@@ -1,7 +1,7 @@
 import { certificateLabel } from "../certificates";
 import { durationOf } from "../run";
 import { describeMode } from "./describe";
-import { caseStats, requestMs, testRunTimes, type TestRun } from "./testRun";
+import { caseStats, iterationsLabel, requestMs, testRunTimes, type TestRun } from "./testRun";
 import type { CaseResult, ScriptOutput } from "./types";
 
 /* ---------- failure groups ---------- */
@@ -321,7 +321,7 @@ ${run.suite.description ? `<p>${esc(run.suite.description)}</p>` : ""}
 <h2>Run details</h2>
 <table class="info">
 <tr><th>Suite</th><td>${esc(run.suiteName)} (${run.suite.cases.filter((c) => c.enabled).length} enabled cases)</td></tr>
-<tr><th>Iterations</th><td>${run.iterations}</td></tr>
+<tr><th>Iterations</th><td>${iterationsLabel(run)}</td></tr>
 <tr><th>Data file</th><td>${run.csvName ? `${esc(run.csvName)} (columns: ${esc(run.columns.join(", "))})` : '<span class="muted">None</span>'}</td></tr>
 <tr><th>Environment</th><td>${run.environmentName ? esc(run.environmentName) : '<span class="muted">None</span>'}</td></tr>
 <tr><th>Run order</th><td>${esc(describeMode(run.options))}</td></tr>

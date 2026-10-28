@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { MAX_REPEAT } from "./plan";
 import type { SendFn } from "../batch";
 import type { PreparedRequest, SendOutcome } from "../types";
 import { planIterations, runSuite, runUpTo } from "./runner";
@@ -252,5 +253,19 @@ describe("runUpTo", () => {
     const results = await runUpTo(suiteOf([a, b, c, d]), 2, { rows: null, envVars: { host: "api.test" }, send: server.send, scripts: inlineScriptRunner, signal: new AbortController().signal });
     expect(results.map((r) => r.caseName)).toEqual(["A", "C"]);
     expect(server.sent.map((r) => r.url)).toEqual(["https://api.test/a", "https://api.test/c/7"]);
+  });
+});
+
+describe("case notes", () => {
+  it("says a case has no checks of its own even when 4xx/5xx fail the case", async () => {
+    const server = fakeServer(() => ({ status: 200 }));
+    const { results } = await run(suiteOf([makeCase("Bare", "https://{{host}}/x")], { httpErrorsFail: true }), server.send);
+    expect(results[0].notes.some((n) => /no assertions or tests/.test(n) && /below 400/.test(n))).toBe(true);
+    const off = await run(suiteOf([makeCase("Bare", "https://{{host}}/x")], { httpErrorsFail: false }), server.send);
+    expect(off.results[0].notes.some((n) => /no assertions or tests, so it passes whenever a response comes back\.$/.test(n))).toBe(true);
+  });
+
+  it("caps repeats at MAX_REPEAT", () => {
+    expect(planIterations(null, 5000)).toHaveLength(MAX_REPEAT);
   });
 });

@@ -5,6 +5,7 @@ import { toCsvReport, toHtmlReport, reportFileName } from "../lib/report";
 import { durationOf, runStats, statusLabel, type Run } from "../lib/run";
 import { getRun } from "../lib/runStore";
 import { saveTextFile } from "../lib/saveFile";
+import { keepSelected } from "../lib/selection";
 import { CallDetail } from "./CallDetail";
 
 interface Props {
@@ -38,6 +39,7 @@ export function RunExplorer({ runId, onBack, onDelete, onLoadRequest }: Props) {
   useEffect(() => {
     let live = true;
     setRun(undefined);
+    setMessage(null);
     getRun(runId)
       .then((r) => {
         if (!live) return;
@@ -66,6 +68,12 @@ export function RunExplorer({ runId, onBack, onDelete, onLoadRequest }: Props) {
   }, [run, filter, status, query]);
 
   useEffect(() => setLimit(PAGE_SIZE), [filter, status, query]);
+  // A filter or search that hides the selected call moves the selection, so the detail matches the list.
+  useEffect(() => {
+    if (!run) return;
+    const next = keepSelected(selected, filtered.map((e) => e.index));
+    if (next !== selected) setSelected(next);
+  }, [filtered]);
 
   if (run === undefined) return <section className="explorer muted">Loading run…</section>;
   if (run === null || !stats)

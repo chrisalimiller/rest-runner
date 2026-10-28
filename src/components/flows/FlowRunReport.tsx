@@ -116,6 +116,7 @@ export function FlowRunReport({ runId, onBack, onDelete, onShowCanvas }: Props) 
     let live = true;
     setRun(undefined);
     setChild(null);
+    setMessage(null);
     getFlowRun(runId)
       .then((r) => {
         if (!live) return;
