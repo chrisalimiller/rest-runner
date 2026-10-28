@@ -103,12 +103,40 @@ export function resolvedUrl(def: RequestDef, vars: Vars): string {
 export interface TextPart {
   text: string;
   placeholder: boolean;
+  /** Only for placeholders: the variable name, decoded and trimmed. */
+  name?: string;
   /** Only for placeholders, and only when vars were given: whether a value exists for it. */
   resolved?: boolean;
 }
 
 // A {{name}} as written, or as it looks after URL encoding (%7B%7Bname%7D%7D).
 const PLACEHOLDER_PARTS = /\{\{\s*[^{}]+?\s*\}\}|%7B%7B.+?%7D%7D/gi;
+
+/** A fresh global matcher for placeholders as the app recognises them, for code that scans text itself. */
+export const placeholderPattern = (): RegExp => new RegExp(PLACEHOLDER_PARTS.source, "gi");
+
+/** The variable name inside a placeholder as written: `{{ token }}` or `%7B%7Btoken%7D%7D`. */
+export function placeholderName(raw: string): string {
+  let name = raw.startsWith("%") ? raw.slice(6, -6) : raw.replace(/^\{\{|\}\}$/g, "");
+  try {
+    name = decodeURIComponent(name);
+  } catch {
+    // keep the raw text
+  }
+  return name.trim();
+}
+
+/** The placeholder the caret is in or touching (`offset` is a caret position), with its start, end and position among the placeholders of the text. */
+export function placeholderAt(text: string, offset: number): { name: string; from: number; to: number; index: number } | null {
+  let index = 0;
+  for (const m of text.matchAll(PLACEHOLDER_PARTS)) {
+    const from = m.index ?? 0;
+    const to = from + m[0].length;
+    if (offset >= from && offset <= to) return { name: placeholderName(m[0]), from, to, index };
+    index++;
+  }
+  return null;
+}
 
 /** Splits text into plain runs and {{placeholder}} runs, so placeholders can be drawn in their own style. With `vars`, each placeholder also says whether it has a value. */
 export function splitPlaceholders(text: string, vars?: Vars): TextPart[] {
@@ -117,17 +145,9 @@ export function splitPlaceholders(text: string, vars?: Vars): TextPart[] {
   for (const m of text.matchAll(PLACEHOLDER_PARTS)) {
     const at = m.index ?? 0;
     if (at > last) out.push({ text: text.slice(last, at), placeholder: false });
-    const part: TextPart = { text: m[0], placeholder: true };
-    if (vars) {
-      let name = m[0].replace(/^\{\{|\}\}$/g, "");
-      if (m[0].startsWith("%")) name = m[0].slice(6, -6);
-      try {
-        name = decodeURIComponent(name);
-      } catch {
-        // keep the raw text
-      }
-      part.resolved = Object.prototype.hasOwnProperty.call(vars, name.trim());
-    }
+    const name = placeholderName(m[0]);
+    const part: TextPart = { text: m[0], placeholder: true, name };
+    if (vars) part.resolved = Object.prototype.hasOwnProperty.call(vars, name);
     out.push(part);
     last = at + m[0].length;
   }

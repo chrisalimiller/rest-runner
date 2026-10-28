@@ -1,8 +1,14 @@
-import { createContext, useCallback, useContext, useMemo } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { Environment } from "../../lib/environments";
 import type { Vars } from "../../lib/template";
 import { addEnvVar, resolveVariable, setEnvVarValue, type ResolvedVariable, type VariableLayer } from "../../lib/variables";
 import { useToast } from "../shell/Toast";
+import { VariableHoverCard, type HoverTarget } from "./VariableHoverCard";
+
+/** How long the pointer rests on a placeholder before the card opens, and how long it lingers after the pointer leaves. */
+const OPEN_MS = 300;
+const CLOSE_MS = 150;
 
 export interface VariablesApi {
   environments: Environment[];
@@ -17,6 +23,12 @@ export interface VariablesApi {
   clearAllScript(): void;
   /** Opens the Variables sidebar, on the request's own variables. */
   showInSidebar(name?: string): void;
+  /** The pointer is over a placeholder. */
+  hoverShow(name: string, rect: DOMRect, origin: HTMLElement | null): void;
+  /** The pointer left the placeholder. */
+  hoverLeave(): void;
+  /** Opens the card at once and puts focus in it (Ctrl/Cmd+I). */
+  hoverOpen(name: string, rect: DOMRect, origin: HTMLElement | null): void;
 }
 
 const VariablesContext = createContext<VariablesApi | null>(null);
@@ -39,6 +51,30 @@ interface ProviderProps {
 
 export function VariablesProvider({ environments, activeEnvId, scriptVars, setEnvironments, setActiveEnvId, setScriptVars, onShowInSidebar, children }: ProviderProps) {
   const toast = useToast();
+  const [card, setCard] = useState<HoverTarget | null>(null);
+  const cardRef = useRef<HoverTarget | null>(null);
+  cardRef.current = card;
+  const openTimer = useRef<number | undefined>(undefined);
+  const closeTimer = useRef<number | undefined>(undefined);
+  /** Once the card has focus or an edit in it, it stays until it is dismissed. */
+  const pinned = useRef(false);
+  const clearTimers = () => {
+    window.clearTimeout(openTimer.current);
+    window.clearTimeout(closeTimer.current);
+  };
+  useEffect(() => clearTimers, []);
+
+  const pin = useCallback(() => {
+    pinned.current = true;
+  }, []);
+  const closeCard = useCallback((restoreFocus: boolean) => {
+    window.clearTimeout(openTimer.current);
+    window.clearTimeout(closeTimer.current);
+    const origin = cardRef.current?.origin;
+    pinned.current = false;
+    setCard(null);
+    if (restoreFocus) origin?.focus();
+  }, []);
 
   /** Applies a change and offers to put things back as they were. */
   const change = useCallback(
@@ -85,9 +121,45 @@ export function VariablesProvider({ environments, activeEnvId, scriptVars, setEn
         change("Cleared all script variables", () => setScriptVars({}), () => setScriptVars(scriptVars));
       },
       showInSidebar: onShowInSidebar,
+      hoverShow(name, rect, origin) {
+        window.clearTimeout(closeTimer.current);
+        if (pinned.current) return;
+        const open = cardRef.current;
+        if (open && open.name === name) return;
+        window.clearTimeout(openTimer.current);
+        if (open) setCard({ name, rect, origin, focus: false });
+        else openTimer.current = window.setTimeout(() => setCard({ name, rect, origin, focus: false }), OPEN_MS);
+      },
+      hoverLeave() {
+        window.clearTimeout(openTimer.current);
+        if (pinned.current) return;
+        window.clearTimeout(closeTimer.current);
+        closeTimer.current = window.setTimeout(() => closeCard(false), CLOSE_MS);
+      },
+      hoverOpen(name, rect, origin) {
+        clearTimers();
+        pinned.current = false;
+        setCard({ name, rect, origin, focus: true });
+      },
     }),
-    [environments, activeEnvId, scriptVars, setEnvironments, setActiveEnvId, setScriptVars, onShowInSidebar, change],
+    [environments, activeEnvId, scriptVars, setEnvironments, setActiveEnvId, setScriptVars, onShowInSidebar, change, closeCard],
   );
 
-  return <VariablesContext.Provider value={api}>{children}</VariablesContext.Provider>;
+  return (
+    <VariablesContext.Provider value={api}>
+      {children}
+      {card &&
+        createPortal(
+          <VariableHoverCard
+            api={api}
+            target={card}
+            onEnter={() => window.clearTimeout(closeTimer.current)}
+            onLeave={api.hoverLeave}
+            onPin={pin}
+            onClose={closeCard}
+          />,
+          document.body,
+        )}
+    </VariablesContext.Provider>
+  );
 }

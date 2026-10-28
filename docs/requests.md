@@ -75,6 +75,12 @@ A value for a placeholder can come from three places. Later ones win:
 
 For example, if the environment defines `baseUrl`, the CSV has a `baseUrl` column, and a script sets `baseUrl`, the script's value is used. (There is one exception for leftover variables from earlier sends in a batch run. See [Variable scoping](scripting.md#variable-scoping).)
 
+## Variable cards
+
+Rest the pointer on a `{{placeholder}}` for a moment (or press **Ctrl/Cmd + I** with the caret inside one) to see a small card with its current value and where it comes from: **Env · Dev**, **Script** or **Unset**. It works in the URL box, Params and Headers values, form-body values, Auth fields and the raw/JSON body. If a script variable hides an environment value of the same name, the card shows the hidden value struck through.
+
+Edit the value right in the card: Enter or clicking away saves it to whichever place supplies it now (the script variable, or the environment variable), with an **Undo** notice. Esc cancels. For an unset variable the card offers **Add to Dev** (with a Secret switch and an environment picker when you have several). **Show in Variables** opens the sidebar; **Clear script value** forgets a script variable. [Secret](#secret-values) values stay masked until you press **Show**. Testing and Flows do not show these cards.
+
 ## The Variables sidebar
 
 Click **Variables** next to the environment switch in the top bar (Requests mode) to open a sidebar on the right. On windows 1240 px wide or more it sits beside the response; on narrower ones it floats over it, and clicking outside closes it. The ✕ button, Escape (with focus inside the panel) and the **Variables** button all close it, and it stays open or closed the next time you start the app.
