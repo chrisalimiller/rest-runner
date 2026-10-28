@@ -1,6 +1,6 @@
 import { stripJsonComments } from "./jsonFormat";
 import { applyJsonTemplate, applyTemplate, findPlaceholders, type Vars } from "./template";
-import type { KeyValue, PreparedRequest, RequestDef } from "./types";
+import type { AuthConfig, KeyValue, PreparedRequest, RequestDef } from "./types";
 
 function activeRows(rows: KeyValue[], vars: Vars): [string, string][] {
   return rows
@@ -44,7 +44,7 @@ function hasHeader(headers: [string, string][], name: string): boolean {
 export function prepareRequest(def: RequestDef, vars: Vars = {}): PreparedRequest {
   const query = activeRows(def.params, vars);
   const headers = activeRows(def.headers, vars);
-  const auth = def.auth;
+  const auth = withAuthDefaults(def.auth);
 
   switch (auth.type) {
     case "bearer":
@@ -115,4 +115,13 @@ export function requestPlaceholders(def: RequestDef): string[] {
 /** The placeholders `requestPlaceholders` finds that have no value in `vars` (use the same vars Send uses). */
 export function unresolvedPlaceholders(def: RequestDef, vars: Vars): string[] {
   return requestPlaceholders(def).filter((name) => !Object.prototype.hasOwnProperty.call(vars, name));
+}
+
+/** The header name an API key goes in when no key name is entered. */
+export const DEFAULT_API_KEY_HEADER = "X-API-Key";
+
+/** Auth as it is sent: an API key with no name goes in the `X-API-Key` header. */
+export function withAuthDefaults(auth: AuthConfig): AuthConfig {
+  if (auth.type === "apikey" && auth.addTo === "header" && auth.key.trim() === "") return { ...auth, key: DEFAULT_API_KEY_HEADER };
+  return auth;
 }

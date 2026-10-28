@@ -59,7 +59,7 @@ export function ScriptResults({ run, vars }: { run: ScriptRun; vars?: Vars }) {
         </ul>
       )}
 
-      <h4>Variables set</h4>
+      <h4>{vars ? "Script variables afterwards" : "Variables set"}</h4>
       {names.length ? (
         <table className="kv readonly">
           <tbody>

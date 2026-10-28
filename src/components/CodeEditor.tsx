@@ -1,6 +1,6 @@
 import { autocompletion, closeBrackets, closeBracketsKeymap, type CompletionSource } from "@codemirror/autocomplete";
 import { javascript } from "@codemirror/lang-javascript";
-import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+import { defaultKeymap, history, historyKeymap, indentWithTab, isolateHistory } from "@codemirror/commands";
 import { json } from "@codemirror/lang-json";
 import { python } from "@codemirror/lang-python";
 import { bracketMatching, HighlightStyle, StreamLanguage, syntaxHighlighting } from "@codemirror/language";
@@ -143,7 +143,7 @@ const jsonLinter = linter(
   { delay: 250 },
 );
 
-/** When pasting, if the whole body becomes valid JSON, format it. One undo step reverts the formatting and the paste together. */
+/** When pasting, if the whole body becomes valid JSON, format it. The format is its own undo step: Ctrl/Cmd + Z leaves the paste as pasted. */
 const formatOnPaste = EditorView.domEventHandlers({
   paste(event, view) {
     const pasted = event.clipboardData?.getData("text/plain");
@@ -154,10 +154,12 @@ const formatOnPaste = EditorView.domEventHandlers({
     const formatted = formatJson(next);
     if (formatted === null) return false;
     event.preventDefault();
+    view.dispatch({ changes: { from, to, insert: pasted }, selection: { anchor: from + pasted.length }, userEvent: "input.paste" });
     view.dispatch({
-      changes: { from: 0, to: doc.length, insert: formatted },
+      changes: { from: 0, to: view.state.doc.length, insert: formatted },
       selection: { anchor: formatted.length },
-      userEvent: "input.paste",
+      userEvent: "input.format",
+      annotations: isolateHistory.of("full"),
       scrollIntoView: true,
     });
     return true;

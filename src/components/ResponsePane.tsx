@@ -2,6 +2,7 @@ import { currentMasker } from "../lib/secrets";
 import { useEffect, useRef, useState } from "react";
 import { formatMs, statusTone } from "../lib/earlierSends";
 import { formatBytes } from "../lib/format";
+import { CANCELLED } from "../lib/http";
 import { BodyView } from "./BodyView";
 import { ScriptResults, ScriptsBadge, scriptsTabLabel, scriptTestCounts, type ScriptRun } from "./ScriptResults";
 import { AlertIcon, LockIcon, PlayIcon } from "./shell/Icons";
@@ -75,6 +76,7 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
   const res = outcome.ok ? outcome.response : null;
   const hasScripts = !!(scripts && (scripts.pre || scripts.post));
   const notSent = !!scripts?.pre?.error && !res;
+  const cancelled = !outcome.ok && outcome.error === CANCELLED;
   const tab: Tab =
     (isSample && chosenTab === "request") || ((!res || bodyNote) && chosenTab === "headers") || (!hasScripts && chosenTab === "scripts") ? "body" : chosenTab;
   const tone = statusTone(res ? res.status : null);
@@ -85,9 +87,9 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
       <div className="response-top">
         <div className="status-hero">
           <span className={`hero-code tone-${tone}`}>{res ? res.status : "ERR"}</span>
-          <span className="hero-text">{res ? res.statusText || "" : "No response"}</span>
+          <span className="hero-text">{res ? res.statusText || "" : cancelled ? "Cancelled" : "No response"}</span>
           <span className="hero-gap" />
-          {isSample ? (
+          {cancelled ? null : isSample ? (
             <span className="chip example-chip">{sampleLabel ?? "Sample response"}</span>
           ) : (
             <span className="hero-meta">
@@ -156,10 +158,12 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
             <div className="error-box">
               <div className="error-title">
                 <AlertIcon />
-                <strong>{notSent ? "The request was not sent." : "Could not get a response."}</strong>
+                <strong>{notSent ? "The request was not sent." : cancelled ? "You cancelled this request." : "Could not get a response."}</strong>
               </div>
-              <pre>{outcome.ok ? "" : outcome.error}</pre>
-              {notSent ? (
+              {!cancelled && <pre>{outcome.ok ? "" : outcome.error}</pre>}
+              {cancelled ? (
+                <p className="small">It was stopped before a response came back. Send it again when you are ready.</p>
+              ) : notSent ? (
                 <p className="small">
                   Fix the pre-request script and send again.{" "}
                   <button className="link-btn small" onClick={() => setTab("scripts")}>

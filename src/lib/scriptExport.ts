@@ -1,6 +1,7 @@
 import type { BatchOptions } from "./batch";
 import { certificateForExport, type CertificateEntry, type CertificateExport } from "./certificates";
 import { stripJsonComments } from "./jsonFormat";
+import { withAuthDefaults } from "./request";
 import { applyTemplate, type Vars } from "./template";
 import type { KeyValue, RequestDef } from "./types";
 import pythonRunner from "./scriptExport/runner.py?raw";
@@ -166,7 +167,7 @@ function pyRequest(def: RequestDef): string {
     ["bodyMode", def.bodyMode],
     ["body", requestBody(def)],
     ["form", activeRows(def.formBody)],
-    ["auth", def.auth],
+    ["auth", withAuthDefaults(def.auth)],
   ]);
 }
 
@@ -296,7 +297,7 @@ function bashBuild(def: RequestDef): string {
   if (params.length) lines.push("  # Query parameters", ...bashPairs(params, "QK", "QV"));
   if (headers.length) lines.push("  # Headers", ...bashPairs(headers, "HK", "HV"));
 
-  const auth = def.auth;
+  const auth = withAuthDefaults(def.auth);
   if (auth.type === "bearer" && !hasHeader(headers, "Authorization")) {
     lines.push("  # Auth: bearer token", ...bashTemplate(auth.token), '  add_header Authorization "Bearer $s"');
   } else if (auth.type === "basic" && !hasHeader(headers, "Authorization")) {

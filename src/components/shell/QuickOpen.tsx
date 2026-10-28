@@ -84,6 +84,9 @@ export function QuickOpen({ mode, onClose, onPick, onClearHistory }: Props) {
       if (flat.length) setActive((a) => (a + (e.key === "ArrowDown" ? 1 : -1) + flat.length) % flat.length);
     } else if (e.key === "Enter") {
       e.preventDefault();
+      // Picking closes Quick open, which turns the Requests shortcuts back on before this key
+      // reaches the window: without this, Ctrl/Cmd + Enter would also send the request.
+      e.stopPropagation();
       const item = flat[active];
       if (item) onPick(item, e.ctrlKey || e.metaKey);
     }
