@@ -10,7 +10,8 @@ The app is a desktop window around a web view, and it keeps its data in that web
 
 | Key | Contents |
 | --- | --- |
-| `rest-runner.draft` | The request you are editing |
+| `rest-runner.tabs` | The open request tabs: each tab's working copy, which are pinned or preview, and the active tab (`{ v: 1, activeId, tabs }`). Responses and the list of recently closed tabs are not kept |
+| `rest-runner.draft` | Old: the single request being edited before tabs existed. It is read once, only when `rest-runner.tabs` is missing, to become the first tab, and is never written again |
 | `rest-runner.history` | The last 50 sends, with responses (bodies cut at 32 KB) |
 | `rest-runner.collections` | Collections, folders, requests and examples |
 | `rest-runner.saved` | The old flat list of saved requests, read once to move them into collections, then left alone as a backup |
