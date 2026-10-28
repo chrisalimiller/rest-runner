@@ -1,3 +1,4 @@
+import { postmanApiNames, usesPostman } from "../postmanScripts";
 import type { Vars } from "../template";
 import type { ScriptOutput } from "./types";
 
@@ -155,6 +156,11 @@ export function executeScript(code: string, ctx: ScriptContext): ScriptOutput {
   const consoleShim = { log, info: log, warn: log, error: log, debug: log };
 
   let error: string | undefined;
+  if (usesPostman(code)) {
+    const names = postmanApiNames(code, 4);
+    const list = names.length > 0 ? ` (${names.slice(0, 3).join(", ")}${names.length > 3 ? ", …" : ""})` : "";
+    return { tests, logs, vars, error: `This script still uses Postman pm.* calls${list}. Open the Scripts tab to convert them.`, durationMs: Date.now() - start };
+  }
   try {
     const fn = new Function("rr", "console", `"use strict";\n${code}`);
     fn(rr, consoleShim);
