@@ -48,6 +48,12 @@ function trimOutcome(outcome: SendOutcome | undefined): SendOutcome | undefined 
   return { ...outcome, response: { ...outcome.response, body: outcome.response.body.slice(0, MAX_SAVED_BODY) } };
 }
 
+/** "3", or "1 of 3" when the run stopped before every planned iteration had a result. */
+export function iterationsLabel(run: Pick<TestRun, "iterations" | "results">): string {
+  const ran = new Set(run.results.map((r) => r.iteration)).size;
+  return ran < run.iterations ? `${ran} of ${run.iterations}` : String(run.iterations);
+}
+
 /** Puts results in plan order: by iteration, then by the case's position in the suite. */
 export function sortResults(results: CaseResult[]): CaseResult[] {
   return [...results].sort((a, b) => a.iteration - b.iteration || a.caseIndex - b.caseIndex);

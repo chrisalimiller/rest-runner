@@ -103,7 +103,9 @@ export function TestingSidebar({ collapsed, onToggleCollapsed, suites, activeSui
               className={`nav-row ${activeSuiteId === s.id && activeRunId === null ? "active" : ""}`}
               aria-current={activeSuiteId === s.id && activeRunId === null ? "page" : undefined}
               onClick={() => onOpenSuite(s.id)}
-              title={s.description || s.name}
+              aria-label={`${s.name || "(unnamed)"}, ${s.cases.length} case${s.cases.length === 1 ? "" : "s"}${runningSuiteId === s.id ? ", running" : ""}`}
+              title={s.description ? `${s.name}
+${s.description}` : s.name}
             >
               {runningSuiteId === s.id && <span className="pulse-dot" aria-label="Running" />}
               <span className="nav-row-name">{s.name || "(unnamed)"}</span>

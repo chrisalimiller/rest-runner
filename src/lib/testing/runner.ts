@@ -3,6 +3,7 @@ import { prepareRequest } from "../request";
 import { combineScripts } from "../requestScripts";
 import { findPlaceholders, type Vars } from "../template";
 import { evaluateAssertion } from "./assertions";
+import { clampRepeat } from "./plan";
 import type { ScriptContext } from "./sandbox";
 import type { ScriptRunner } from "./scriptRunner";
 import type { CaseResult, Check, ScriptOutput, SuiteRunEnd, SuiteRunOptions, TestCase, TestSuite } from "./types";
@@ -16,7 +17,7 @@ export interface Iteration {
 
 /** Repeats go round the whole data set: with 3 rows and repeat 2 the order is rows 1,2,3,1,2,3. */
 export function planIterations(rows: Vars[] | null, repeat: number): Iteration[] {
-  const times = Math.max(1, Math.floor(repeat) || 1);
+  const times = clampRepeat(repeat);
   const data = rows && rows.length ? rows : null;
   const list: Iteration[] = [];
   for (let r = 0; r < times; r++) {
@@ -176,12 +177,20 @@ export async function runCase(run: CaseRun, options: SuiteRunOptions, ctx: Omit<
 
   const status = outcome.response.status;
   const hasStatusAssertion = assertions.some((a) => a.source === "status");
-  if (options.httpErrorsFail && !hasStatusAssertion) {
+  const implicitStatus = options.httpErrorsFail && !hasStatusAssertion;
+  if (implicitStatus) {
     checks.push({ name: "Status is below 400", passed: status < 400, message: `Got ${status}`, source: "status" });
   }
   checks.push(...scriptChecks(postScript, "post-script"));
 
-  if (checks.length === 0) notes.push("This case has no assertions or tests, so it passes whenever a response comes back.");
+  // The implicit status check is not one of the case's own checks.
+  if (checks.length === (implicitStatus ? 1 : 0)) {
+    notes.push(
+      implicitStatus
+        ? "This case has no assertions or tests, so it passes whenever a response comes back with a status below 400."
+        : "This case has no assertions or tests, so it passes whenever a response comes back.",
+    );
+  }
   if (status >= 400 && hasStatusAssertion) notes.push(`HTTP ${status} was judged by the case's own status assertion.`);
   if (status >= 400 && !options.httpErrorsFail && !hasStatusAssertion) notes.push(`HTTP ${status} not counted as a failure ("4xx/5xx fail the case" was off).`);
 

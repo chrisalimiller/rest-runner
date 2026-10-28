@@ -1,5 +1,6 @@
 import { newRequest } from "../defaults";
 import { newId } from "../ids";
+import { clampRepeat } from "./plan";
 import type { RequestDef } from "../types";
 import { ASSERTION_OPS, DEFAULT_SUITE_OPTIONS, type Assertion, type TestCase, type TestSuite } from "./types";
 
@@ -46,7 +47,7 @@ export function cleanSuites(input: unknown): TestSuite[] {
       id: s.id,
       name: typeof s.name === "string" ? s.name : "Test suite",
       description: typeof s.description === "string" ? s.description : "",
-      options: { ...DEFAULT_SUITE_OPTIONS, ...(s.options ?? {}) },
+      options: { ...DEFAULT_SUITE_OPTIONS, ...(s.options ?? {}), repeat: clampRepeat(s.options?.repeat ?? DEFAULT_SUITE_OPTIONS.repeat) },
       data: s.data && typeof s.data.name === "string" && typeof s.data.text === "string" ? { name: s.data.name, text: s.data.text } : undefined,
       cases: s.cases
         .filter((c) => !!c && typeof c.id === "string" && !!c.request && typeof c.request.url === "string")

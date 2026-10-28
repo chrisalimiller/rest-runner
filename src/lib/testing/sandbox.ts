@@ -139,6 +139,10 @@ export function executeScript(code: string, ctx: ScriptContext): ScriptOutput {
         })
       : undefined,
     test: (name: string, fn: () => unknown) => {
+      if (typeof fn !== "function") {
+        tests.push({ name: String(name), passed: false, error: "rr.test needs a function as its second argument, for example rr.test(\"name\", () => rr.expect(x).toBe(1))" });
+        return;
+      }
       try {
         const r = fn();
         if (r && typeof (r as Promise<unknown>).then === "function") {

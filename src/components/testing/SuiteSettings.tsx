@@ -2,7 +2,7 @@ import { CsvPreview } from "../CsvPreview";
 import { useMemo, useRef, useState } from "react";
 import { parseCsv } from "../../lib/csv";
 import { requestPlaceholders } from "../../lib/request";
-import { planEstimate } from "../../lib/testing/plan";
+import { clampRepeat, MAX_REPEAT, planEstimate } from "../../lib/testing/plan";
 import { planIterations } from "../../lib/testing/runner";
 import type { RunMode, SuiteRunOptions, TestSuite } from "../../lib/testing/types";
 
@@ -79,7 +79,7 @@ export function SuiteSettings({ suite, onChange, envVarNames }: Props) {
         </label>
         <label title="Go through the data this many times">
           Repeat
-          <input type="number" min={1} max={1000} value={o.repeat} onChange={(e) => set({ repeat: Math.max(1, Number(e.target.value) || 1) })} />
+          <input type="number" min={1} max={MAX_REPEAT} value={o.repeat} onChange={(e) => set({ repeat: clampRepeat(e.target.value) })} />
         </label>
         <label title="Scripts running longer than this are stopped">
           Script time limit (ms)

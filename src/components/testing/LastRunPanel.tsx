@@ -4,7 +4,7 @@ import { formatMs, whenLabel } from "../../lib/earlierSends";
 import { saveTextFile } from "../../lib/saveFile";
 import { groupFailures, type FailureGroup } from "../../lib/testing/testReport";
 import { testReportFileName, toTestCsvReport, toTestHtmlReport } from "../../lib/testing/testReport";
-import { testRunTimes, type TestRun } from "../../lib/testing/testRun";
+import { iterationsLabel, testRunTimes, type TestRun } from "../../lib/testing/testRun";
 import { LiveRun, type LiveRunState } from "./LiveRun";
 
 interface Props {
@@ -90,7 +90,7 @@ export function LastRunPanel({ live, run, onOpenReport }: Props) {
       <div className="stat-grid">
         <div className="mini-stat">
           <span>Iterations</span>
-          <b className="mono">{run.iterations}</b>
+          <b className="mono">{iterationsLabel(run)}</b>
         </div>
         <div className="mini-stat">
           <span>Checks</span>

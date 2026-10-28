@@ -69,6 +69,12 @@ describe("executeScript", () => {
     const out = executeScript(`rr.test("later", async () => {})`, ctx);
     expect(out.tests[0]).toMatchObject({ passed: false, error: "rr.test functions cannot be async" });
   });
+
+  it("fails a test whose second argument is not a function, with a clear message", () => {
+    const out = executeScript(`rr.test("bool", rr.response.status === 200)`, ctx);
+    expect(out.tests[0]).toMatchObject({ passed: false });
+    expect(out.tests[0].error).toMatch(/needs a function/);
+  });
 });
 
 describe("executeScript Postman guard", () => {

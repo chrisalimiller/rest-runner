@@ -6,8 +6,9 @@ import { saveTextFile } from "../../lib/saveFile";
 import { describeMode } from "../../lib/testing/describe";
 import { buildGrid } from "../../lib/testing/grid";
 import { failureCheckNames, testReportFileName, toTestCsvReport, toTestHtmlReport } from "../../lib/testing/testReport";
-import { caseStats, testRunTimes, type TestRun } from "../../lib/testing/testRun";
+import { caseStats, iterationsLabel, testRunTimes, type TestRun } from "../../lib/testing/testRun";
 import { getTestRun } from "../../lib/testing/testRunStore";
+import { keepSelected } from "../../lib/selection";
 import { CaseResultView } from "./CaseResultView";
 import { ResultRow, resultStatus } from "./ResultRow";
 
@@ -53,6 +54,7 @@ export function TestRunExplorer({ runId, preloaded, onBack, backLabel = "← Bac
   useEffect(() => {
     let live = true;
     setRun(undefined);
+    setMessage(null);
     setCaseFilter(initialCaseId ?? null);
     setCheckFilter(initialCheck ?? null);
     (preloaded ? Promise.resolve(preloaded) : runId ? getTestRun(runId) : Promise.resolve(undefined))
@@ -94,6 +96,13 @@ export function TestRunExplorer({ runId, preloaded, onBack, backLabel = "← Bac
   }, [run, filter, caseFilter, checkFilter, failuresFirst, query]);
 
   useEffect(() => setLimit(PAGE_SIZE), [filter, caseFilter, checkFilter, query]);
+  // In the list, a filter that hides the selected result moves the selection, so the detail matches the list.
+  // The grid shows every result whatever the filter, so a pick there stays.
+  useEffect(() => {
+    if (!run || view !== "list") return;
+    const next = keepSelected(selected, filtered.map((f) => f.index));
+    if (next !== selected) setSelected(next);
+  }, [filtered, view]);
 
   if (run === undefined) return <section className="explorer muted">Loading test run…</section>;
   if (run === null || !times)
@@ -140,7 +149,7 @@ export function TestRunExplorer({ runId, preloaded, onBack, backLabel = "← Bac
           </button>
           <h2>{run.suiteName}</h2>
           <p className="muted small">
-            {new Date(run.startedAt).toLocaleString()} · {run.iterations} iteration{run.iterations === 1 ? "" : "s"}
+            {new Date(run.startedAt).toLocaleString()} · {iterationsLabel(run)} iteration{run.iterations === 1 ? "" : "s"}
             {run.csvName ? ` from ${run.csvName}` : ""}
             {run.environmentName ? ` · ${run.environmentName}` : ""} · {describeMode(run.options)} · {endLabel}
           </p>

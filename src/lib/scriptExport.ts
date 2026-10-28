@@ -40,7 +40,7 @@ export function scriptExportNotes(input: ScriptExportInput): string[] {
   const { def } = input;
   const scripts = [(def.preScript ?? "").trim() && "pre-request", (def.postScript ?? "").trim() && "post-response"].filter(Boolean);
   if (scripts.length) {
-    notes.push(`The request's ${scripts.join(" and ")} ${scripts.length > 1 ? "scripts are" : "script is"} JavaScript for the app and is not included. Values ${scripts.length > 1 ? "they set" : "it sets"} are not filled in.`);
+    notes.push(`The request's ${scripts.join(" and ")} ${scripts.length > 1 ? "scripts are JavaScript for the app and are" : "script is JavaScript for the app and is"} not included. Values ${scripts.length > 1 ? "they set" : "it sets"} are not filled in.`);
   }
   if (Object.keys(input.defaults).length) {
     notes.push(`Values from ${input.envName ? `the ${input.envName} environment` : "the environment"} and earlier script runs are copied into the script as plain text. Check it before you share it.`);
