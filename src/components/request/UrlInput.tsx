@@ -1,5 +1,6 @@
 import { useCallback, useLayoutEffect, useRef, type InputHTMLAttributes } from "react";
 import { splitPlaceholders } from "../../lib/requestSummary";
+import { usePlaceholderHover } from "../variables/usePlaceholderHover";
 
 type Props = Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "className"> & {
   value: string;
@@ -12,7 +13,8 @@ type Props = Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "className"> 
  * and a copy of the text with the placeholders marked sits behind it, scrolled
  * in step with the input.
  */
-export function UrlInput({ value, className, ...inputProps }: Props) {
+export function UrlInput({ value, className, onKeyDown, onMouseMove, onMouseLeave, ...inputProps }: Props) {
+  const hover = usePlaceholderHover(".url-var");
   const input = useRef<HTMLInputElement>(null);
   const text = useRef<HTMLSpanElement>(null);
 
@@ -41,12 +43,12 @@ export function UrlInput({ value, className, ...inputProps }: Props) {
   }, [syncSoon]);
 
   return (
-    <div className="url-field">
+    <div ref={hover.root} className={`url-field ${hover.over ? "hover-var" : ""}`}>
       <div className="url-mirror" aria-hidden>
         <span ref={text} className="url-mirror-text">
           {splitPlaceholders(value).map((p, i) =>
             p.placeholder ? (
-              <span key={i} className="url-var">
+              <span key={i} className="url-var" data-name={p.name}>
                 {p.text}
               </span>
             ) : (
@@ -55,7 +57,23 @@ export function UrlInput({ value, className, ...inputProps }: Props) {
           )}
         </span>
       </div>
-      <input ref={input} {...inputProps} value={value} className={`url-input ${className ?? ""}`.trim()} />
+      <input
+        ref={input}
+        {...inputProps}
+        value={value}
+        className={`url-input ${className ?? ""}`.trim()}
+        onKeyDown={(e) => {
+          if (!hover.onKeyDown(e)) onKeyDown?.(e);
+        }}
+        onMouseMove={(e) => {
+          hover.onMouseMove(e);
+          onMouseMove?.(e);
+        }}
+        onMouseLeave={(e) => {
+          hover.onMouseLeave();
+          onMouseLeave?.(e);
+        }}
+      />
     </div>
   );
 }

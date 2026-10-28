@@ -1,6 +1,7 @@
 import { findJsonProblem, formatJson } from "../lib/jsonFormat";
 import type { BodyMode, KeyValue } from "../lib/types";
 import { CodeEditor } from "./CodeEditor";
+import { useVariables } from "./variables/VariablesContext";
 import type { Vars } from "../lib/template";
 import { KeyValueEditor } from "./KeyValueEditor";
 
@@ -34,6 +35,7 @@ function lineCol(text: string, offset: number): string {
 }
 
 export function BodyEditor({ mode, body, formBody, placeholderVars, methodAllowsBody, onModeChange, onBodyChange, onFormChange, toolbar = true }: Props) {
+  const variables = useVariables();
   const problem = mode === "json" ? findJsonProblem(body) : null;
 
   const format = () => {
@@ -77,6 +79,7 @@ export function BodyEditor({ mode, body, formBody, placeholderVars, methodAllows
               value={body}
               onChange={onBodyChange}
               json={mode === "json"}
+              variableHover={variables ? { show: variables.hoverShow, leave: variables.hoverLeave, open: variables.hoverOpen } : undefined}
               ariaLabel="Request body"
               placeholder={mode === "json" ? 'Paste or type JSON, e.g. {"name": "{{name}}"}' : ""}
             />

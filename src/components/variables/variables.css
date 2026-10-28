@@ -232,3 +232,60 @@
   justify-content: space-between;
   gap: 8px;
 }
+
+/* The hover card on a {{variable}} */
+.variable-card {
+  position: fixed;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: 0 8px 24px rgba(1, 4, 9, 0.6);
+  font-size: 12px;
+}
+
+.variable-card-head,
+.variable-card-field,
+.variable-card-add,
+.variable-card-links {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.variable-card-field .variables-input {
+  flex: 1;
+  border-color: var(--accent);
+}
+
+.variable-card-add {
+  flex-wrap: wrap;
+}
+
+.variable-card-links {
+  justify-content: space-between;
+}
+
+/* Placeholders that open the card */
+.url-var,
+.ph {
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
+
+.hover-var input {
+  cursor: help;
+}
+
+/* Auth fields keep the width of the plain inputs they replace */
+.field .ph-input {
+  min-width: 0;
+}
+
+.field .ph-input input {
+  width: 100%;
+}

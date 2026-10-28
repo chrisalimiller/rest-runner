@@ -1,8 +1,12 @@
+import type { Vars } from "../lib/template";
 import type { AuthConfig } from "../lib/types";
+import { PlaceholderInput } from "./PlaceholderInput";
 
 interface Props {
   auth: AuthConfig;
   onChange: (auth: AuthConfig) => void;
+  /** Values the placeholders can be filled from. With it, {{placeholders}} are drawn and open the variable card on hover. */
+  placeholderVars?: Vars;
 }
 
 const LABELS: Record<AuthConfig["type"], string> = {
@@ -25,7 +29,15 @@ function defaultsFor(type: AuthConfig["type"]): AuthConfig {
   }
 }
 
-export function AuthEditor({ auth, onChange }: Props) {
+export function AuthEditor({ auth, onChange, placeholderVars }: Props) {
+  /** A text field that draws placeholders when it can. */
+  const text = (value: string, onValue: (v: string) => void, extra: { placeholder?: string } = {}) =>
+    placeholderVars ? (
+      <PlaceholderInput value={value} vars={placeholderVars} onChange={onValue} spellCheck={false} {...extra} />
+    ) : (
+      <input value={value} onChange={(e) => onValue(e.target.value)} spellCheck={false} {...extra} />
+    );
+
   return (
     <div className="auth">
       <label className="field">
@@ -44,12 +56,7 @@ export function AuthEditor({ auth, onChange }: Props) {
       {auth.type === "bearer" && (
         <label className="field">
           <span>Token</span>
-          <input
-            value={auth.token}
-            onChange={(e) => onChange({ ...auth, token: e.target.value })}
-            placeholder="Token or {{variable}}"
-            spellCheck={false}
-          />
+          {text(auth.token, (token) => onChange({ ...auth, token }), { placeholder: "Token or {{variable}}" })}
         </label>
       )}
 
@@ -57,7 +64,7 @@ export function AuthEditor({ auth, onChange }: Props) {
         <>
           <label className="field">
             <span>Username</span>
-            <input value={auth.username} onChange={(e) => onChange({ ...auth, username: e.target.value })} spellCheck={false} />
+            {text(auth.username, (username) => onChange({ ...auth, username }))}
           </label>
           <label className="field">
             <span>Password</span>
@@ -74,11 +81,11 @@ export function AuthEditor({ auth, onChange }: Props) {
         <>
           <label className="field">
             <span>Key</span>
-            <input value={auth.key} onChange={(e) => onChange({ ...auth, key: e.target.value })} placeholder="X-API-Key" spellCheck={false} />
+            {text(auth.key, (key) => onChange({ ...auth, key }), { placeholder: "X-API-Key" })}
           </label>
           <label className="field">
             <span>Value</span>
-            <input value={auth.value} onChange={(e) => onChange({ ...auth, value: e.target.value })} spellCheck={false} />
+            {text(auth.value, (value) => onChange({ ...auth, value }))}
           </label>
           <label className="field">
             <span>Add to</span>

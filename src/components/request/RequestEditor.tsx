@@ -297,7 +297,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, detail
         )}
         <RequestDetailsDrawer id={detailsId} open={open} docked={docked} tab={details.tab} onTab={(tab) => setDetails((d) => ({ ...d, tab }))} onClose={closeDetails} marks={marks} warnings={postmanWarning ? { scripts: postmanWarning } : undefined}>
           {details.tab === "params" && <KeyValueEditor rows={def.params} onChange={(rows) => onChange({ params: rows })} placeholderVars={envVars} />}
-          {details.tab === "auth" && <AuthEditor auth={def.auth} onChange={(a) => onChange({ auth: a })} />}
+          {details.tab === "auth" && <AuthEditor auth={def.auth} onChange={(a) => onChange({ auth: a })} placeholderVars={envVars} />}
           {details.tab === "headers" && <KeyValueEditor rows={def.headers} onChange={(rows) => onChange({ headers: rows })} placeholderVars={envVars} />}
           {details.tab === "scripts" && <ScriptsPanel def={def} onChange={onChange} scriptVars={scriptVars} onOpenVariables={onOpenVariables} scriptsNote={scriptsNote} />}
         </RequestDetailsDrawer>

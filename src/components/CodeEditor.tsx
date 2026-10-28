@@ -6,7 +6,7 @@ import { python } from "@codemirror/lang-python";
 import { bracketMatching, HighlightStyle, StreamLanguage, syntaxHighlighting } from "@codemirror/language";
 import { shell } from "@codemirror/legacy-modes/mode/shell";
 import { linter, lintGutter, type Diagnostic } from "@codemirror/lint";
-import { Compartment, EditorState, type Extension } from "@codemirror/state";
+import { Compartment, EditorState, Prec, type Extension } from "@codemirror/state";
 import {
   Decoration,
   EditorView,
@@ -20,6 +20,7 @@ import {
 import { tags as t } from "@lezer/highlight";
 import { useEffect, useRef } from "react";
 import { findJsonComments, findJsonProblem, formatJson } from "../lib/jsonFormat";
+import { placeholderAt, placeholderPattern } from "../lib/requestSummary";
 
 /** GitHub dark syntax colors. */
 const githubDarkHighlight = HighlightStyle.define([
@@ -56,6 +57,8 @@ const editorTheme = EditorView.theme(
     ".cm-activeLine": { backgroundColor: "transparent" },
     ".cm-matchingBracket": { backgroundColor: "rgba(63, 185, 80, 0.25)", outline: "1px solid rgba(63, 185, 80, 0.6)" },
     ".cm-placeholder": { color: "var(--muted)" },
+    ".cm-template-var": { textDecoration: "underline dotted", textUnderlineOffset: "3px" },
+    "&.hover-var .cm-content, &.hover-var .cm-line": { cursor: "help" },
     ".cm-tooltip": { backgroundColor: "var(--bg-overlay)", border: "1px solid var(--border)", color: "var(--text)", borderRadius: "6px" },
     ".cm-diagnostic-error": { borderLeft: "3px solid var(--danger)" },
     ".cm-diagnostic-warning": { borderLeft: "3px solid var(--warn)" },
@@ -77,7 +80,7 @@ const editorTheme = EditorView.theme(
 const placeholderMarks = ViewPlugin.fromClass(
   class {
     decorations: DecorationSet;
-    matcher = new MatchDecorator({ regexp: /\{\{[^{}]*\}\}/g, decoration: Decoration.mark({ class: "cm-template-var" }) });
+    matcher = new MatchDecorator({ regexp: placeholderPattern(), decoration: Decoration.mark({ class: "cm-template-var" }) });
     constructor(view: EditorView) {
       this.decorations = this.matcher.createDeco(view);
     }
@@ -192,8 +195,67 @@ interface Props {
   /** Python or Bash highlighting, for showing exported scripts. Long lines scroll instead of wrapping. */
   language?: ScriptViewLanguage;
   readOnly?: boolean;
+  /** Opens the variable card on {{placeholders}} (hover, and Ctrl/Cmd+I with the caret in one). Left out where there are no variables to show. */
+  variableHover?: VariableHover;
   placeholder?: string;
   ariaLabel?: string;
+}
+
+/** The parts of the variable card a text editor needs. */
+export interface VariableHover {
+  show(name: string, rect: DOMRect, origin: HTMLElement | null): void;
+  leave(): void;
+  open(name: string, rect: DOMRect, origin: HTMLElement | null): void;
+}
+
+/** The screen rectangle of the placeholder the position is in, or null when the pointer (if given) is not over it. */
+function placeholderRect(view: EditorView, pos: number, pointer?: { x: number; y: number }) {
+  const line = view.state.doc.lineAt(pos);
+  const at = placeholderAt(line.text, pos - line.from);
+  if (!at) return null;
+  const start = view.coordsAtPos(line.from + at.from, 1);
+  const end = view.coordsAtPos(line.from + at.to, -1);
+  if (!start || !end) return null;
+  const right = end.top === start.top ? end.left : view.contentDOM.getBoundingClientRect().right;
+  const rect = new DOMRect(start.left, start.top, Math.max(right - start.left, 1), start.bottom - start.top);
+  if (pointer && (pointer.x < rect.left || pointer.x > rect.right || pointer.y < rect.top || pointer.y > rect.bottom)) return null;
+  return { name: at.name, rect };
+}
+
+/** Hover and Ctrl/Cmd+I for {{placeholders}}. The shortcut keeps its normal meaning (select parent syntax) anywhere else. */
+function variableHoverExtension(hover: () => VariableHover | undefined): Extension {
+  return [
+    EditorView.domEventHandlers({
+      mousemove(e, view) {
+        const h = hover();
+        if (!h) return;
+        const pos = view.posAtCoords({ x: e.clientX, y: e.clientY });
+        const hit = pos === null ? null : placeholderRect(view, pos, { x: e.clientX, y: e.clientY });
+        view.dom.classList.toggle("hover-var", !!hit);
+        if (hit) h.show(hit.name, hit.rect, view.contentDOM);
+        else h.leave();
+      },
+      mouseleave(_e, view) {
+        view.dom.classList.remove("hover-var");
+        hover()?.leave();
+      },
+    }),
+    Prec.high(
+      keymap.of([
+        {
+          key: "Mod-i",
+          run(view) {
+            const h = hover();
+            if (!h) return false;
+            const hit = placeholderRect(view, view.state.selection.main.head);
+            if (!hit) return false;
+            h.open(hit.name, hit.rect, view.contentDOM);
+            return true;
+          },
+        },
+      ]),
+    ),
+  ];
 }
 
 // Mod-Enter is left to the app (Send), so the editor does not also insert a line.
@@ -209,6 +271,7 @@ export function CodeEditor({
   onView,
   language,
   readOnly = false,
+  variableHover,
   placeholder,
   ariaLabel,
 }: Props) {
@@ -216,6 +279,8 @@ export function CodeEditor({
   const view = useRef<EditorView | null>(null);
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  const hoverRef = useRef(variableHover);
+  hoverRef.current = variableHover;
   const modeCompartment = useRef(new Compartment());
   const onViewRef = useRef(onView);
   onViewRef.current = onView;
@@ -246,6 +311,7 @@ export function CodeEditor({
       extensions.push(EditorState.readOnly.of(true), EditorView.editable.of(false));
     } else {
       extensions.push(
+        variableHoverExtension(() => hoverRef.current),
         bracketMatching(),
         history(),
         closeBrackets(),

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { emptyRow, newRequest } from "./defaults";
 import { prepareRequest } from "./request";
-import { authSummary, bodySummary, countsLabel, loadDetailsState, paramsText, requestDetailsSummary, requestSummaryLine, resolvedUrl, rowCounts, splitPlaceholders } from "./requestSummary";
+import { authSummary, bodySummary, countsLabel, loadDetailsState, paramsText, requestDetailsSummary, requestSummaryLine, resolvedUrl, placeholderAt, rowCounts, splitPlaceholders } from "./requestSummary";
 import type { KeyValue, RequestDef } from "./types";
 
 const row = (key: string, value: string, enabled = true): KeyValue => ({ id: key + value, key, value, enabled });
@@ -67,9 +67,9 @@ describe("splitPlaceholders", () => {
   it("finds written and URL-encoded placeholders", () => {
     expect(splitPlaceholders("a/{{id}}?q=%7B%7Bx%7D%7D")).toEqual([
       { text: "a/", placeholder: false },
-      { text: "{{id}}", placeholder: true },
+      { text: "{{id}}", placeholder: true, name: "id" },
       { text: "?q=", placeholder: false },
-      { text: "%7B%7Bx%7D%7D", placeholder: true },
+      { text: "%7B%7Bx%7D%7D", placeholder: true, name: "x" },
     ]);
     expect(splitPlaceholders("plain")).toEqual([{ text: "plain", placeholder: false }]);
   });
@@ -131,5 +131,20 @@ describe("loadDetailsState", () => {
     expect(loadDetailsState(42)).toEqual({ open: false, tab: "params" });
     expect(loadDetailsState({ open: "yes", tab: "body" })).toEqual({ open: false, tab: "params" });
     expect(loadDetailsState({ open: true, tab: "nope" })).toEqual({ open: true, tab: "params" });
+  });
+});
+
+describe("placeholderAt", () => {
+  const text = "a{{ one }}b{{two}}%7B%7Bthree%7D%7D";
+  it("finds the placeholder under or touching the caret", () => {
+    expect(placeholderAt(text, 1)).toMatchObject({ name: "one", from: 1, to: 10, index: 0 });
+    expect(placeholderAt(text, 5)).toMatchObject({ name: "one" });
+    expect(placeholderAt(text, 10)).toMatchObject({ name: "one" });
+    expect(placeholderAt(text, 13)).toMatchObject({ name: "two", index: 1 });
+    expect(placeholderAt(text, text.length)).toMatchObject({ name: "three", index: 2 });
+  });
+  it("returns null outside any placeholder", () => {
+    expect(placeholderAt(text, 0)).toBeNull();
+    expect(placeholderAt("plain text", 3)).toBeNull();
   });
 });
