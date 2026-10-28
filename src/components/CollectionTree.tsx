@@ -26,8 +26,9 @@ interface Props {
   onToggle: (id: string, open?: boolean) => void;
   renamingId: string | null;
   onRenamingChange: (id: string | null) => void;
-  onOpenRequest: (node: RequestNode) => void;
-  onOpenExample: (node: RequestNode, example: RequestExample) => void;
+  /** A single click opens a preview tab; a double-click or "Open in new tab" passes permanent. */
+  onOpenRequest: (node: RequestNode, permanent?: boolean) => void;
+  onOpenExample: (node: RequestNode, example: RequestExample, permanent?: boolean) => void;
   onAction: (action: TreeAction) => void;
 }
 
@@ -135,6 +136,7 @@ export function CollectionTree(props: Props) {
     const open = expanded.has(node.id);
     const hasExamples = node.examples.length > 0;
     const menuItems: MenuItem[] = [
+      { label: "Open in new tab", run: run(() => props.onOpenRequest(node, true)) },
       { label: "Add example", run: run(() => onAction({ type: "add-example", requestId: node.id })) },
       { label: "Duplicate", run: run(() => onAction({ type: "duplicate", id: node.id })) },
       { label: "Rename", run: run(() => onRenamingChange(node.id)) },
@@ -162,7 +164,7 @@ export function CollectionTree(props: Props) {
               {renameInput(node.id, r.name)}
             </span>
           ) : (
-            <button className="tree-main" onClick={() => props.onOpenRequest(node)} title={r.url || r.name}>
+            <button className="tree-main" onClick={() => props.onOpenRequest(node)} onDoubleClick={() => props.onOpenRequest(node, true)} title={r.url || r.name}>
               <span className={`method m-${r.method.toLowerCase()}`}>{r.method}</span>
               <span className="tree-label">{r.name}</span>
               {hasExamples && <span className="tree-count">{node.examples.length}</span>}
@@ -174,6 +176,7 @@ export function CollectionTree(props: Props) {
           <ul className="tree">
             {node.examples.map((ex) => {
               const exItems: MenuItem[] = [
+                { label: "Open in new tab", run: run(() => props.onOpenExample(node, ex, true)) },
                 { label: "Rename", run: run(() => onRenamingChange(ex.id)) },
                 { label: "Duplicate", run: run(() => onAction({ type: "duplicate", id: ex.id })) },
                 { label: "Delete", danger: true, run: run(() => onAction({ type: "delete", id: ex.id, label: `the example "${ex.name}"` })) },
@@ -191,7 +194,7 @@ export function CollectionTree(props: Props) {
                         {renameInput(ex.id, ex.name)}
                       </span>
                     ) : (
-                      <button className="tree-main" onClick={() => props.onOpenExample(node, ex)} title={`Example of ${r.name}`}>
+                      <button className="tree-main" onClick={() => props.onOpenExample(node, ex)} onDoubleClick={() => props.onOpenExample(node, ex, true)} title={`Example of ${r.name}`}>
                         <ExampleIcon />
                         <span className="tree-label">{ex.name}</span>
                         {ex.response && <span className={`tree-status s${String(ex.response.status)[0]}`}>{ex.response.status}</span>}

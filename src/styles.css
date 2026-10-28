@@ -45,6 +45,19 @@
   --ok-subtle: rgba(63, 185, 80, 0.15);
   --bad-subtle: rgba(248, 81, 73, 0.15);
   --text-soft: #c9d1d9;
+  /* Request tab group labels: tinted background, readable text. Red is left out; it means errors and Prod. */
+  --group-purple-bg: rgba(188, 140, 255, 0.12);
+  --group-purple-fg: #bc8cff;
+  --group-blue-bg: rgba(88, 166, 255, 0.12);
+  --group-blue-fg: #58a6ff;
+  --group-green-bg: rgba(63, 185, 80, 0.12);
+  --group-green-fg: #3fb950;
+  --group-amber-bg: rgba(210, 153, 34, 0.12);
+  --group-amber-fg: #d29922;
+  --group-pink-bg: rgba(247, 120, 186, 0.12);
+  --group-pink-fg: #f778ba;
+  --group-neutral-bg: rgba(141, 150, 160, 0.12);
+  --group-neutral-fg: var(--muted);
   color-scheme: dark;
 }
 

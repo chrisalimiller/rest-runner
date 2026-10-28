@@ -144,4 +144,20 @@ Every send is kept in history (the last 50). Each entry holds the request as sen
 - Entries saved by older versions of the app kept only a status. They load with a note that the body and headers were not kept. If local storage is full, responses are dropped from the oldest entries first so the newest stay.
 - **Clear history** is in Quick open, in the History group.
 
-Your current request (the draft) is saved as you edit and restored at launch.
+Your open tabs, with their edits, are saved as you work and restored at launch.
+
+## Working with tabs
+
+Open requests are tabs in a bar directly under the top bar. With a single unpinned tab the bar is hidden and the screen looks as it always did; it appears when you have two or more tabs, or any pinned tab.
+
+- **Preview and permanent tabs.** A single click on a request in the collections list, a pick in Quick open, a history row or an earlier-send pill opens a **preview** tab, shown in italic. The next single-click open replaces it, so browsing does not pile up tabs. Typing in the request, sending it, pinning it or opening its batch view makes it permanent. To open a permanent tab right away, double-click in the list, press `Mod + Enter` in Quick open, or choose **Open in new tab** in the list's ⋯ menu. If a request is already open in a tab, opening it again just switches to that tab (and keeps your edits).
+- **Groups.** Tabs are grouped by the folder that directly holds the saved request, or the collection for a request at its top level. Each group has a small coloured label; two folders with the same name show their collection too ("Trouble Ticket · NaaP E-Bonding"). Requests that are not saved are in a final **Unsaved** group. Saving an unsaved tab moves it into its group. Renaming a saved request renames its tab. Deleting it keeps the tab open as an unsaved request and says so in a message.
+- **Pinning.** Right-click a tab and choose **Pin**. Pinned tabs sit at the far left as small tabs showing up to three letters of the name in the method's colour (hover for the full name). They are not closed by **Close others** or **Close saved tabs**, and `Mod + W` on one asks you to unpin it first.
+- **Unsaved changes and sending.** An amber dot replaces the × on a tab with unsaved changes (hover or focus the tab to see ×). A spinner replaces the method while a send or a batch is running. Each tab keeps its own response, and you can send in several tabs at once; **Cancel** only stops the send in the tab you are looking at.
+- **Batch runs** belong to their tab. Switch tabs and the batch keeps running. A tab with a running batch cannot be closed until you stop it.
+- **Closing and undo.** × (or middle-click, or `Mod + W`, or `Delete` on a focused tab) closes a tab without asking. If it had unsaved changes, a message offers **Undo** for 8 seconds. The last 10 closed tabs can be brought back with **Reopen closed tab** (`Mod + Shift + T`), which puts the tab at the end; this list is not kept after you quit. Closing the last tab leaves a new Untitled request.
+- **Right-click menu:** Pin or Unpin, Duplicate, Reveal in collections, Close, Close others, Close saved tabs.
+- **The ▾ list** at the right end of the bar lists every open tab, grouped like the bar, with its method, an unsaved dot and a **Pinned** tag. Type to filter, use ↑ / ↓ and Enter to go to a tab. At the bottom are **Close saved tabs** and **Reopen closed tab**. When there are more tabs than fit, the bar scrolls sideways (mouse wheel too), and the active tab is kept in view.
+- **Keyboard.** Tab into the bar, then use ← / →, Home and End to move between tabs, Enter or Space to open one, and Delete to close it. See [Keyboard shortcuts](shortcuts.md#tabs) for the rest.
+
+The tabs bar is part of the Requests screen only. The Testing case editor and Flows are not affected.

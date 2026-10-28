@@ -5,6 +5,7 @@ import { CollectionTree, type TreeAction } from "./components/CollectionTree";
 import { EnvironmentEditor } from "./components/EnvironmentEditor";
 import { RequestEditor } from "./components/request/RequestEditor";
 import { RequestSwitcher } from "./components/request/RequestSwitcher";
+import { RequestTabBar, showTabBar } from "./components/request/RequestTabBar";
 import { ResponsePane } from "./components/ResponsePane";
 import { RunExplorer } from "./components/RunExplorer";
 import { MOD_KEY, TopBar } from "./components/shell/TopBar";
@@ -57,12 +58,39 @@ import { deleteRun, listRuns } from "./lib/runStore";
 import { saveTextFile } from "./lib/saveFile";
 import { describeWorkspaceImport, importWorkspace as mergeWorkspace, toWorkspaceFile } from "./lib/workspace";
 import { readWorkspace, writeWorkspace } from "./lib/workspaceStore";
+import {
+  activate,
+  closeOthers,
+  closeSaved,
+  closeTab,
+  displayOrder,
+  duplicateTab,
+  isTabDirty,
+  loadTabs,
+  newTab,
+  pin,
+  reopenClosed,
+  unpin,
+  openInTab,
+  promote,
+  goToTab,
+  savedVersionOf,
+  serializeTabs,
+  stepTab,
+  tabShortcut,
+  updateActiveDef,
+  updateTabDef,
+  type RequestTab,
+  type TabsState,
+} from "./lib/requestTabs";
 import { load, save } from "./lib/storage";
 import type { HistoryEntry, RequestDef, SendOutcome } from "./lib/types";
 
 type LowerPane = "response" | "batch";
 
-const DRAFT_KEY = "rest-runner.draft";
+const TABS_KEY = "rest-runner.tabs";
+/** Single working copy kept before tabs existed; read once to migrate into the first tab, never written. */
+const LEGACY_DRAFT_KEY = "rest-runner.draft";
 const HISTORY_KEY = "rest-runner.history";
 const MAX_HISTORY = 50;
 /** Old flat list of saved requests; read once to migrate into collections. */
@@ -76,6 +104,44 @@ const SPLIT_KEY = "rest-runner.split";
 /** Variables set by request scripts (rr.vars.set), kept between sends. */
 const SCRIPT_VARS_KEY = "rest-runner.script-vars";
 const MIN_COLUMN = 380;
+
+/** What belongs to one open request but is not saved: its response, pane and batch state. */
+interface TabRuntime {
+  outcome: SendOutcome | null;
+  scriptRun: { pre?: ScriptOutput; post?: ScriptOutput } | null;
+  outcomeIsSample: boolean;
+  sampleLabel?: string;
+  shownHistoryId: string | null;
+  sending: boolean;
+  pane: LowerPane;
+  batchVisited: boolean;
+  /** A batch is running or its results are on screen: the request column folds into a summary bar. */
+  batchWide: boolean;
+  batchRunning: boolean;
+}
+
+const INITIAL_RUNTIME: TabRuntime = {
+  outcome: null,
+  scriptRun: null,
+  outcomeIsSample: false,
+  sampleLabel: undefined,
+  shownHistoryId: null,
+  sending: false,
+  pane: "response",
+  batchVisited: false,
+  batchWide: false,
+  batchRunning: false,
+};
+
+function readTabs(): TabsState {
+  let raw: string | null = null;
+  try {
+    raw = localStorage.getItem(TABS_KEY);
+  } catch {
+    /* storage unavailable: start fresh */
+  }
+  return loadTabs(raw, load<unknown>(LEGACY_DRAFT_KEY, null));
+}
 
 function loadCollections(): Collection[] {
   const stored = load<unknown>(COLLECTIONS_KEY, null);
@@ -104,17 +170,37 @@ interface Props {
   command: ShellCommand | null;
 }
 
+/** One tab's BatchPane. Its callbacks stay the same between renders, which BatchPane's effects rely on. */
+function TabBatch({
+  tab,
+  envVars,
+  scriptVars,
+  envName,
+  patchRuntime,
+  onRunSaved,
+  onOpenRun,
+}: {
+  tab: RequestTab;
+  envVars: Vars;
+  scriptVars: Vars;
+  envName?: string;
+  patchRuntime: (id: string, p: Partial<TabRuntime>) => void;
+  onRunSaved: () => void;
+  onOpenRun: (id: string) => void;
+}) {
+  const id = tab.id;
+  const onRunningChange = useCallback((batchRunning: boolean) => patchRuntime(id, { batchRunning }), [id, patchRuntime]);
+  const onWideChange = useCallback((batchWide: boolean) => patchRuntime(id, { batchWide }), [id, patchRuntime]);
+  return <BatchPane def={tab.def} envVars={envVars} scriptVars={scriptVars} envName={envName} onRunningChange={onRunningChange} onWideChange={onWideChange} onRunSaved={onRunSaved} onOpenRun={onOpenRun} />;
+}
+
 export default function App({ active = true, shell, command }: Props) {
-  const [def, setDef] = useState<RequestDef>(() => load(DRAFT_KEY, newRequest()));
-  const [outcome, setOutcome] = useState<SendOutcome | null>(null);
-  const [scriptRun, setScriptRun] = useState<{ pre?: ScriptOutput; post?: ScriptOutput } | null>(null);
+  const [tabs, setTabs] = useState<TabsState>(readTabs);
+  /** Always the latest tabs, so handlers can read the result of the change they just made. */
+  const tabsRef = useRef(tabs);
+  const [runtime, setRuntime] = useState<Record<string, TabRuntime>>({});
+  const aborts = useRef(new Map<string, AbortController>());
   const [scriptVars, setScriptVars] = useState<Vars>(() => load<Vars>(SCRIPT_VARS_KEY, {}));
-  const [sending, setSending] = useState(false);
-  const [pane, setPane] = useState<LowerPane>("response");
-  const [batchVisited, setBatchVisited] = useState(false);
-  /** A batch is running or its results are on screen: the request column folds into a summary bar. */
-  const [batchWide, setBatchWide] = useState(false);
-  const [batchRunning, setBatchRunning] = useState(false);
   const [history, setHistory] = useState<HistoryEntry[]>(() => load(HISTORY_KEY, []));
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [openRun, setOpenRun] = useState<string | null>(null);
@@ -124,9 +210,6 @@ export default function App({ active = true, shell, command }: Props) {
   );
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<Dialog | null>(null);
-  const [outcomeIsSample, setOutcomeIsSample] = useState(false);
-  const [sampleLabel, setSampleLabel] = useState<string | undefined>(undefined);
-  const [shownHistoryId, setShownHistoryId] = useState<string | null>(null);
   const [environments, setEnvironments] = useState<Environment[]>(loadEnvironments);
   const [activeEnvId, setActiveEnvId] = useState<string | null>(() => load(ACTIVE_ENV_KEY, null));
   const [showEnvEditor, setShowEnvEditor] = useState(false);
@@ -142,15 +225,31 @@ export default function App({ active = true, shell, command }: Props) {
     const v = load<number>(SPLIT_KEY, 0.55);
     return typeof v === "number" && v > 0.1 && v < 0.9 ? v : 0.55;
   });
-  const abortRef = useRef<AbortController | null>(null);
   const inspectorRef = useRef<HTMLDivElement>(null);
+
+  const applyTabs = useCallback((change: (s: TabsState) => TabsState): TabsState => {
+    const next = change(tabsRef.current);
+    if (next !== tabsRef.current) {
+      tabsRef.current = next;
+      setTabs(next);
+    }
+    return next;
+  }, []);
+  const patchRuntime = useCallback((id: string, p: Partial<TabRuntime>) => setRuntime((r) => ({ ...r, [id]: { ...(r[id] ?? INITIAL_RUNTIME), ...p } })), []);
+
+  const activeTab = tabs.tabs.find((t) => t.id === tabs.activeId) ?? tabs.tabs[0];
+  const activeId = activeTab.id;
+  const def = activeTab.def;
+  const rt = runtime[activeId] ?? INITIAL_RUNTIME;
+  const { outcome, scriptRun, outcomeIsSample, sampleLabel, shownHistoryId, sending, pane, batchVisited, batchWide, batchRunning } = rt;
+  const setPane = (p: LowerPane) => patchRuntime(activeId, { pane: p });
 
   const activeEnv = environments.find((e) => e.id === activeEnvId) ?? null;
   const envVars = useMemo(() => environmentVars(activeEnv), [activeEnv]);
   /** What placeholders resolve against: environment, then variables scripts have set. */
   const sendVars = useMemo(() => ({ ...envVars, ...scriptVars }), [envVars, scriptVars]);
   const located = useMemo(() => locate(collections, def.id), [collections, def.id]);
-  const savedVersion = located?.kind === "request" ? located.node.request : located?.kind === "example" ? located.example.request : undefined;
+  const savedVersion = savedVersionOf(def, collections);
   const isDirty = !savedVersion || JSON.stringify(savedVersion) !== JSON.stringify(def);
   const crumbs =
     located?.kind === "request" || located?.kind === "example"
@@ -176,6 +275,75 @@ export default function App({ active = true, shell, command }: Props) {
     save(SCRIPT_VARS_KEY, scriptVars);
   }, [scriptVars]);
 
+  const dirtyIds = useMemo(() => new Set(tabs.tabs.filter((t) => isTabDirty(t, collections)).map((t) => t.id)), [tabs.tabs, collections]);
+  const busyIds = useMemo(() => new Set(tabs.tabs.filter((t) => runtime[t.id]?.sending || runtime[t.id]?.batchRunning).map((t) => t.id)), [tabs.tabs, runtime]);
+  const tabName = (t: RequestTab) => t.def.name || "Untitled request";
+
+  const activateTab = (id: string) => {
+    applyTabs((s) => activate(s, id));
+    setOpenRun(null);
+  };
+  const openNewTab = () => {
+    applyTabs(newTab);
+    setOpenRun(null);
+  };
+  /** Closes a tab. Unsaved changes are not asked about: the toast offers Undo instead. */
+  const closeTabById = (id: string) => {
+    const t = tabsRef.current.tabs.find((x) => x.id === id);
+    if (!t) return;
+    if (t.pinned) {
+      notify(`Unpin ${tabName(t)} to close it.`);
+      return;
+    }
+    if (runtime[id]?.batchRunning) {
+      notify(`Stop the batch in ${tabName(t)} before closing it.`);
+      return;
+    }
+    const dirty = isTabDirty(t, collections);
+    applyTabs((s) => closeTab(s, id, displayOrder(s.tabs, collections)));
+    if (dirty) toast.show({ message: `Closed ${tabName(t)} with unsaved changes`, onUndo: () => applyTabs((s) => reopenClosed(s, id)) });
+  };
+  const closeOtherTabs = (id: string) => {
+    const before = tabsRef.current;
+    const next = applyTabs((s) => closeOthers(s, id, (t) => !!runtime[t.id]?.batchRunning));
+    const gone = before.tabs.filter((t) => !next.tabs.some((x) => x.id === t.id));
+    const lost = gone.filter((t) => isTabDirty(t, collections));
+    if (lost.length > 0)
+      toast.show({
+        message: `Closed ${lost.length} ${lost.length === 1 ? "tab" : "tabs"} with unsaved changes`,
+        onUndo: () => applyTabs((s) => gone.reduce((acc, t) => reopenClosed(acc, t.id), s)),
+      });
+  };
+  const closeSavedTabs = () => applyTabs((s) => closeSaved(s, (t) => isTabDirty(t, collections) || !!runtime[t.id]?.batchRunning, displayOrder(s.tabs, collections)));
+  const reopenLast = () => applyTabs((s) => reopenClosed(s));
+  const revealTab = (id: string) => {
+    const t = tabsRef.current.tabs.find((x) => x.id === id);
+    if (!t) return;
+    activateTab(id);
+    const found = locate(collections, t.def.id);
+    if (found?.kind === "request" || found?.kind === "example") {
+      expand(found.collection.id, ...found.path.map((f) => f.id), ...(found.kind === "example" ? [found.node.id] : []));
+      setSwitcherOpen(true);
+    } else notify(`${tabName(t)} is not saved in a collection yet.`);
+  };
+
+  /** Kept in a ref so the one keydown listener always sees the current tabs. Returns true when the key was a tab command. */
+  const handleTabKey = useRef((_e: KeyboardEvent): boolean => false);
+  handleTabKey.current = (e) => {
+    const key = tabShortcut(e);
+    if (!key) return false;
+    e.preventDefault();
+    const order = displayOrder(tabsRef.current.tabs, collections);
+    if (key.type === "new") openNewTab();
+    else if (key.type === "close") closeTabById(tabsRef.current.activeId);
+    else if (key.type === "reopen") reopenLast();
+    else {
+      applyTabs((s) => (key.type === "goto" ? goToTab(s, order, key.n) : stepTab(s, order, key.type === "next" ? 1 : -1)));
+      setOpenRun(null);
+    }
+    return true;
+  };
+
   const refreshRuns = useCallback(() => {
     listRuns()
       .then(setRuns)
@@ -185,50 +353,67 @@ export default function App({ active = true, shell, command }: Props) {
   const runDelete = useDeferredDelete(deleteRun, refreshRuns);
 
   useEffect(() => {
-    save(DRAFT_KEY, def);
-  }, [def]);
+    save(TABS_KEY, serializeTabs(tabs));
+  }, [tabs]);
+  useEffect(() => {
+    // A tab that is gone (closed, or a preview replaced) stops its send and drops its response. Closed tabs keep theirs for Undo.
+    const open = new Set(tabs.tabs.map((t) => t.id));
+    for (const [id, controller] of aborts.current) if (!open.has(id)) controller.abort();
+    const keep = new Set([...open, ...tabs.closed.map((t) => t.id)]);
+    setRuntime((r) => {
+      const stale = Object.keys(r).filter((id) => !keep.has(id));
+      if (stale.length === 0) return r;
+      const next = { ...r };
+      for (const id of stale) delete next[id];
+      return next;
+    });
+  }, [tabs]);
   useEffect(() => {
     // Responses make history larger; if storage is full, drop the oldest responses until it fits.
     fitHistory(history, (h) => save(HISTORY_KEY, h));
   }, [history]);
 
-  const patch = (p: Partial<RequestDef>) => setDef((d) => ({ ...d, ...p }));
+  const patch = (p: Partial<RequestDef>) => applyTabs((s) => updateActiveDef(s, p));
 
   const send = useCallback(async () => {
-    if (sending || def.url.trim() === "") return;
-    setPane("response");
+    // Everything below belongs to the tab the send started in, even if the user switches tabs meanwhile.
+    const tabId = activeId;
+    if (rt.sending || def.url.trim() === "") return;
+    const sentDef = def;
+    applyTabs((s) => promote(s, tabId));
+    patchRuntime(tabId, { pane: "response", sending: true });
     const controller = new AbortController();
-    abortRef.current = controller;
-    setSending(true);
-    const scripted = await sendWithScripts({
-      def,
-      env: envVars,
-      data: {},
-      vars: scriptVars,
-      iteration: 0,
-      send: sendRequest,
-      scripts: requestScriptRunner(),
-      signal: controller.signal,
-    });
-    abortRef.current = null;
-    setSending(false);
+    aborts.current.set(tabId, controller);
+    let scripted: Awaited<ReturnType<typeof sendWithScripts>>;
+    try {
+      scripted = await sendWithScripts({
+        def: sentDef,
+        env: envVars,
+        data: {},
+        vars: scriptVars,
+        iteration: 0,
+        send: sendRequest,
+        scripts: requestScriptRunner(),
+        signal: controller.signal,
+      });
+    } finally {
+      if (aborts.current.get(tabId) === controller) aborts.current.delete(tabId);
+    }
     // Cancelled before a response came back: show the cancellation like before.
     const result: SendOutcome = scripted?.outcome ?? {
       ok: false,
-      request: prepareRequest(def, sendVars),
+      request: prepareRequest(sentDef, sendVars),
       error: "Request cancelled",
       durationMs: 0,
       sentAt: new Date().toISOString(),
     };
     const prepared = result.request;
     const scripts = scripted && (scripted.preScript || scripted.postScript) ? { pre: scripted.preScript, post: scripted.postScript } : null;
-    if (scripted && hasScripts(def)) setScriptVars(scripted.vars);
-    setScriptRun(scripts);
-    setOutcome(result);
-    setOutcomeIsSample(false);
-    setSampleLabel(undefined);
+    if (scripted && hasScripts(sentDef)) setScriptVars(scripted.vars);
     const entryId = newId();
-    setShownHistoryId(entryId);
+    const stillThere = tabsRef.current.tabs.some((t) => t.id === tabId) || tabsRef.current.closed.some((t) => t.id === tabId);
+    if (stillThere)
+      patchRuntime(tabId, { sending: false, scriptRun: scripts, outcome: result, outcomeIsSample: false, sampleLabel: undefined, shownHistoryId: entryId });
     setHistory((h) =>
       [
         {
@@ -237,7 +422,7 @@ export default function App({ active = true, shell, command }: Props) {
           url: prepared.url,
           status: result.ok ? result.response.status : null,
           sentAt: result.sentAt,
-          def: structuredClone(def),
+          def: structuredClone(sentDef),
           environmentName: activeEnv?.name ?? "",
           durationMs: result.ok ? result.response.durationMs : result.durationMs,
           ...(result.ok
@@ -248,9 +433,10 @@ export default function App({ active = true, shell, command }: Props) {
         ...h,
       ].slice(0, MAX_HISTORY),
     );
-  }, [def, sending, envVars, scriptVars, sendVars, activeEnv]);
+  }, [def, activeId, rt.sending, envVars, scriptVars, sendVars, activeEnv, applyTabs, patchRuntime]);
 
-  const cancel = () => abortRef.current?.abort();
+  /** Cancels the send in the tab on screen; other tabs keep going. */
+  const cancel = () => aborts.current.get(activeId)?.abort();
 
   const saveCurrent = useCallback(() => {
     const copy = structuredClone(def);
@@ -280,41 +466,46 @@ export default function App({ active = true, shell, command }: Props) {
       return next;
     });
 
-  const openDef = (d: RequestDef) => {
-    setDef(structuredClone(d));
-    setOutcome(null);
-    setScriptRun(null);
-    setOutcomeIsSample(false);
-    setSampleLabel(undefined);
-    setShownHistoryId(null);
+  /**
+   * Opens a request in a tab: a preview tab (single click) unless `permanent`. `load` replaces the working copy
+   * of a tab that is already open (history, batch run). Returns the tab and whether it starts with a clean slate.
+   */
+  const openTab = (d: RequestDef, o: { permanent?: boolean; load?: boolean } = {}) => {
+    const before = tabsRef.current;
+    const next = applyTabs((s) => openInTab(s, d, { preview: !o.permanent, load: o.load }));
+    const isNew = !before.tabs.some((t) => t.id === next.activeId);
+    if (isNew) setRuntime((r) => ({ ...r, [next.activeId]: INITIAL_RUNTIME }));
+    else if (o.load)
+      patchRuntime(next.activeId, { outcome: null, scriptRun: null, outcomeIsSample: false, sampleLabel: undefined, shownHistoryId: null });
     setOpenRun(null);
+    return { id: next.activeId, isNew };
   };
 
-  const openExample = (ex: RequestExample) => {
-    openDef(ex.request);
-    if (ex.response) {
-      setOutcome(sampleOutcome(ex, ex.response, envVars));
-      setOutcomeIsSample(true);
-      setPane("response");
-    }
+  const openDef = (d: RequestDef, permanent = false) => openTab(d, { permanent });
+
+  const openExample = (ex: RequestExample, permanent = false) => {
+    const { id, isNew } = openTab(ex.request, { permanent });
+    if (isNew && ex.response) patchRuntime(id, { outcome: sampleOutcome(ex, ex.response, envVars), outcomeIsSample: true, pane: "response" });
   };
 
-  const openHistory = (h: HistoryEntry) => {
-    openDef(h.def);
-    setShownHistoryId(h.id);
-    setOutcome(historyOutcome(h));
-    setScriptRun(h.preScript || h.postScript ? { pre: h.preScript, post: h.postScript } : null);
-    setOutcomeIsSample(true);
-    setSampleLabel(historyLabel(h));
-    setPane("response");
+  const openHistory = (h: HistoryEntry, permanent = false) => {
+    const { id } = openTab(h.def, { permanent, load: true });
+    patchRuntime(id, {
+      shownHistoryId: h.id,
+      outcome: historyOutcome(h),
+      scriptRun: h.preScript || h.postScript ? { pre: h.preScript, post: h.postScript } : null,
+      outcomeIsSample: true,
+      sampleLabel: historyLabel(h),
+      pane: "response",
+    });
     notify(`Loaded the request as sent ${whenLabel(h.sentAt) === "now" ? "just now" : `at ${whenLabel(h.sentAt) || "an earlier time"}`}.`);
   };
 
   /** Loads the request a batch run was made from, and shows the Batch run pane. */
   const openRunRequest = (request: RequestDef, runLabel: string) => {
-    openDef(request);
-    setPane("batch");
-    setBatchVisited(true);
+    const { id } = openTab(request, { permanent: true, load: true });
+    applyTabs((s) => promote(s, id));
+    patchRuntime(id, { pane: "batch", batchVisited: true });
     notify(`Loaded the request from the batch run of ${runLabel}.`);
   };
 
@@ -350,7 +541,7 @@ export default function App({ active = true, shell, command }: Props) {
         const r = newRequest();
         setCollections((c) => insertAt(c, a.dest, [requestNode(r)]));
         expand(a.dest.collectionId, a.dest.folderId);
-        openDef(r);
+        openDef(r, true);
         setRenamingId(r.id);
         break;
       }
@@ -367,7 +558,7 @@ export default function App({ active = true, shell, command }: Props) {
         break;
       case "rename":
         setCollections((c) => rename(c, a.id, a.name));
-        if (def.id === a.id) setDef((d) => ({ ...d, name: a.name }));
+        applyTabs((s) => ({ ...s, tabs: s.tabs.map((t) => (t.def.id === a.id ? { ...t, def: { ...t.def, name: a.name } } : t)) }));
         break;
       case "duplicate": {
         const r = duplicate(collections, a.id);
@@ -385,7 +576,10 @@ export default function App({ active = true, shell, command }: Props) {
         const taken = removeWithRestore(collections, a.id);
         if (!taken) break;
         setCollections(taken.collections);
-        toast.show({ message: `Deleted ${a.label}`, onUndo: () => setCollections((c) => taken.restore(c)) });
+        // Tabs showing what was deleted stay open, now unsaved (and Undo makes them saved again).
+        const orphaned = tabsRef.current.tabs.filter((t) => locate(collections, t.def.id) && !locate(taken.collections, t.def.id)).length;
+        const note = orphaned === 0 ? "" : `. ${orphaned === 1 ? "Its open tab stays" : `${orphaned} open tabs stay`} as unsaved ${orphaned === 1 ? "request" : "requests"}`;
+        toast.show({ message: `Deleted ${a.label}${note}`, onUndo: () => setCollections((c) => taken.restore(c)) });
         break;
       }
     }
@@ -462,23 +656,23 @@ export default function App({ active = true, shell, command }: Props) {
   };
 
   /** Opens what quick open picked. */
-  const openItem = (item: QuickItem) => {
+  const openItem = (item: QuickItem, permanent = false) => {
     switch (item.kind) {
       case "request":
       case "example": {
         const found = locate(collections, item.id);
         if (found?.kind === "request") {
           expand(found.collection.id, ...found.path.map((f) => f.id));
-          openDef(found.node.request);
+          openDef(found.node.request, permanent);
         } else if (found?.kind === "example") {
           expand(found.collection.id, ...found.path.map((f) => f.id), found.node.id);
-          openExample(found.example);
+          openExample(found.example, permanent);
         } else notify("That item no longer exists.");
         break;
       }
       case "history": {
         const h = history.find((x) => x.id === item.id);
-        if (h) openHistory(h);
+        if (h) openHistory(h, permanent);
         break;
       }
       case "batch-run":
@@ -497,12 +691,15 @@ export default function App({ active = true, shell, command }: Props) {
       setEnvironments(loadEnvironments());
       setActiveEnvId(load(ACTIVE_ENV_KEY, null));
     }
-    else openItem(command.item);
+    else openItem(command.item, command.permanent);
   }, [command]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!active || openRun !== null || showEnvEditor || dialog !== null) return;
+      if (!active || showEnvEditor || dialog !== null) return;
+      // Tab commands work from anywhere in Requests, including a text field and the batch run view.
+      if (handleTabKey.current(e)) return;
+      if (openRun !== null) return;
       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         void send();
@@ -556,8 +753,9 @@ export default function App({ active = true, shell, command }: Props) {
   const sends = earlierSends(history, runs.filter((r) => !runDelete.hidden.has(r.id)), def);
   const shownEntry = outcomeIsSample && shownHistoryId ? history.find((h) => h.id === shownHistoryId) : undefined;
   const openBatch = () => {
-    setPane("batch");
-    setBatchVisited(true);
+    // A batch belongs to its tab, so the tab must not be replaced as a preview.
+    applyTabs((s) => promote(s, activeId));
+    patchRuntime(activeId, { pane: "batch", batchVisited: true });
   };
 
   const switcher = (
@@ -600,7 +798,7 @@ export default function App({ active = true, shell, command }: Props) {
       <button
         className="primary-outline popover-new"
         onClick={() => {
-          openDef(newRequest());
+          openDef(newRequest(), true);
           setSwitcherOpen(false);
         }}
       >
@@ -615,13 +813,13 @@ export default function App({ active = true, shell, command }: Props) {
           onToggle={toggle}
           renamingId={renamingId}
           onRenamingChange={setRenamingId}
-          onOpenRequest={(node) => {
-            openDef(node.request);
-            setSwitcherOpen(false);
+          onOpenRequest={(node, permanent) => {
+            openDef(node.request, permanent);
+            if (permanent) setSwitcherOpen(false);
           }}
-          onOpenExample={(_node, ex) => {
-            openExample(ex);
-            setSwitcherOpen(false);
+          onOpenExample={(_node, ex, permanent) => {
+            openExample(ex, permanent);
+            if (permanent) setSwitcherOpen(false);
           }}
           onAction={onTreeAction}
         />
@@ -656,6 +854,26 @@ export default function App({ active = true, shell, command }: Props) {
         onVariables={() => (variablesPanel.open ? closeVariables() : openVariables())}
         variablesOpen={variablesPanel.open}
       />
+      {showTabBar(tabs.tabs) && (
+        <RequestTabBar
+          tabs={tabs.tabs}
+          activeId={activeId}
+          collections={collections}
+          dirtyIds={dirtyIds}
+          busyIds={busyIds}
+          canReopen={tabs.closed.length > 0}
+          onActivate={activateTab}
+          onClose={closeTabById}
+          onNew={openNewTab}
+          onPin={(id) => applyTabs((s) => pin(s, id))}
+          onUnpin={(id) => applyTabs((s) => unpin(s, id))}
+          onDuplicate={(id) => applyTabs((s) => duplicateTab(s, id))}
+          onReveal={revealTab}
+          onCloseOthers={closeOtherTabs}
+          onCloseSaved={closeSavedTabs}
+          onReopen={reopenLast}
+        />
+      )}
       <div className="requests-body">
         <div className="requests-main">
       {openRun !== null && (
@@ -693,8 +911,9 @@ export default function App({ active = true, shell, command }: Props) {
         ref={inspectorRef}
         style={{ "--split-a": `${split}fr`, "--split-b": `${1 - split}fr` } as React.CSSProperties}
       >
-        <section className="request-col" aria-label="Request">
+        <section className="request-col" id="request-panel" role="tabpanel" aria-label="Request">
           <RequestEditor
+            key={activeId}
             def={def}
             onChange={patch}
             envVars={sendVars}
@@ -773,6 +992,7 @@ export default function App({ active = true, shell, command }: Props) {
           )}
           <div className="response-main" hidden={pane !== "response"}>
             <ResponsePane
+              key={activeId}
               outcome={outcome}
               sending={sending}
               isSample={outcomeIsSample}
@@ -811,9 +1031,21 @@ export default function App({ active = true, shell, command }: Props) {
               </div>
             )}
           </div>
-          <div className="batch-main" hidden={pane !== "batch"}>
-            <BatchPane def={def} envVars={envVars} scriptVars={scriptVars} envName={activeEnv?.name} onRunningChange={setBatchRunning} onWideChange={setBatchWide} onRunSaved={refreshRuns} onOpenRun={setOpenRun} />
-          </div>
+          {tabs.tabs
+            .filter((t) => runtime[t.id]?.batchVisited || runtime[t.id]?.batchRunning)
+            .map((t) => (
+              <div className="batch-main" key={t.id} hidden={t.id !== activeId || pane !== "batch"}>
+                <TabBatch
+                  tab={t}
+                  envVars={envVars}
+                  scriptVars={scriptVars}
+                  envName={activeEnv?.name}
+                  patchRuntime={patchRuntime}
+                  onRunSaved={refreshRuns}
+                  onOpenRun={setOpenRun}
+                />
+              </div>
+            ))}
         </section>
       </div>
         </div>
@@ -841,7 +1073,7 @@ export default function App({ active = true, shell, command }: Props) {
             const { cols, dest } = resolveDest(collections, choice);
             const copy = { ...structuredClone(def), name };
             setCollections(insertAt(cols, dest, [requestNode(copy)]));
-            setDef(copy);
+            applyTabs((t) => updateTabDef(t, activeId, () => copy));
             expand(dest.collectionId, dest.folderId);
             setDialog(null);
             notify(`Saved "${name}".`);
@@ -872,11 +1104,9 @@ export default function App({ active = true, shell, command }: Props) {
             const r = addExample(collections, dialog.requestId, name, dialog.base, includeResponse && dialog.response ? dialog.response : undefined);
             setCollections(r.collections);
             expand(dialog.requestId);
-            setDef(structuredClone(r.example.request));
-            setOpenRun(null);
-            // With a sample kept, the response on screen is that sample; otherwise clear it.
-            if (!includeResponse) setOutcome(null);
-            setOutcomeIsSample(false);
+            // The new example opens in its own tab; with a sample kept, that tab shows it.
+            const { id } = openTab(r.example.request, { permanent: true });
+            if (includeResponse && dialog.response) patchRuntime(id, { outcome: sampleOutcome(r.example, dialog.response, envVars), outcomeIsSample: true });
             setDialog(null);
             notify(`Saved example "${name}".`);
           }}

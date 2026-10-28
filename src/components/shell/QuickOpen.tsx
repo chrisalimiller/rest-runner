@@ -27,7 +27,8 @@ import type { Mode } from "./TopBar";
 interface Props {
   mode: Mode;
   onClose: () => void;
-  onPick: (item: QuickItem) => void;
+  /** `permanent` (Ctrl/Cmd + Enter) opens a request in a tab of its own instead of the preview tab. */
+  onPick: (item: QuickItem, permanent?: boolean) => void;
   onClearHistory: () => void;
 }
 
@@ -84,7 +85,7 @@ export function QuickOpen({ mode, onClose, onPick, onClearHistory }: Props) {
     } else if (e.key === "Enter") {
       e.preventDefault();
       const item = flat[active];
-      if (item) onPick(item);
+      if (item) onPick(item, e.ctrlKey || e.metaKey);
     }
   };
 

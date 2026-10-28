@@ -46,4 +46,21 @@ The group for the mode you are in comes first.
 | `↑` / `↓` in the run explorer | Previous or next call |
 | `Esc` | Close Quick open, menus and dialogs |
 
+### Tabs
+
+These work in Requests mode only, also from inside text fields and editors. They use the physical key, so they work on any keyboard layout.
+
+| Shortcut | What it does |
+| --- | --- |
+| `Mod + T` | New tab (an Untitled request) |
+| `Mod + W` | Close the active tab. On a pinned tab it only says to unpin it first |
+| `Mod + Shift + T` | Reopen the last closed tab |
+| `Ctrl + Tab` / `Ctrl + Shift + Tab` | Next or previous tab, in the order the bar shows them (Ctrl on a Mac too, as in browsers) |
+| `Mod + Alt + 1` to `9` | Go to tab 1 to 8; `9` goes to the last tab |
+| `←` / `→`, `Home`, `End` on the tab bar | Move between tabs |
+| `Enter` / `Space`, `Delete` on a tab | Open it, close it |
+| `Mod + Enter` in Quick open | Open the request in a tab of its own instead of the preview tab |
+
+On a Mac the app's menu bar has no Close Window item, so `⌘ W` closes a tab. The red window button and `⌘ Q` still close the window and quit.
+
 The Requests shortcuts (`Mod + Enter`, `Mod + S`, `F2`) are switched off while Testing is on screen, while Quick open, the environment editor or a dialog is open, and while a run is open in the run explorer.
