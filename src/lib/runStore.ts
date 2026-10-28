@@ -1,3 +1,4 @@
+import { openDatabase } from "./idb";
 import { summaryOf, type Run, type RunSummary } from "./run";
 
 /** Saved runs live in IndexedDB, which has room for large runs. Oldest runs are removed past this count. */
@@ -12,18 +13,20 @@ let dbPromise: Promise<IDBDatabase> | null = null;
 
 function openDb(): Promise<IDBDatabase> {
   if (!dbPromise) {
-    dbPromise = new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, DB_VERSION);
-      req.onupgradeneeded = () => {
-        const db = req.result;
+    dbPromise = openDatabase(
+      indexedDB,
+      DB_NAME,
+      DB_VERSION,
+      (db) => {
         if (!db.objectStoreNames.contains(SUMMARIES)) db.createObjectStore(SUMMARIES, { keyPath: "id" });
         if (!db.objectStoreNames.contains(RUNS)) db.createObjectStore(RUNS, { keyPath: "id" });
-      };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => {
+      },
+      () => {
         dbPromise = null;
-        reject(req.error);
-      };
+      },
+    ).catch((e) => {
+      dbPromise = null;
+      throw e;
     });
   }
   return dbPromise;

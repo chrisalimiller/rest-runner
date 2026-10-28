@@ -1,3 +1,4 @@
+import { openDatabase } from "../idb";
 import { testRunSummary, type TestRun, type TestRunSummary } from "./testRun";
 
 /** Test runs live in their own IndexedDB database, next to batch runs. Oldest are removed past this count. */
@@ -15,17 +16,19 @@ let dbPromise: Promise<IDBDatabase> | null = null;
 
 export function openDb(): Promise<IDBDatabase> {
   if (!dbPromise) {
-    dbPromise = new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, 2);
-      req.onupgradeneeded = () => {
-        const db = req.result;
+    dbPromise = openDatabase(
+      indexedDB,
+      DB_NAME,
+      2,
+      (db) => {
         for (const name of STORES) if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: "id" });
-      };
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => {
+      },
+      () => {
         dbPromise = null;
-        reject(req.error);
-      };
+      },
+    ).catch((e) => {
+      dbPromise = null;
+      throw e;
     });
   }
   return dbPromise;
