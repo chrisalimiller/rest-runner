@@ -73,8 +73,11 @@ import {
   unpin,
   openInTab,
   promote,
+  goToTab,
   savedVersionOf,
   serializeTabs,
+  stepTab,
+  tabShortcut,
   updateActiveDef,
   updateTabDef,
   type RequestTab,
@@ -322,6 +325,23 @@ export default function App({ active = true, shell, command }: Props) {
       expand(found.collection.id, ...found.path.map((f) => f.id), ...(found.kind === "example" ? [found.node.id] : []));
       setSwitcherOpen(true);
     } else notify(`${tabName(t)} is not saved in a collection yet.`);
+  };
+
+  /** Kept in a ref so the one keydown listener always sees the current tabs. Returns true when the key was a tab command. */
+  const handleTabKey = useRef((_e: KeyboardEvent): boolean => false);
+  handleTabKey.current = (e) => {
+    const key = tabShortcut(e);
+    if (!key) return false;
+    e.preventDefault();
+    const order = displayOrder(tabsRef.current.tabs, collections);
+    if (key.type === "new") openNewTab();
+    else if (key.type === "close") closeTabById(tabsRef.current.activeId);
+    else if (key.type === "reopen") reopenLast();
+    else {
+      applyTabs((s) => (key.type === "goto" ? goToTab(s, order, key.n) : stepTab(s, order, key.type === "next" ? 1 : -1)));
+      setOpenRun(null);
+    }
+    return true;
   };
 
   const refreshRuns = useCallback(() => {
@@ -676,7 +696,10 @@ export default function App({ active = true, shell, command }: Props) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (!active || openRun !== null || showEnvEditor || dialog !== null) return;
+      if (!active || showEnvEditor || dialog !== null) return;
+      // Tab commands work from anywhere in Requests, including a text field and the batch run view.
+      if (handleTabKey.current(e)) return;
+      if (openRun !== null) return;
       if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
         e.preventDefault();
         void send();

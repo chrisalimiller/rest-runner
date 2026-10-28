@@ -260,12 +260,18 @@ function AllTabs(props: Props & { groups: ReturnType<typeof groupTabs>["groups"]
   const [pos, setPos] = useState<{ top: number; right: number } | null>(null);
   const button = useRef<HTMLButtonElement>(null);
   const pop = useRef<HTMLDivElement>(null);
+  const filter = useRef<HTMLInputElement>(null);
   useEscape(() => setOpen(false), open);
+  // The popover is hidden until it has a position, and a hidden input cannot take focus.
+  useEffect(() => {
+    if (pos) filter.current?.focus();
+  }, [pos]);
 
   useEffect(() => {
     if (!open) return;
     setQuery("");
     setCursor(0);
+    setPos(null);
     const r = button.current?.getBoundingClientRect();
     if (r) setPos({ top: r.bottom + 4, right: Math.max(8, window.innerWidth - r.right) });
     const down = (e: MouseEvent) => {
@@ -317,7 +323,7 @@ function AllTabs(props: Props & { groups: ReturnType<typeof groupTabs>["groups"]
         <div className="overflow-popover rtab-all-pop" role="dialog" aria-label="All open tabs" ref={pop} onKeyDown={onKeyDown} style={pos ? { top: pos.top, right: pos.right } : { visibility: "hidden" }}>
           <input
             className="rtab-filter"
-            autoFocus
+            ref={filter}
             placeholder="Filter open tabs"
             aria-label="Filter open tabs"
             role="combobox"
