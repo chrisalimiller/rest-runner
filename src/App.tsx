@@ -19,6 +19,7 @@ import {
   addExample,
   canMove,
   cleanCollections,
+  existingExpanded,
   duplicate,
   insertAt,
   isRequestDef,
@@ -260,8 +261,8 @@ export default function App({ active = true, shell, command }: Props) {
     save(COLLECTIONS_KEY, collections);
   }, [collections]);
   useEffect(() => {
-    save(EXPANDED_KEY, [...expanded]);
-  }, [expanded]);
+    save(EXPANDED_KEY, existingExpanded(expanded, collections));
+  }, [expanded, collections]);
   useEffect(() => {
     save(ENVIRONMENTS_KEY, environments);
   }, [environments]);
@@ -769,7 +770,13 @@ export default function App({ active = true, shell, command }: Props) {
       onOpenChange={setSwitcherOpen}
       renaming={renamingName}
       onRenamingChange={setRenamingName}
-      onRename={(name) => patch({ name })}
+      onRename={(name) => {
+        // A saved request is renamed where it is saved too, like renaming it in the tree.
+        if (locate(collections, def.id)) {
+          setCollections((c) => rename(c, def.id, name));
+          applyTabs((s) => ({ ...s, tabs: s.tabs.map((t) => (t.def.id === def.id ? { ...t, def: { ...t.def, name } } : t)) }));
+        } else patch({ name });
+      }}
     >
       <div className="popover-head">
         <span className="section-title">Collections</span>

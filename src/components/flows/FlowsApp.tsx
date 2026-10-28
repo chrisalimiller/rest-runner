@@ -151,8 +151,10 @@ export function FlowsApp({ active, shell, command }: Props) {
   const flow = viewed ? viewed.flow : (flows.find((f) => f.id === openFlowId) ?? null);
   const readOnly = viewed !== null;
   const problems = useMemo(() => (flow && !readOnly ? validateFlow(flow, items.suites, items.findRequest) : []), [flow, items, readOnly]);
-  const latestRunId = flow && !readOnly ? (runs.find((r) => r.flowId === flow.id)?.id ?? null) : null;
-  const live = flow ? (lives[flow.id] ?? null) : null;
+  // A run deleted with Undo pending is already gone from the Last run panel.
+  const latestRunId = flow && !readOnly ? (runs.find((r) => r.flowId === flow.id && !runDelete.hidden.has(r.id))?.id ?? null) : null;
+  const liveRun = flow ? (lives[flow.id] ?? null) : null;
+  const live = liveRun && !liveRun.running && liveRun.runId && runDelete.hidden.has(liveRun.runId) ? null : liveRun;
 
   useEffect(() => {
     let on = true;

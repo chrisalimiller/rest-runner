@@ -136,6 +136,7 @@ describe("combined workspace file", () => {
     const flows = importWorkspace(toFlowsFile([newFlow("F")], [], []), empty);
     expect(flows.flows.map((f) => f.name)).toEqual(["F"]);
     expect(() => importWorkspace('{"x":1}', empty)).toThrow(/not a REST Runner/);
+    expect(() => importWorkspace('{"app":"rest-runner","version":3}', empty)).toThrow(/nothing|no collections/);
   });
 
   it("describes what changed", () => {

@@ -11,6 +11,7 @@ import {
   locate,
   migrateSavedRequests,
   move,
+  existingExpanded,
   newCollection,
   newFolder,
   remove,
@@ -94,6 +95,17 @@ describe("collections", () => {
     expect(r.collections[0].items.map((i) => (i.kind === "folder" ? i.name : i.request.name))).toEqual(["A", "Users", "Users copy"]);
   });
 
+  it("gives a duplicated request's rows their own ids", () => {
+    const { a, cols } = setup();
+    const r = duplicate(cols, a.id);
+    const copy = locate(r.collections, r.newId!);
+    const rowIds = (def: { params: { id: string }[]; headers: { id: string }[]; formBody: { id: string }[] }) => [...def.params, ...def.headers, ...def.formBody].map((x) => x.id);
+    expect(copy?.kind).toBe("request");
+    const copied = copy?.kind === "request" ? rowIds(copy.node.request) : [];
+    expect(copied.length).toBeGreaterThan(0);
+    for (const id of copied) expect(rowIds(a)).not.toContain(id);
+  });
+
   it("moves requests and folders but not a folder into itself", () => {
     const { a, folder, sub, col, cols } = setup();
     expect(canMove(cols, folder.id, { collectionId: col.id, folderId: sub.id })).toBe(false);
@@ -174,5 +186,14 @@ describe("removeWithRestore", () => {
 
   it("returns null for an unknown id", () => {
     expect(removeWithRestore([], "nope")).toBeNull();
+  });
+});
+
+describe("existingExpanded", () => {
+  it("drops ids of collections and folders that no longer exist", () => {
+    const col = newCollection("C");
+    const folder = newFolder("F");
+    const cols = [{ ...col, items: [folder] }];
+    expect(existingExpanded([col.id, folder.id, "gone"], cols)).toEqual([col.id, folder.id]);
   });
 });

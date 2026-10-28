@@ -80,6 +80,11 @@ export function FlowsSidebar({ collapsed, onToggleCollapsed, flows, activeFlowId
           New
         </button>
         {importLink}
+        {flows.length > 0 && (
+          <button className="link-btn small" onClick={onExport} title="Save every flow, with the suites and saved requests they run, to a file">
+            Export
+          </button>
+        )}
       </div>
 
       {collapsed && (
