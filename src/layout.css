@@ -1101,6 +1101,28 @@ button.unfilled-dot:hover {
   font-size: 11px;
 }
 
+.req-details-mark.warn {
+  color: var(--warn);
+}
+
+.postman-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--warn);
+  border-radius: 6px;
+  background: var(--bg-inset);
+  font-size: 12.5px;
+}
+
+.postman-strip b {
+  color: var(--warn);
+}
+
 .req-details-close {
   flex: none;
   align-self: center;
