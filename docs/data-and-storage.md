@@ -54,7 +54,7 @@ Because environments, collections and suites can hold tokens and passwords you t
 From inside the app:
 
 - **History:** Quick open → History group → **Clear history**.
-- **Script variables:** **Clear** or **Clear all** in the Variables popover (top bar, Requests mode).
+- **Script variables:** **Clear** or **Clear all** in the Variables sidebar (top bar, Requests mode).
 - **Collections, folders, requests, examples:** delete them from the request switcher's tree.
 - **Environments:** delete them in the environment editor.
 - **Suites:** **Delete suite** in the ⋯ menu of the suite header. Deleting a suite keeps its saved test runs.

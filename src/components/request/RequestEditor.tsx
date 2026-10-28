@@ -35,7 +35,7 @@ interface Props {
   scriptVars?: Vars;
   /** Extra line under the script editor, e.g. how request scripts mix with a test case's. */
   scriptsNote?: string;
-  /** Opens the Variables popover (the unfilled-placeholder dot and the Scripts tab link to it). */
+  /** Opens the Variables sidebar (the unfilled-placeholder dot and the Scripts tab link to it). */
   onOpenVariables?: () => void;
   /** The Send button, shown at the right of the URL row. Left out where the request is not sent from here. */
   sendSlot?: React.ReactNode;

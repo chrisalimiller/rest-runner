@@ -1,0 +1,234 @@
+/* The Variables sidebar: docked beside the response on wide windows, floating over it on narrow ones. */
+.requests-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  position: relative;
+}
+
+.requests-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.variables-panel {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--bg-overlay);
+  border-left: 1px solid var(--border);
+}
+
+.variables-panel.overlay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 120;
+  max-width: calc(100% - 24px);
+  box-shadow: -8px 0 24px rgba(1, 4, 9, 0.5);
+}
+
+.variables-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-muted);
+}
+
+.variables-panel-head .icon-btn {
+  margin-left: auto;
+}
+
+.variables-env-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.env-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.variables-panel-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border-muted);
+}
+
+.variables-panel-tools .variables-input {
+  flex: 1;
+  min-width: 0;
+}
+
+.seg-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.seg-toggle button {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  padding: 3px 8px;
+  height: auto;
+}
+
+.seg-toggle button.on {
+  background: var(--bg-subtle, var(--bg));
+  color: var(--fg);
+}
+
+.variables-panel-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.variables-panel-foot {
+  padding: 8px 12px;
+  border-top: 1px solid var(--border-muted);
+}
+
+.variables-panel .variables-head {
+  margin: 8px 0 6px;
+}
+
+.variables-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.variables-row {
+  display: grid;
+  grid-template-columns: minmax(60px, 0.9fr) minmax(0, 1.4fr) auto;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.variables-missing .variables-row {
+  grid-template-columns: minmax(60px, 0.9fr) 1fr auto;
+}
+
+.variables-row > code {
+  justify-self: start;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.variables-row.overridden .variables-value {
+  text-decoration: line-through;
+  color: var(--muted);
+}
+
+.variables-value-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.variables-value {
+  min-width: 0;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: left;
+  background: transparent;
+  border: 0;
+  padding: 2px 4px;
+  color: var(--fg);
+  cursor: text;
+  font-size: 12px;
+}
+
+.variables-value:hover {
+  background: var(--bg-subtle, var(--bg));
+}
+
+.variables-input {
+  font-size: 12px;
+  padding: 3px 6px;
+  min-width: 0;
+}
+
+.variables-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.variables-add .variables-input {
+  flex: 1 1 100px;
+}
+
+.variables-add-link {
+  margin-top: 6px;
+}
+
+.variables-fold {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  height: auto;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.variables-other {
+  margin-top: 8px;
+}
+
+.variables-panel .tag {
+  font-size: 10px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.variables-panel .tag.warn,
+.variables-panel .warn {
+  color: var(--warn);
+}
+
+.variables-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}

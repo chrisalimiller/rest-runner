@@ -6,7 +6,7 @@ Requests mode is where you build a request and read the response. The request is
 
 - Pick the **method**: GET, POST, PUT, PATCH, DELETE, HEAD or OPTIONS.
 - Type the **URL**. If it has no scheme (`http://`, `https://`), `http://` is added when it is sent.
-- Hover the URL box to see the **resolved URL**: exactly what Send will use, with environment values, script variables and your enabled query params filled in. Placeholders with no value are shown in red in the summary line, and an amber dot with a count inside the URL box says how many are unfilled (hover for the names). Click the dot to open the [Variables popover](#the-variables-popover). Send then shows a small ⚠ and reads "Sends with {{token}} as written", but it still sends without asking.
+- Hover the URL box to see the **resolved URL**: exactly what Send will use, with environment values, script variables and your enabled query params filled in. Placeholders with no value are shown in red in the summary line, and an amber dot with a count inside the URL box says how many are unfilled (hover for the names). Click the dot to open the [Variables sidebar](#the-variables-sidebar). Send then shows a small ⚠ and reads "Sends with {{token}} as written", but it still sends without asking.
 - Press **Enter** in the URL box to send.
 - **Copy final URL** in the ⋯ menu copies the resolved URL. The URL shows `{{placeholders}}` in colour while you type, and the same highlighting is used in the Params, Headers and form value fields.
 - Open the ⋯ menu next to Send to **Show cURL** (the `curl` command Send would run), or to **Copy as cURL (Bash)** or **Copy as cURL (Windows cmd)** in one click. The command includes with environment values, script variables, auth and the body filled in. Pick **Bash / zsh** (macOS, Linux, Git Bash) or **Windows cmd** in the panel, then **Copy** it into a terminal. Placeholders with no value are listed under the command. Choose **Hide cURL** to close it; whether it is open is remembered.
@@ -61,7 +61,7 @@ How a placeholder is filled in a JSON body:
 
 ### Scripts
 
-The Scripts section holds a **Pre-request** and a **Post-response** script. The section's results (the `rr.test` checks, console output and errors of the last send) appear under the response in a **Scripts** tab, with a badge that is green when every check passed and red otherwise. A bullet (•) on a tab means that script has content. Snippets next to the editor insert common code, and typing `rr.` offers autocomplete. Under the editor, a line says how many script variables earlier sends have set and links to the Variables popover, where you can see and clear them. See the [scripting reference](scripting.md) for the full API and when scripts run.
+The Scripts section holds a **Pre-request** and a **Post-response** script. The section's results (the `rr.test` checks, console output and errors of the last send) appear under the response in a **Scripts** tab, with a badge that is green when every check passed and red otherwise. A bullet (•) on a tab means that script has content. Snippets next to the editor insert common code, and typing `rr.` offers autocomplete. Under the editor, a line says how many script variables earlier sends have set and links to the Variables sidebar, where you can see and clear them. See the [scripting reference](scripting.md) for the full API and when scripts run.
 
 ## Placeholders and variables
 
@@ -75,9 +75,18 @@ A value for a placeholder can come from three places. Later ones win:
 
 For example, if the environment defines `baseUrl`, the CSV has a `baseUrl` column, and a script sets `baseUrl`, the script's value is used. (There is one exception for leftover variables from earlier sends in a batch run. See [Variable scoping](scripting.md#variable-scoping).)
 
-## The Variables popover
+## The Variables sidebar
 
-Click **Variables** next to the environment switch in the top bar (Requests mode). It lists every `{{placeholder}}` the open request uses, with its value (masked when it is a [secret](#secret-values)) and where the value comes from: **Env · SIT**, **Script**, or **Unset**. **Edit** opens the environment editor on that variable (for an unset one it adds the variable to the active environment first). **Clear** forgets a script variable. A second section lists all script variables, with **Clear all**. Escape closes it.
+Click **Variables** next to the environment switch in the top bar (Requests mode) to open a sidebar on the right. On windows 1240 px wide or more it sits beside the response; on narrower ones it floats over it, and clicking outside closes it. The ✕ button, Escape (with focus inside the panel) and the **Variables** button all close it, and it stays open or closed the next time you start the app.
+
+**This request / All** switches between the variables the open request uses and every variable. **Filter by name** narrows the list. Groups are listed with the winner first, as a send resolves them:
+
+- **Missing**: placeholders the request uses that have no value. **Add to Dev** takes a value (and a Secret switch) and adds the variable to the active environment, creating *Environment 1* if you have none.
+- **Script variables**: set by scripts. **Clear** forgets one, **Clear all** forgets them all. A script variable beats the environment value of the same name, which shows struck through as *by Script*.
+- **Env · name (active)**: the active environment. If it repeats a name, the last enabled row is the one used and the earlier ones are struck through.
+- **Other environments**: folded by default. **Switch to** makes one active.
+
+Click a value to edit it; Enter or clicking away saves it (with an **Undo** notice), Escape cancels. [Secret](#secret-values) values stay masked until you press **Show**. **Edit environments…** opens the full environment editor.
 
 ## Environments
 
