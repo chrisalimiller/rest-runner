@@ -6,6 +6,7 @@ REST Runner is a desktop app (macOS and Windows) for sending REST requests, runn
 | --- | --- |
 | [Getting started](getting-started.md) | Installing the app, running it from source, a tour of the window, your first request |
 | [Requests](requests.md) | The request editor: URL, params, auth, headers, body, `{{placeholders}}`, environments, the response viewer, history |
+| [Paste a cURL command](curl-import.md) | Turn a `curl` command (Chrome/Edge Copy as cURL, API docs) into a request: where to paste, what is read, what is left out, how variables are matched |
 | [Collections, examples and import/export](collections.md) | Saving requests in folders, saved examples, moving data between computers |
 | [CSV batch runs and reports](batch-runs.md) | Run a request once per CSV row, export it as a Python or Bash script, the run explorer, HTML and CSV reports |
 | [Testing](testing.md) | Test suites, cases, assertions, run modes, CSV data, test reports |

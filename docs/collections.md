@@ -8,6 +8,7 @@ Open the tree by clicking the folder area of the **request switcher** in the top
 
 - **New**: adds a collection. **Import** and **Export**: see below.
 - **+ New request**: opens a blank request in the editor (it is not saved until you save it).
+- **From cURL…**: makes a request from a pasted curl command, and can save it straight into a folder. See [Paste a cURL command](curl-import.md).
 - The tree itself. Click a request to open it.
 
 Right-click a row, or use its **⋯** button, for the actions:

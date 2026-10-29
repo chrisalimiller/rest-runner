@@ -18,7 +18,7 @@ It searches these groups in one list:
 | **Flows** | The flow on its canvas |
 | **Flow runs** | The [flow run report](flows.md#reports) |
 
-The group for the mode you are in comes first.
+The group for the mode you are in comes first. When you type `curl`, `paste` or `import`, a **Commands** group at the top offers **Import from cURL…**; pasting a whole curl command into the box opens that dialog with it filled in. See [Paste a cURL command](curl-import.md).
 
 - The search is fuzzy: the letters you type must appear in order (`gtu` finds "Get users"), and runs of letters, word starts and matches in the title score higher. It also looks at the method, folder path or URL, and the detail text.
 - With nothing typed, you see the most recent items of each group. Each group shows its best six matches.
