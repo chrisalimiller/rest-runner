@@ -3,9 +3,12 @@ import { insertAt, newCollection, newFolder, requestNode, addExample, type Colle
 import { newRequest } from "./defaults";
 import {
   activate,
+  applyCurl,
   closeOthers,
   closeSaved,
   closeTab,
+  curlPlan,
+  discardTab,
   displayOrder,
   duplicateTab,
   goToTab,
@@ -13,6 +16,7 @@ import {
   initialTabs,
   isTabDirty,
   loadTabs,
+  mergeCurl,
   newTab,
   openInTab,
   pin,
@@ -498,5 +502,61 @@ describe("loadTabs with partly broken requests", () => {
     expect(s.tabs[0].def.auth).toEqual({ type: "none" });
     expect(s.tabs[0].def.formBody).toHaveLength(1);
     expect(s.tabs[0].def.bodyMode).toBe("none");
+  });
+});
+
+describe("pasted cURL", () => {
+  const parsed = req("POST orders", { method: "POST", url: "https://a.test/orders", bodyMode: "json", body: "{}" });
+  const never = () => false;
+
+  it("fills a blank, unsaved active tab in place", () => {
+    const s = initialTabs();
+    const blankId = active(s).def.id;
+    const plan = curlPlan(s, "auto", never);
+    expect(plan.mode).toBe("fill");
+    const r = applyCurl(s, plan, mergeCurl(plan, active(s).def, parsed));
+    expect(r.state.tabs).toHaveLength(1);
+    expect(active(r.state).def).toMatchObject({ id: blankId, name: "POST orders", url: "https://a.test/orders" });
+    expect(r.before).toBe(s.tabs[0].def);
+  });
+
+  it("opens a new tab after the active one when the active tab has work in it", () => {
+    const s = withTabs(req("A", { url: "https://x.test" }), req("B"));
+    const plan = curlPlan(s, "auto", never);
+    expect(plan.mode).toBe("new");
+    const r = applyCurl(s, plan, mergeCurl(plan, undefined, parsed));
+    expect(names(r.state)).toEqual(["A", "B", "POST orders"]);
+    expect(r.state.activeId).toBe(r.tabId);
+    expect(r.before).toBeNull();
+    expect(active(r.state).preview).toBe(false);
+    // The old tabs are untouched.
+    expect(r.state.tabs[0]).toBe(s.tabs[0]);
+  });
+
+  it("does not fill a blank tab that is saved", () => {
+    const s = initialTabs();
+    expect(curlPlan(s, "auto", () => true).mode).toBe("new");
+  });
+
+  it("'new' always opens a tab, 'active' always replaces", () => {
+    const s = initialTabs();
+    expect(curlPlan(s, "new", never).mode).toBe("new");
+    const used = withTabs(req("A", { name: "Keep me", url: "https://x.test", preScript: "rr.log(1)", noCertificate: true }));
+    const plan = curlPlan(used, "active", never);
+    expect(plan.mode).toBe("replace");
+    const merged = mergeCurl(plan, active(used).def, parsed);
+    expect(merged).toMatchObject({ id: active(used).def.id, name: "Keep me", preScript: "rr.log(1)", noCertificate: true, method: "POST", url: "https://a.test/orders", body: "{}" });
+    const r = applyCurl(used, plan, merged);
+    expect(r.state.tabs).toHaveLength(1);
+    expect(r.before).toBe(used.tabs[0].def);
+  });
+
+  it("discardTab removes a tab without offering it for reopen", () => {
+    const s = withTabs(req("A"), req("B"));
+    const r = discardTab(s, active(s).id);
+    expect(names(r)).toEqual(["A"]);
+    expect(r.closed).toEqual([]);
+    const only = initialTabs();
+    expect(names(discardTab(only, only.activeId))).toEqual(["Untitled request"]);
   });
 });

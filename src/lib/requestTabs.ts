@@ -84,6 +84,49 @@ export function newTab(s: TabsState): TabsState {
   return insertTab(s, makeTab(newRequest()));
 }
 
+// ---- Pasted cURL ----
+
+/** Where a pasted command goes: "auto" fills a blank tab or opens a new one; "new" and "active" are the dialog's choices. */
+export type CurlTarget = "auto" | "new" | "active";
+
+export interface CurlPlan {
+  /** "fill": a blank tab takes the whole request; "replace": keep the tab's name and scripts; "new": a new tab. */
+  mode: "fill" | "replace" | "new";
+  /** The tab that changes; empty for a new tab. */
+  tabId: string;
+}
+
+/** Decides where a pasted command goes. A command never overwrites work in "auto": only a blank, unsaved tab is filled. */
+export function curlPlan(s: TabsState, target: CurlTarget, isSaved: (t: RequestTab) => boolean): CurlPlan {
+  const active = s.tabs.find((t) => t.id === s.activeId);
+  if (target === "active" && active) return { mode: "replace", tabId: active.id };
+  if (target === "auto" && active && isBlankRequest(active.def) && !isSaved(active)) return { mode: "fill", tabId: active.id };
+  return { mode: "new", tabId: "" };
+}
+
+/** The request a plan produces from a parsed command; `base` is the tab's request for "fill" and "replace". */
+export function mergeCurl(plan: CurlPlan, base: RequestDef | undefined, parsed: RequestDef): RequestDef {
+  if (!base || plan.mode === "new") return parsed;
+  if (plan.mode === "fill") return { ...parsed, id: base.id };
+  const { method, url, params, headers, bodyMode, body, formBody, auth } = parsed;
+  return { ...base, method, url, params, headers, bodyMode, body, formBody, auth };
+}
+
+/** Puts `def` (made with mergeCurl) where the plan says. `before` is the old request, or null when a tab was created. */
+export function applyCurl(s: TabsState, plan: CurlPlan, def: RequestDef): { state: TabsState; tabId: string; before: RequestDef | null } {
+  const old = plan.mode === "new" ? undefined : s.tabs.find((t) => t.id === plan.tabId);
+  if (!old) {
+    const tab = makeTab(def);
+    return { state: insertTab(s, tab), tabId: tab.id, before: null };
+  }
+  return { state: updateTabDef(s, old.id, () => def), tabId: old.id, before: old.def };
+}
+
+/** Removes a tab without keeping it for "reopen closed tab" (undoing an import). */
+export function discardTab(s: TabsState, id: string, order?: string[]): TabsState {
+  return { ...removeTabs(s, new Set([id]), order), closed: s.closed };
+}
+
 /** Makes a preview tab permanent. */
 export function promote(s: TabsState, id: string): TabsState {
   const t = s.tabs.find((x) => x.id === id);

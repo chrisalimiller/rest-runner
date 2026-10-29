@@ -3,6 +3,7 @@ import { BatchPane } from "./components/BatchPane";
 import { ExampleDialog, ExportWorkspaceDialog, MoveDialog, SaveRequestDialog, type DestinationChoice } from "./components/CollectionDialogs";
 import { CollectionTree, type TreeAction } from "./components/CollectionTree";
 import { EnvironmentEditor } from "./components/EnvironmentEditor";
+import { CurlBanner } from "./components/request/CurlBanner";
 import { RequestEditor } from "./components/request/RequestEditor";
 import { RequestSwitcher } from "./components/request/RequestSwitcher";
 import { RequestTabBar, showTabBar } from "./components/request/RequestTabBar";
@@ -10,6 +11,7 @@ import { ResponsePane } from "./components/ResponsePane";
 import { RunExplorer } from "./components/RunExplorer";
 import { MOD_KEY, TopBar } from "./components/shell/TopBar";
 import { useToast } from "./components/shell/Toast";
+import { useCertificates } from "./components/CertificatesDialog";
 import { useDeferredDelete } from "./components/shell/useDeferredDelete";
 import { VariablesProvider } from "./components/variables/VariablesContext";
 import { loadPanelState, savePanelState, VariablesPanel, DOCK_MIN_WIDTH, type VariablesPanelState } from "./components/variables/VariablesPanel";
@@ -43,6 +45,8 @@ import {
 import { newRequest } from "./lib/defaults";
 import { earlierSendLabel, earlierSends, earlierSendTone, sendTooltip, whenLabel } from "./lib/earlierSends";
 import { cleanHistory, fitHistory, historyLabel, historyOutcome, MAX_HISTORY_BODY, responseNotKept } from "./lib/history";
+import { looksLikeCurl, parseCurl, type CurlCommand, type CurlNote } from "./lib/curlImport";
+import { matchVariables, type VarSwap } from "./lib/curlVariables";
 import { environmentVars, guardFor, loadEnvironments, type Environment } from "./lib/environments";
 import { loadCertificates, saveCertificates } from "./lib/certificates";
 import { certificatesForExport, describeCertificateImport, importCertificates } from "./lib/certificatesFile";
@@ -61,13 +65,17 @@ import { describeWorkspaceImport, importWorkspace as mergeWorkspace, toWorkspace
 import { readWorkspace, writeWorkspace } from "./lib/workspaceStore";
 import {
   activate,
+  applyCurl,
   closeOthers,
   closeSaved,
   closeTab,
+  curlPlan,
+  discardTab,
   displayOrder,
   duplicateTab,
   isTabDirty,
   loadTabs,
+  mergeCurl,
   newTab,
   pin,
   reopenClosed,
@@ -79,6 +87,7 @@ import {
   serializeTabs,
   stepTab,
   tabShortcut,
+  type CurlTarget,
   updateActiveDef,
   updateTabDef,
   type RequestTab,
@@ -88,6 +97,19 @@ import { isArray, isString, isStringArray, isStringRecord, load, save } from "./
 import type { HistoryEntry, RequestDef, SendOutcome } from "./lib/types";
 
 type LowerPane = "response" | "batch";
+
+/** What a cURL import did to a tab, kept in memory (not saved) so the banner can offer Undo. */
+interface CurlBannerState {
+  /** The tab's request before, or null when the import created the tab. */
+  before: RequestDef | null;
+  /** The request with literal values, and with {{variables}} (null when nothing matched). The banner shows while the tab still holds one of these exact objects. */
+  literal: RequestDef;
+  withVars: RequestDef | null;
+  swaps: VarSwap[];
+  envName: string;
+  notes: CurlNote[];
+  summary: string;
+}
 
 const TABS_KEY = "rest-runner.tabs";
 /** Single working copy kept before tabs existed; read once to migrate into the first tab, never written. */
@@ -222,6 +244,8 @@ export default function App({ active = true, shell, command }: Props) {
   const [exportDialog, setExportDialog] = useState(false);
   const toast = useToast();
   const notify = useCallback((message: string) => toast.show({ message }), [toast]);
+  const certificateList = useCertificates();
+  const [curlBanners, setCurlBanners] = useState<Record<string, CurlBannerState>>({});
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [renamingName, setRenamingName] = useState(false);
   const [split, setSplit] = useState<number>(() => {
@@ -319,6 +343,79 @@ export default function App({ active = true, shell, command }: Props) {
   };
   const closeSavedTabs = () => applyTabs((s) => closeSaved(s, (t) => isTabDirty(t, collections) || !!runtime[t.id]?.batchRunning, displayOrder(s.tabs, collections)));
   const reopenLast = () => applyTabs((s) => reopenClosed(s));
+
+  /** Where each pasted command lands, with its variables swapped in when an environment is selected. */
+  const placeCurl = (command: CurlCommand, target: CurlTarget) => {
+    const swapped = activeEnv ? matchVariables(command.def, activeEnv.vars) : { def: command.def, swaps: [] as VarSwap[] };
+    const plan = curlPlan(tabsRef.current, target, (t) => !!savedVersionOf(t.def, collections));
+    const base = tabsRef.current.tabs.find((t) => t.id === plan.tabId)?.def;
+    const literal = mergeCurl(plan, base, command.def);
+    const withVars = swapped.swaps.length > 0 ? mergeCurl(plan, base, swapped.def) : null;
+    const placed = applyCurl(tabsRef.current, plan, withVars ?? literal);
+    applyTabs(() => placed.state);
+    setOpenRun(null);
+    return { placed, literal, withVars, swaps: swapped.swaps };
+  };
+
+  /**
+   * Turns pasted curl text into a request: it fills the active tab when that is blank, else opens a new one.
+   * Returns false when nothing was imported (the caller then lets the text through as it was).
+   */
+  const importCurl = (text: string, target: CurlTarget = "auto"): boolean => {
+    const parsed = parseCurl(text, { certificates: certificateList });
+    if (!parsed.ok) {
+      notify(parsed.error);
+      return false;
+    }
+    const good = parsed.commands.filter((c): c is CurlCommand => c.ok);
+    if (good.length === 0) {
+      const bad = parsed.commands[0];
+      notify(bad.ok ? "Nothing to import." : bad.error);
+      return false;
+    }
+    if (good.length > 1) {
+      const ids = good.map((c) => placeCurl(c, "new").placed.tabId);
+      toast.show({
+        message: `Opened ${ids.length} requests from cURL`,
+        onUndo: () => ids.forEach((id) => applyTabs((s) => discardTab(s, id, displayOrder(s.tabs, collections)))),
+      });
+      return true;
+    }
+    const command = good[0];
+    const { placed, literal, withVars, swaps } = placeCurl(command, target);
+    setCurlBanners((b) => ({
+      ...b,
+      [placed.tabId]: { before: placed.before, literal, withVars, swaps, envName: activeEnv?.name ?? "", notes: command.notes, summary: command.summary },
+    }));
+    return true;
+  };
+  const dropCurlBanner = (tabId: string) =>
+    setCurlBanners((b) => {
+      const { [tabId]: _gone, ...rest } = b;
+      return rest;
+    });
+  const undoCurl = (tabId: string) => {
+    const b = curlBanners[tabId];
+    if (!b) return;
+    if (b.before) applyTabs((s) => updateTabDef(s, tabId, () => b.before!));
+    else applyTabs((s) => discardTab(s, tabId, displayOrder(s.tabs, collections)));
+    dropCurlBanner(tabId);
+  };
+
+  /** Pasting a curl command with focus outside any text field opens it as a request. */
+  const handlePaste = useRef((_e: ClipboardEvent): void => {});
+  handlePaste.current = (e) => {
+    if (!active || dialog !== null || showEnvEditor || document.querySelector('[role="dialog"]')) return;
+    const el = document.activeElement;
+    if (el instanceof HTMLElement && (el.isContentEditable || el.matches("input, textarea, select"))) return;
+    const text = e.clipboardData?.getData("text") ?? "";
+    if (looksLikeCurl(text) && importCurl(text)) e.preventDefault();
+  };
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => handlePaste.current(e);
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
+  }, []);
   const revealTab = (id: string) => {
     const t = tabsRef.current.tabs.find((x) => x.id === id);
     if (!t) return;
@@ -754,6 +851,23 @@ export default function App({ active = true, shell, command }: Props) {
   const foldRequest = pane === "batch" && batchWide && openRun === null;
   const summaryUrl = foldRequest ? prepareRequest(def, sendVars).url : "";
   const guard = guardFor(activeEnv);
+  const curlBanner = curlBanners[activeId];
+  const curlBannerView =
+    curlBanner && (def === curlBanner.literal || def === curlBanner.withVars) ? (
+      <CurlBanner
+        summary={curlBanner.summary}
+        swaps={curlBanner.swaps}
+        envName={curlBanner.envName}
+        usingVars={def === curlBanner.withVars}
+        notes={curlBanner.notes}
+        onToggleVars={() => {
+          const next = def === curlBanner.withVars ? curlBanner.literal : curlBanner.withVars;
+          if (next) applyTabs((s) => updateTabDef(s, activeId, () => next));
+        }}
+        onUndo={() => undoCurl(activeId)}
+        onDismiss={() => dropCurlBanner(activeId)}
+      />
+    ) : undefined;
   const sends = earlierSends(history, runs.filter((r) => !runDelete.hidden.has(r.id)), def);
   const shownEntry = outcomeIsSample && shownHistoryId ? history.find((h) => h.id === shownHistoryId) : undefined;
   const openBatch = () => {
@@ -933,6 +1047,8 @@ export default function App({ active = true, shell, command }: Props) {
             detailsKey={DETAILS_KEY}
             scriptVars={scriptVars}
             onOpenVariables={openVariables}
+            onPasteCurl={(text) => importCurl(text)}
+            banner={curlBannerView}
             sendSlot={
               sending ? (
                 <button className="send cancel" onClick={cancel}>

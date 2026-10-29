@@ -1,10 +1,16 @@
 import { useCallback, useLayoutEffect, useRef, type InputHTMLAttributes } from "react";
+import { looksLikeCurl } from "../../lib/curlImport";
 import { splitPlaceholders } from "../../lib/requestSummary";
 import { usePlaceholderHover } from "../variables/usePlaceholderHover";
 
 type Props = Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "className"> & {
   value: string;
   className?: string;
+  /**
+   * Called with pasted text that looks like a curl command. Return true when it took the paste;
+   * false (or no handler) lets the text go into the box as typed.
+   */
+  onPasteCurl?: (text: string) => boolean;
 };
 
 /**
@@ -13,7 +19,7 @@ type Props = Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "className"> 
  * and a copy of the text with the placeholders marked sits behind it, scrolled
  * in step with the input.
  */
-export function UrlInput({ value, className, onKeyDown, onMouseMove, onMouseLeave, ...inputProps }: Props) {
+export function UrlInput({ value, className, onKeyDown, onMouseMove, onMouseLeave, onPaste, onPasteCurl, ...inputProps }: Props) {
   const hover = usePlaceholderHover(".url-var");
   const input = useRef<HTMLInputElement>(null);
   const text = useRef<HTMLSpanElement>(null);
@@ -64,6 +70,11 @@ export function UrlInput({ value, className, onKeyDown, onMouseMove, onMouseLeav
         className={`url-input ${className ?? ""}`.trim()}
         onKeyDown={(e) => {
           if (!hover.onKeyDown(e)) onKeyDown?.(e);
+        }}
+        onPaste={(e) => {
+          onPaste?.(e);
+          const text = e.clipboardData?.getData("text") ?? "";
+          if (!e.defaultPrevented && onPasteCurl && looksLikeCurl(text) && onPasteCurl(text)) e.preventDefault();
         }}
         onMouseMove={(e) => {
           hover.onMouseMove(e);
