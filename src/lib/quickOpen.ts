@@ -8,7 +8,7 @@ import { whenLabel } from "./earlierSends";
 
 /** Quick open (Ctrl/Cmd + K): one search over everything you can jump to. */
 
-export type QuickKind = "request" | "example" | "history" | "batch-run" | "suite" | "case" | "test-run" | "flow" | "flow-run";
+export type QuickKind = "command" | "request" | "example" | "history" | "batch-run" | "suite" | "case" | "test-run" | "flow" | "flow-run";
 
 export interface QuickItem {
   kind: QuickKind;
@@ -20,11 +20,16 @@ export interface QuickItem {
   /** Shown muted after the title: folder path, URL, time and so on. */
   detail: string;
   method?: string;
+  /** Pasted text a command was opened with (Import from cURL). */
+  payload?: string;
+  /** Extra words that find the item, for commands. */
+  keywords?: string;
   /** Sort key for "most recent first" when there is no query (ISO time), if the item has one. */
   at?: string;
 }
 
 export const KIND_LABELS: Record<QuickKind, string> = {
+  command: "Commands",
   request: "Requests",
   example: "Examples",
   history: "History",
@@ -38,10 +43,24 @@ export const KIND_LABELS: Record<QuickKind, string> = {
 
 /** Group order, per mode: the mode you are in comes first. */
 export const KIND_ORDER: Record<"requests" | "testing" | "flows", QuickKind[]> = {
-  requests: ["request", "example", "history", "batch-run", "suite", "case", "test-run", "flow", "flow-run"],
-  testing: ["suite", "case", "test-run", "flow", "flow-run", "request", "example", "history", "batch-run"],
-  flows: ["flow", "flow-run", "suite", "case", "test-run", "request", "example", "history", "batch-run"],
+  requests: ["command", "request", "example", "history", "batch-run", "suite", "case", "test-run", "flow", "flow-run"],
+  testing: ["command", "suite", "case", "test-run", "flow", "flow-run", "request", "example", "history", "batch-run"],
+  flows: ["command", "flow", "flow-run", "suite", "case", "test-run", "request", "example", "history", "batch-run"],
 };
+
+export const CURL_COMMAND_ID = "import-curl";
+
+/** Commands that show up when the query names them. They are not listed with an empty query. */
+export function commandItems(): QuickItem[] {
+  return [{ kind: "command", id: CURL_COMMAND_ID, title: "Import from cURL…", detail: "Command", keywords: "curl paste import command" }];
+}
+
+/** A command matches when the query is inside its title or starts one of its keywords: "cu", "paste", "import" find it, "r" does not. */
+function commandMatches(item: QuickItem, query: string): boolean {
+  const q = query.toLowerCase().trim();
+  if (q.length < 2) return false;
+  return item.title.toLowerCase().includes(q) || (item.keywords ?? "").split(/\s+/).some((w) => w.startsWith(q));
+}
 
 function walk(items: TreeNode[], path: string[], out: QuickItem[]) {
   for (const item of items) {
@@ -186,7 +205,9 @@ export function searchQuickOpen(items: QuickItem[], query: string, order: QuickK
   for (const kind of order) {
     const ofKind = items.filter((i) => i.kind === kind);
     let picked: QuickItem[];
-    if (q === "") {
+    if (kind === "command") {
+      picked = ofKind.filter((i) => commandMatches(i, q));
+    } else if (q === "") {
       picked = [...ofKind].sort((a, b) => (b.at ?? "").localeCompare(a.at ?? "")).slice(0, perGroup);
     } else {
       picked = ofKind

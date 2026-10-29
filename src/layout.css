@@ -573,6 +573,15 @@ body.dragging-split {
   padding: 6px;
 }
 
+.popover-new-row {
+  display: flex;
+  gap: 6px;
+}
+
+.popover-new-row .popover-new {
+  flex: 1 1 0;
+}
+
 .switcher-popover .tree-scroll {
   flex: 1;
   min-height: 0;

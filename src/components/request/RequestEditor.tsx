@@ -45,6 +45,8 @@ interface Props {
   onPasteCurl?: (text: string) => boolean;
   /** Shown under the URL row, e.g. what a cURL import did. */
   banner?: React.ReactNode;
+  /** Adds "Replace from cURL…" to the ⋯ menu. */
+  onReplaceFromCurl?: () => void;
 }
 
 const POSTMAN_WARNING = "Uses Postman pm.* calls; this script will not run until they are converted";
@@ -129,7 +131,7 @@ const CURL_OPEN_KEY = "rest-runner.curl-open";
  * Params, Auth, Headers and Scripts live in a Request details drawer that slides over the body. Requests mode
  * and the Testing "Edit request" dialog both use it.
  */
-export function RequestEditor({ def, onChange, envVars, envName, onEnter, detailsKey, urlPlaceholder, scriptVars, scriptsNote, onOpenVariables, sendSlot, menuItems, onPasteCurl, banner }: Props) {
+export function RequestEditor({ def, onChange, envVars, envName, onEnter, detailsKey, urlPlaceholder, scriptVars, scriptsNote, onOpenVariables, sendSlot, menuItems, onPasteCurl, banner, onReplaceFromCurl }: Props) {
   const [details, setDetails] = useState<DetailsState>(() => loadDetailsState(load<unknown>(detailsKey, null)));
   useEffect(() => {
     save(detailsKey, details);
@@ -187,6 +189,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, detail
   const fullMenu: MenuItem[] | undefined = menuItems && [
     ...menuItems,
     { label: "Copy final URL", onSelect: () => copyToClipboard(finalUrl, "Copied the URL"), disabled: !finalUrl, separated: true },
+    ...(onReplaceFromCurl ? [{ label: "Replace from cURL…", title: "Fill this request from a pasted curl command", onSelect: onReplaceFromCurl }] : []),
     { label: curlOpen ? "Hide cURL" : "Show cURL", onSelect: () => setCurlOpen((o) => !o) },
     {
       label: "Copy as cURL (Bash)",

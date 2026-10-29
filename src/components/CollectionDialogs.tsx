@@ -2,13 +2,13 @@ import { useState } from "react";
 import { destinations, type Collection, type Destination } from "../lib/collections";
 import { Modal } from "./shell/Modal";
 
-const NEW_COLLECTION = "__new__";
+export const NEW_COLLECTION = "__new__";
 
-function destKey(d: Destination): string {
+export function destKey(d: Destination): string {
   return `${d.collectionId}|${d.folderId ?? ""}`;
 }
 
-function parseKey(key: string): Destination {
+export function parseKey(key: string): Destination {
   const [collectionId, folderId] = key.split("|");
   return { collectionId, folderId: folderId || null };
 }
@@ -27,14 +27,16 @@ function SmallModal({ title, onClose, children }: { title: string; onClose: () =
   );
 }
 
-/** Picks a collection or folder, with an option to type a new collection name. */
-function DestinationPicker({
+/** Picks a collection or folder, with an option to type a new collection name. `compact` is a one-line dropdown for toolbars. */
+export function DestinationPicker({
   collections,
   value,
   onChange,
   newName,
   onNewNameChange,
   allow = () => true,
+  compact = false,
+  disabled = false,
 }: {
   collections: Collection[];
   value: string;
@@ -42,7 +44,24 @@ function DestinationPicker({
   newName: string;
   onNewNameChange: (name: string) => void;
   allow?: (d: Destination) => boolean;
+  compact?: boolean;
+  disabled?: boolean;
 }) {
+  if (compact) {
+    return (
+      <>
+        <select value={value} onChange={(e) => onChange(e.target.value)} aria-label="Save to" disabled={disabled}>
+          {destinations(collections).map((d) => (
+            <option key={destKey(d.dest)} value={destKey(d.dest)} disabled={!allow(d.dest)}>
+              {d.label.replace(/ \/ /g, " › ")}
+            </option>
+          ))}
+          <option value={NEW_COLLECTION}>+ New collection…</option>
+        </select>
+        {value === NEW_COLLECTION && <input value={newName} onChange={(e) => onNewNameChange(e.target.value)} placeholder="Collection name" aria-label="Collection name" disabled={disabled} />}
+      </>
+    );
+  }
   return (
     <>
       <label className="field">

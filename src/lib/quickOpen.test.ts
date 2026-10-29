@@ -3,7 +3,7 @@ import { newCollection, newFolder, requestNode, type Collection } from "./collec
 import { newRequest } from "./defaults";
 import { newFlow, newNode } from "./flows/flows";
 import type { FlowRunSummary } from "./flows/types";
-import { collectionItems, flowItems, flowRunItems, fuzzyScore, historyItems, KIND_ORDER, readableUrl, searchQuickOpen, suiteItems, type QuickItem } from "./quickOpen";
+import { collectionItems, commandItems, flowItems, flowRunItems, fuzzyScore, historyItems, KIND_ORDER, readableUrl, searchQuickOpen, suiteItems, type QuickItem } from "./quickOpen";
 import { newSuite, newTestCase } from "./testing/suites";
 
 function sampleCollections(): Collection[] {
@@ -126,5 +126,27 @@ describe("readableUrl", () => {
   it("drops the scheme and decodes escapes, keeping bad escapes as written", () => {
     expect(readableUrl("https://a.b/x?q=a%20b%2Cc")).toBe("a.b/x?q=a b,c");
     expect(readableUrl("http://a.b/%E0%A4%A")).toBe("a.b/%E0%A4%A");
+  });
+});
+
+describe("command items", () => {
+  const items = [...commandItems(), ...collectionItems(sampleCollections())];
+
+  it("are hidden with no query and found by curl, paste or import", () => {
+    expect(searchQuickOpen(items, "", KIND_ORDER.requests).map((g) => g.kind)).not.toContain("command");
+    for (const q of ["curl", "cu", "paste", "import", "Import from"]) {
+      const groups = searchQuickOpen(items, q, KIND_ORDER.requests);
+      expect(groups[0]).toMatchObject({ kind: "command", label: "Commands" });
+      expect(groups[0].items[0].title).toBe("Import from cURL…");
+    }
+  });
+
+  it("do not match unrelated or one-letter queries", () => {
+    expect(searchQuickOpen(items, "r", KIND_ORDER.requests).map((g) => g.kind)).not.toContain("command");
+    expect(searchQuickOpen(items, "ticket", KIND_ORDER.requests).map((g) => g.kind)).not.toContain("command");
+  });
+
+  it("come first in every mode", () => {
+    for (const order of Object.values(KIND_ORDER)) expect(order[0]).toBe("command");
   });
 });
