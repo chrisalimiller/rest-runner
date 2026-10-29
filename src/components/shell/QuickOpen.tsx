@@ -3,6 +3,8 @@ import { cleanCollections, migrateSavedRequests, isRequestDef } from "../../lib/
 import {
   batchRunItems,
   collectionItems,
+  commandItems,
+  CURL_COMMAND_ID,
   flowItems,
   flowRunItems,
   historyItems,
@@ -12,6 +14,7 @@ import {
   testRunItems,
   type QuickItem,
 } from "../../lib/quickOpen";
+import { looksLikeCurl } from "../../lib/curlImport";
 import { listRuns } from "../../lib/runStore";
 import { isArray, load } from "../../lib/storage";
 import { cleanHistory } from "../../lib/history";
@@ -37,6 +40,7 @@ function readStoredItems(): QuickItem[] {
   const stored = load<unknown>("rest-runner.collections", null);
   const collections = stored !== null ? cleanCollections(stored) : migrateSavedRequests(load<unknown[]>("rest-runner.saved", [], isArray).filter(isRequestDef));
   return [
+    ...commandItems(),
     ...collectionItems(collections),
     ...historyItems(cleanHistory(load<unknown>("rest-runner.history", []))),
     ...suiteItems(cleanSuites(load("rest-runner.test-suites", []))),
@@ -102,6 +106,14 @@ export function QuickOpen({ mode, onClose, onPick, onClearHistory }: Props) {
             autoFocus
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onPaste={(e) => {
+              // A whole curl command pasted here opens Import from cURL with it filled in.
+              const text = e.clipboardData.getData("text");
+              if (looksLikeCurl(text)) {
+                e.preventDefault();
+                onPick({ kind: "command", id: CURL_COMMAND_ID, title: "Import from cURL…", detail: "", payload: text });
+              }
+            }}
             placeholder={
               mode === "testing" ? "Jump to a suite, case or test run…" : mode === "flows" ? "Jump to a flow, flow run, suite or case…" : "Jump to a request, example, run or history…"
             }

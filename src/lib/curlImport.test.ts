@@ -202,6 +202,8 @@ describe("errors", () => {
     expect(looksLikeCurl("curl")).toBe(false);
     expect(looksLikeCurl("curling https://a.test")).toBe(false);
     expect(looksLikeCurl("https://a.test")).toBe(false);
+    expect(looksLikeCurl("# get it\nexport T=1\ncurl https://a.test")).toBe(true);
+    expect(looksLikeCurl("# only a comment")).toBe(false);
   });
 });
 

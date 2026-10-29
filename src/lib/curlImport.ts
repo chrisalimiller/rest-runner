@@ -57,7 +57,8 @@ function normalize(text: string): string {
 
 /** True when the text starts like a curl command, so a paste can be offered for import. */
 export function looksLikeCurl(text: string): boolean {
-  const first = normalize(text).split("\n").find((l) => l.trim() !== "");
+  // Comment and export lines before the first command are fine: they are skipped like those between commands.
+  const first = normalize(text).split("\n").find((l) => l.trim() !== "" && !/^\s*(#|export\s|set\s)/.test(l));
   if (first === undefined) return false;
   const word = first.trim().split(/\s+/, 1)[0];
   return CURL_WORD.test(word) && /\s\S/.test(first.trim());

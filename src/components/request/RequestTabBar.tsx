@@ -18,6 +18,8 @@ interface Props {
   onActivate: (id: string) => void;
   onClose: (id: string) => void;
   onNew: () => void;
+  /** Opens Import from cURL (the + button's right-click menu). */
+  onNewFromCurl: () => void;
   onPin: (id: string) => void;
   onUnpin: (id: string) => void;
   onDuplicate: (id: string) => void;
@@ -52,6 +54,7 @@ export function RequestTabBar(props: Props) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [fade, setFade] = useState<"none" | "left" | "right" | "both">("none");
   const [menu, setMenu] = useState<{ id: string; x: number; y: number } | null>(null);
+  const [addMenu, setAddMenu] = useState<{ x: number; y: number } | null>(null);
 
   const measure = () => {
     const el = scrollRef.current;
@@ -185,17 +188,39 @@ export function RequestTabBar(props: Props) {
           ))}
         </div>
       </div>
-      <button className="rtab-add" onClick={props.onNew} aria-label="New request tab" title={`New request tab (${MOD_KEY} T)`}>
+      <button
+        className="rtab-add"
+        onClick={props.onNew}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          const r = e.currentTarget.getBoundingClientRect();
+          setAddMenu({ x: r.left, y: r.bottom + 2 });
+        }}
+        aria-label="New request tab"
+        title={`New request tab (${MOD_KEY} T). Right-click for more.`}
+      >
         +
       </button>
       <AllTabs {...props} groups={groups} pinned={pinned} />
+      {addMenu && (
+        <PopoverMenu
+          label="New request"
+          x={addMenu.x}
+          y={addMenu.y}
+          onDone={() => setAddMenu(null)}
+          items={[
+            { label: "New request", run: props.onNew },
+            { label: "New from cURL…", run: props.onNewFromCurl },
+          ]}
+        />
+      )}
       {menu && <TabMenu {...props} tab={tabs.find((t) => t.id === menu.id)} x={menu.x} y={menu.y} onDone={() => setMenu(null)} />}
     </div>
   );
 }
 
-function TabMenu(props: Props & { tab: RequestTab | undefined; x: number; y: number; onDone: () => void }) {
-  const { tab, onDone } = props;
+/** A small context menu at a point: arrow keys move, Escape or a click elsewhere closes it. */
+function PopoverMenu({ items, label, x, y, onDone }: { items: { label: string; run: () => void; separated?: boolean }[]; label: string; x: number; y: number; onDone: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
   useEscape(onDone);
   useEffect(() => {
@@ -206,15 +231,6 @@ function TabMenu(props: Props & { tab: RequestTab | undefined; x: number; y: num
     window.addEventListener("mousedown", down);
     return () => window.removeEventListener("mousedown", down);
   }, [onDone]);
-  if (!tab) return null;
-  const items: { label: string; run: () => void; separated?: boolean }[] = [
-    tab.pinned ? { label: "Unpin", run: () => props.onUnpin(tab.id) } : { label: "Pin", run: () => props.onPin(tab.id) },
-    { label: "Duplicate", run: () => props.onDuplicate(tab.id) },
-    { label: "Reveal in collections", run: () => props.onReveal(tab.id) },
-    { label: "Close", run: () => props.onClose(tab.id), separated: true },
-    { label: "Close others", run: () => props.onCloseOthers(tab.id) },
-    { label: "Close saved tabs", run: props.onCloseSaved },
-  ];
   const onKeyDown = (e: React.KeyboardEvent) => {
     const buttons = [...(ref.current?.querySelectorAll<HTMLButtonElement>("button") ?? [])];
     const i = buttons.indexOf(document.activeElement as HTMLButtonElement);
@@ -229,10 +245,10 @@ function TabMenu(props: Props & { tab: RequestTab | undefined; x: number; y: num
       buttons[to].focus();
     }
   };
-  const left = Math.min(props.x, window.innerWidth - 210);
-  const top = Math.min(props.y, window.innerHeight - 220);
+  const left = Math.min(x, window.innerWidth - 210);
+  const top = Math.min(y, window.innerHeight - 220);
   return (
-    <div className="overflow-popover" role="menu" aria-label={`Actions for ${tab.def.name}`} ref={ref} style={{ left, top }} onKeyDown={onKeyDown}>
+    <div className="overflow-popover" role="menu" aria-label={label} ref={ref} style={{ left, top }} onKeyDown={onKeyDown}>
       {items.map((item) => (
         <button
           key={item.label}
@@ -249,6 +265,20 @@ function TabMenu(props: Props & { tab: RequestTab | undefined; x: number; y: num
       ))}
     </div>
   );
+}
+
+function TabMenu(props: Props & { tab: RequestTab | undefined; x: number; y: number; onDone: () => void }) {
+  const { tab, onDone } = props;
+  if (!tab) return null;
+  const items: { label: string; run: () => void; separated?: boolean }[] = [
+    tab.pinned ? { label: "Unpin", run: () => props.onUnpin(tab.id) } : { label: "Pin", run: () => props.onPin(tab.id) },
+    { label: "Duplicate", run: () => props.onDuplicate(tab.id) },
+    { label: "Reveal in collections", run: () => props.onReveal(tab.id) },
+    { label: "Close", run: () => props.onClose(tab.id), separated: true },
+    { label: "Close others", run: () => props.onCloseOthers(tab.id) },
+    { label: "Close saved tabs", run: props.onCloseSaved },
+  ];
+  return <PopoverMenu items={items} label={`Actions for ${tab.def.name}`} x={props.x} y={props.y} onDone={onDone} />;
 }
 
 /** The ▾ button: every open tab, grouped like the bar, with a filter. */

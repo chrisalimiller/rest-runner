@@ -23,6 +23,7 @@ export type ShellCommand =
 
 function modeFor(item: QuickItem): Mode {
   if (item.kind === "flow" || item.kind === "flow-run") return "flows";
+  if (item.kind === "command") return "requests";
   return item.kind === "suite" || item.kind === "case" || item.kind === "test-run" ? "testing" : "requests";
 }
 

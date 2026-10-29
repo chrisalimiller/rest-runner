@@ -4,6 +4,7 @@ import { ExampleDialog, ExportWorkspaceDialog, MoveDialog, SaveRequestDialog, ty
 import { CollectionTree, type TreeAction } from "./components/CollectionTree";
 import { EnvironmentEditor } from "./components/EnvironmentEditor";
 import { CurlBanner } from "./components/request/CurlBanner";
+import { CurlImportDialog, type CurlImportChoice } from "./components/request/CurlImportDialog";
 import { RequestEditor } from "./components/request/RequestEditor";
 import { RequestSwitcher } from "./components/request/RequestSwitcher";
 import { RequestTabBar, showTabBar } from "./components/request/RequestTabBar";
@@ -22,6 +23,7 @@ import {
   canMove,
   cleanCollections,
   existingExpanded,
+  destinations,
   duplicate,
   insertAt,
   isRequestDef,
@@ -30,6 +32,7 @@ import {
   move,
   newCollection,
   newFolder,
+  remove,
   removeWithRestore,
   rename,
   requestNode,
@@ -109,6 +112,15 @@ interface CurlBannerState {
   envName: string;
   notes: CurlNote[];
   summary: string;
+  /** Set when the import also saved the request: Undo removes it again (and the collection, if the import made one). */
+  saved?: { requestId: string; collectionId?: string };
+}
+
+interface CurlDialogState {
+  text: string;
+  openIn: "new" | "active";
+  dest: Destination | null;
+  saveTicked: boolean;
 }
 
 const TABS_KEY = "rest-runner.tabs";
@@ -246,6 +258,7 @@ export default function App({ active = true, shell, command }: Props) {
   const notify = useCallback((message: string) => toast.show({ message }), [toast]);
   const certificateList = useCertificates();
   const [curlBanners, setCurlBanners] = useState<Record<string, CurlBannerState>>({});
+  const [curlDialog, setCurlDialog] = useState<CurlDialogState | null>(null);
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [renamingName, setRenamingName] = useState(false);
   const [split, setSplit] = useState<number>(() => {
@@ -344,22 +357,34 @@ export default function App({ active = true, shell, command }: Props) {
   const closeSavedTabs = () => applyTabs((s) => closeSaved(s, (t) => isTabDirty(t, collections) || !!runtime[t.id]?.batchRunning, displayOrder(s.tabs, collections)));
   const reopenLast = () => applyTabs((s) => reopenClosed(s));
 
-  /** Where each pasted command lands, with its variables swapped in when an environment is selected. */
-  const placeCurl = (command: CurlCommand, target: CurlTarget) => {
-    const swapped = activeEnv ? matchVariables(command.def, activeEnv.vars) : { def: command.def, swaps: [] as VarSwap[] };
+  /** A command's request, with the active environment's variables swapped in when asked and when anything matched. */
+  const curlVersions = (command: CurlCommand, useVars: boolean) => {
+    const swapped = activeEnv && useVars ? matchVariables(command.def, activeEnv.vars) : { def: command.def, swaps: [] as VarSwap[] };
+    return { literal: command.def, withVars: swapped.swaps.length > 0 ? swapped.def : null, swaps: swapped.swaps };
+  };
+
+  /** Puts a command in a tab where `target` says. */
+  const placeCurl = (command: CurlCommand, target: CurlTarget, useVars = true) => {
+    const versions = curlVersions(command, useVars);
     const plan = curlPlan(tabsRef.current, target, (t) => !!savedVersionOf(t.def, collections));
     const base = tabsRef.current.tabs.find((t) => t.id === plan.tabId)?.def;
-    const literal = mergeCurl(plan, base, command.def);
-    const withVars = swapped.swaps.length > 0 ? mergeCurl(plan, base, swapped.def) : null;
+    const literal = mergeCurl(plan, base, versions.literal);
+    const withVars = versions.withVars ? mergeCurl(plan, base, versions.withVars) : null;
     const placed = applyCurl(tabsRef.current, plan, withVars ?? literal);
     applyTabs(() => placed.state);
     setOpenRun(null);
-    return { placed, literal, withVars, swaps: swapped.swaps };
+    return { placed, literal, withVars, swaps: versions.swaps };
   };
+
+  /** Opens the Import from cURL dialog. */
+  const openCurlDialog = (over: Partial<CurlDialogState> = {}) => setCurlDialog({ text: "", openIn: "new", dest: null, saveTicked: false, ...over });
+  /** The folder or collection the open request is saved in, to pre-fill Save to. */
+  const activeDest = (): Destination | null =>
+    located?.kind === "request" || located?.kind === "example" ? { collectionId: located.collection.id, folderId: located.path[located.path.length - 1]?.id ?? null } : null;
 
   /**
    * Turns pasted curl text into a request: it fills the active tab when that is blank, else opens a new one.
-   * Returns false when nothing was imported (the caller then lets the text through as it was).
+   * Several commands open the dialog. Returns false when nothing was imported (the caller then lets the text through as it was).
    */
   const importCurl = (text: string, target: CurlTarget = "auto"): boolean => {
     const parsed = parseCurl(text, { certificates: certificateList });
@@ -373,12 +398,8 @@ export default function App({ active = true, shell, command }: Props) {
       notify(bad.ok ? "Nothing to import." : bad.error);
       return false;
     }
-    if (good.length > 1) {
-      const ids = good.map((c) => placeCurl(c, "new").placed.tabId);
-      toast.show({
-        message: `Opened ${ids.length} requests from cURL`,
-        onUndo: () => ids.forEach((id) => applyTabs((s) => discardTab(s, id, displayOrder(s.tabs, collections)))),
-      });
+    if (parsed.commands.length > 1) {
+      openCurlDialog({ text });
       return true;
     }
     const command = good[0];
@@ -388,6 +409,65 @@ export default function App({ active = true, shell, command }: Props) {
       [placed.tabId]: { before: placed.before, literal, withVars, swaps, envName: activeEnv?.name ?? "", notes: command.notes, summary: command.summary },
     }));
     return true;
+  };
+
+  /** Create in the dialog: one request becomes a tab (with the banner) and maybe a saved request; several become tabs or a folder. */
+  const createFromCurl = (choice: CurlImportChoice) => {
+    setCurlDialog(null);
+    const { commands, useVars } = choice;
+    if (commands.length === 1) {
+      const command = commands[0];
+      const { placed, literal, withVars, swaps } = placeCurl(command, choice.openIn, useVars);
+      const tabDef = placed.state.tabs.find((t) => t.id === placed.tabId)!.def;
+      let saved: CurlBannerState["saved"];
+      if (choice.save) {
+        const { cols, dest } = resolveDest(collections, choice.save);
+        setCollections(insertAt(cols, dest, [requestNode(structuredClone(tabDef))]));
+        expand(dest.collectionId, dest.folderId);
+        saved = { requestId: tabDef.id, collectionId: "newCollection" in choice.save ? dest.collectionId : undefined };
+        notify(`Saved "${tabDef.name}".`);
+      }
+      setCurlBanners((b) => ({
+        ...b,
+        [placed.tabId]: { before: placed.before, literal, withVars, swaps, envName: activeEnv?.name ?? "", notes: command.notes, summary: command.summary, saved },
+      }));
+      return;
+    }
+    if (choice.place === "tabs") {
+      const ids = commands.map((c) => placeCurl(c, "new", useVars).placed.tabId);
+      toast.show({
+        message: `Opened ${ids.length} requests from cURL`,
+        onUndo: () => ids.forEach((id) => applyTabs((s) => discardTab(s, id, displayOrder(s.tabs, collections)))),
+      });
+      return;
+    }
+    const defs = commands.map((c) => {
+      const v = curlVersions(c, useVars);
+      return v.withVars ?? v.literal;
+    });
+    const { cols, dest } = resolveDest(collections, choice.destination);
+    const folder = choice.folderName !== "" ? newFolder(choice.folderName) : null;
+    const nodes = defs.map((d) => requestNode(d));
+    const next = insertAt(cols, dest, folder ? [{ ...folder, items: nodes }] : nodes);
+    setCollections(next);
+    expand(dest.collectionId, dest.folderId, folder?.id);
+    applyTabs((s) => openInTab(s, defs[0], { preview: false }));
+    setOpenRun(null);
+    const place = [destinations(next).find((d) => d.dest.collectionId === dest.collectionId && d.dest.folderId === dest.folderId)?.label.replace(/ \/ /g, " › ") ?? "", folder?.name]
+      .filter(Boolean)
+      .join(" › ");
+    const ids = defs.map((d) => d.id);
+    toast.show({
+      message: `Saved ${defs.length} requests to ${place}`,
+      onUndo: () => {
+        setCollections((c) => {
+          let out = ids.reduce((acc, id) => remove(acc, id), c);
+          if (folder) out = remove(out, folder.id);
+          return "newCollection" in choice.destination ? remove(out, dest.collectionId) : out;
+        });
+        applyTabs((s) => s.tabs.filter((t) => ids.includes(t.def.id)).reduce((acc, t) => discardTab(acc, t.id, displayOrder(acc.tabs, collections)), s));
+      },
+    });
   };
   const dropCurlBanner = (tabId: string) =>
     setCurlBanners((b) => {
@@ -399,6 +479,10 @@ export default function App({ active = true, shell, command }: Props) {
     if (!b) return;
     if (b.before) applyTabs((s) => updateTabDef(s, tabId, () => b.before!));
     else applyTabs((s) => discardTab(s, tabId, displayOrder(s.tabs, collections)));
+    if (b.saved) {
+      const { requestId, collectionId } = b.saved;
+      setCollections((c) => remove(collectionId ? remove(c, collectionId) : c, requestId));
+    }
     dropCurlBanner(tabId);
   };
 
@@ -759,6 +843,9 @@ export default function App({ active = true, shell, command }: Props) {
   /** Opens what quick open picked. */
   const openItem = (item: QuickItem, permanent = false) => {
     switch (item.kind) {
+      case "command":
+        openCurlDialog({ text: item.payload ?? "", openIn: "new" });
+        break;
       case "request":
       case "example": {
         const found = locate(collections, item.id);
@@ -919,15 +1006,28 @@ export default function App({ active = true, shell, command }: Props) {
           </button>
         </span>
       </div>
-      <button
-        className="primary-outline popover-new"
-        onClick={() => {
-          openDef(newRequest(), true);
-          setSwitcherOpen(false);
-        }}
-      >
-        + New request
-      </button>
+      <div className="popover-new-row">
+        <button
+          className="primary-outline popover-new"
+          onClick={() => {
+            openDef(newRequest(), true);
+            setSwitcherOpen(false);
+          }}
+        >
+          + New request
+        </button>
+        <button
+          className="secondary popover-new"
+          title="Create a request from a pasted curl command"
+          onClick={() => {
+            const dest = activeDest();
+            openCurlDialog({ dest, saveTicked: dest !== null });
+            setSwitcherOpen(false);
+          }}
+        >
+          From cURL…
+        </button>
+      </div>
       {collections.length === 0 && <p className="muted small pad">Click Save in the footer to keep a request in a collection.</p>}
       <div className="tree-scroll">
         <CollectionTree
@@ -989,6 +1089,7 @@ export default function App({ active = true, shell, command }: Props) {
           onActivate={activateTab}
           onClose={closeTabById}
           onNew={openNewTab}
+          onNewFromCurl={() => openCurlDialog()}
           onPin={(id) => applyTabs((s) => pin(s, id))}
           onUnpin={(id) => applyTabs((s) => unpin(s, id))}
           onDuplicate={(id) => applyTabs((s) => duplicateTab(s, id))}
@@ -1048,6 +1149,7 @@ export default function App({ active = true, shell, command }: Props) {
             scriptVars={scriptVars}
             onOpenVariables={openVariables}
             onPasteCurl={(text) => importCurl(text)}
+            onReplaceFromCurl={() => openCurlDialog({ openIn: "active" })}
             banner={curlBannerView}
             sendSlot={
               sending ? (
@@ -1191,6 +1293,19 @@ export default function App({ active = true, shell, command }: Props) {
         />
       </div>
 
+      {curlDialog && (
+        <CurlImportDialog
+          initialText={curlDialog.text}
+          initialOpenIn={curlDialog.openIn}
+          initialDest={curlDialog.dest}
+          saveTicked={curlDialog.saveTicked}
+          collections={collections}
+          environment={activeEnv}
+          certificates={certificateList}
+          onCreate={createFromCurl}
+          onClose={() => setCurlDialog(null)}
+        />
+      )}
       {dialog?.type === "save" && (
         <SaveRequestDialog
           collections={collections}
