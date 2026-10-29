@@ -41,6 +41,10 @@ interface Props {
   sendSlot?: React.ReactNode;
   /** Items at the top of the ⋯ menu next to Send (Save and the like). The URL and cURL items follow. Without them there is no ⋯ menu. */
   menuItems?: MenuItem[];
+  /** A curl command was pasted into the URL box. Return true when it was used (the text is then not pasted). */
+  onPasteCurl?: (text: string) => boolean;
+  /** Shown under the URL row, e.g. what a cURL import did. */
+  banner?: React.ReactNode;
 }
 
 const POSTMAN_WARNING = "Uses Postman pm.* calls; this script will not run until they are converted";
@@ -125,7 +129,7 @@ const CURL_OPEN_KEY = "rest-runner.curl-open";
  * Params, Auth, Headers and Scripts live in a Request details drawer that slides over the body. Requests mode
  * and the Testing "Edit request" dialog both use it.
  */
-export function RequestEditor({ def, onChange, envVars, envName, onEnter, detailsKey, urlPlaceholder, scriptVars, scriptsNote, onOpenVariables, sendSlot, menuItems }: Props) {
+export function RequestEditor({ def, onChange, envVars, envName, onEnter, detailsKey, urlPlaceholder, scriptVars, scriptsNote, onOpenVariables, sendSlot, menuItems, onPasteCurl, banner }: Props) {
   const [details, setDetails] = useState<DetailsState>(() => loadDetailsState(load<unknown>(detailsKey, null)));
   useEffect(() => {
     save(detailsKey, details);
@@ -216,6 +220,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, detail
               onChange={(e) => onChange({ url: e.target.value })}
               placeholder={urlPlaceholder ?? "Enter URL, e.g. https://api.example.com/users"}
               spellCheck={false}
+              onPasteCurl={onPasteCurl}
               aria-label="URL"
               title={finalUrl ? readableUrl(finalUrl) : undefined}
               onKeyDown={(e) => {
@@ -238,6 +243,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, detail
           {sendSlot}
           {fullMenu && <OverflowMenu items={fullMenu} label="More actions" />}
         </div>
+        {banner}
         {curlOpen && fullMenu && <CurlPanel def={urlInputs.def} vars={urlInputs.envVars} envName={envName} />}
       </div>
 
