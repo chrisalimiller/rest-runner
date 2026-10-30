@@ -1,7 +1,7 @@
 import { currentMasker } from "../lib/secrets";
 import { useEffect, useRef, useState } from "react";
 import { formatMs, statusTone } from "../lib/earlierSends";
-import { formatBytes } from "../lib/format";
+import { splitBytes } from "../lib/format";
 import { CANCELLED } from "../lib/http";
 import { BodyView } from "./BodyView";
 import { ScriptResults, ScriptsBadge, scriptsTabLabel, scriptTestCounts, type ScriptRun } from "./ScriptResults";
@@ -93,12 +93,12 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
             <span className="chip example-chip">{sampleLabel ?? "Sample response"}</span>
           ) : (
             <span className="hero-meta">
-              <span className="mono">{outcome.ok ? outcome.response.durationMs : outcome.durationMs}</span> ms
+              {outcome.ok ? outcome.response.durationMs : outcome.durationMs} <span className="unit">ms</span>
             </span>
           )}
           {res && !bodyNote && (
             <span className="hero-meta">
-              <span className="mono">{formatBytes(res.sizeBytes).replace(/ [KM]?B$/, "")}</span> {formatBytes(res.sizeBytes).replace(/^[\d.]+ /, "")}
+              {splitBytes(res.sizeBytes).value} <span className="unit">{splitBytes(res.sizeBytes).unit}</span>
             </span>
           )}
           {!isSample && outcome.certificate && (

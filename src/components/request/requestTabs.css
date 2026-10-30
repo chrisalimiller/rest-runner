@@ -136,9 +136,6 @@
 
 .rtab-method {
   flex: none;
-  font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 700;
 }
 
 .rtab-name {

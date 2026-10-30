@@ -38,7 +38,9 @@
   --brand: #bc8cff;
   --brand-strong: #8957e5;
   --mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  --sans: "Red Hat Text Variable", "Red Hat Text", -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
+  --display: "Red Hat Display Variable", "Red Hat Display", var(--sans);
+  --method-font: var(--sans);
   --radius: 6px;
   --radius-lg: 8px;
   --radius-xl: 10px;
@@ -201,9 +203,16 @@ button:disabled {
   font-size: 11px;
 }
 
-.method {
-  font-size: 10px;
+.method,
+.method-select {
+  font-family: var(--method-font);
   font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  font-size: 10.5px;
+}
+
+.method {
   width: 44px;
   flex-shrink: 0;
 }
@@ -246,7 +255,6 @@ button:disabled {
 }
 
 .method-select {
-  font-weight: 700;
   width: 110px;
 }
 
@@ -1112,6 +1120,7 @@ button.chip.active {
 
 .modal-head h3 {
   margin: 0;
+  font-family: var(--display);
   font-size: 15px;
 }
 
@@ -1740,7 +1749,6 @@ select {
 
 .tree-row .method {
   width: 40px;
-  font-family: var(--mono);
 }
 
 .tree-toggle {
@@ -1955,4 +1963,13 @@ select {
 .cm-json-comment {
   color: #8b949e;
   font-style: italic;
+}
+
+/* Counts in UI text: tabular digits so they line up */
+.tree-count,
+.nav-row-count,
+.tab-badge,
+.req-summary-item,
+.rtab-group {
+  font-feature-settings: "tnum" 1;
 }

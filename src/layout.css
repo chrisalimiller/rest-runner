@@ -456,12 +456,6 @@ body.dragging-split {
   color: #484f58;
 }
 
-.switcher .method {
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 600;
-}
-
 .switcher-name {
   color: var(--text);
   font-weight: 600;
@@ -677,9 +671,6 @@ body.dragging-split {
 }
 
 .quick-open-item .method {
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 600;
   width: 54px;
   flex: none;
 }
@@ -849,8 +840,7 @@ body.dragging-split {
   border-right: 1px solid var(--border);
   border-radius: 0;
   background-color: var(--bg-soft);
-  font-family: var(--mono);
-  font-weight: 600;
+  font-size: 12px;
   padding: 0 10px;
 }
 
@@ -1232,17 +1222,23 @@ button.unfilled-dot:hover {
 }
 
 .hero-text {
+  font-family: var(--display);
   font-size: 16px;
   font-weight: 600;
 }
 
 .hero-meta {
-  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: var(--bg-soft);
   white-space: nowrap;
 }
 
-.hero-meta .mono {
-  color: var(--text);
+.hero-meta .unit {
+  color: var(--muted);
 }
 
 .response-tools {
@@ -1568,6 +1564,7 @@ button.unfilled-dot:hover {
 }
 
 .suite-name {
+  font-family: var(--display);
   font-size: 18px;
   font-weight: 600;
   border-color: transparent;
@@ -1793,12 +1790,6 @@ body.dragging-case {
 }
 
 .case-name {
-  font-weight: 600;
-}
-
-.case-card .method {
-  font-family: var(--mono);
-  font-size: 11px;
   font-weight: 600;
 }
 

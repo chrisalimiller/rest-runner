@@ -43,6 +43,7 @@
 }
 
 .flow-title input {
+  font-family: var(--display);
   border-color: transparent;
   background: transparent;
   padding: 1px 6px;
