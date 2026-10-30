@@ -717,7 +717,7 @@ body.dragging-split {
   display: grid;
   grid-template-columns: minmax(380px, var(--split-a, 55fr)) 10px minmax(380px, var(--split-b, 45fr));
   background: var(--bg-inset);
-  padding: 2px 12px 12px;
+  padding: 10px 12px 12px;
 }
 
 .inspector[hidden] {
