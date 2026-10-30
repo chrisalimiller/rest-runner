@@ -1,13 +1,12 @@
 /* Open-request tabs, directly under the top bar. */
 .rtab-bar {
   flex: none;
-  height: 40px;
+  height: 44px;
   display: flex;
   align-items: center;
   gap: 4px;
   padding: 0 12px;
   background: var(--bg-inset);
-  border-bottom: 1px solid var(--border-muted);
   white-space: nowrap;
   min-width: 0;
 }
@@ -73,8 +72,8 @@
   max-width: 160px;
   overflow: hidden;
   text-overflow: ellipsis;
-  padding: 2px 8px;
-  border-radius: 4px;
+  padding: 2px 10px;
+  border-radius: var(--r-pill);
   font-size: 11px;
   font-weight: 600;
   background: var(--group-neutral-bg);
@@ -95,8 +94,8 @@
   align-items: center;
   height: 28px;
   max-width: 180px;
-  border: 1px solid transparent;
-  border-radius: 6px;
+  border: 0;
+  border-radius: var(--r-sm);
   color: var(--muted);
   transition: background-color 120ms;
 }
@@ -110,8 +109,8 @@
 }
 
 .rtab-wrap.on {
-  background: var(--btn-bg);
-  border-color: var(--border);
+  background: var(--bg-soft);
+  box-shadow: 0 0 0 1px var(--border);
   color: var(--text);
   font-weight: 600;
 }
@@ -125,7 +124,7 @@
   gap: 6px;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -217,11 +216,11 @@
   opacity: 0;
 }
 
-/* Pinned: a 34 x 28 monogram. */
+/* Pinned: a 36 x 28 monogram. */
 .rtab-wrap.pinned {
-  width: 34px;
-  border-color: var(--border);
-  background: transparent;
+  width: 36px;
+  background: var(--bg);
+  box-shadow: 0 0 0 1px var(--border-muted);
 }
 
 .rtab-wrap.pinned:hover {
@@ -229,8 +228,8 @@
 }
 
 .rtab-wrap.pinned.on {
-  background: var(--btn-bg);
-  border-color: var(--brand);
+  background: var(--bg-soft);
+  box-shadow: 0 0 0 1px var(--brand);
 }
 
 .rtab-pin {
@@ -238,7 +237,7 @@
   height: 100%;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   background: transparent;
   font-family: var(--mono);
   font-size: 10px;

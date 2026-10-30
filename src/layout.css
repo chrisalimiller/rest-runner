@@ -715,7 +715,9 @@ body.dragging-split {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(380px, var(--split-a, 55fr)) 6px minmax(380px, var(--split-b, 45fr));
+  grid-template-columns: minmax(380px, var(--split-a, 55fr)) 10px minmax(380px, var(--split-b, 45fr));
+  background: var(--bg-inset);
+  padding: 2px 12px 12px;
 }
 
 .inspector[hidden] {
@@ -736,9 +738,8 @@ body.dragging-split {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 8px 16px;
-  border-bottom: 1px solid var(--border-muted);
-  background: var(--bg-soft);
+  padding: 8px 24px;
+  background: var(--bg-inset);
   min-width: 0;
 }
 
@@ -764,16 +765,26 @@ body.dragging-split {
   font-size: 12px;
 }
 
-.request-col {
+/* Two floating panels. The request panel stays overflow: visible so the open drawer's shadow is not clipped;
+   its body block clips itself. */
+.request-col,
+.response-col {
   display: flex;
   flex-direction: column;
+  gap: 12px;
   min-width: 0;
   min-height: 0;
+  padding: 16px;
   background: var(--bg);
+  border-radius: var(--r-lg);
+  box-shadow: var(--panel-ring);
+}
+
+.response-col {
+  overflow: hidden;
 }
 
 .url-block {
-  padding: 16px 22px 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -792,6 +803,9 @@ body.dragging-split {
   /* One size whatever the label ("Send", "Send to Prod", "⚠ Send"): only the text changes. */
   width: 108px;
   padding: 0 8px;
+  border: 0;
+  border-radius: var(--r-md);
+  box-shadow: inset 0 0 0 1px var(--btn-border);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -803,7 +817,7 @@ body.dragging-split {
 
 .url-row .send.cancel {
   background: transparent;
-  border-color: var(--danger);
+  box-shadow: inset 0 0 0 1px var(--danger);
   color: var(--danger);
 }
 
@@ -814,35 +828,47 @@ body.dragging-split {
 .url-row .overflow-btn {
   height: 40px;
   width: 36px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border: 0;
+  border-radius: var(--r-md);
+  background: var(--bg-soft);
+  box-shadow: inset 0 0 0 1px var(--border);
 }
 
 .url-bar {
   flex: 1;
   min-width: 0;
   display: flex;
+  align-items: center;
   height: 40px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  padding: 5px;
+  border: 0;
+  border-radius: var(--r-md);
   background: var(--bg-inset);
+  box-shadow: inset 0 0 0 1px var(--border);
   overflow: hidden;
 }
 
 .url-bar:focus-within {
-  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
+/* The method is a tinted pill inside the field. */
 .url-bar .method-select {
   width: 92px;
+  height: 30px;
   flex: none;
   border: 0;
-  border-right: 1px solid var(--border);
-  border-radius: 0;
-  background-color: var(--bg-soft);
+  border-radius: var(--r-sm);
   font-size: 12px;
   padding: 0 10px;
+  background-color: color-mix(in srgb, var(--other) 14%, transparent);
 }
+
+.url-bar .method-select.m-get { background-color: color-mix(in srgb, var(--get) 14%, transparent); }
+.url-bar .method-select.m-post { background-color: color-mix(in srgb, var(--post) 14%, transparent); }
+.url-bar .method-select.m-put { background-color: color-mix(in srgb, var(--put) 14%, transparent); }
+.url-bar .method-select.m-patch { background-color: color-mix(in srgb, var(--patch) 14%, transparent); }
+.url-bar .method-select.m-delete { background-color: color-mix(in srgb, var(--delete) 14%, transparent); }
 
 .url-bar .url-input {
   flex: 1;
@@ -854,10 +880,11 @@ body.dragging-split {
 }
 
 .body-mode-select {
-  height: 26px;
-  padding: 0 8px;
+  height: 24px;
+  padding: 0 10px;
   font-size: 12px;
-  border-radius: var(--radius);
+  border: 0;
+  border-radius: var(--r-pill);
   background-color: var(--bg-soft);
 }
 
@@ -906,12 +933,15 @@ body.dragging-split {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 0 12px 0 6px;
+  height: 24px;
+  margin-right: 2px;
+  padding: 0 10px 0 8px;
   font-size: 11px;
   font-weight: 600;
   color: var(--warn);
-  background: none;
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
   border: 0;
+  border-radius: var(--r-pill);
 }
 
 button.unfilled-dot:hover {
@@ -925,15 +955,13 @@ button.unfilled-dot:hover {
   background: var(--warn);
 }
 
-/* The summary line: what Request details holds, the certificate, and the body controls. */
+/* The summary line: what Request details holds and the certificate, as pills. */
 .req-summary {
   flex: none;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px 10px;
-  padding: 8px 22px;
-  border-bottom: 1px solid var(--border-muted);
+  gap: 6px;
   font-size: 12px;
   color: var(--muted);
 }
@@ -942,11 +970,12 @@ button.unfilled-dot:hover {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  height: 26px;
-  padding: 0 10px;
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--r-pill);
   background: var(--bg-soft);
+  box-shadow: inset 0 0 0 1px var(--border);
   color: var(--text);
   font-size: 12px;
 }
@@ -960,6 +989,7 @@ button.unfilled-dot:hover {
   display: inline-flex;
   flex-wrap: wrap;
   align-items: center;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -970,13 +1000,16 @@ button.unfilled-dot:hover {
 }
 
 .req-summary-dot {
-  margin: 0 6px;
+  display: none;
 }
 
 .req-summary-link {
-  color: var(--muted);
+  height: 26px;
+  padding: 0 10px;
+  border-radius: var(--r-pill);
+  background: color-mix(in srgb, var(--other) 12%, transparent);
+  color: var(--text-soft);
   font-size: 12px;
-  padding: 2px 0;
   max-width: 260px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -984,13 +1017,17 @@ button.unfilled-dot:hover {
 }
 
 .req-summary-link:hover {
+  background: color-mix(in srgb, var(--other) 16%, transparent);
   color: var(--text);
-  text-decoration: underline;
-  text-underline-offset: 3px;
 }
 
 .req-summary-link.missing {
-  color: var(--bad);
+  background: color-mix(in srgb, var(--bad) 12%, transparent);
+  color: var(--danger);
+}
+
+.req-summary-link.missing:hover {
+  background: color-mix(in srgb, var(--bad) 16%, transparent);
 }
 
 .req-summary-end {
@@ -1000,14 +1037,69 @@ button.unfilled-dot:hover {
   gap: 10px;
 }
 
-/* Body: fills what is left of the column; the drawer slides over it. */
+/* Body: fills what is left of the column; the drawer floats over it. */
 .req-body-area {
   position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+
+/* The soft code block: rounded, with a header strip. A ::after layer draws the ring above the editor's own background. */
+.req-body-block,
+.req-details.docked {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--r-md);
+  background: var(--bg-inset);
   overflow: hidden;
+}
+
+.req-body-block::after,
+.req-details.docked::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--border-muted);
+  pointer-events: none;
+}
+
+.req-body-block:focus-within::after {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.req-body-head,
+.block-head {
+  flex: none;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px 0 12px;
+  min-width: 0;
+}
+
+.block-icon-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--muted);
+}
+
+.block-icon-btn:hover:not(:disabled) {
+  background: var(--btn-bg);
+  color: var(--text);
 }
 
 .req-body-area .body-editor {
@@ -1019,7 +1111,7 @@ button.unfilled-dot:hover {
 
 .req-body-area .body-editor > .muted,
 .req-body-area .body-editor > .warning {
-  padding: 12px 22px;
+  padding: 4px 16px 12px;
   margin: 0;
 }
 
@@ -1034,20 +1126,37 @@ button.unfilled-dot:hover {
   box-shadow: none;
 }
 
-.req-body-area .body-editor > .kv {
-  margin: 4px 22px;
+.req-body-area .cm-content {
+  padding: 4px 0 16px;
 }
 
+.req-body-area .body-editor > .kv {
+  margin: 4px 12px;
+  width: calc(100% - 24px);
+}
+
+/* Line numbers (request and response bodies only) */
+.code-editor.with-lines .cm-gutters {
+  background: transparent;
+  border: 0;
+  color: #484f58;
+}
+
+.code-editor.with-lines .cm-lineNumbers .cm-gutterElement {
+  padding: 0 12px 0 16px;
+}
+
+/* Request details: a floating sheet over the body block. */
 .req-details {
   position: absolute;
-  inset: 0;
+  inset: 0 8px 8px 8px;
   z-index: 3;
   display: flex;
   flex-direction: column;
+  border-radius: var(--r-lg);
   background: var(--bg-soft);
-  border-top: 1px solid var(--border);
-  box-shadow: 0 -12px 32px rgba(1, 4, 9, 0.6);
-  transform: translateY(100%);
+  box-shadow: 0 0 0 1px var(--border), 0 18px 40px rgba(1, 4, 9, 0.65);
+  transform: translateY(calc(100% + 24px));
   visibility: hidden;
   transition: transform 150ms ease, visibility 0s linear 150ms;
 }
@@ -1058,12 +1167,10 @@ button.unfilled-dot:hover {
   transition: transform 150ms ease;
 }
 
-/* Methods without a body: the details sit where the body would be. */
+/* Methods without a body: the details sit where the body would be, in the same rounded block. */
 .req-details.docked {
-  position: static;
-  flex: 1;
-  min-height: 0;
-  border-top: 0;
+  inset: auto;
+  z-index: auto;
   box-shadow: none;
   transform: none;
   visibility: visible;
@@ -1080,24 +1187,45 @@ button.unfilled-dot:hover {
 .req-details-head {
   flex: none;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 0 14px 0 22px;
+  padding: 10px 12px 6px;
   min-width: 0;
 }
 
+/* The drawer's tabs are a pill segmented control. */
 .req-details-head .tabs {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
   flex-wrap: wrap;
-  border-bottom: 0;
+  gap: 2px;
+  padding: 2px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.req-details-head .tabs button {
+  height: 26px;
+  margin: 0;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--r-pill);
+  font-size: 12px;
+}
+
+.req-details-head .tabs button.active {
+  background: var(--btn-bg);
+  color: var(--text);
 }
 
 .req-details-mark {
   margin-left: 6px;
   color: var(--muted);
   font-size: 11px;
+  font-feature-settings: "tnum" 1;
 }
 
 .req-details-mark.warn {
@@ -1127,6 +1255,9 @@ button.unfilled-dot:hover {
   align-self: center;
   width: 28px;
   height: 28px;
+  border-radius: 50%;
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--border);
   font-size: 18px;
   line-height: 1;
 }
@@ -1135,41 +1266,80 @@ button.unfilled-dot:hover {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 8px 22px 16px;
-  border-top: 1px solid var(--border-muted);
+  padding: 4px 12px 12px;
 }
 
-.req-details-body .kv th:first-child,
-.req-details-body .kv td:first-child {
-  padding-left: 0;
+.req-details-body .kv {
+  border-collapse: separate;
+  border-spacing: 0 6px;
 }
 
-/* Splitter */
+.req-details-body .kv th,
+.req-details-body .kv td {
+  border: 0;
+}
+
+.req-details-body .kv tbody tr {
+  background: var(--bg);
+}
+
+.req-details-body .kv td:first-child,
+.req-details-body .kv th:first-child {
+  padding-left: 8px;
+  border-radius: var(--r-sm) 0 0 var(--r-sm);
+}
+
+.req-details-body .kv td:last-child,
+.req-details-body .kv th:last-child {
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+}
+
+.req-details-body .kv tbody tr:hover {
+  background: var(--bg);
+}
+
+/* The empty "add" row keeps a dashed ring. */
+.req-details-body .kv tbody tr:last-child {
+  background: transparent;
+  box-shadow: 0 0 0 1px var(--border);
+  border-radius: var(--r-sm);
+}
+
+.req-details-body .kv tbody tr:last-child td {
+  background: transparent;
+}
+
+/* Splitter: no line, a pill handle in a transparent 10px track. */
 .splitter {
+  position: relative;
   cursor: col-resize;
-  background: var(--border-muted);
-  background-clip: content-box;
-  padding: 0 2.5px;
+  background: transparent;
   touch-action: none;
 }
 
-.splitter:hover,
-.splitter:focus-visible {
-  background-color: var(--accent);
+.splitter::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+  border-radius: var(--r-pill);
+  background: var(--border);
 }
 
-/* Response column */
-.response-col {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  min-height: 0;
-  background: var(--bg-inset);
+.splitter:hover::before,
+.splitter:focus-visible::before {
+  background: var(--accent);
+}
+
+.splitter:focus-visible {
+  outline: none;
 }
 
 .pane-switch {
   display: flex;
-  padding: 12px 22px 0;
   flex: none;
 }
 
@@ -1179,6 +1349,7 @@ button.unfilled-dot:hover {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  gap: 12px;
 }
 
 .response-main[hidden],
@@ -1186,37 +1357,47 @@ button.unfilled-dot:hover {
   display: none;
 }
 
-.batch-main {
-  padding: 12px 22px;
-}
-
 .response-col .response {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  gap: 12px;
 }
 
 .response-top {
-  padding: 18px 22px 14px;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  border-bottom: 1px solid var(--border-muted);
   flex: none;
 }
 
 .status-hero {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: 6px 18px;
   min-width: 0;
 }
 
+/* The code and text sit in a tile tinted by the status. */
+.status-tile {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 4px 14px 4px 12px;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--other) 10%, transparent);
+}
+
+.status-tile.tint-ok { background: color-mix(in srgb, var(--ok) 10%, transparent); }
+.status-tile.tint-warn { background: color-mix(in srgb, var(--warn) 10%, transparent); }
+.status-tile.tint-bad { background: color-mix(in srgb, var(--bad) 10%, transparent); }
+.status-tile.tint-redirect { background: color-mix(in srgb, var(--redirect) 10%, transparent); }
+
 .hero-code {
   font-family: var(--mono);
-  font-size: 26px;
+  font-size: 22px;
   font-weight: 600;
   line-height: 1.1;
 }
@@ -1248,6 +1429,63 @@ button.unfilled-dot:hover {
   gap: 8px 14px;
 }
 
+/* Request and response panels: segmented switches are pills. */
+.response-col .segmented,
+.request-col .segmented {
+  border: 0;
+  border-radius: var(--r-pill);
+  background: var(--bg-inset);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.response-col .segmented button,
+.request-col .segmented button {
+  border-radius: var(--r-pill);
+}
+
+.response-col .segmented button.on,
+.request-col .segmented button.on {
+  background: var(--btn-bg);
+  font-weight: 600;
+}
+
+.segmented.small button {
+  height: 22px;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
+/* The response body block, like the request body block. */
+.response-block {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--r-md);
+  background: var(--bg-inset);
+  overflow: hidden;
+}
+
+.response-block::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 1px var(--border-muted);
+  pointer-events: none;
+}
+
+.block-head-type {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
 .response-col .response-body {
   flex: 1;
   min-height: 0;
@@ -1264,20 +1502,20 @@ button.unfilled-dot:hover {
 }
 
 .response-col .response-body > .kv {
-  margin: 8px 22px;
-  width: calc(100% - 44px);
+  margin: 4px 12px 8px;
+  width: calc(100% - 24px);
 }
 
 .response-col .response-body > .code-view {
-  padding: 16px 22px;
+  padding: 4px 16px 16px;
 }
 
 .error-box {
-  margin: 16px 22px;
+  margin: 12px;
   padding: 12px 14px;
   border: 1px solid rgba(248, 81, 73, 0.4);
   background: rgba(248, 81, 73, 0.08);
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-md);
   color: var(--text);
 }
 
@@ -1299,7 +1537,7 @@ button.unfilled-dot:hover {
   color: var(--muted);
 }
 
-/* Empty and sending states */
+/* Empty and sending states sit in the same rounded block. */
 .response.state {
   flex: 1;
   display: flex;
@@ -1309,6 +1547,9 @@ button.unfilled-dot:hover {
   gap: 6px;
   text-align: center;
   padding: 24px;
+  border-radius: var(--r-md);
+  background: var(--bg-inset);
+  box-shadow: inset 0 0 0 1px var(--border-muted);
 }
 
 .response.state p {
@@ -1357,8 +1598,6 @@ button.unfilled-dot:hover {
 
 /* Earlier sends strip */
 .earlier-sends {
-  border-top: 1px solid var(--border-muted);
-  padding: 10px 22px 14px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -1374,8 +1613,9 @@ button.unfilled-dot:hover {
 .send-pill {
   height: 26px;
   padding: 0 10px;
-  border: 1px solid var(--border);
+  border: 0;
   border-radius: 999px;
+  background: color-mix(in srgb, var(--other) 12%, transparent);
   font-family: var(--mono);
   font-size: 11px;
   white-space: nowrap;
@@ -1384,13 +1624,22 @@ button.unfilled-dot:hover {
 .send-pill:hover,
 .send-pill.current {
   background: var(--bg-soft);
+  box-shadow: inset 0 0 0 1px var(--border);
 }
 
-.send-pill.tone-ok { color: var(--ok); }
-.send-pill.tone-redirect { color: var(--redirect); }
-.send-pill.tone-warn { color: var(--warn); }
-.send-pill.tone-bad { color: var(--bad); }
+.send-pill.tone-ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
+.send-pill.tone-redirect { color: var(--redirect); background: color-mix(in srgb, var(--redirect) 12%, transparent); }
+.send-pill.tone-warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.send-pill.tone-bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
 .send-pill.tone-muted { color: var(--muted); }
+
+.send-pill.tone-ok:hover,
+.send-pill.tone-redirect:hover,
+.send-pill.tone-warn:hover,
+.send-pill.tone-bad:hover,
+.send-pill.current {
+  background: var(--bg-soft);
+}
 
 /* Batch pane inside the response column */
 .batch-main .batch {
@@ -1408,6 +1657,10 @@ button.unfilled-dot:hover {
     display: none;
   }
 
+  .inspector {
+    gap: 10px;
+  }
+
   .request-col {
     flex: none;
     min-height: 520px;
@@ -1416,7 +1669,6 @@ button.unfilled-dot:hover {
   .response-col {
     flex: none;
     min-height: 480px;
-    border-top: 1px solid var(--border-muted);
   }
 }
 
@@ -2042,11 +2294,13 @@ details.case-try .call-detail {
   overflow: hidden;
 }
 
+/* In the Testing dialog the modal is the panel: no background or ring. */
 .request-col.in-modal {
   flex: 1;
   min-height: 0;
   border-radius: 0 0 12px 12px;
   background: var(--bg-overlay);
+  box-shadow: none;
 }
 
 /* Last run panel */
@@ -2368,7 +2622,7 @@ details.case-try .call-detail {
 }
 
 .response-col .response-body .code-view-frame {
-  padding: 8px 10px;
+  padding: 0;
 }
 
 /* Request scripts (Scripts section of the request editor) */
@@ -2436,7 +2690,7 @@ details.case-try .call-detail {
 }
 
 .response-col .response-body > .script-results {
-  padding: 12px 22px 16px;
+  padding: 4px 16px 16px;
 }
 
 .script-results .error-box {

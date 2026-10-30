@@ -44,6 +44,12 @@
   --radius: 6px;
   --radius-lg: 8px;
   --radius-xl: 10px;
+  /* Soft scale for the Requests section */
+  --r-sm: 8px; /* tabs, rows in the details drawer, small buttons */
+  --r-md: 12px; /* URL field, Send, more, code blocks, status tile */
+  --r-lg: 16px; /* request and response panels, the details drawer */
+  --r-pill: 999px;
+  --panel-ring: 0 0 0 1px var(--border-muted);
   --ok-subtle: rgba(63, 185, 80, 0.15);
   --bad-subtle: rgba(248, 81, 73, 0.15);
   --text-soft: #c9d1d9;
@@ -1444,6 +1450,12 @@ textarea {
   box-shadow: inset 0 0 0 1px #1f6feb;
 }
 
+/* In the soft body block the block itself shows the focus ring. */
+.req-body-block .code-editor-frame:focus-within {
+  border-color: transparent;
+  box-shadow: none;
+}
+
 .code-editor {
   flex: 1;
   min-height: 0;
@@ -1452,7 +1464,8 @@ textarea {
 .cm-template-var {
   color: var(--placeholder-fg) !important;
   background: var(--placeholder-bg);
-  border-radius: 3px;
+  border-radius: 4px;
+  padding: 0 2px;
 }
 
 .cm-template-var * {

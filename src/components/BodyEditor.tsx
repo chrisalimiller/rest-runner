@@ -17,6 +17,8 @@ interface Props {
   onFormChange: (rows: KeyValue[]) => void;
   /** Show the mode choice, JSON status and Format link. Off when a section header shows them instead. */
   toolbar?: boolean;
+  /** Line numbers in the text and JSON editor. */
+  lineNumbers?: boolean;
 }
 
 const MODES: [BodyMode, string][] = [
@@ -34,7 +36,7 @@ function lineCol(text: string, offset: number): string {
   return `line ${line}, column ${col}`;
 }
 
-export function BodyEditor({ mode, body, formBody, placeholderVars, methodAllowsBody, onModeChange, onBodyChange, onFormChange, toolbar = true }: Props) {
+export function BodyEditor({ mode, body, formBody, placeholderVars, methodAllowsBody, onModeChange, onBodyChange, onFormChange, toolbar = true, lineNumbers = false }: Props) {
   const variables = useVariables();
   const problem = mode === "json" ? findJsonProblem(body) : null;
 
@@ -79,6 +81,7 @@ export function BodyEditor({ mode, body, formBody, placeholderVars, methodAllows
               value={body}
               onChange={onBodyChange}
               json={mode === "json"}
+              lineNumbers={lineNumbers}
               variableHover={variables ? { show: variables.hoverShow, leave: variables.hoverLeave, open: variables.hoverOpen } : undefined}
               ariaLabel="Request body"
               placeholder={mode === "json" ? 'Paste or type JSON, e.g. {"name": "{{name}}"}' : ""}

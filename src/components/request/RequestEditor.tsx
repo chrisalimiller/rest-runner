@@ -12,6 +12,7 @@ import { BodyEditor } from "../BodyEditor";
 import { KeyValueEditor } from "../KeyValueEditor";
 import { ScriptEditor } from "../testing/ScriptEditor";
 import { OverflowMenu, type MenuItem } from "../shell/OverflowMenu";
+import { CopyIcon } from "../shell/Icons";
 import { useToast } from "../shell/Toast";
 import { useCertificates } from "../CertificatesDialog";
 import { CertificateChip } from "./CertificateChip";
@@ -257,9 +258,15 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, detail
         detailsId={detailsId}
         onToggle={toggleDetails}
         onPick={pickTab}
-        end={
-          methodAllowsBody ? (
-            <>
+        end={methodAllowsBody ? undefined : <span className="muted">No body for {def.method}</span>}
+      >
+        <CertificateChip url={finalUrl} skipped={!!def.noCertificate} onSkip={(skip) => onChange({ noCertificate: skip || undefined })} />
+      </RequestSummary>
+
+      <div className="req-body-area">
+        {methodAllowsBody && (
+          <div className="req-body-block">
+            <div className="req-body-head">
               <select className="body-mode-select" value={def.bodyMode} onChange={(e) => onChange({ bodyMode: e.target.value as BodyMode })} aria-label="Body type">
                 {BODY_MODES.map((m) => (
                   <option key={m} value={m}>
@@ -268,6 +275,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, detail
                 ))}
               </select>
               {def.bodyMode === "json" && def.body.trim() !== "" && <span className={`json-status ${problem ? "bad" : "ok"}`}>{problem ? "Invalid JSON" : "Valid"}</span>}
+              <span className="hero-gap" />
               {def.bodyMode === "json" && (
                 <button
                   className="link-btn small"
@@ -281,28 +289,25 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, detail
                   Format
                 </button>
               )}
-            </>
-          ) : (
-            <span className="muted">No body for {def.method}</span>
-          )
-        }
-      >
-        <CertificateChip url={finalUrl} skipped={!!def.noCertificate} onSkip={(skip) => onChange({ noCertificate: skip || undefined })} />
-      </RequestSummary>
-
-      <div className="req-body-area">
-        {methodAllowsBody && (
-          <BodyEditor
-            toolbar={false}
-            mode={def.bodyMode}
-            body={def.body}
-            formBody={def.formBody}
-            placeholderVars={envVars}
-            methodAllowsBody={methodAllowsBody}
-            onModeChange={(bodyMode) => onChange({ bodyMode })}
-            onBodyChange={(b) => onChange({ body: b })}
-            onFormChange={(formBody) => onChange({ formBody })}
-          />
+              {(def.bodyMode === "json" || def.bodyMode === "text") && (
+                <button className="block-icon-btn" onClick={() => copyToClipboard(def.body, "Copied the body")} disabled={def.body === ""} aria-label="Copy body" title="Copy body">
+                  <CopyIcon />
+                </button>
+              )}
+            </div>
+            <BodyEditor
+              toolbar={false}
+              lineNumbers
+              mode={def.bodyMode}
+              body={def.body}
+              formBody={def.formBody}
+              placeholderVars={envVars}
+              methodAllowsBody={methodAllowsBody}
+              onModeChange={(bodyMode) => onChange({ bodyMode })}
+              onBodyChange={(b) => onChange({ body: b })}
+              onFormChange={(formBody) => onChange({ formBody })}
+            />
+          </div>
         )}
         <RequestDetailsDrawer id={detailsId} open={open} docked={docked} tab={details.tab} onTab={(tab) => setDetails((d) => ({ ...d, tab }))} onClose={closeDetails} marks={marks} warnings={postmanWarning ? { scripts: postmanWarning } : undefined}>
           {details.tab === "params" && <KeyValueEditor rows={def.params} onChange={(rows) => onChange({ params: rows })} placeholderVars={envVars} />}

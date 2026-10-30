@@ -5,7 +5,7 @@ import { splitBytes } from "../lib/format";
 import { CANCELLED } from "../lib/http";
 import { BodyView } from "./BodyView";
 import { ScriptResults, ScriptsBadge, scriptsTabLabel, scriptTestCounts, type ScriptRun } from "./ScriptResults";
-import { AlertIcon, LockIcon, PlayIcon } from "./shell/Icons";
+import { AlertIcon, CopyIcon, LockIcon, PlayIcon } from "./shell/Icons";
 import { MOD_KEY } from "./shell/TopBar";
 import type { SendOutcome } from "../lib/types";
 
@@ -81,13 +81,16 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
     (isSample && chosenTab === "request") || ((!res || bodyNote) && chosenTab === "headers") || (!hasScripts && chosenTab === "scripts") ? "body" : chosenTab;
   const tone = statusTone(res ? res.status : null);
   const mask = currentMasker();
+  const contentType = res?.headers.find(([k]) => k.toLowerCase() === "content-type")?.[1].split(";")[0].trim() || "No content type";
 
   return (
     <section className="response">
       <div className="response-top">
         <div className="status-hero">
-          <span className={`hero-code tone-${tone}`}>{res ? res.status : "ERR"}</span>
-          <span className="hero-text">{res ? res.statusText || "" : cancelled ? "Cancelled" : "No response"}</span>
+          <span className={`status-tile tint-${tone}`}>
+            <span className={`hero-code tone-${tone}`}>{res ? res.status : "ERR"}</span>
+            <span className="hero-text">{res ? res.statusText || "" : cancelled ? "Cancelled" : "No response"}</span>
+          </span>
           <span className="hero-gap" />
           {cancelled ? null : isSample ? (
             <span className="chip example-chip">{sampleLabel ?? "Sample response"}</span>
@@ -134,26 +137,35 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
               </button>
             )}
           </div>
-          <span className="hero-gap" />
-          {tab === "body" && res && !bodyNote && (
-            <>
-              <button className="link-btn muted-link small" onClick={() => setPretty((p) => !p)} aria-pressed={!pretty} title={pretty ? "Show the body as received" : "Pretty-print JSON"}>
-                {pretty ? "Raw" : "Pretty"}
-              </button>
-              <button className="link-btn small" onClick={() => navigator.clipboard?.writeText(res.body)}>
-                Copy
-              </button>
-            </>
-          )}
         </div>
       </div>
 
+      <div className="response-block">
+        {tab === "body" && res && !bodyNote && (
+          <div className="block-head">
+            <span className="block-head-type" title="Content-Type">
+              {contentType}
+            </span>
+            <span className="hero-gap" />
+            <div className="segmented small" role="group" aria-label="Body view">
+              <button className={pretty ? "on" : ""} aria-pressed={pretty} onClick={() => setPretty(true)} title="Pretty-print JSON">
+                Pretty
+              </button>
+              <button className={!pretty ? "on" : ""} aria-pressed={!pretty} onClick={() => setPretty(false)} title="Show the body as received">
+                Raw
+              </button>
+            </div>
+            <button className="block-icon-btn" onClick={() => navigator.clipboard?.writeText(res.body)} aria-label="Copy response body" title="Copy response body">
+              <CopyIcon />
+            </button>
+          </div>
+        )}
       <div className="response-body">
         {tab === "body" &&
           (res && bodyNote ? (
             <p className="muted small body-note">{bodyNote}</p>
           ) : res ? (
-            <BodyView body={res.body} pretty={pretty} />
+            <BodyView body={res.body} pretty={pretty} lineNumbers />
           ) : (
             <div className="error-box">
               <div className="error-title">
@@ -198,6 +210,7 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
             {outcome.request.body ? `\n${mask(outcome.request.body)}` : ""}
           </pre>
         )}
+      </div>
       </div>
     </section>
   );
