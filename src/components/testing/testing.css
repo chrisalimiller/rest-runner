@@ -123,7 +123,6 @@ ol.cases li.disabled .case-pick {
 }
 
 .case-pick .method {
-  font-size: 10px;
   width: 44px;
   flex: none;
 }

@@ -11,6 +11,7 @@ import {
   Decoration,
   EditorView,
   keymap,
+  lineNumbers as lineNumbersExt,
   MatchDecorator,
   placeholder as placeholderExt,
   ViewPlugin,
@@ -57,7 +58,7 @@ const editorTheme = EditorView.theme(
     ".cm-activeLine": { backgroundColor: "transparent" },
     ".cm-matchingBracket": { backgroundColor: "rgba(63, 185, 80, 0.25)", outline: "1px solid rgba(63, 185, 80, 0.6)" },
     ".cm-placeholder": { color: "var(--muted)" },
-    ".cm-template-var": { textDecoration: "underline dotted", textUnderlineOffset: "3px" },
+    ".cm-template-var": { borderRadius: "4px", padding: "0 2px", textDecoration: "underline dotted", textUnderlineOffset: "3px" },
     "&.hover-var .cm-content, &.hover-var .cm-line": { cursor: "help" },
     ".cm-tooltip": { backgroundColor: "var(--bg-overlay)", border: "1px solid var(--border)", color: "var(--text)", borderRadius: "6px" },
     ".cm-diagnostic-error": { borderLeft: "3px solid var(--danger)" },
@@ -197,6 +198,8 @@ interface Props {
   /** Python or Bash highlighting, for showing exported scripts. Long lines scroll instead of wrapping. */
   language?: ScriptViewLanguage;
   readOnly?: boolean;
+  /** Shows a line-number gutter (the request and response bodies; script editors leave it off). */
+  lineNumbers?: boolean;
   /** Opens the variable card on {{placeholders}} (hover, and Ctrl/Cmd+I with the caret in one). Left out where there are no variables to show. */
   variableHover?: VariableHover;
   placeholder?: string;
@@ -273,6 +276,7 @@ export function CodeEditor({
   onView,
   language,
   readOnly = false,
+  lineNumbers = false,
   variableHover,
   placeholder,
   ariaLabel,
@@ -306,6 +310,7 @@ export function CodeEditor({
       editorTheme,
       language ? [] : EditorView.lineWrapping,
       placeholderMarks,
+      lineNumbers ? lineNumbersExt() : [],
       modeCompartment.current.of(modeExtensions()),
       EditorView.contentAttributes.of({ "aria-label": ariaLabel ?? "Code", spellcheck: "false" }),
     ];
@@ -339,7 +344,7 @@ export function CodeEditor({
     };
     // The editor is created once; value, mode and handlers are synced below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [readOnly]);
+  }, [readOnly, lineNumbers]);
 
   // Keep the editor in step when the value changes from outside (loading a saved request, Format button, new response).
   useEffect(() => {
@@ -354,5 +359,5 @@ export function CodeEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isJson, isJs, language, findIssues]);
 
-  return <div ref={host} className={`code-editor ${readOnly ? "readonly" : ""}`} />;
+  return <div ref={host} className={`code-editor ${readOnly ? "readonly" : ""} ${lineNumbers ? "with-lines" : ""}`} />;
 }
