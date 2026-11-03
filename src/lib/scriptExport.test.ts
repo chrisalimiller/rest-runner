@@ -312,6 +312,7 @@ describe.skipIf(!curl && !python)("script export against a server", () => {
       const report = parseCsv(readFileSync(join(sub, "out.csv"), "utf8"));
       expect(report.rows[0].status).toBe("201");
       expect(report.rows[0].response_headers).not.toMatch(/location/i);
+      expect(report.rows[0].final_url).toBe(`http://127.0.0.1:${port}/users/redirected`);
     });
   }
 });

@@ -56,7 +56,7 @@ describe("test reports", () => {
     expect(csv).toContain('"[post] hello, ""world"""');
     const [head] = parseRecords(csv.slice(1).trimEnd(), ",");
     const at = head.indexOf("started_at");
-    expect(head.slice(at + 1, at + 14)).toEqual([...CALL_COLUMNS]);
+    expect(head.slice(at + 1, at + 1 + CALL_COLUMNS.length)).toEqual([...CALL_COLUMNS]);
     expect(head).toContain("status_text");
     expect(head).toContain("response_size_bytes");
   });

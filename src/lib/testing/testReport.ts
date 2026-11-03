@@ -190,6 +190,7 @@ ${
   o
     ? `<h4>Request</h4>
 <p class="mono">${esc(o.request.method)} ${esc(o.request.url)}</p>
+${o.ok && o.finalUrl ? `<p class="muted">Redirected to <span class="mono">${esc(o.finalUrl)}</span></p>` : ""}
 ${o.certificate ? `<p class="muted">Certificate: ${esc(certificateLabel(o.certificate))}</p>` : ""}
 ${kvTable(o.request.headers)}
 ${o.request.body ? `<pre>${esc(pretty(reportBody(o.request.body, o.request.headers)))}</pre>` : ""}

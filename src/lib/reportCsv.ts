@@ -29,6 +29,7 @@ export const CALL_COLUMNS = [
   "response_size_bytes",
   "error",
   "certificate",
+  "final_url",
 ] as const;
 
 /** Excel keeps 32,767 characters per cell and drops the rest without a word, so cells are cut a little under that. */
@@ -102,6 +103,7 @@ export function callCells(o: SendOutcome | null | undefined, options: CsvOptions
     res?.sizeBytes ?? "",
     o.ok ? "" : safeCell(o.error, secrets, true),
     certificateLabel(o.certificate),
+    o.ok && o.finalUrl ? safeCell(o.finalUrl, secrets, true) : "",
   ];
 }
 

@@ -62,6 +62,8 @@ pub struct HttpResponse {
     pub body: String,
     pub size_bytes: usize,
     pub duration_ms: u64,
+    /// Headers this app added because the request had none of its own (User-Agent, Accept), so reports can list what was really sent.
+    pub added_headers: Vec<(String, String)>,
 }
 
 pub const CANCELLED: &str = "Request cancelled";
@@ -163,8 +165,9 @@ async fn perform(client: Client, req: HttpRequest) -> Result<HttpResponse, Strin
     let method = Method::from_bytes(req.method.as_bytes())
         .map_err(|_| format!("Invalid HTTP method: {}", req.method))?;
     let mut builder = client.request(method, &req.url);
-    for (name, value) in default_headers(&req.headers) {
-        builder = builder.header(name, value);
+    let added = default_headers(&req.headers);
+    for (name, value) in &added {
+        builder = builder.header(*name, *value);
     }
     for (name, value) in &req.headers {
         builder = builder.header(name.as_str(), value.as_str());
@@ -190,6 +193,7 @@ async fn perform(client: Client, req: HttpRequest) -> Result<HttpResponse, Strin
         body: String::from_utf8_lossy(&bytes).into_owned(),
         size_bytes: bytes.len(),
         duration_ms: start.elapsed().as_millis() as u64,
+        added_headers: added.iter().map(|(n, v)| (n.to_string(), v.to_string())).collect(),
     })
 }
 
@@ -292,6 +296,10 @@ mod tests {
         let sent = res.body.to_lowercase();
         assert!(sent.contains("user-agent: restrunner/"), "{sent}");
         assert!(sent.contains("accept: */*"), "{sent}");
+        let names: Vec<&str> = res.added_headers.iter().map(|(n, _)| n.as_str()).collect();
+        assert_eq!(names, ["User-Agent", "Accept"]);
+        assert!(res.added_headers[0].1.starts_with("RestRunner/"));
+        assert_eq!(res.added_headers[1].1, "*/*");
     }
 
     #[tokio::test]
@@ -305,6 +313,7 @@ mod tests {
         assert!(!sent.contains("restrunner"), "{sent}");
         assert_eq!(sent.matches("accept:").count(), 1, "{sent}");
         assert!(sent.contains("accept: application/json"), "{sent}");
+        assert!(res.added_headers.is_empty());
     }
 
     #[tokio::test]

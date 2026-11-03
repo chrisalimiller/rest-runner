@@ -312,6 +312,9 @@ def send(opener, prepared, timeout):
     finally:
         res.close()
     status = res.status if hasattr(res, "status") else res.code
+    final_url = res.geturl()
+    if final_url.rstrip("/") == prepared["url"].rstrip("/"):
+        final_url = ""
     return {
         "ok": True,
         "sent_at": sent_at,
@@ -321,6 +324,7 @@ def send(opener, prepared, timeout):
         "headers": list(res.headers.items()),
         "body": raw.decode("utf-8", errors="replace"),
         "size": len(raw),
+        "final_url": final_url,
     }
 
 
@@ -479,7 +483,7 @@ def main():
         writer = csv.writer(f)
         writer.writerow(
             ["row", "result", "status", "status_text", "duration_ms", "sent_at", "method", "url", "request_headers", "request_body",
-             "response_headers", "response_body", "response_size_bytes", "error"] + ["var:" + c for c in columns]
+             "response_headers", "response_body", "response_size_bytes", "error", "final_url"] + ["var:" + c for c in columns]
         )
         for index, (prepared, outcome, failed) in finished:
             ok = outcome["ok"]
@@ -489,7 +493,7 @@ def main():
                  safe_cell(header_lines(prepared["headers"])), safe_cell(report_body(prepared["body"] or "", prepared["headers"])),
                  safe_cell(header_lines(outcome["headers"])) if ok else "",
                  safe_cell(report_body(outcome["body"], outcome["headers"], outcome["size"])) if ok else "",
-                 outcome["size"] if ok else "", "" if ok else safe_cell(outcome["error"])]
+                 outcome["size"] if ok else "", "" if ok else safe_cell(outcome["error"]), safe_cell(outcome["final_url"]) if ok else ""]
                 + [rows[index].get(c, "") for c in columns]
             )
 

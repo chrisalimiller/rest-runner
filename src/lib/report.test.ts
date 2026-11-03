@@ -47,9 +47,9 @@ describe("toCsvReport", () => {
     expect(second[col("status")]).toBe("500");
     expect(second[col("notes")]).toMatch(/HTTP 500 counted as a failure/);
     expect(records).toHaveLength(3);
-    expect(head.slice(0, 20)).toEqual([
+    expect(head.slice(0, 21)).toEqual([
       "row", "result", "status", "status_text", "duration_ms", "sent_at", "method", "url", "request_headers", "request_body",
-      "response_headers", "response_body", "response_size_bytes", "error", "certificate", "notes", "script_tests", "script_log", "var:id", "var:note",
+      "response_headers", "response_body", "response_size_bytes", "error", "certificate", "final_url", "notes", "script_tests", "script_log", "var:id", "var:note",
     ]);
   });
 });

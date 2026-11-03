@@ -116,7 +116,7 @@ ${e.notes.length ? `<h4>Notes</h4><ul class="notes">${e.notes.map((n) => `<li>${
 ${scriptsHtml(e)}
 <h4>Request</h4>
 <p class="mono">${esc(o.request.method)} ${esc(o.request.url)}</p>
-<p class="muted">Sent ${esc(formatTime(o.sentAt))}${o.certificate ? ` · Certificate: ${esc(certificateLabel(o.certificate))}` : ""}</p>
+${o.ok && o.finalUrl ? `<p class="muted">Redirected to <span class="mono">${esc(o.finalUrl)}</span></p>\n` : ""}<p class="muted">Sent ${esc(formatTime(o.sentAt))}${o.certificate ? ` · Certificate: ${esc(certificateLabel(o.certificate))}` : ""}</p>
 ${headerTable(o.request.headers)}
 ${o.request.body ? `<pre>${esc(pretty(reportBody(o.request.body, o.request.headers)))}</pre>` : ""}
 <h4>Response</h4>
