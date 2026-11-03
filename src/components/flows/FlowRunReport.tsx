@@ -154,7 +154,8 @@ export function FlowRunReport({ runId, onBack, onDelete, onShowCanvas }: Props) 
   const exportReport = async (kind: "html" | "csv") => {
     setMessage(null);
     try {
-      const content = kind === "html" ? maskSecrets(toFlowHtmlReport(run), storedSecrets()) : maskSecrets(toFlowCsvReport(run), storedSecrets());
+      const secrets = storedSecrets();
+      const content = kind === "html" ? maskSecrets(toFlowHtmlReport(run), secrets) : maskSecrets(toFlowCsvReport(run, { secrets }), secrets);
       const result = await saveTextFile(flowReportFileName(run, kind), content, kind === "html" ? "HTML report" : "CSV report", kind);
       if (result.saved) setMessage(result.path ? `Saved to ${result.path}` : "Report downloaded.");
     } catch (e) {

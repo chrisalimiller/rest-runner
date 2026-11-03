@@ -200,6 +200,16 @@ describe.skipIf(!curl && !python)("script export against a server", () => {
           res.end();
           return;
         }
+        if (req.url?.startsWith("/big")) {
+          res.writeHead(200, { "Content-Type": "text/plain" });
+          res.end("=" + "x".repeat(40000));
+          return;
+        }
+        if (req.url?.startsWith("/image")) {
+          res.writeHead(200, { "Content-Type": "image/png" });
+          res.end(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 1, 2, 3, 0xff]));
+          return;
+        }
         const status = req.url?.includes("/users/2") ? 500 : 201;
         res.writeHead(status, { "Content-Type": "application/json", "X-Echo": req.headers["x-id"] ?? "" });
         res.end(JSON.stringify({ got: body ? JSON.parse(body) : null }));
@@ -274,6 +284,21 @@ describe.skipIf(!curl && !python)("script export against a server", () => {
       expect(report.rows).toHaveLength(1);
       expect(report.rows[0].status).toBe("ERR");
       expect(report.rows[0].error).not.toBe("");
+    });
+
+    it.skipIf(!cmd || (lang === "bash" && !curl))(`${lang}: cuts long cells, guards formulas and notes binary bodies`, async () => {
+      for (const [path, check] of [
+        ["big", (b: string) => { expect(b.startsWith("'=" + "x".repeat(100))).toBe(true); expect(b).toContain("[cut: 8,002 more characters; the full body is in the HTML report]"); }],
+        ["image", (b: string) => expect(b).toBe("(binary body: 9 bytes, image/png)")],
+      ] as const) {
+        const def = request({ url: `http://127.0.0.1:${port}/${path}` });
+        const input: ScriptExportInput = { def, options: DEFAULT_BATCH_OPTIONS, defaults: {} };
+        const { sub, script } = writeScript(lang, input, "x\n1\n");
+        const r = await run(cmd!, [script, "data.csv", "--out", "out.csv"], sub);
+        expect(r.code, r.stderr).toBe(0);
+        const report = parseCsv(readFileSync(join(sub, "out.csv"), "utf8"));
+        check(report.rows[0].response_body);
+      }
     });
 
     it.skipIf(!cmd || (lang === "bash" && !curl))(`${lang}: follows redirects and keeps the final response`, async () => {

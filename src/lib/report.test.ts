@@ -95,3 +95,17 @@ describe("certificate in reports", () => {
     expect(toHtmlReport(run)).not.toContain("Certificate:");
   });
 });
+
+describe("HTML binary bodies", () => {
+  it("prints a note instead of garbled bytes", () => {
+    const bin = buildRun({
+      id: "r2", request: { ...newRequest(), name: "Img" }, csvName: "a.csv", columns: [], totalRows: 1, options: DEFAULT_BATCH_OPTIONS,
+      startedAt: "2026-10-22T10:00:00.000Z", finishedAt: "2026-10-22T10:00:01.000Z", end: "completed", missingPlaceholders: [],
+      results: [{ index: 0, vars: {}, failed: false, outcome: { ok: true, request: { method: "GET", url: "https://a.test/i.png", headers: [] }, sentAt: "t",
+        response: { status: 200, statusText: "OK", headers: [["Content-Type", "image/png"]], body: "�PNG\0", sizeBytes: 4096, durationMs: 1 } } }],
+    });
+    const html = toHtmlReport(bin);
+    expect(html).toContain("(binary body: 4,096 bytes, image/png)");
+    expect(html).not.toContain("PNG\0");
+  });
+});

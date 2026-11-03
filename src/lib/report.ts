@@ -1,6 +1,6 @@
 import { certificateLabel } from "./certificates";
 import { durationOf, runStats, statusLabel, type Run, type RunEntry } from "./run";
-import { CALL_COLUMNS, callCells, csvFile } from "./reportCsv";
+import { CALL_COLUMNS, callCells, csvFile, reportBody, type CsvOptions } from "./reportCsv";
 import type { ScriptOutput } from "./testing/types";
 
 function scriptParts(e: RunEntry): { label: string; output: ScriptOutput }[] {
@@ -25,14 +25,14 @@ function scriptLogText(e: RunEntry): string {
 /* ---------- CSV ---------- */
 
 /** One line per call with the full request, response, and notes. CSV columns come last, prefixed "var:". */
-export function toCsvReport(run: Run): string {
+export function toCsvReport(run: Run, options?: CsvOptions): string {
   const head = ["row", "result", ...CALL_COLUMNS, "notes", "script_tests", "script_log", ...run.columns.map((c) => `var:${c}`)];
   const rows: (string | number)[][] = [head];
   for (const e of run.entries) {
     rows.push([
       e.index + 1,
       e.failed ? "FAIL" : "PASS",
-      ...callCells(e.outcome),
+      ...callCells(e.outcome, options),
       e.notes.join("\n"),
       scriptTestsText(e),
       scriptLogText(e),
@@ -118,13 +118,13 @@ ${scriptsHtml(e)}
 <p class="mono">${esc(o.request.method)} ${esc(o.request.url)}</p>
 <p class="muted">Sent ${esc(formatTime(o.sentAt))}${o.certificate ? ` · Certificate: ${esc(certificateLabel(o.certificate))}` : ""}</p>
 ${headerTable(o.request.headers)}
-${o.request.body ? `<pre>${esc(pretty(o.request.body))}</pre>` : ""}
+${o.request.body ? `<pre>${esc(pretty(reportBody(o.request.body, o.request.headers)))}</pre>` : ""}
 <h4>Response</h4>
 ${
   res
     ? `<p><span class="status ${statusClass(e)}">${res.status} ${esc(res.statusText)}</span> · ${res.durationMs} ms · ${res.sizeBytes.toLocaleString()} bytes</p>
 ${headerTable(res.headers)}
-<pre>${res.body ? esc(pretty(res.body)) : '<span class="muted">(empty body)</span>'}</pre>`
+<pre>${res.body ? esc(pretty(reportBody(res.body, res.headers, res.sizeBytes))) : '<span class="muted">(empty body)</span>'}</pre>`
     : `<p class="status bad">No response: ${esc(o.ok ? "" : o.error)}</p>`
 }
 </div>

@@ -186,6 +186,67 @@ describe_request() {
   fi
 }
 
+# Excel keeps 32,767 characters per cell, so cells are cut a little under that.
+# These follow the same rules as the app's CSV report.
+CELL_LIMIT=32000
+
+# 1234567 -> 1,234,567
+group() {
+  awk -v n="$1" 'BEGIN { s = n; o = ""; while (length(s) > 3) { o = "," substr(s, length(s) - 2) o; s = substr(s, 1, length(s) - 3) } print s o }'
+}
+
+# The content type, without parameters, from "Name: value" lines. Sets REPLY.
+content_type() {
+  local line low
+  REPLY=''
+  while IFS= read -r line || [ -n "$line" ]; do
+    low=$(printf '%s' "${line%%:*}" | tr '[:upper:]' '[:lower:]')
+    if [ "$low" = content-type ]; then
+      line=${line#*:}
+      line=${line%%;*}
+      line=${line#"${line%%[![:space:]]*}"}
+      REPLY=${line%"${line##*[![:space:]]}"}
+      return 0
+    fi
+  done <<<"$1"
+}
+
+# $1 body, $2 header lines, $3 size in bytes (optional), $4 "1" when the body held a NUL.
+# Sets REPLY to the body, or to a one-line note when it is binary.
+report_body() {
+  local body=$1 ctype size=${3:-} binary=${4:-0}
+  REPLY=$body
+  [ -n "$body" ] || [ "$binary" = 1 ] || return 0
+  content_type "$2"
+  ctype=$REPLY
+  REPLY=$body
+  if [ -n "$ctype" ]; then
+    case $(printf '%s' "$ctype" | tr '[:upper:]' '[:lower:]') in
+      text/* | *json* | *xml* | *javascript* | *ecmascript* | *x-www-form-urlencoded* | *yaml* | *csv* | *graphql*) ;;
+      *) binary=1 ;;
+    esac
+  fi
+  if [ "$binary" = 1 ]; then
+    [ -n "$size" ] || size=${#body}
+    REPLY="(binary body: $(group "$size") bytes${ctype:+, $ctype})"
+  fi
+}
+
+# Stops Excel running a cell as a formula and cuts it at CELL_LIMIT. Sets REPLY.
+safe_cell() {
+  local s=$1
+  REPLY=$s
+  [ -n "$s" ] || return 0
+  case $s in
+    [+-][0-9]*) ;;
+    [=@]* | [+-]*) s="'$s" ;;
+  esac
+  if [ "${#s}" -gt "$CELL_LIMIT" ]; then
+    s="${s:0:CELL_LIMIT}… [cut: $(group $((${#s} - CELL_LIMIT))) more characters; the full body is in the HTML report]"
+  fi
+  REPLY=$s
+}
+
 # Quotes a value for the results CSV. Sets REPLY.
 csvq() {
   REPLY="\"${1//\"/\"\"}\""
@@ -301,7 +362,7 @@ END {
 # Sends the request built for row $1 and writes its results CSV line. Runs in the background.
 run_row() {
   local i=$1 base="$TMP_DIR/r$1" sent_at meta rc status secs size ms frac whole
-  local status_text='' resp_headers='' body='' err='' failed=0 result label line k
+  local status_text='' resp_headers='' body='' err='' failed=0 result label line k body_nul=0
   local -a args
   local req_body=''
   [ "$REQ_HAS_BODY" = 1 ] && req_body=$REQ_BODY
@@ -359,6 +420,8 @@ run_row() {
       esac
     done <"$base.head"
     [ -f "$base.body" ] && IFS= read -r -d '' body <"$base.body"
+    # bash cannot hold a NUL, so look for one in the file.
+    if [ -f "$base.body" ] && [ "$(wc -c <"$base.body")" -ne "$(tr -d '\000' <"$base.body" | wc -c)" ]; then body_nul=1; fi
     if [ "$HTTP_ERRORS_FAIL" = 1 ] && [ "$status" -ge 400 ]; then failed=1; fi
   fi
   if [ "$failed" = 1 ]; then
@@ -377,9 +440,15 @@ run_row() {
     hk=$((hk + 1))
   done
   line=''
-  local cell
-  for cell in "$((i + 1))" "$result" "$label" "$status_text" "$ms" "$sent_at" "$REQ_METHOD" "$REQ_URL" \
-    "$headers_text" "$req_body" "$resp_headers" "$body" "$size" "$err" \
+  local cell s_url s_reqh s_reqb s_resh s_resb s_err
+  safe_cell "$REQ_URL"; s_url=$REPLY
+  safe_cell "$headers_text"; s_reqh=$REPLY
+  report_body "$req_body" "$headers_text"; safe_cell "$REPLY"; s_reqb=$REPLY
+  safe_cell "$resp_headers"; s_resh=$REPLY
+  report_body "$body" "$resp_headers" "$size" "$body_nul"; safe_cell "$REPLY"; s_resb=$REPLY
+  safe_cell "$err"; s_err=$REPLY
+  for cell in "$((i + 1))" "$result" "$label" "$status_text" "$ms" "$sent_at" "$REQ_METHOD" "$s_url" \
+    "$s_reqh" "$s_reqb" "$s_resh" "$s_resb" "$size" "$s_err" \
     ${ROW[@]+"${ROW[@]}"}; do
     csvq "$cell"
     line+="${line:+,}$REPLY"

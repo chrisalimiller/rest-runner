@@ -1,5 +1,5 @@
 import { certificateLabel } from "../certificates";
-import { CALL_COLUMNS, callCells, csvFile } from "../reportCsv";
+import { CALL_COLUMNS, callCells, csvFile, reportBody, type CsvOptions } from "../reportCsv";
 import { describeMode } from "./describe";
 import { caseStats, iterationsLabel, requestMs, testRunTimes, type TestRun } from "./testRun";
 import type { CaseResult, ScriptOutput } from "./types";
@@ -84,7 +84,7 @@ function iterationLabel(r: CaseResult): string {
 /* ---------- CSV ---------- */
 
 /** One line per case per iteration, with every check, the full request and response, script output and notes. */
-export function toTestCsvReport(run: TestRun): string {
+export function toTestCsvReport(run: TestRun, options?: CsvOptions): string {
   const head = [
     "iteration",
     "csv_row",
@@ -117,7 +117,7 @@ export function toTestCsvReport(run: TestRun): string {
       failed.map((c) => `${c.name}${c.message ? `: ${c.message}` : ""}`).join("\n"),
       r.checks.map((c) => `${c.passed ? "PASS" : "FAIL"} ${c.name}`).join("\n"),
       r.startedAt,
-      ...callCells(r.outcome),
+      ...callCells(r.outcome, options),
       scriptLog(r),
       r.notes.join("\n"),
       ...run.columns.map((c) => r.vars[c] ?? ""),
@@ -192,13 +192,13 @@ ${
 <p class="mono">${esc(o.request.method)} ${esc(o.request.url)}</p>
 ${o.certificate ? `<p class="muted">Certificate: ${esc(certificateLabel(o.certificate))}</p>` : ""}
 ${kvTable(o.request.headers)}
-${o.request.body ? `<pre>${esc(pretty(o.request.body))}</pre>` : ""}
+${o.request.body ? `<pre>${esc(pretty(reportBody(o.request.body, o.request.headers)))}</pre>` : ""}
 <h4>Response</h4>
 ${
   res
     ? `<p><span class="status ${statusClass(r)}">${res.status} ${esc(res.statusText)}</span> · ${res.durationMs} ms · ${res.sizeBytes.toLocaleString()} bytes</p>
 ${kvTable(res.headers)}
-<pre>${res.body ? esc(pretty(res.body)) : '<span class="muted">(empty body)</span>'}</pre>`
+<pre>${res.body ? esc(pretty(reportBody(res.body, res.headers, res.sizeBytes))) : '<span class="muted">(empty body)</span>'}</pre>`
     : `<p class="status bad">No response: ${esc(o.ok ? "" : o.error)}</p>`
 }`
     : `<p class="status bad">The request was not sent.</p>`

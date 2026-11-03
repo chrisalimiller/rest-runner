@@ -92,7 +92,8 @@ export function RunExplorer({ runId, onBack, onDelete, onLoadRequest }: Props) {
   const exportReport = async (kind: "html" | "csv") => {
     setMessage(null);
     try {
-      const content = kind === "html" ? maskSecrets(toHtmlReport(run), storedSecrets()) : maskSecrets(toCsvReport(run), storedSecrets());
+      const secrets = storedSecrets();
+      const content = kind === "html" ? maskSecrets(toHtmlReport(run), secrets) : maskSecrets(toCsvReport(run, { secrets }), secrets);
       const result = await saveTextFile(reportFileName(run, kind), content, kind === "html" ? "HTML report" : "CSV report", kind);
       if (result.saved) setMessage(result.path ? `Saved to ${result.path}` : "Report downloaded.");
     } catch (e) {
