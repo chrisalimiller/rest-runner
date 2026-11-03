@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import { importSuitesFile, toSuitesFile } from "./suiteFile";
 import { newAssertion, newSuite, newTestCase } from "./suites";
 import { buildTestRun } from "./testRun";
+import { parseRecords } from "../csv";
+import { CALL_COLUMNS } from "../reportCsv";
 import { groupFailures, toTestCsvReport, toTestHtmlReport } from "./testReport";
 import type { CaseResult } from "./types";
 
@@ -52,6 +54,11 @@ describe("test reports", () => {
     expect(lines[2]).toContain("FAIL");
     expect(lines[2]).toContain("Status code equals 200: Got 404");
     expect(csv).toContain('"[post] hello, ""world"""');
+    const [head] = parseRecords(csv.slice(1).trimEnd(), ",");
+    const at = head.indexOf("started_at");
+    expect(head.slice(at + 1, at + 14)).toEqual([...CALL_COLUMNS]);
+    expect(head).toContain("status_text");
+    expect(head).toContain("response_size_bytes");
   });
 
   it("writes a self-contained HTML report with escaped names", () => {
