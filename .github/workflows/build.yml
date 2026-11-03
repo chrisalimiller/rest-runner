@@ -6,6 +6,11 @@ on:
     tags: ["v*"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: "Publish a GitHub Release with this tag (e.g. v0.2.0). Leave empty to only build."
+        required: false
+        default: ""
 
 jobs:
   test:
@@ -62,10 +67,12 @@ jobs:
             ${{ matrix.bundle-dir }}/nsis/*.exe
           if-no-files-found: error
 
-  # On a v* tag, publish the installers from the build job as a GitHub Release.
+  # On a v* tag push, or a manual run with release_tag set, publish the
+  # installers from the build job as a GitHub Release. A manual run creates the
+  # tag on the commit it built.
   release:
     needs: build
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -77,7 +84,9 @@ jobs:
       - run: ls -lR installers
       - uses: softprops/action-gh-release@v2
         with:
-          name: REST Runner ${{ github.ref_name }}
+          tag_name: ${{ inputs.release_tag || github.ref_name }}
+          target_commitish: ${{ github.sha }}
+          name: REST Runner ${{ inputs.release_tag || github.ref_name }}
           generate_release_notes: true
           fail_on_unmatched_files: true
           files: |
