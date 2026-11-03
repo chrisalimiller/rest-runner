@@ -1,5 +1,5 @@
 import { certificateLabel } from "../certificates";
-import { durationOf } from "../run";
+import { CALL_COLUMNS, callCells, csvFile } from "../reportCsv";
 import { describeMode } from "./describe";
 import { caseStats, iterationsLabel, requestMs, testRunTimes, type TestRun } from "./testRun";
 import type { CaseResult, ScriptOutput } from "./types";
@@ -71,11 +71,7 @@ function statusText(r: CaseResult): string {
   return r.outcome.ok ? String(r.outcome.response.status) : "Error";
 }
 
-function headerLines(headers: [string, string][]): string {
-  return headers.map(([k, v]) => `${k}: ${v}`).join("\n");
-}
-
-function scriptLog(r: CaseResult): string {
+export function scriptLog(r: CaseResult): string {
   const part = (label: string, s?: ScriptOutput) =>
     s ? [...s.logs.map((l) => `[${label}] ${l}`), ...(s.error ? [`[${label}] ERROR ${s.error}`] : [])] : [];
   return [...part("pre", r.preScript), ...part("post", r.postScript)].join("\n");
@@ -86,11 +82,6 @@ function iterationLabel(r: CaseResult): string {
 }
 
 /* ---------- CSV ---------- */
-
-function csvCell(value: string | number): string {
-  const s = String(value);
-  return /[",\r\n]/.test(s) || /^\s|\s$/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
 
 /** One line per case per iteration, with every check, the full request and response, script output and notes. */
 export function toTestCsvReport(run: TestRun): string {
@@ -105,28 +96,16 @@ export function toTestCsvReport(run: TestRun): string {
     "checks_total",
     "failed_checks",
     "all_checks",
-    "status",
-    "duration_ms",
     "started_at",
-    "method",
-    "url",
-    "request_headers",
-    "request_body",
-    "response_headers",
-    "response_body",
-    "error",
-    "certificate",
+    ...CALL_COLUMNS,
     "script_output",
     "notes",
     ...run.columns.map((c) => `var:${c}`),
   ];
-  const lines = [head.map(csvCell).join(",")];
+  const rows: (string | number)[][] = [head];
   for (const r of run.results) {
-    const o = r.outcome;
-    const res = o?.ok ? o.response : null;
     const failed = r.checks.filter((c) => !c.passed);
-    const data = (c: string) => r.vars[c] ?? "";
-    const cells: (string | number)[] = [
+    rows.push([
       r.iteration + 1,
       r.rowIndex === null ? "" : r.rowIndex + 1,
       r.repeatIndex + 1,
@@ -137,24 +116,14 @@ export function toTestCsvReport(run: TestRun): string {
       r.checks.length,
       failed.map((c) => `${c.name}${c.message ? `: ${c.message}` : ""}`).join("\n"),
       r.checks.map((c) => `${c.passed ? "PASS" : "FAIL"} ${c.name}`).join("\n"),
-      statusText(r),
-      o ? durationOf(o) : "",
       r.startedAt,
-      o?.request.method ?? "",
-      o?.request.url ?? "",
-      o ? headerLines(o.request.headers) : "",
-      o?.request.body ?? "",
-      res ? headerLines(res.headers) : "",
-      res?.body ?? "",
-      o && !o.ok ? o.error : "",
-      certificateLabel(o?.certificate),
+      ...callCells(r.outcome),
       scriptLog(r),
       r.notes.join("\n"),
-      ...run.columns.map(data),
-    ];
-    lines.push(cells.map(csvCell).join(","));
+      ...run.columns.map((c) => r.vars[c] ?? ""),
+    ]);
   }
-  return "﻿" + lines.join("\r\n") + "\r\n";
+  return csvFile(rows);
 }
 
 /* ---------- HTML ---------- */

@@ -1,5 +1,6 @@
 import { certificateLabel } from "./certificates";
 import { durationOf, runStats, statusLabel, type Run, type RunEntry } from "./run";
+import { CALL_COLUMNS, callCells, csvFile } from "./reportCsv";
 import type { ScriptOutput } from "./testing/types";
 
 function scriptParts(e: RunEntry): { label: string; output: ScriptOutput }[] {
@@ -23,67 +24,22 @@ function scriptLogText(e: RunEntry): string {
 
 /* ---------- CSV ---------- */
 
-function csvCell(value: string | number): string {
-  const s = String(value);
-  return /[",\r\n]/.test(s) || /^\s|\s$/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
-function headerLines(headers: [string, string][]): string {
-  return headers.map(([k, v]) => `${k}: ${v}`).join("\n");
-}
-
 /** One line per call with the full request, response, and notes. CSV columns come last, prefixed "var:". */
 export function toCsvReport(run: Run): string {
-  const head = [
-    "row",
-    "result",
-    "status",
-    "status_text",
-    "duration_ms",
-    "sent_at",
-    "method",
-    "url",
-    "request_headers",
-    "request_body",
-    "response_headers",
-    "response_body",
-    "response_size_bytes",
-    "error",
-    "certificate",
-    "notes",
-    "script_tests",
-    "script_log",
-    ...run.columns.map((c) => `var:${c}`),
-  ];
-  const lines = [head.map(csvCell).join(",")];
+  const head = ["row", "result", ...CALL_COLUMNS, "notes", "script_tests", "script_log", ...run.columns.map((c) => `var:${c}`)];
+  const rows: (string | number)[][] = [head];
   for (const e of run.entries) {
-    const o = e.outcome;
-    const res = o.ok ? o.response : null;
-    const cells: (string | number)[] = [
+    rows.push([
       e.index + 1,
       e.failed ? "FAIL" : "PASS",
-      statusLabel(o),
-      res?.statusText ?? "",
-      durationOf(o),
-      o.sentAt,
-      o.request.method,
-      o.request.url,
-      headerLines(o.request.headers),
-      o.request.body ?? "",
-      res ? headerLines(res.headers) : "",
-      res?.body ?? "",
-      res?.sizeBytes ?? "",
-      o.ok ? "" : o.error,
-      certificateLabel(o.certificate),
+      ...callCells(e.outcome),
       e.notes.join("\n"),
       scriptTestsText(e),
       scriptLogText(e),
       ...run.columns.map((c) => e.vars[c] ?? ""),
-    ];
-    lines.push(cells.map(csvCell).join(","));
+    ]);
   }
-  // Leading BOM so Excel opens the file as UTF-8.
-  return "﻿" + lines.join("\r\n") + "\r\n";
+  return csvFile(rows);
 }
 
 /* ---------- HTML ---------- */

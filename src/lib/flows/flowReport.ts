@@ -1,5 +1,5 @@
-import { durationOf } from "../run";
-import { caseBodyHtml, toTestHtmlReport } from "../testing/testReport";
+import { CALL_COLUMNS, callCells, csvFile, emptyCallCells } from "../reportCsv";
+import { caseBodyHtml, scriptLog, toTestHtmlReport } from "../testing/testReport";
 import type { Vars } from "../template";
 import type { CaseResult } from "../testing/types";
 import type { FlowRun, FlowRunEnd, FlowStep } from "./types";
@@ -85,11 +85,6 @@ function formatDuration(ms: number): string {
 
 /* ---------- CSV ---------- */
 
-function csvCell(value: string | number): string {
-  const s = String(value);
-  return /[",\r\n]/.test(s) || /^\s|\s$/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-}
-
 /**
  * One line per step, then one line per case result inside each Run step's report
  * (the step columns repeat on those lines, so the file filters well in a spreadsheet).
@@ -111,15 +106,13 @@ export function toFlowCsvReport(run: FlowRun): string {
     "iteration",
     "case_result",
     "failed_checks",
-    "status",
-    "duration_ms",
-    "method",
-    "url",
-    "error",
+    ...CALL_COLUMNS,
+    "script_output",
     "case_notes",
     "flow_result",
   ];
-  const lines = [head.map(csvCell).join(",")];
+  const rows: (string | number)[][] = [head];
+  const end = END_LABELS[run.end];
   for (const s of orderedSteps(run)) {
     const stepCells: (string | number)[] = [
       s.index + 1,
@@ -134,33 +127,25 @@ export function toFlowCsvReport(run: FlowRun): string {
       s.notes.join("\n"),
       varChanges(s.varsBefore, s.varsAfter).join("\n"),
     ];
-    lines.push([...stepCells, "", "", "", "", "", "", "", "", "", "", END_LABELS[run.end]].map(csvCell).join(","));
+    rows.push([...stepCells, "", "", "", "", ...emptyCallCells(), "", "", end]);
     for (const r of s.child?.results ?? []) {
-      const o = r.outcome;
-      lines.push(
-        [
-          ...stepCells,
-          r.caseName,
-          r.iteration + 1,
-          r.passed ? "PASS" : "FAIL",
-          r.checks
-            .filter((c) => !c.passed)
-            .map((c) => `${c.name}${c.message ? `: ${c.message}` : ""}`)
-            .join("\n"),
-          !o ? "Not sent" : o.ok ? o.response.status : "Error",
-          o ? durationOf(o) : "",
-          o?.request.method ?? "",
-          o?.request.url ?? "",
-          o && !o.ok ? o.error : "",
-          r.notes.join("\n"),
-          END_LABELS[run.end],
-        ]
-          .map(csvCell)
-          .join(","),
-      );
+      rows.push([
+        ...stepCells,
+        r.caseName,
+        r.iteration + 1,
+        r.passed ? "PASS" : "FAIL",
+        r.checks
+          .filter((c) => !c.passed)
+          .map((c) => `${c.name}${c.message ? `: ${c.message}` : ""}`)
+          .join("\n"),
+        ...callCells(r.outcome),
+        scriptLog(r),
+        r.notes.join("\n"),
+        end,
+      ]);
     }
   }
-  return "﻿" + lines.join("\r\n") + "\r\n";
+  return csvFile(rows);
 }
 
 /* ---------- HTML ---------- */

@@ -3,6 +3,8 @@ import type { SendFn } from "../batch";
 import { inlineScriptRunner } from "../testing/scriptRunner";
 import { newSuite, newTestCase } from "../testing/suites";
 import { DEFAULT_SUITE_OPTIONS, type TestSuite } from "../testing/types";
+import { parseRecords } from "../csv";
+import { CALL_COLUMNS } from "../reportCsv";
 import { runFlow } from "./engine";
 import { END_LABELS, endTone, flowReportFileName, orderedSteps, singleCall, stepResultLabel, stepStatusCode, toFlowCsvReport, toFlowHtmlReport, variableRows } from "./flowReport";
 import { newEdge, newFlow, newNode } from "./flows";
@@ -40,6 +42,13 @@ describe("flow reports", () => {
     expect(lines[4]).toContain("Get <ticket>");
     expect(lines[4]).toContain("FAIL");
     expect(lines[4]).toContain("500");
+    const [head, , , , caseRow] = parseRecords(csv.slice(1).trimEnd(), ",");
+    expect(head.slice(11, 15)).toEqual(["case", "iteration", "case_result", "failed_checks"]);
+    expect(head.slice(15, 28)).toEqual([...CALL_COLUMNS]);
+    expect(head.slice(28)).toEqual(["script_output", "case_notes", "flow_result"]);
+    expect(caseRow[head.indexOf("url")]).toBe("https://api.test/fail");
+    expect(caseRow[head.indexOf("response_body")]).toBe("{}");
+    expect(caseRow[head.indexOf("response_size_bytes")]).toBe("2");
   });
 
   it("builds a self-contained HTML report with each child report shown inline and escaped", async () => {
