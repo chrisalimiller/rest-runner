@@ -50,6 +50,21 @@ describe("sendRequest in the desktop app", () => {
     expect(out.request.url).toBe(req.url); // the outcome still records what the user sent
   });
 
+  it("records the headers the app added, and the final URL after a redirect", async () => {
+    const added: [string, string][] = [["User-Agent", "RestRunner/1"]];
+    invoke
+      .mockResolvedValueOnce({ ...reply(302, [["location", "https://other.test/b"]]), addedHeaders: added })
+      .mockResolvedValueOnce({ ...reply(200, [], "done"), addedHeaders: added });
+    const out = await sendRequest(req);
+    expect(out.request.headers).toEqual([["User-Agent", "RestRunner/1"], ["Accept", "*/*"]]);
+    expect(out.ok && out.finalUrl).toBe("https://other.test/b");
+    expect(out.ok && "addedHeaders" in out.response).toBe(false);
+    invoke.mockResolvedValueOnce(reply(200, [], "x"));
+    const plain = await sendRequest(req);
+    expect(plain.request).toBe(req);
+    expect(plain.ok && plain.finalUrl).toBeUndefined();
+  });
+
   it("stops after 10 redirects", async () => {
     invoke.mockResolvedValue(reply(302, [["location", "/again"]]));
     const out = await sendRequest(req);

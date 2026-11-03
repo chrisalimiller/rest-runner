@@ -27,6 +27,12 @@ describe("callCells", () => {
     expect(at("error")).toBe("");
   });
 
+  it("fills final_url only after a redirect", () => {
+    const col = CALL_COLUMNS.indexOf("final_url");
+    expect(callCells(ok("x"))[col]).toBe("");
+    expect(callCells({ ...ok("x"), finalUrl: "https://b.test/" } as SendOutcome)[col]).toBe("https://b.test/");
+  });
+
   it("describes a failed send and a call that never ran", () => {
     const failed: SendOutcome = { ok: false, request: { method: "GET", url: "u", headers: [] }, error: "timeout", durationMs: 5, sentAt: "t" };
     const c = callCells(failed);

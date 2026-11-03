@@ -367,7 +367,7 @@ run_row() {
   local req_body=''
   [ "$REQ_HAS_BODY" = 1 ] && req_body=$REQ_BODY
   sent_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-  args=(-sS -L --max-time "$TIMEOUT" -o "$base.body" -D "$base.head" -w '%{http_code} %{time_total} %{size_download}')
+  args=(-sS -L --max-time "$TIMEOUT" -o "$base.body" -D "$base.head" -w '%{http_code} %{time_total} %{size_download} %{url_effective}')
   if [ "$REQ_METHOD" = HEAD ]; then
     args+=(--head)
   elif [ "$REQ_METHOD" = GET ] || { [ "$REQ_METHOD" = POST ] && [ "$REQ_HAS_BODY" = 1 ]; }; then
@@ -393,7 +393,9 @@ run_row() {
   fi
   meta=$(curl "${args[@]}" --url "$REQ_URL" 2>"$base.err" </dev/null)
   rc=$?
-  read -r status secs size <<<"$meta"
+  read -r status secs size effective <<<"$meta"
+  final_url=''
+  [ "${effective%/}" != "${REQ_URL%/}" ] && [ -n "$effective" ] && final_url=$effective
   whole=${secs%%[.,]*}
   frac=000
   [ "$whole" != "$secs" ] && frac="${secs#*[.,]}000"
@@ -403,6 +405,7 @@ run_row() {
     [ -z "$err" ] && err="curl exited with code $rc"
     failed=1
     status=''
+    final_url=''
     size=''
   else
     # Keep the last block of headers (after any redirects).
@@ -440,15 +443,16 @@ run_row() {
     hk=$((hk + 1))
   done
   line=''
-  local cell s_url s_reqh s_reqb s_resh s_resb s_err
+  local cell s_url s_reqh s_reqb s_resh s_resb s_err s_final
   safe_cell "$REQ_URL"; s_url=$REPLY
   safe_cell "$headers_text"; s_reqh=$REPLY
   report_body "$req_body" "$headers_text"; safe_cell "$REPLY"; s_reqb=$REPLY
   safe_cell "$resp_headers"; s_resh=$REPLY
   report_body "$body" "$resp_headers" "$size" "$body_nul"; safe_cell "$REPLY"; s_resb=$REPLY
   safe_cell "$err"; s_err=$REPLY
+  safe_cell "$final_url"; s_final=$REPLY
   for cell in "$((i + 1))" "$result" "$label" "$status_text" "$ms" "$sent_at" "$REQ_METHOD" "$s_url" \
-    "$s_reqh" "$s_reqb" "$s_resh" "$s_resb" "$size" "$s_err" \
+    "$s_reqh" "$s_reqb" "$s_resh" "$s_resb" "$size" "$s_err" "$s_final" \
     ${ROW[@]+"${ROW[@]}"}; do
     csvq "$cell"
     line+="${line:+,}$REPLY"
@@ -576,7 +580,7 @@ while ! wait; do :; done
 {
   line=''
   for cell in row result status status_text duration_ms sent_at method url request_headers request_body \
-    response_headers response_body response_size_bytes error; do
+    response_headers response_body response_size_bytes error final_url; do
     line+="${line:+,}$cell"
   done
   for cell in ${COLS[@]+"${COLS[@]}"}; do

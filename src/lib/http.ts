@@ -73,6 +73,7 @@ export async function sendRequest(req: PreparedRequest, signal?: AbortSignal): P
   const start = performance.now();
   let current = req;
   let certificate: CertificateUse | undefined;
+  let firstHopAdded: [string, string][] = [];
   try {
     let response: ResponseResult;
     if (isTauri()) {
@@ -81,6 +82,7 @@ export async function sendRequest(req: PreparedRequest, signal?: AbortSignal): P
         const chosen = tlsFor(current.url, loadCertificates(), req.noCertificate);
         certificate ??= chosen?.used;
         response = await nativeSend(current, chosen?.tls, signal);
+        if (hops === 0) firstHopAdded = response.addedHeaders ?? [];
         const next = nextHop(current, response.status, response.headers);
         if (!next) break;
         if (hops >= MAX_REDIRECTS) throw new Error(`Stopped after ${MAX_REDIRECTS} redirects`);
@@ -89,11 +91,16 @@ export async function sendRequest(req: PreparedRequest, signal?: AbortSignal): P
     } else {
       response = await browserSend(req, signal);
     }
+    // The first hop's request is the one the user wrote; list the headers the app added to it, in send order.
+    const added = firstHopAdded;
+    const { addedHeaders: _unused, ...responseRest } = response;
+    void _unused;
     return {
       ok: true,
-      request: req,
+      request: added.length ? { ...req, headers: [...added, ...req.headers] } : req,
       sentAt,
-      response: { ...response, durationMs: Math.round(performance.now() - start) },
+      response: { ...responseRest, durationMs: Math.round(performance.now() - start) },
+      ...(current.url !== req.url ? { finalUrl: current.url } : {}),
       ...(certificate ? { certificate } : {}),
     };
   } catch (err) {

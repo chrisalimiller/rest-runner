@@ -44,8 +44,8 @@ describe("flow reports", () => {
     expect(lines[4]).toContain("500");
     const [head, , , , caseRow] = parseRecords(csv.slice(1).trimEnd(), ",");
     expect(head.slice(11, 15)).toEqual(["case", "iteration", "case_result", "failed_checks"]);
-    expect(head.slice(15, 28)).toEqual([...CALL_COLUMNS]);
-    expect(head.slice(28)).toEqual(["script_output", "case_notes", "flow_result"]);
+    expect(head.slice(15, 15 + CALL_COLUMNS.length)).toEqual([...CALL_COLUMNS]);
+    expect(head.slice(15 + CALL_COLUMNS.length)).toEqual(["script_output", "case_notes", "flow_result"]);
     expect(caseRow[head.indexOf("url")]).toBe("https://api.test/fail");
     expect(caseRow[head.indexOf("response_body")]).toBe("{}");
     expect(caseRow[head.indexOf("response_size_bytes")]).toBe("2");

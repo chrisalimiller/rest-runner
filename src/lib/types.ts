@@ -58,10 +58,12 @@ export interface ResponseResult {
   body: string;
   sizeBytes: number;
   durationMs: number;
+  /** Headers the desktop app added itself (User-Agent, Accept) because the request had none. */
+  addedHeaders?: [string, string][];
 }
 
 export type SendOutcome =
-  | { ok: true; request: PreparedRequest; response: ResponseResult; sentAt: string; certificate?: CertificateUse }
+  | { ok: true; request: PreparedRequest; response: ResponseResult; sentAt: string; certificate?: CertificateUse; finalUrl?: string }
   | { ok: false; request: PreparedRequest; error: string; durationMs: number; sentAt: string; certificate?: CertificateUse };
 
 export interface HistoryEntry {
