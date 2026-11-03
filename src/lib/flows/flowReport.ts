@@ -1,4 +1,4 @@
-import { CALL_COLUMNS, callCells, csvFile, emptyCallCells } from "../reportCsv";
+import { CALL_COLUMNS, callCells, csvFile, emptyCallCells, type CsvOptions } from "../reportCsv";
 import { caseBodyHtml, scriptLog, toTestHtmlReport } from "../testing/testReport";
 import type { Vars } from "../template";
 import type { CaseResult } from "../testing/types";
@@ -89,7 +89,7 @@ function formatDuration(ms: number): string {
  * One line per step, then one line per case result inside each Run step's report
  * (the step columns repeat on those lines, so the file filters well in a spreadsheet).
  */
-export function toFlowCsvReport(run: FlowRun): string {
+export function toFlowCsvReport(run: FlowRun, options?: CsvOptions): string {
   const head = [
     "step",
     "branch",
@@ -138,7 +138,7 @@ export function toFlowCsvReport(run: FlowRun): string {
           .filter((c) => !c.passed)
           .map((c) => `${c.name}${c.message ? `: ${c.message}` : ""}`)
           .join("\n"),
-        ...callCells(r.outcome),
+        ...callCells(r.outcome, options),
         scriptLog(r),
         r.notes.join("\n"),
         end,

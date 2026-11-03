@@ -335,6 +335,39 @@ def header_lines(headers):
     return "\n".join("%s: %s" % (k, v) for k, v in headers)
 
 
+# Excel keeps 32,767 characters per cell, so cells are cut a little under that. The same rules as the app's CSV report.
+CELL_LIMIT = 32000
+TEXT_TYPE = re.compile(r"^text/|json|xml|javascript|ecmascript|x-www-form-urlencoded|yaml|csv|graphql", re.I)
+
+
+def report_body(body, headers, size=None):
+    """The body, or a one-line note when it is binary (a non-text content type, or a NUL character)."""
+    if not body:
+        return body
+    ctype = ""
+    for k, v in headers:
+        if k.lower() == "content-type":
+            ctype = v.split(";")[0].strip()
+            break
+    if "\0" in body or (ctype and not TEXT_TYPE.search(ctype)):
+        if size is None:
+            size = len(body.encode("utf-8"))
+        return "(binary body: {:,} bytes{})".format(size, ", " + ctype if ctype else "")
+    return body
+
+
+def safe_cell(text):
+    """Stops Excel running a cell as a formula, and cuts it at CELL_LIMIT."""
+    if not text:
+        return text
+    if re.match(r"[=@]|[+-](?!\d)", text):
+        text = "'" + text
+    if len(text) > CELL_LIMIT:
+        more = format(len(text) - CELL_LIMIT, ",")
+        text = text[:CELL_LIMIT] + "\u2026 [cut: " + more + " more characters; the full body is in the HTML report]"
+    return text
+
+
 def describe(prepared):
     lines = ["%s %s" % (prepared["method"], prepared["url"])]
     lines += ["%s: %s" % (k, v) for k, v in prepared["headers"]]
@@ -452,9 +485,11 @@ def main():
             ok = outcome["ok"]
             writer.writerow(
                 [index + 1, "FAIL" if failed else "PASS", outcome["status"] if ok else "ERR", outcome.get("status_text", ""),
-                 outcome["duration_ms"], outcome["sent_at"], prepared["method"], prepared["url"], header_lines(prepared["headers"]),
-                 prepared["body"] or "", header_lines(outcome["headers"]) if ok else "", outcome["body"] if ok else "",
-                 outcome["size"] if ok else "", "" if ok else outcome["error"]]
+                 outcome["duration_ms"], outcome["sent_at"], prepared["method"], safe_cell(prepared["url"]),
+                 safe_cell(header_lines(prepared["headers"])), safe_cell(report_body(prepared["body"] or "", prepared["headers"])),
+                 safe_cell(header_lines(outcome["headers"])) if ok else "",
+                 safe_cell(report_body(outcome["body"], outcome["headers"], outcome["size"])) if ok else "",
+                 outcome["size"] if ok else "", "" if ok else safe_cell(outcome["error"])]
                 + [rows[index].get(c, "") for c in columns]
             )
 
