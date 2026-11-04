@@ -102,6 +102,16 @@ export function ArrowDownIcon({ size = 14 }: IconProps) {
   );
 }
 
+export function InfoIcon({ size = 14 }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={2} strokeLinecap="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5" />
+      <path d="M12 8h.01" />
+    </svg>
+  );
+}
+
 export function LockIcon({ size = 14 }: IconProps) {
   return (
     <svg {...base(size)} strokeWidth={2} strokeLinejoin="round">

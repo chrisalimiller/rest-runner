@@ -76,13 +76,17 @@ fn write_text_file(path: String, contents: String) -> Result<(), String> {
     std::fs::write(&path, contents).map_err(|e| format!("Could not save {path}: {e}"))
 }
 
+/// Id of the macOS "Check for Updates…" menu item.
+#[cfg(target_os = "macos")]
+const UPDATE_MENU_ID: &str = "check-for-updates";
+
 /// The macOS menu bar without Close Window. Tauri's default menu binds Cmd+W to Close Window,
 /// which the system handles before the page sees the key, so the app could not use Cmd+W to
 /// close a request tab. The red window button and Cmd+Q still close the window and quit.
 /// Cmd+T is free in the default menu, so nothing else changes.
 #[cfg(target_os = "macos")]
 fn app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri::menu::Menu<R>> {
-    use tauri::menu::{Menu, PredefinedMenuItem, Submenu};
+    use tauri::menu::{Menu, MenuItem, PredefinedMenuItem, Submenu};
 
     let name = app.package_info().name.clone();
     let app_menu = Submenu::with_items(
@@ -91,6 +95,8 @@ fn app_menu<R: tauri::Runtime>(app: &tauri::AppHandle<R>) -> tauri::Result<tauri
         true,
         &[
             &PredefinedMenuItem::about(app, None, None)?,
+            // Opens the same About / Check for updates dialog as the top bar button. Nothing is checked until the dialog's button is clicked.
+            &MenuItem::with_id(app, UPDATE_MENU_ID, "Check for Updates…", true, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
             &PredefinedMenuItem::services(app, None)?,
             &PredefinedMenuItem::separator(app)?,
@@ -131,8 +137,17 @@ pub fn run() {
     let builder = tauri::Builder::default();
     #[cfg(target_os = "macos")]
     let builder = builder.menu(|app| app_menu(app));
+    #[cfg(target_os = "macos")]
+    let builder = builder.on_menu_event(|app, event| {
+        if event.id().as_ref() == UPDATE_MENU_ID {
+            use tauri::Emitter;
+            let _ = app.emit("open-update-dialog", ());
+        }
+    });
     builder
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             write_text_file,
             http_send,

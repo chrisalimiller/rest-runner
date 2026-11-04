@@ -9,6 +9,9 @@
     "core:default",
     "core:window:allow-start-dragging",
     "dialog:allow-save",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "updater:allow-check",
+    "updater:allow-download-and-install",
+    "process:allow-restart"
   ]
 }

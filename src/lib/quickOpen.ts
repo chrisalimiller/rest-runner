@@ -49,10 +49,14 @@ export const KIND_ORDER: Record<"requests" | "testing" | "flows", QuickKind[]> =
 };
 
 export const CURL_COMMAND_ID = "import-curl";
+export const UPDATES_COMMAND_ID = "check-for-updates";
 
 /** Commands that show up when the query names them. They are not listed with an empty query. */
 export function commandItems(): QuickItem[] {
-  return [{ kind: "command", id: CURL_COMMAND_ID, title: "Import from cURL…", detail: "Command", keywords: "curl paste import command" }];
+  return [
+    { kind: "command", id: CURL_COMMAND_ID, title: "Import from cURL…", detail: "Command", keywords: "curl paste import command" },
+    { kind: "command", id: UPDATES_COMMAND_ID, title: "Check for updates…", detail: "Command", keywords: "update upgrade version about release" },
+  ];
 }
 
 /** A command matches when the query is inside its title or starts one of its keywords: "cu", "paste", "import" find it, "r" does not. */

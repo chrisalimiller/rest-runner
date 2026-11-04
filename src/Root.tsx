@@ -4,8 +4,10 @@ import { QuickOpen } from "./components/shell/QuickOpen";
 import type { Mode } from "./components/shell/TopBar";
 import { FlowsApp } from "./components/flows/FlowsApp";
 import { TestingApp } from "./components/testing/TestingApp";
-import type { QuickItem } from "./lib/quickOpen";
+import { UPDATES_COMMAND_ID, type QuickItem } from "./lib/quickOpen";
 import { CertificatesDialog } from "./components/CertificatesDialog";
+import { UpdateDialog } from "./components/UpdateDialog";
+import { closeUpdateDialog, openUpdateDialog, useUpdateDialog } from "./lib/updateDialog";
 import { closeCertificates, useCertificatesDialog } from "./lib/certificatesDialog";
 import { FirstRun } from "./components/shell/FirstRun";
 import { modeForShortcut } from "./lib/topBar";
@@ -35,6 +37,7 @@ export default function Root() {
   });
   const [quickOpen, setQuickOpen] = useState(false);
   const certificates = useCertificatesDialog();
+  const updateOpen = useUpdateDialog();
   const [firstRun, setFirstRun] = useState(() => isFirstRun());
   const [commands, setCommands] = useState<Record<Mode, ShellCommand | null>>({ requests: null, testing: null, flows: null });
   useEffect(() => {
@@ -60,6 +63,23 @@ export default function Root() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  // The macOS menu item "Check for Updates…" asks the page to open the same dialog.
+  useEffect(() => {
+    if (!("__TAURI_INTERNALS__" in window)) return;
+    let unlisten: (() => void) | undefined;
+    let gone = false;
+    void import("@tauri-apps/api/event").then(({ listen }) =>
+      listen("open-update-dialog", () => openUpdateDialog()).then((un) => {
+        if (gone) un();
+        else unlisten = un;
+      }),
+    );
+    return () => {
+      gone = true;
+      unlisten?.();
+    };
   }, []);
 
   const send = (mode: Mode, cmd: ShellCommand) => setCommands((c) => ({ ...c, [mode]: cmd }));
@@ -94,12 +114,17 @@ export default function Root() {
         />
       )}
       {certificates.open && <CertificatesDialog entryId={certificates.entryId} onClose={closeCertificates} />}
+      {updateOpen && <UpdateDialog onClose={closeUpdateDialog} />}
       {quickOpen && (
         <QuickOpen
           mode={section}
           onClose={() => setQuickOpen(false)}
           onPick={(item, permanent) => {
             setQuickOpen(false);
+            if (item.kind === "command" && item.id === UPDATES_COMMAND_ID) {
+              openUpdateDialog();
+              return;
+            }
             const mode = modeFor(item);
             setSection(mode);
             send(mode, { type: "open", item, nonce: Date.now(), permanent });

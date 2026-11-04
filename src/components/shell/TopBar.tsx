@@ -5,7 +5,8 @@ import { overlayTitleBar } from "../../lib/windowChrome";
 import { MODES, nextModeIndex, topBarLayout } from "../../lib/topBar";
 import { useViewportWidth } from "../useViewportWidth";
 import { openCertificates } from "../../lib/certificatesDialog";
-import { ChevronDownIcon, FlowsIcon, LockIcon, PencilIcon, RequestsIcon, SearchIcon, TestingIcon, VariablesIcon } from "./Icons";
+import { openUpdateDialog } from "../../lib/updateDialog";
+import { ChevronDownIcon, FlowsIcon, InfoIcon, LockIcon, PencilIcon, RequestsIcon, SearchIcon, TestingIcon, VariablesIcon } from "./Icons";
 import { useTopBarFit } from "./useTopBarFit";
 import { OverflowMenu } from "./OverflowMenu";
 
@@ -94,6 +95,9 @@ export function TopBar(props: Props) {
       )}
       <button className="icon-btn topbar-certs" onClick={() => openCertificates()} aria-label="Certificates" title="Certificates">
         <LockIcon />
+      </button>
+      <button className="icon-btn topbar-about" onClick={openUpdateDialog} aria-label="About REST Runner" title="About and updates">
+        <InfoIcon />
       </button>
       <ModeSwitch mode={props.mode} onMode={props.onMode} />
     </header>
