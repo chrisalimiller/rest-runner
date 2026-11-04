@@ -1733,7 +1733,27 @@ button.unfilled-dot:hover {
 
 .nav-group-head .sidebar-actions {
   display: flex;
+  align-items: center;
   gap: 10px;
+}
+
+/* New/Import/Export mix <button> and <label>; give them identical box metrics so they share a baseline. */
+.nav-group-head .sidebar-actions .link-btn,
+.runbook-nav-compact .link-btn {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  line-height: 16px;
+}
+
+.nav-group-head .sidebar-actions .icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  padding: 0;
+  line-height: 1;
 }
 
 .nav-empty {
