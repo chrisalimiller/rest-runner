@@ -13,7 +13,7 @@ Pre-releases and drafts are never offered as updates (GitHub's "latest" skips th
 
 ## What gets offered
 
-- macOS: `REST-Runner_..._universal.app.tar.gz`, for both Apple silicon and Intel.
+- macOS: `REST-Runner.app.tar.gz`, for both Apple silicon and Intel.
 - Windows: the setup `.exe` only. The `.msi` is built for anyone who wants it but is not offered as an update.
 
 ## The signing key
