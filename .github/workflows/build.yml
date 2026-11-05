@@ -24,6 +24,10 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      # Fail early if the release tag and the app's version disagree, before spending time on installers.
+      - name: Check the release tag matches the app version
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.release_tag != ''
+        run: node scripts/updater-manifest.mjs check-version "${{ inputs.release_tag || github.ref_name }}"
 
   build:
     needs: test
@@ -55,9 +59,24 @@ jobs:
         with:
           workspaces: src-tauri -> target
       - run: npm ci
+      # The signing key makes Tauri sign the update files that "Check for updates" installs.
       - run: npm run tauri build -- ${{ matrix.args }}
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
       # After the build, which creates the frontend bundle the Tauri crate embeds.
       - run: cargo test --manifest-path src-tauri/Cargo.toml
+      # GitHub turns spaces in asset names into dots, which would break the links in latest.json. Use dashes instead.
+      - name: Rename release files without spaces
+        shell: bash
+        run: |
+          cd "${{ matrix.bundle-dir }}"
+          for f in dmg/*.dmg msi/*.msi nsis/*.exe nsis/*.exe.sig macos/*.app.tar.gz macos/*.app.tar.gz.sig; do
+            [ -e "$f" ] || continue
+            new="$(dirname "$f")/$(basename "$f" | tr ' ' '-')"
+            [ "$f" = "$new" ] || mv "$f" "$new"
+          done
+          ls -R .
       - uses: actions/upload-artifact@v4
         with:
           name: rest-runner-${{ matrix.name }}
@@ -65,6 +84,9 @@ jobs:
             ${{ matrix.bundle-dir }}/dmg/*.dmg
             ${{ matrix.bundle-dir }}/msi/*.msi
             ${{ matrix.bundle-dir }}/nsis/*.exe
+            ${{ matrix.bundle-dir }}/nsis/*.exe.sig
+            ${{ matrix.bundle-dir }}/macos/*.app.tar.gz
+            ${{ matrix.bundle-dir }}/macos/*.app.tar.gz.sig
           if-no-files-found: error
 
   # On a v* tag push, or a manual run with release_tag set, publish the
@@ -76,20 +98,36 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      TAG: ${{ inputs.release_tag || github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           path: installers
           merge-multiple: true
       - run: ls -lR installers
+      # The same notes go on the release page and into latest.json, where the app shows them.
+      - name: Write release notes
+        run: |
+          gh api "repos/${{ github.repository }}/releases/generate-notes" \
+            -f tag_name="$TAG" -f target_commitish="${{ github.sha }}" --jq .body > release-notes.md
+      - name: Write latest.json
+        run: |
+          node scripts/updater-manifest.mjs build --dir installers --tag "$TAG" \
+            --repo "${{ github.repository }}" --notes release-notes.md --out installers/latest.json
+          cat installers/latest.json
       - uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ inputs.release_tag || github.ref_name }}
+          tag_name: ${{ env.TAG }}
           target_commitish: ${{ github.sha }}
-          name: REST Runner ${{ inputs.release_tag || github.ref_name }}
-          generate_release_notes: true
+          name: REST Runner ${{ env.TAG }}
+          body_path: release-notes.md
           fail_on_unmatched_files: true
           files: |
             installers/**/*.dmg
             installers/**/*.msi
-            installers/**/*.exe
+            installers/**/*-setup.exe
+            installers/**/*.app.tar.gz
+            installers/latest.json
