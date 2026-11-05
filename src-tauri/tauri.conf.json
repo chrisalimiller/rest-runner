@@ -22,7 +22,10 @@
         "backgroundColor": "#0d1117",
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,
-        "trafficLightPosition": { "x": 18, "y": 29 }
+        "trafficLightPosition": {
+          "x": 18,
+          "y": 29
+        }
       }
     ],
     "security": {
@@ -42,6 +45,17 @@
     "createUpdaterArtifacts": true,
     "macOS": {
       "signingIdentity": "-"
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVEOTM3NkRDQTY0NzAzQzQKUldURUEwZW0zSGFUWFNvYStVdWRKckhxWTFmZVVrL0lKalY5M2tsZGU0NkZMQ1JKNUhsTlVkQ08K",
+      "endpoints": [
+        "https://github.com/chrisalimiller/rest-runner/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
+      }
     }
   }
 }
