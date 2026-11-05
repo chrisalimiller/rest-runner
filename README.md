@@ -131,6 +131,12 @@ The builds are not signed with a paid certificate yet, so the first launch needs
 - **macOS:** right-click the app and choose **Open**. If macOS says the app is damaged, run `xattr -cr "/Applications/REST Runner.app"` once.
 - **Windows:** on the SmartScreen prompt, click **More info**, then **Run anyway**.
 
+## Updating REST Runner
+
+REST Runner never checks for updates by itself. To update an installed copy, click the **info button** in the top bar (or **REST Runner › Check for Updates…** on macOS, or **Check for updates** in Quick open), then **Check for updates**. If there is a newer release you see its notes; **Download and install** installs it and restarts the app. If a batch, test run or flow is running, it asks before stopping it. Your saved data stays.
+
+Updates only work in installed builds, not in `npm run tauri dev`. Versions before v0.3.0 have no updater: install v0.3.0 by hand once. Maintainers: see [docs/releasing.md](docs/releasing.md).
+
 ## Developing
 
 You need Node 22+ and Rust (stable). On Windows also install the WebView2 runtime (already on Windows 11) and the Visual Studio C++ build tools. See [Tauri prerequisites](https://tauri.app/start/prerequisites/).
