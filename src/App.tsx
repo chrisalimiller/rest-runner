@@ -45,6 +45,7 @@ import {
   type RequestExample,
   type SampleResponse,
 } from "./lib/collections";
+import { setBusy } from "./lib/busyWork";
 import { newRequest } from "./lib/defaults";
 import { earlierSendLabel, earlierSends, earlierSendTone, sendTooltip, whenLabel } from "./lib/earlierSends";
 import { cleanHistory, fitHistory, historyLabel, historyOutcome, MAX_HISTORY_BODY, responseNotKept } from "./lib/history";
@@ -317,6 +318,8 @@ export default function App({ active = true, shell, command }: Props) {
 
   const dirtyIds = useMemo(() => new Set(tabs.tabs.filter((t) => isTabDirty(t, collections)).map((t) => t.id)), [tabs.tabs, collections]);
   const busyIds = useMemo(() => new Set(tabs.tabs.filter((t) => runtime[t.id]?.sending || runtime[t.id]?.batchRunning).map((t) => t.id)), [tabs.tabs, runtime]);
+  // The update dialog asks before restarting over a running batch.
+  useEffect(() => setBusy("requests", busyIds.size > 0), [busyIds]);
   const tabName = (t: RequestTab) => t.def.name || "Untitled request";
 
   const activateTab = (id: string) => {

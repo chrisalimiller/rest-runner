@@ -1,3 +1,4 @@
+import { setBusy } from "../../lib/busyWork";
 import { scheduleChip } from "../../lib/flows/scheduleChip";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cleanCollections } from "../../lib/collections";
@@ -463,6 +464,8 @@ export function FlowsApp({ active, shell, command }: Props) {
     .filter((l) => l.running)
     .map((l) => l.flowId);
   const flowRunning = !!flow && runningIds.includes(flow.id);
+  const anyFlowRunning = runningIds.length > 0;
+  useEffect(() => setBusy("flows", anyFlowRunning), [anyFlowRunning]);
   const warningCount = problems.filter((p) => p.level === "warning").length;
   const chip = flow ? scheduleChip(flow, new Date()) : null;
   const guard = guardFor(environments.find((e) => e.id === envId));

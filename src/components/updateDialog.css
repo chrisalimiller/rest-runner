@@ -1,0 +1,46 @@
+.update-modal {
+  width: min(460px, 94vw);
+  height: auto;
+  max-height: 86vh;
+}
+
+.update-body {
+  padding: 14px 16px 4px;
+  overflow: auto;
+  font-size: 13.5px;
+}
+
+.update-body p {
+  margin: 0 0 10px;
+}
+
+.update-notes {
+  font-family: var(--mono, inherit);
+  font-size: 12.5px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 180px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 0 0 10px;
+  color: var(--text-muted, inherit);
+}
+
+.update-error {
+  color: var(--danger, #f85149);
+}
+
+.update-warn {
+  color: var(--warn);
+}
+
+.update-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border);
+  margin-top: 8px;
+}

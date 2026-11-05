@@ -1,3 +1,4 @@
+import { setBusy } from "../../lib/busyWork";
 import { reinsert, removeById } from "../../lib/listUndo";
 import { useToast } from "../shell/Toast";
 import { useDeferredDelete } from "../shell/useDeferredDelete";
@@ -82,6 +83,7 @@ export function TestingApp({ active, shell, command }: Props) {
   const [notice, setNotice] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
   const bufferRef = useRef<CaseResult[]>([]);
+  useEffect(() => setBusy("testing", !!live?.running), [live?.running]);
   const scripts = useMemo(() => createWorkerScriptRunner(), []);
   useEffect(() => () => scripts.dispose(), [scripts]);
 
