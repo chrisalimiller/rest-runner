@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_BATCH_OPTIONS, runBatch, type BatchEnd, type BatchItemResult, type BatchOptions } from "../lib/batch";
-import { parseCsv, type CsvData } from "../lib/csv";
+import { checkCsvFile, parseCsv, type CsvData } from "../lib/csv";
 import { statusClass } from "../lib/format";
 import { sendRequest } from "../lib/http";
 import { newId } from "../lib/ids";
@@ -113,7 +113,13 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
   const onPick = async (f: File | undefined) => {
     if (!f) return;
     try {
-      const data = parseCsv(await f.text());
+      const text = await f.text();
+      const problem = checkCsvFile(f.name, text);
+      if (problem) {
+        setFileError(problem);
+        return;
+      }
+      const data = parseCsv(text);
       setFile({ name: f.name, data });
       setFileError(data.rows.length === 0 ? "No data rows found. The first line must be the column names." : null);
       setResults([]);

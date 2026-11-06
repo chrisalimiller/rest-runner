@@ -543,6 +543,28 @@ textarea.code {
   flex-direction: column;
   gap: 8px;
   min-height: 0;
+  overflow-y: auto;
+}
+
+/* With results on screen the setup area scrolls on its own so the results keep their space. */
+.batch.wide {
+  overflow-y: hidden;
+}
+
+.batch.wide .batch-setup {
+  flex: 0 1 auto;
+  max-height: 45%;
+  overflow-y: auto;
+}
+
+.batch-setup,
+.batch-file {
+  min-width: 0;
+}
+
+.batch-file span,
+.batch-setup p {
+  overflow-wrap: anywhere;
 }
 
 .batch-setup {

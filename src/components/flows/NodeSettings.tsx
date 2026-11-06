@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { parseCsv } from "../../lib/csv";
+import { checkCsvFile, parseCsv } from "../../lib/csv";
 import { CONDITION_SOURCE_LABELS, OPS_FOR_CONDITION } from "../../lib/flows/conditions";
 import { formatMs, NODE_TYPE_LABELS, nodeLabel } from "../../lib/flows/flows";
 import type { FlowItems } from "../../lib/flows/items";
@@ -158,6 +158,11 @@ function LoopEditor({ node, onChange }: { node: LoopNode; onChange: (n: LoopNode
   const load = async (file: File) => {
     setError(null);
     const text = await file.text();
+    const problem = checkCsvFile(file.name, text);
+    if (problem) {
+      setError(problem);
+      return;
+    }
     if (parseCsv(text).headers.length === 0) {
       setError(`${file.name} has no header row.`);
       return;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseCsv } from "./csv";
+import { checkCsvFile, parseCsv } from "./csv";
 
 describe("parseCsv", () => {
   it("parses a simple file", () => {
@@ -40,5 +40,30 @@ describe("parseCsv", () => {
 
   it("handles an empty file", () => {
     expect(parseCsv("").rows).toEqual([]);
+  });
+});
+
+describe("checkCsvFile", () => {
+  it("accepts csv, tsv, semicolon and one-column files", () => {
+    expect(checkCsvFile("a.csv", "id,name\n1,Ann\n")).toBeNull();
+    expect(checkCsvFile("A.TSV", "id\tname\n1\tAnn\n")).toBeNull();
+    expect(checkCsvFile("a.txt", "id;name\n1;Ann\n")).toBeNull();
+    expect(checkCsvFile("a.csv", "id\n1\n2\n")).toBeNull();
+  });
+  it("rejects a wrong extension", () => {
+    expect(checkCsvFile("photo.png", "id,name\n1,Ann")).toMatch(/isn't a CSV file/);
+  });
+  it("rejects binary content", () => {
+    expect(checkCsvFile("a.csv", "\u0089PNG\r\n\u001a\n\u0000\u0000\u0000IHDR")).toMatch(/binary/);
+    expect(checkCsvFile("a.csv", "\ufffd".repeat(50) + "id,name")).toMatch(/binary/);
+  });
+  it("rejects JSON and XML", () => {
+    expect(checkCsvFile("a.csv", '{"a":1}')).toMatch(/JSON/);
+    expect(checkCsvFile("a.csv", '[{"a":1}]')).toMatch(/JSON/);
+    expect(checkCsvFile("a.csv", "<?xml version='1.0'?><a/>")).toMatch(/XML or HTML/);
+  });
+  it("rejects mostly ragged rows but allows a few", () => {
+    expect(checkCsvFile("a.csv", "a,b,c\n1\n2\n3,4,5\n")).toMatch(/Most rows don't match the header's 3 columns/);
+    expect(checkCsvFile("a.csv", "a,b,c\n1,2,3\n4,5,6\n7\n")).toBeNull();
   });
 });
