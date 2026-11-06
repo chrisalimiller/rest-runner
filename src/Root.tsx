@@ -9,6 +9,9 @@ import { CertificatesDialog } from "./components/CertificatesDialog";
 import { UpdateDialog } from "./components/UpdateDialog";
 import { closeUpdateDialog, openUpdateDialog, useUpdateDialog } from "./lib/updateDialog";
 import { closeCertificates, useCertificatesDialog } from "./lib/certificatesDialog";
+import { CertificatesPanel } from "./components/CertificatesPanel";
+import { DOCK_MIN_WIDTH } from "./components/variables/VariablesPanel";
+import { useViewportWidth } from "./components/useViewportWidth";
 import { SideRail } from "./components/shell/SideRail";
 import { FirstRun } from "./components/shell/FirstRun";
 import { modeForShortcut } from "./lib/topBar";
@@ -46,6 +49,7 @@ export default function Root() {
     save(SECTION_KEY, section);
   }, [section]);
   // Opening Testing or Flows counts as looking at its latest run, so the rail's failure badge goes away.
+  const viewportWidth = useViewportWidth();
   const status = useSectionStatus();
   useEffect(() => {
     if (section === "testing" && status.testing.unseen) markSectionSeen("testing");
@@ -114,6 +118,7 @@ export default function Root() {
           <FlowsApp active={section === "flows"} shell={shell} command={commands.flows} />
         </div>
       </div>
+      <CertificatesPanel section={section} docked={viewportWidth >= DOCK_MIN_WIDTH} />
       <SideRail section={section} onMode={setSection} />
       {firstRun && (
         <FirstRun
