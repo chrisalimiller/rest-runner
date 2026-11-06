@@ -1,6 +1,6 @@
 import { CsvPreview } from "../CsvPreview";
 import { useMemo, useRef, useState } from "react";
-import { parseCsv } from "../../lib/csv";
+import { checkCsvFile, parseCsv } from "../../lib/csv";
 import { requestPlaceholders } from "../../lib/request";
 import { clampRepeat, MAX_REPEAT, planEstimate } from "../../lib/testing/plan";
 import { planIterations } from "../../lib/testing/runner";
@@ -42,6 +42,11 @@ export function SuiteSettings({ suite, onChange, envVarNames }: Props) {
   const loadFile = async (file: File) => {
     setFileError(null);
     const text = await file.text();
+    const problem = checkCsvFile(file.name, text);
+    if (problem) {
+      setFileError(problem);
+      return;
+    }
     const parsed = parseCsv(text);
     if (parsed.headers.length === 0) {
       setFileError(`${file.name} has no header row.`);

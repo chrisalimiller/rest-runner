@@ -114,3 +114,52 @@ export function parseCsv(input: string): CsvData {
 
   return { headers, rows, delimiter, warnings };
 }
+
+const CSV_EXTENSIONS = [".csv", ".tsv", ".txt"];
+
+/**
+ * Checks that a picked file looks like CSV text. Returns a message saying why not, or null when it is fine.
+ * A small mismatch of row lengths is left to parseCsv's warning; only a mostly ragged file is rejected here.
+ */
+export function checkCsvFile(name: string, input: string): string | null {
+  const lower = name.toLowerCase();
+  if (!CSV_EXTENSIONS.some((ext) => lower.endsWith(ext))) {
+    return `${name} isn't a CSV file. Choose a .csv, .tsv or .txt file.`;
+  }
+  const sample = input.slice(0, 65536);
+  let bad = 0;
+  for (let i = 0; i < sample.length; i++) {
+    const c = sample.charCodeAt(i);
+    if (c === 0) {
+      bad = sample.length;
+      break;
+    }
+    if (c === 0xfffd || (c < 32 && c !== 9 && c !== 10 && c !== 13)) bad += 1;
+  }
+  if (bad > 0 && (sample.includes("\0") || bad / sample.length > 0.01)) {
+    return `${name} looks like a binary file, not CSV text. If it came from Excel, use File › Save As › CSV.`;
+  }
+  const text = input.charCodeAt(0) === 0xfeff ? input.slice(1) : input;
+  const start = text.trimStart();
+  if (start.startsWith("{") || start.startsWith("[")) {
+    try {
+      JSON.parse(text);
+      return `${name} is a JSON file, not CSV. Choose a .csv, .tsv or .txt file with a header row.`;
+    } catch {
+      // Not JSON; a CSV can start with a bracket.
+    }
+  }
+  if (start.startsWith("<")) {
+    return `${name} looks like XML or HTML, not CSV. Choose a .csv, .tsv or .txt file with a header row.`;
+  }
+  const records = parseRecords(text, detectDelimiter(text)).filter((r) => !(r.length === 1 && r[0].trim() === ""));
+  if (records.length > 1 && records[0].length >= 2) {
+    const width = records[0].length;
+    const data = records.slice(1);
+    const off = data.filter((r) => r.length !== width).length;
+    if (off > data.length / 2) {
+      return `Most rows don't match the header's ${width} columns. Check the file is a CSV with a header row.`;
+    }
+  }
+  return null;
+}

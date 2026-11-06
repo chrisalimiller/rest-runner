@@ -77,7 +77,7 @@ export function RequestDetailsDrawer({ id, open, docked, tab, onTab, onClose, ma
   useEscape(onClose, open && !docked);
 
   useEffect(() => {
-    if (open && !docked) tabs.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.focus();
+    if (open && !docked) tabs.current?.querySelector<HTMLElement>('[aria-selected="true"]')?.focus({ preventScroll: true });
   }, [open, docked]);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
