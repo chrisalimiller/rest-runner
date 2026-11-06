@@ -53,7 +53,9 @@ import { cleanHistory, fitHistory, historyLabel, historyOutcome, MAX_HISTORY_BOD
 import { looksLikeCurl, parseCurl, type CurlCommand, type CurlNote } from "./lib/curlImport";
 import { matchVariables, type VarSwap } from "./lib/curlVariables";
 import { environmentVars, guardFor, loadEnvironments, type Environment } from "./lib/environments";
-import { loadCertificates, saveCertificates } from "./lib/certificates";
+import { loadCertificates, matchCertificate, saveCertificates } from "./lib/certificates";
+import { setRequestStatus } from "./lib/sectionStatus";
+import { resolvedUrl } from "./lib/requestSummary";
 import { certificatesForExport, describeCertificateImport, importCertificates } from "./lib/certificatesFile";
 import { isTauri, sendRequest } from "./lib/http";
 import { newId } from "./lib/ids";
@@ -949,6 +951,27 @@ export default function App({ active = true, shell, command }: Props) {
 
   const usedNames = useMemo(() => requestPlaceholders(def), [def]);
   const unfilled = unresolvedPlaceholders(def, sendVars);
+
+  // The side rail shows this request's unfilled count and certificate state. Debounced like the URL bar's dot.
+  const patchRef = useRef(patch);
+  patchRef.current = patch;
+  const skipCertificate = useCallback((skip: boolean) => patchRef.current({ noCertificate: skip || undefined }), []);
+  const unfilledCount = unfilled.length;
+  const skippedCertificate = !!def.noCertificate;
+  const finalUrl = resolvedUrl(def, sendVars);
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      const match = matchCertificate(finalUrl, certificateList);
+      setRequestStatus({
+        unfilled: unfilledCount,
+        certInUse: match.client && !skippedCertificate ? match.client.name || "(unnamed)" : null,
+        url: finalUrl,
+        skipped: skippedCertificate,
+        onSkip: skipCertificate,
+      });
+    }, 150);
+    return () => window.clearTimeout(t);
+  }, [unfilledCount, finalUrl, skippedCertificate, certificateList, skipCertificate]);
   const foldRequest = pane === "batch" && batchWide && openRun === null;
   const summaryUrl = foldRequest ? prepareRequest(def, sendVars).url : "";
   const guard = guardFor(activeEnv);
