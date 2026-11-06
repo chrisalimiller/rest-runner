@@ -8,6 +8,15 @@
 .app-shell {
   height: 100%;
   overflow: hidden;
+  display: flex;
+  position: relative;
+}
+
+/* The three sections share this column; the side rail sits to its right at full window height. */
+.root-sections {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
 }
 
 .root-section {
@@ -356,56 +365,6 @@ body.dragging-split {
 .env-edit-btn:hover {
   color: var(--text);
   background: var(--bg-hover);
-}
-
-.mode-switch {
-  display: inline-flex;
-  gap: 2px;
-  padding: 3px;
-  border: 1px solid var(--border);
-  border-radius: 9px;
-  background: var(--bg);
-}
-
-.mode-switch button {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 30px;
-  padding: 0 9px;
-  border: 0;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 600;
-  transition: padding 150ms ease, background-color 150ms ease;
-}
-
-.mode-switch button:hover {
-  background: var(--bg-soft);
-  color: var(--text);
-}
-
-.mode-switch button.on {
-  padding: 0 12px;
-  background: var(--btn-bg);
-  color: var(--text);
-}
-
-.mode-switch button.on svg {
-  color: var(--brand);
-}
-
-.mode-switch button:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--accent);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .mode-switch button {
-    transition: none;
-  }
 }
 
 /* Request switcher */

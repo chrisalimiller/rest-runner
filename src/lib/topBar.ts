@@ -20,8 +20,8 @@ export function topBarLayout(width: number, environmentCount: number): TopBarLay
   };
 }
 
-/** Collapse levels the top bar steps through as space runs out: 1 request path, 2 search, 3 environment switch, 4 Variables button. */
-export const MAX_FIT_LEVEL = 4;
+/** Collapse levels the top bar steps through as space runs out: 1 request path, 2 search, 3 environment switch. */
+export const MAX_FIT_LEVEL = 3;
 /** Spare width needed beyond what the next level down takes back, so the bar does not flicker between two levels. */
 export const FIT_SLACK_PX = 24;
 
@@ -38,10 +38,10 @@ export function nextFitLevel(level: number, overflowPx: number, spareWidthPx: nu
 /** The sections in switcher order; Ctrl/Cmd + 1, 2, 3 pick them. */
 export const MODES: readonly Mode[] = ["requests", "testing", "flows"];
 
-/** Which segment gets focus after a key press in the section switcher (wrapping), or null when the key does nothing there. */
+/** Which button gets focus after a key press in the side rail's section group (wrapping), or null when the key does nothing there. */
 export function nextModeIndex(current: number, key: string, count = 3): number | null {
-  if (key === "ArrowRight") return (current + 1) % count;
-  if (key === "ArrowLeft") return (current - 1 + count) % count;
+  if (key === "ArrowRight" || key === "ArrowDown") return (current + 1) % count;
+  if (key === "ArrowLeft" || key === "ArrowUp") return (current - 1 + count) % count;
   if (key === "Home") return 0;
   if (key === "End") return count - 1;
   return null;

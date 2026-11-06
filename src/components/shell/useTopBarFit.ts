@@ -21,7 +21,7 @@ function contentKey(header: HTMLElement): string {
 }
 
 /**
- * How far the top bar has had to collapse (0 to 4) to stay on one row. It measures the real header, so it
+ * How far the top bar has had to collapse (0 to 3) to stay on one row. It measures the real header, so it
  * accounts for long names and folder paths that a window width alone cannot. `resetKey` covers things the
  * header's text does not show, like the number of environments.
  */

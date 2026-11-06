@@ -39,6 +39,8 @@ describe("nextModeIndex", () => {
     expect(nextModeIndex(2, "ArrowRight")).toBe(0);
     expect(nextModeIndex(0, "ArrowLeft")).toBe(2);
     expect(nextModeIndex(0, "ArrowRight")).toBe(1);
+    expect(nextModeIndex(2, "ArrowDown")).toBe(0);
+    expect(nextModeIndex(0, "ArrowUp")).toBe(2);
   });
 
   it("jumps with Home and End, and ignores other keys", () => {
@@ -53,8 +55,8 @@ describe("nextFitLevel", () => {
     expect(nextFitLevel(0, 40, 0, 100)).toBe(1);
     expect(nextFitLevel(2, 2, 0, 100)).toBe(3);
   });
-  it("never goes above 4", () => {
-    expect(nextFitLevel(4, 300, 0, 100)).toBe(4);
+  it("never goes above 3", () => {
+    expect(nextFitLevel(3, 300, 0, 100)).toBe(3);
   });
   it("ignores a one-pixel overflow", () => {
     expect(nextFitLevel(1, 1, 0, 100)).toBe(1);

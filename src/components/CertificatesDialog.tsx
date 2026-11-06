@@ -26,7 +26,8 @@ interface Props {
   onClose: () => void;
 }
 
-const ADDING = "__add__";
+/** Pass to openCertificates() to open the dialog on its add form. */
+export const ADDING = "__add__";
 
 export function useCertificates(): CertificateEntry[] {
   return useSyncExternalStore(subscribeCertificates, loadCertificates);

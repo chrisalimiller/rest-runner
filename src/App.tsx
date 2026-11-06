@@ -46,6 +46,7 @@ import {
   type SampleResponse,
 } from "./lib/collections";
 import { setBusy } from "./lib/busyWork";
+import { closeSidePanel, openSidePanel, useSidePanels } from "./lib/sidePanels";
 import { newRequest } from "./lib/defaults";
 import { earlierSendLabel, earlierSends, earlierSendTone, sendTooltip, whenLabel } from "./lib/earlierSends";
 import { cleanHistory, fitHistory, historyLabel, historyOutcome, MAX_HISTORY_BODY, responseNotKept } from "./lib/history";
@@ -252,7 +253,10 @@ export default function App({ active = true, shell, command }: Props) {
   const [activeEnvId, setActiveEnvId] = useState<string | null>(() => load<string | null>(ACTIVE_ENV_KEY, null, isString));
   const [showEnvEditor, setShowEnvEditor] = useState(false);
   const [focusVarId, setFocusVarId] = useState<string | undefined>(undefined);
-  const [variablesPanel, setVariablesPanel] = useState<VariablesPanelState>(loadPanelState);
+  const [variablesView, setVariablesPanel] = useState<VariablesPanelState>(loadPanelState);
+  // Whether the panel is open lives in a small shared store, because the side rail's button and the Certificates panel use it too.
+  const panels = useSidePanels();
+  const variablesPanel = useMemo<VariablesPanelState>(() => ({ ...variablesView, open: panels.variables }), [variablesView, panels.variables]);
   const viewportWidth = useViewportWidth();
   const [exportDialog, setExportDialog] = useState(false);
   const toast = useToast();
@@ -799,7 +803,14 @@ export default function App({ active = true, shell, command }: Props) {
     else void exportWorkspace(false);
   };
 
-  const patchVariablesPanel = useCallback((patch: Partial<VariablesPanelState>) => setVariablesPanel((p) => ({ ...p, ...patch })), []);
+  const patchVariablesPanel = useCallback((patch: Partial<VariablesPanelState>) => {
+    const { open, ...rest } = patch;
+    if (open !== undefined) {
+      if (open) openSidePanel("variables");
+      else closeSidePanel("variables");
+    }
+    if (Object.keys(rest).length > 0) setVariablesPanel((p) => ({ ...p, ...rest }));
+  }, []);
   /** Opens the sidebar on the variables this request uses. */
   const openVariables = useCallback(() => patchVariablesPanel({ open: true, filter: "request" }), [patchVariablesPanel]);
   const closeVariables = useCallback(() => {
@@ -1067,7 +1078,6 @@ export default function App({ active = true, shell, command }: Props) {
     <div className="mode requests-mode">
       <TopBar
         mode="requests"
-        onMode={shell.onMode}
         onQuickOpen={shell.onQuickOpen}
         searchPlaceholder="Jump to a request, example, run or history…"
         switcher={switcher}
@@ -1078,8 +1088,6 @@ export default function App({ active = true, shell, command }: Props) {
           setFocusVarId(undefined);
           setShowEnvEditor(true);
         }}
-        onVariables={() => (variablesPanel.open ? closeVariables() : openVariables())}
-        variablesOpen={variablesPanel.open}
       />
       {showTabBar(tabs.tabs) && (
         <RequestTabBar

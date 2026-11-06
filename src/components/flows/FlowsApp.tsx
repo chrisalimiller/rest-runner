@@ -482,7 +482,6 @@ export function FlowsApp({ active, shell, command }: Props) {
     <div className="mode flows-mode">
       <TopBar
         mode="flows"
-        onMode={shell.onMode}
         onQuickOpen={shell.onQuickOpen}
         searchPlaceholder="Jump to a flow, flow run, suite or case…"
         switcher={

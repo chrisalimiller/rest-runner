@@ -9,8 +9,10 @@ import { CertificatesDialog } from "./components/CertificatesDialog";
 import { UpdateDialog } from "./components/UpdateDialog";
 import { closeUpdateDialog, openUpdateDialog, useUpdateDialog } from "./lib/updateDialog";
 import { closeCertificates, useCertificatesDialog } from "./lib/certificatesDialog";
+import { SideRail } from "./components/shell/SideRail";
 import { FirstRun } from "./components/shell/FirstRun";
 import { modeForShortcut } from "./lib/topBar";
+import { markSectionSeen, useSectionStatus } from "./lib/sectionStatus";
 import { load, save } from "./lib/storage";
 import { isFirstRun } from "./lib/workspaceStore";
 
@@ -43,6 +45,12 @@ export default function Root() {
   useEffect(() => {
     save(SECTION_KEY, section);
   }, [section]);
+  // Opening Testing or Flows counts as looking at its latest run, so the rail's failure badge goes away.
+  const status = useSectionStatus();
+  useEffect(() => {
+    if (section === "testing" && status.testing.unseen) markSectionSeen("testing");
+    if (section === "flows" && status.flows.unseen) markSectionSeen("flows");
+  }, [section, status.testing.unseen, status.flows.unseen]);
 
   const quickOpenRef = useRef(false);
   quickOpenRef.current = quickOpen;
@@ -84,7 +92,6 @@ export default function Root() {
 
   const send = (mode: Mode, cmd: ShellCommand) => setCommands((c) => ({ ...c, [mode]: cmd }));
   const shell: ShellProps = {
-    onMode: setSection,
     onQuickOpen: () => setQuickOpen(true),
     onDataChanged: (what) => {
       const nonce = Date.now();
@@ -96,15 +103,18 @@ export default function Root() {
 
   return (
     <div className="app-shell">
-      <div className="root-section" hidden={section !== "requests"}>
-        <App active={section === "requests" && !quickOpen} shell={shell} command={commands.requests} />
+      <div className="root-sections">
+        <div className="root-section" hidden={section !== "requests"}>
+          <App active={section === "requests" && !quickOpen} shell={shell} command={commands.requests} />
+        </div>
+        <div className="root-section" hidden={section !== "testing"}>
+          <TestingApp active={section === "testing"} shell={shell} command={commands.testing} />
+        </div>
+        <div className="root-section" hidden={section !== "flows"}>
+          <FlowsApp active={section === "flows"} shell={shell} command={commands.flows} />
+        </div>
       </div>
-      <div className="root-section" hidden={section !== "testing"}>
-        <TestingApp active={section === "testing"} shell={shell} command={commands.testing} />
-      </div>
-      <div className="root-section" hidden={section !== "flows"}>
-        <FlowsApp active={section === "flows"} shell={shell} command={commands.flows} />
-      </div>
+      <SideRail section={section} onMode={setSection} />
       {firstRun && (
         <FirstRun
           onDone={(changed) => {
@@ -137,7 +147,6 @@ export default function Root() {
 }
 
 export interface ShellProps {
-  onMode: (mode: Mode) => void;
   onQuickOpen: () => void;
   /** A mode wrote saved data that another mode holds in memory (Flows importing suites or requests). */
   onDataChanged: (what: ("suites" | "collections" | "flows")[]) => void;

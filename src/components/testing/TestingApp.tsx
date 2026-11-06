@@ -307,7 +307,6 @@ export function TestingApp({ active, shell, command }: Props) {
     <div className="mode testing-mode">
       <TopBar
         mode="testing"
-        onMode={shell.onMode}
         onQuickOpen={shell.onQuickOpen}
         searchPlaceholder="Jump to a suite, case or test run…"
         switcher={
