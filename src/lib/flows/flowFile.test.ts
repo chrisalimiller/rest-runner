@@ -42,7 +42,7 @@ describe("flows file", () => {
     const folder = result.collections[0].items[0];
     expect(folder.kind === "folder" && folder.name).toBe("Checks");
     expect(folder.kind === "folder" && (folder.items[0] as RequestNode).id).toBe("req-1");
-    expect(describeImport("flows.json", result.counts)).toBe("Imported flows.json: flows: 1 added, 0 updated; suites: 1 added, 0 updated; saved requests: 1 added, 0 updated.");
+    expect(describeImport("flows.json", result.counts)).toBe("Imported flows.json: flows: 1 added, 0 updated; suites: 1 added, 0 updated; saved requests: 1 added, 0 updated. Imported schedules are off; review and enable them in Flows.");
   });
 
   it("replaces items with the same id instead of adding copies", () => {
@@ -65,4 +65,19 @@ describe("flows file", () => {
     expect(() => importFlowsFile("nope", { flows: [], suites: [], collections: [] })).toThrow(/not valid JSON/);
     expect(() => importFlowsFile('{"app":"rest-runner","kind":"suites"}', { flows: [], suites: [], collections: [] })).toThrow(/not a REST Runner flows file/);
   });
+});
+
+
+it("disables imported schedules even on replacement, but preserves trusted reloads", async () => {
+  const { cleanFlows } = await import("./flows");
+  const { importWorkspace } = await import("../workspace");
+  const flow = newFlow("Scheduled");
+  const schedule = newNode("schedule");
+  const incoming = { ...flow, nodes: [schedule, { ...schedule, id: "omitted", enabled: undefined }] };
+  const current = { flows: [flow], suites: [], collections: [], environments: [] };
+  expect(cleanFlows([incoming])[0].nodes.map(n => n.type === "schedule" && n.enabled)).toEqual([true, true]);
+  for (const kind of ["flows", "workspace"]) {
+    const result = importWorkspace(JSON.stringify({ app: "rest-runner", kind, flows: [incoming] }), current);
+    expect(result.flows[0].nodes.map(n => n.type === "schedule" && n.enabled)).toEqual([false, false]);
+  }
 });
