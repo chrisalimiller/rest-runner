@@ -7,6 +7,7 @@ import type { Vars } from "../../lib/template";
 import type { RequestDef } from "../../lib/types";
 
 const SHELL_KEY = "rest-runner.curl-shell";
+const COLLAPSED_KEY = "rest-runner.curl-collapsed";
 const SHELLS: CurlShell[] = ["bash", "cmd"];
 
 function defaultShell(): CurlShell {
@@ -25,6 +26,10 @@ export function CurlPanel({ def, vars, envName }: Props) {
   const certificates = useCertificates();
   const [shell, setShell] = useState<CurlShell>(() => load<CurlShell>(SHELL_KEY, defaultShell(), (x) => x === "bash" || x === "cmd"));
   const [copied, setCopied] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => load<boolean>(COLLAPSED_KEY, false) === true);
+  useEffect(() => {
+    save(COLLAPSED_KEY, collapsed);
+  }, [collapsed]);
   useEffect(() => {
     save(SHELL_KEY, shell);
   }, [shell]);
@@ -44,7 +49,7 @@ export function CurlPanel({ def, vars, envName }: Props) {
   };
 
   return (
-    <div className="curl-panel" aria-label="cURL command">
+    <div className={collapsed ? "curl-panel collapsed" : "curl-panel"} aria-label="cURL command">
       <div className="curl-head">
         <div className="segmented" role="tablist" aria-label="Terminal">
           {SHELLS.map((s) => (
@@ -58,14 +63,25 @@ export function CurlPanel({ def, vars, envName }: Props) {
         <button className="link-btn small" onClick={copy} disabled={empty} title="Copy the command">
           {copied ? "Copied" : "Copy"}
         </button>
+        <button
+          className="curl-collapse"
+          onClick={() => setCollapsed((c) => !c)}
+          aria-expanded={!collapsed}
+          aria-label={collapsed ? "Expand cURL" : "Collapse cURL"}
+          title={collapsed ? "Expand cURL" : "Collapse cURL"}
+        >
+          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+            <path d="M2.5 4.5 6 8l3.5-3.5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
       </div>
-      {empty ? (
+      {collapsed ? null : empty ? (
         <p className="muted small">Enter a URL to see the command.</p>
       ) : (
         <pre className="curl-command">{shown}</pre>
       )}
-      {!empty && hasSecret && <p className="muted small">Secret values are hidden here. Copy puts the real command on your clipboard.</p>}
-      {!empty && result.unresolved.length > 0 && (
+      {!collapsed && !empty && hasSecret && <p className="muted small">Secret values are hidden here. Copy puts the real command on your clipboard.</p>}
+      {!collapsed && !empty && result.unresolved.length > 0 && (
         <p className="warning small">
           No value for{" "}
           {result.unresolved.map((n) => (
@@ -74,7 +90,7 @@ export function CurlPanel({ def, vars, envName }: Props) {
           , so {result.unresolved.length === 1 ? "it stays" : "they stay"} in the command as written.
         </p>
       )}
-      {!empty && result.notes.map((n) => (
+      {!collapsed && !empty && result.notes.map((n) => (
         <p key={n} className="muted small">
           {n}
         </p>

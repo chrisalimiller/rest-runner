@@ -2730,6 +2730,36 @@ details.case-try .call-detail {
   gap: 10px;
 }
 
+.curl-collapse {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-muted, inherit);
+  cursor: pointer;
+}
+
+.curl-collapse:hover {
+  background: var(--bg-hover, rgba(128, 128, 128, 0.15));
+}
+
+.curl-collapse svg {
+  transition: transform 0.15s;
+}
+
+.curl-panel.collapsed .curl-collapse svg {
+  transform: rotate(-90deg);
+}
+
+.curl-panel.collapsed {
+  padding-bottom: 8px;
+}
+
 .curl-command {
   margin: 0;
   max-height: 220px;
