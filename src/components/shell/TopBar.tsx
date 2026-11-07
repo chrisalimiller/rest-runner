@@ -44,6 +44,7 @@ export function TopBar(props: Props) {
       className="topbar"
       ref={headerRef}
       data-fit-crumbs={fit >= 1 ? "off" : undefined}
+      data-fit-max={fit >= 3 ? "" : undefined}
       data-tauri-drag-region={overlayTitleBar ? "deep" : undefined}
     >
       <BrandLockup />

@@ -374,6 +374,21 @@ body.dragging-split {
   background: var(--bg-hover);
 }
 
+/* Everything else has collapsed (a side panel can leave the bar very little room): the request name shortens with an ellipsis. */
+.topbar[data-fit-max] .switcher-open:not(.title-switcher-btn) {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.topbar[data-fit-max] .switcher-name {
+  min-width: 40px;
+}
+
+/* The brand keeps its mark and drops its wordmark. */
+.topbar[data-fit-max] .brand-name {
+  display: none;
+}
+
 /* Request switcher */
 .switcher {
   position: relative;
