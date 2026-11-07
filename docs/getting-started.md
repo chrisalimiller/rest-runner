@@ -56,7 +56,7 @@ The bar on the right edge, full window height, holds the sections and two tools.
 | **{x}** Variables (Requests only) | Opens the [Variables sidebar](requests.md#variables). The badge counts placeholders in the open request that have no value. |
 | **Lock** Certificates | Opens the Certificates panel: the certificate this request uses (with **Send without a certificate**), and every imported certificate. A green dot means the open request uses a certificate; amber means one expires within 30 days. **Manage…** opens the full dialog. |
 
-Only one of the Variables and Certificates panels is open at a time, and each is remembered for the next start.
+Both panels open the same way: beside the content, never over it, with a ✕ button and Escape to close and the side bar button to toggle. Only one is open at a time, and each is remembered for the next start.
 
 **Requests mode** is split in two. The left column is the request (the URL row with **Send** and a ⋯ menu, a summary line, and the body editor; Params, Auth, Headers and Scripts are in Request details, opened from the summary line under the URL, and Save, Save as example, Run with CSV and cURL are in the ⋯ menu next to Send). The right column is the response. Drag the divider to resize the columns (your split is remembered; double-click it to reset; arrow keys move it when it has focus). Below 1000 px wide the columns stack. The top bar always stays on one row: when space runs short it first drops the folder path from the request switcher, then turns Quick open into a search icon with its shortcut hint, then the environment switch into a drop-down. The side bar never moves.
 

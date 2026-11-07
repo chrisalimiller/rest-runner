@@ -84,7 +84,7 @@ Edit the value right in the card: Enter or clicking away saves it to whichever p
 
 ## The Variables sidebar
 
-Click **{x}** in the side bar on the right edge (Requests mode) to open a sidebar. On windows 1240 px wide or more it sits beside the response, next to the side bar; on narrower ones it floats over it, and clicking outside closes it. The ✕ button, Escape (with focus inside the panel) and the **{x}** button all close it, and it stays open or closed the next time you start the app.
+Click **{x}** in the side bar on the right edge (Requests mode) to open a sidebar. It sits between the content and the side bar at any window width, never over the content, the same way the Certificates panel does. The ✕ button, Escape (with focus inside the panel) and the **{x}** button all close it, and it stays open or closed the next time you start the app.
 
 **This request / All** switches between the variables the open request uses and every variable. **Filter by name** narrows the list. Groups are listed with the winner first, as a send resolves them:
 

@@ -1,4 +1,4 @@
-/* The Variables sidebar: docked beside the response on wide windows, floating over it on narrow ones. */
+/* The Variables sidebar: docked beside the content, in the slot next to the side rail. */
 .requests-body {
   flex: 1;
   min-height: 0;
@@ -7,6 +7,7 @@
 }
 
 .requests-main {
+  container: requests-main / inline-size;
   flex: 1;
   min-width: 0;
   min-height: 0;
@@ -17,21 +18,12 @@
 .variables-panel {
   width: 320px;
   flex-shrink: 0;
+  height: 100%;
   display: flex;
   flex-direction: column;
   min-height: 0;
   background: var(--bg-overlay);
   border-left: 1px solid var(--border);
-}
-
-.variables-panel.overlay {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 120;
-  max-width: calc(100% - 24px);
-  box-shadow: -8px 0 24px rgba(1, 4, 9, 0.5);
 }
 
 .variables-panel-head {

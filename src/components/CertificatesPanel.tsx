@@ -1,11 +1,12 @@
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
+import { createPortal } from "react-dom";
+import { useSidePanelSlot } from "./shell/SidePanelSlot";
 import { EXPIRY_WARNING_DAYS, matchCertificate, type CertificateEntry } from "../lib/certificates";
 import { openCertificates } from "../lib/certificatesDialog";
 import { isTauri } from "../lib/http";
 import { useSectionStatus } from "../lib/sectionStatus";
 import { closeSidePanel, useSidePanels } from "../lib/sidePanels";
 import { ADDING, useCertificates } from "./CertificatesDialog";
-import { useEscape } from "./useEscape";
 import "./certificates.css";
 
 const DAY_MS = 86_400_000;
@@ -32,14 +33,14 @@ function ExpiryPill({ notAfter }: { notAfter: number | null }) {
 interface Props {
   /** The section on screen; "This request" shows only in Requests. */
   section: string;
-  docked: boolean;
 }
 
 /** The Certificates side panel: the certificate this request uses, every stored certificate, and the way into the full dialog. */
-export function CertificatesPanel({ section, docked }: Props) {
+export function CertificatesPanel({ section }: Props) {
   const { certificates: open } = useSidePanels();
   const entries = useCertificates();
   const { request } = useSectionStatus();
+  const slot = useSidePanelSlot();
   const ref = useRef<HTMLElement>(null);
 
   const close = () => {
@@ -47,31 +48,21 @@ export function CertificatesPanel({ section, docked }: Props) {
     closeSidePanel("certificates");
   };
 
-  useEscape(close, open && !docked);
-  useEffect(() => {
-    if (!open || docked) return;
-    const onDown = (e: MouseEvent) => {
-      const t = e.target as HTMLElement;
-      if (!ref.current?.contains(t) && !t.closest("[data-certificates-trigger]") && !t.closest(".cert-chip") && !t.closest(".modal-backdrop, .sheet-backdrop, .toast")) closeSidePanel("certificates");
-    };
-    window.addEventListener("mousedown", onDown);
-    return () => window.removeEventListener("mousedown", onDown);
-  }, [open, docked]);
 
-  if (!open) return null;
+  if (!open || !slot) return null;
 
   const showRequest = section === "requests" && !!request && request.url !== "";
   const match = showRequest ? matchCertificate(request.url, entries) : null;
   const desktop = isTauri();
 
-  return (
+  return createPortal(
     <aside
       ref={ref}
       id="certificates-panel"
-      className={`certs-panel ${docked ? "docked" : "overlay"}`}
+      className="certs-panel docked"
       aria-label="Certificates"
       onKeyDown={(e) => {
-        if (docked && e.key === "Escape" && !e.defaultPrevented) {
+        if (e.key === "Escape" && !e.defaultPrevented) {
           e.preventDefault();
           close();
         }
@@ -145,6 +136,7 @@ export function CertificatesPanel({ section, docked }: Props) {
           + Add certificate or CA
         </button>
       </div>
-    </aside>
+    </aside>,
+    slot,
   );
 }

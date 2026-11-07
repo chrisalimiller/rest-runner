@@ -15,8 +15,7 @@ import { useToast } from "./components/shell/Toast";
 import { useCertificates } from "./components/CertificatesDialog";
 import { useDeferredDelete } from "./components/shell/useDeferredDelete";
 import { VariablesProvider } from "./components/variables/VariablesContext";
-import { loadPanelState, savePanelState, VariablesPanel, DOCK_MIN_WIDTH, type VariablesPanelState } from "./components/variables/VariablesPanel";
-import { useViewportWidth } from "./components/useViewportWidth";
+import { loadPanelState, savePanelState, VariablesPanel, type VariablesPanelState } from "./components/variables/VariablesPanel";
 import type { ShellCommand, ShellProps } from "./Root";
 import {
   addExample,
@@ -259,7 +258,6 @@ export default function App({ active = true, shell, command }: Props) {
   // Whether the panel is open lives in a small shared store, because the side rail's button and the Certificates panel use it too.
   const panels = useSidePanels();
   const variablesPanel = useMemo<VariablesPanelState>(() => ({ ...variablesView, open: panels.variables }), [variablesView, panels.variables]);
-  const viewportWidth = useViewportWidth();
   const [exportDialog, setExportDialog] = useState(false);
   const toast = useToast();
   const notify = useCallback((message: string) => toast.show({ message }), [toast]);
@@ -1317,7 +1315,6 @@ export default function App({ active = true, shell, command }: Props) {
           state={variablesPanel}
           onState={patchVariablesPanel}
           used={usedNames}
-          docked={viewportWidth >= DOCK_MIN_WIDTH}
           onClose={closeVariables}
           onEditEnvironments={(varId) => {
             setFocusVarId(varId);

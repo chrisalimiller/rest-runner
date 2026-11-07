@@ -7,11 +7,17 @@ import { TestingApp } from "./components/testing/TestingApp";
 import { UPDATES_COMMAND_ID, type QuickItem } from "./lib/quickOpen";
 import { CertificatesDialog } from "./components/CertificatesDialog";
 import { UpdateDialog } from "./components/UpdateDialog";
-import { closeUpdateDialog, openUpdateDialog, useUpdateDialog } from "./lib/updateDialog";
-import { closeCertificates, useCertificatesDialog } from "./lib/certificatesDialog";
+import {
+  closeUpdateDialog,
+  openUpdateDialog,
+  useUpdateDialog,
+} from "./lib/updateDialog";
+import {
+  closeCertificates,
+  useCertificatesDialog,
+} from "./lib/certificatesDialog";
 import { CertificatesPanel } from "./components/CertificatesPanel";
-import { DOCK_MIN_WIDTH } from "./components/variables/VariablesPanel";
-import { useViewportWidth } from "./components/useViewportWidth";
+import { SidePanelSlotContext } from "./components/shell/SidePanelSlot";
 import { SideRail } from "./components/shell/SideRail";
 import { FirstRun } from "./components/shell/FirstRun";
 import { modeForShortcut } from "./lib/topBar";
@@ -31,7 +37,11 @@ export type ShellCommand =
 function modeFor(item: QuickItem): Mode {
   if (item.kind === "flow" || item.kind === "flow-run") return "flows";
   if (item.kind === "command") return "requests";
-  return item.kind === "suite" || item.kind === "case" || item.kind === "test-run" ? "testing" : "requests";
+  return item.kind === "suite" ||
+    item.kind === "case" ||
+    item.kind === "test-run"
+    ? "testing"
+    : "requests";
 }
 
 /** The three modes (Requests, Testing and Flows). All stay mounted so a running batch, suite or flow keeps going. */
@@ -44,15 +54,20 @@ export default function Root() {
   const certificates = useCertificatesDialog();
   const updateOpen = useUpdateDialog();
   const [firstRun, setFirstRun] = useState(() => isFirstRun());
-  const [commands, setCommands] = useState<Record<Mode, ShellCommand | null>>({ requests: null, testing: null, flows: null });
+  const [commands, setCommands] = useState<Record<Mode, ShellCommand | null>>({
+    requests: null,
+    testing: null,
+    flows: null,
+  });
   useEffect(() => {
     save(SECTION_KEY, section);
   }, [section]);
   // Opening Testing or Flows counts as looking at its latest run, so the rail's failure badge goes away.
-  const viewportWidth = useViewportWidth();
+  const [panelSlot, setPanelSlot] = useState<HTMLElement | null>(null);
   const status = useSectionStatus();
   useEffect(() => {
-    if (section === "testing" && status.testing.unseen) markSectionSeen("testing");
+    if (section === "testing" && status.testing.unseen)
+      markSectionSeen("testing");
     if (section === "flows" && status.flows.unseen) markSectionSeen("flows");
   }, [section, status.testing.unseen, status.flows.unseen]);
 
@@ -61,7 +76,12 @@ export default function Root() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key.toLowerCase() === "k" && (e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey) {
+      if (
+        e.key.toLowerCase() === "k" &&
+        (e.metaKey || e.ctrlKey) &&
+        !e.shiftKey &&
+        !e.altKey
+      ) {
         e.preventDefault();
         setQuickOpen((o) => !o);
         return;
@@ -94,60 +114,85 @@ export default function Root() {
     };
   }, []);
 
-  const send = (mode: Mode, cmd: ShellCommand) => setCommands((c) => ({ ...c, [mode]: cmd }));
+  const send = (mode: Mode, cmd: ShellCommand) =>
+    setCommands((c) => ({ ...c, [mode]: cmd }));
   const shell: ShellProps = {
     onQuickOpen: () => setQuickOpen(true),
     onDataChanged: (what) => {
       const nonce = Date.now();
-      if (what.includes("collections")) send("requests", { type: "reload", nonce });
+      if (what.includes("collections"))
+        send("requests", { type: "reload", nonce });
       if (what.includes("suites")) send("testing", { type: "reload", nonce });
       if (what.includes("flows")) send("flows", { type: "reload", nonce });
     },
   };
 
   return (
-    <div className="app-shell">
-      <div className="root-sections">
-        <div className="root-section" hidden={section !== "requests"}>
-          <App active={section === "requests" && !quickOpen} shell={shell} command={commands.requests} />
+    <SidePanelSlotContext.Provider value={panelSlot}>
+      <div className="app-shell">
+        <div className="root-sections">
+          <div className="root-section" hidden={section !== "requests"}>
+            <App
+              active={section === "requests" && !quickOpen}
+              shell={shell}
+              command={commands.requests}
+            />
+          </div>
+          <div className="root-section" hidden={section !== "testing"}>
+            <TestingApp
+              active={section === "testing"}
+              shell={shell}
+              command={commands.testing}
+            />
+          </div>
+          <div className="root-section" hidden={section !== "flows"}>
+            <FlowsApp
+              active={section === "flows"}
+              shell={shell}
+              command={commands.flows}
+            />
+          </div>
         </div>
-        <div className="root-section" hidden={section !== "testing"}>
-          <TestingApp active={section === "testing"} shell={shell} command={commands.testing} />
-        </div>
-        <div className="root-section" hidden={section !== "flows"}>
-          <FlowsApp active={section === "flows"} shell={shell} command={commands.flows} />
-        </div>
-      </div>
-      <CertificatesPanel section={section} docked={viewportWidth >= DOCK_MIN_WIDTH} />
-      <SideRail section={section} onMode={setSection} />
-      {firstRun && (
-        <FirstRun
-          onDone={(changed) => {
-            setFirstRun(false);
-            if (changed) shell.onDataChanged(["collections", "suites", "flows"]);
-          }}
-        />
-      )}
-      {certificates.open && <CertificatesDialog entryId={certificates.entryId} onClose={closeCertificates} />}
-      {updateOpen && <UpdateDialog onClose={closeUpdateDialog} />}
-      {quickOpen && (
-        <QuickOpen
-          mode={section}
-          onClose={() => setQuickOpen(false)}
-          onPick={(item, permanent) => {
-            setQuickOpen(false);
-            if (item.kind === "command" && item.id === UPDATES_COMMAND_ID) {
-              openUpdateDialog();
-              return;
+        <div className="side-panel-slot" ref={setPanelSlot} />
+        <CertificatesPanel section={section} />
+        <SideRail section={section} onMode={setSection} />
+        {firstRun && (
+          <FirstRun
+            onDone={(changed) => {
+              setFirstRun(false);
+              if (changed)
+                shell.onDataChanged(["collections", "suites", "flows"]);
+            }}
+          />
+        )}
+        {certificates.open && (
+          <CertificatesDialog
+            entryId={certificates.entryId}
+            onClose={closeCertificates}
+          />
+        )}
+        {updateOpen && <UpdateDialog onClose={closeUpdateDialog} />}
+        {quickOpen && (
+          <QuickOpen
+            mode={section}
+            onClose={() => setQuickOpen(false)}
+            onPick={(item, permanent) => {
+              setQuickOpen(false);
+              if (item.kind === "command" && item.id === UPDATES_COMMAND_ID) {
+                openUpdateDialog();
+                return;
+              }
+              const mode = modeFor(item);
+              setSection(mode);
+              send(mode, { type: "open", item, nonce: Date.now(), permanent });
+            }}
+            onClearHistory={() =>
+              send("requests", { type: "clear-history", nonce: Date.now() })
             }
-            const mode = modeFor(item);
-            setSection(mode);
-            send(mode, { type: "open", item, nonce: Date.now(), permanent });
-          }}
-          onClearHistory={() => send("requests", { type: "clear-history", nonce: Date.now() })}
-        />
-      )}
-    </div>
+          />
+        )}
+      </div>
+    </SidePanelSlotContext.Provider>
   );
 }
 
