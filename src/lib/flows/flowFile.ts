@@ -2,7 +2,7 @@ import { cleanCollections, locate, newCollection, newFolder, type Collection, ty
 import { cleanSuites } from "../testing/suites";
 import { validateImportedMethods } from "../importMethods";
 import type { TestSuite } from "../testing/types";
-import { cleanFlows } from "./flows";
+import { cleanImportedFlows } from "./flows";
 import type { Flow } from "./types";
 
 /** A saved request a flow uses, with where it sat so the import can put it back in the same place. */
@@ -122,7 +122,7 @@ export function importFlowsFile(text: string, current: { flows: Flow[]; suites: 
   }
   if (data.app !== "rest-runner" || data.kind !== "flows") throw new Error("This is not a REST Runner flows file.");
   validateImportedMethods([data.requests, data.suites]);
-  const flows = mergeById(current.flows, cleanFlows(data.flows));
+  const flows = mergeById(current.flows, cleanImportedFlows(data.flows));
   const suites = mergeById(current.suites, cleanSuites(data.suites));
 
   let collections = current.collections;
@@ -154,5 +154,5 @@ export function importFlowsFile(text: string, current: { flows: Flow[]; suites: 
 export function describeImport(name: string, c: FlowsImport["counts"]): string {
   const part = (label: string, [a, r]: [number, number]) => (a || r ? `${label}: ${a} added, ${r} updated` : null);
   const parts = [part("flows", c.flows), part("suites", c.suites), part("saved requests", c.requests)].filter(Boolean);
-  return `Imported ${name}: ${parts.join("; ") || "nothing new"}.`;
+  return `Imported ${name}: ${parts.join("; ") || "nothing new"}. Imported schedules are off; review and enable them in Flows.`;
 }

@@ -5,7 +5,7 @@ import type { SendOutcome } from "./types";
 
 /** Quotes a cell when it holds a comma, quote, line break or edge space (RFC 4180). */
 export function csvCell(value: string | number): string {
-  const s = String(value);
+  const s = typeof value === "string" ? guardFormula(value) : String(value);
   return /[",\r\n]/.test(s) || /^\s|\s$/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
@@ -62,9 +62,9 @@ export function reportBody(body: string, headers: [string, string][], sizeBytes?
   return `(binary body: ${bytes.toLocaleString("en-US")} bytes${type ? `, ${type}` : ""})`;
 }
 
-/** Excel runs a cell that starts with = or @, or with + or - that is not a number, as a formula. A leading ' stops that. */
+/** Prefix formula-like text, including when preceded by whitespace or control characters. */
 export function guardFormula(s: string): string {
-  return /^(?:[=@]|[+-](?!\d))/.test(s) ? `'${s}` : s;
+  return /^[\s\x00-\x1f\x7f]*[=+@-]/.test(s) ? `'${s}` : s;
 }
 
 /** Cuts a cell to CELL_LIMIT characters and says how much was left out. */
@@ -77,10 +77,12 @@ export function cutCell(s: string, limit = CELL_LIMIT): string {
 }
 
 /** Mask, then guard, then cut: a secret is never split by the cut, and the cut never hides the guard. */
-function safeCell(s: string, secrets: readonly string[], guard: boolean): string {
+function safeCell(s: string, secrets: readonly string[]): string {
   if (!s) return s;
   const masked = secrets.length ? maskSecrets(s, secrets) : s;
-  return cutCell(guard ? guardFormula(masked) : masked);
+  const guarded = guardFormula(masked);
+  const cut = cutCell(guarded);
+  return guarded === masked ? cut : cut.slice(1);
 }
 
 /** The call's cells, matching CALL_COLUMNS. With no outcome the case never ran, so the status says so and the rest is empty. */
@@ -95,15 +97,15 @@ export function callCells(o: SendOutcome | null | undefined, options: CsvOptions
     durationOf(o),
     o.sentAt,
     o.request.method,
-    safeCell(o.request.url, secrets, true),
-    safeCell(headerLines(o.request.headers), secrets, true),
-    safeCell(reportBody(reqBody, o.request.headers), secrets, true),
-    res ? safeCell(headerLines(res.headers), secrets, true) : "",
-    res ? safeCell(reportBody(res.body, res.headers, res.sizeBytes), secrets, true) : "",
+    safeCell(o.request.url, secrets),
+    safeCell(headerLines(o.request.headers), secrets),
+    safeCell(reportBody(reqBody, o.request.headers), secrets),
+    res ? safeCell(headerLines(res.headers), secrets) : "",
+    res ? safeCell(reportBody(res.body, res.headers, res.sizeBytes), secrets) : "",
     res?.sizeBytes ?? "",
-    o.ok ? "" : safeCell(o.error, secrets, true),
+    o.ok ? "" : safeCell(o.error, secrets),
     certificateLabel(o.certificate),
-    o.ok && o.finalUrl ? safeCell(o.finalUrl, secrets, true) : "",
+    o.ok && o.finalUrl ? safeCell(o.finalUrl, secrets) : "",
   ];
 }
 
@@ -113,6 +115,7 @@ export function emptyCallCells(): string[] {
 }
 
 /** A CSV file: BOM so Excel reads UTF-8, CRLF row ends. */
-export function csvFile(rows: (string | number)[][]): string {
-  return "﻿" + rows.map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
+export function csvFile(rows: (string | number)[][], options: CsvOptions = {}): string {
+  const secrets = options.secrets ?? [];
+  return "﻿" + rows.map((r) => r.map((v) => csvCell(typeof v === "string" && secrets.length ? maskSecrets(v, secrets) : v)).join(",")).join("\r\n") + "\r\n";
 }

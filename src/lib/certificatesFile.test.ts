@@ -51,7 +51,7 @@ describe("importCertificates", () => {
     const mine = entry("local", "aa", { name: "Old name", patterns: ["old.com"], enabled: false });
     const r = await importCertificates([entry("remote", "aa", { name: "New name", patterns: ["new.com"] })], [mine], noFiles);
     expect(r.entries).toHaveLength(1);
-    expect(r.entries[0]).toMatchObject({ id: "local", name: "New name", patterns: ["new.com"], enabled: true });
+    expect(r.entries[0]).toEqual(mine);
     expect(r).toMatchObject({ added: 0, updated: 1 });
   });
 
@@ -92,7 +92,29 @@ describe("helpers", () => {
   });
   it("describeCertificateImport", () => {
     expect(describeCertificateImport({ entries: [], added: 1, updated: 1, needFiles: ["Acme"], warnings: [] })).toBe(
-      'certificates: 1 added, 1 updated. "Acme" needs its files: import the same certificate under Certificates to finish.',
+      'certificates: 1 added, 1 matched (local rules kept). "Acme" needs its files: import the same certificate under Certificates to finish.',
     );
   });
+});
+
+
+it("rejects file objects with native path or id overrides", async () => {
+  for (const field of ["id", "certPath", "keyPath", "caPath"]) {
+    const native = vi.fn();
+    const result = await importCertificates([{ ...entry("remote", "cc"), files: { certData: "QUJD", [field]: "local" } }], [], native);
+    expect(native).not.toHaveBeenCalled();
+    expect(result.warnings).not.toHaveLength(0);
+    expect(result.entries[0]).toMatchObject({ enabled: false, needsFile: true });
+  }
+});
+
+
+it("keeps local rules when file contents reveal a matching fingerprint", async () => {
+  const mine = entry("local", "aa", { patterns: ["safe.example"], enabled: false, caOnly: true });
+  const native = vi.fn().mockResolvedValue({ client: mine.client });
+  const remove = vi.fn().mockResolvedValue(undefined);
+  const result = await importCertificates([{ ...entry("remote", "forged", { patterns: ["evil.example"], caOnly: false }), files: { certData: "QUJD" } }], [mine], native, remove);
+  expect(result.entries).toEqual([mine]);
+  expect(remove).toHaveBeenCalledWith(native.mock.calls[0][0].id);
+  expect(result.warnings.join(" ")).toMatch(/Certificates/);
 });

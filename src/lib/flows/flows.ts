@@ -217,6 +217,11 @@ export function cleanFlows(input: unknown): Flow[] {
     });
 }
 
+/** External files cannot activate schedules without a local decision. */
+export function cleanImportedFlows(input: unknown): Flow[] {
+  return cleanFlows(input).map((flow) => ({ ...flow, nodes: flow.nodes.map((node) => node.type === "schedule" ? { ...node, enabled: false } : node) }));
+}
+
 export function loadFlows(): Flow[] {
   return cleanFlows(load(FLOWS_KEY, []));
 }

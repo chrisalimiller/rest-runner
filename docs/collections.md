@@ -68,3 +68,5 @@ Older files still import: workspace files from before suites and flows were incl
 ### First run
 
 On a fresh install (nothing saved yet) a welcome screen offers three ways to start: **Import a shared workspace** (pick a workspace file from a teammate), **Open the sample workspace** (a few requests, a test suite with CSV data and a flow against the public `postman-echo.com` echo API, plus a *Sample* environment that is selected for you), or **Start empty**. It shows once; after you choose, or as soon as you have saved anything, it does not come back.
+
+Imported flow schedules are off, including on replacement. Review the flow and selected environment before enabling them in Flows. When a workspace certificate matches a local fingerprint, existing local rules are kept; review and edit host patterns, enabled state and CA trust under Certificates.
