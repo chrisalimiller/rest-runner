@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DEFAULT_BATCH_OPTIONS } from "./batch";
-import { parseCsv, parseRecords } from "./csv";
+import { parseCsv } from "./csv";
 import { prepareRequest } from "./request";
 import { buildScript, scriptExportNotes, scriptFileName, scriptRunCommand, type ScriptExportInput, type ScriptLanguage } from "./scriptExport";
 import type { KeyValue, RequestDef } from "./types";
@@ -59,10 +59,21 @@ function expectedDryRun(input: ScriptExportInput, csv: string): string {
     .join("");
 }
 
-function writeScript(lang: ScriptLanguage, input: ScriptExportInput, csv: string, csvName = "data.csv") {
+/** Changes settings at the top of a script, like a user would. */
+function withSettings(lang: ScriptLanguage, script: string, settings: Record<string, string | boolean>): string {
+  for (const [name, value] of Object.entries(settings)) {
+    const literal = lang === "python" ? (typeof value === "boolean" ? (value ? "True" : "False") : JSON.stringify(value)) : typeof value === "boolean" ? (value ? "1" : "0") : `'${value}'`;
+    const line = new RegExp(`^${name} ?= ?.*$`, "m");
+    expect(script).toMatch(line);
+    script = script.replace(line, `${name}${lang === "python" ? " = " : "="}${literal}`);
+  }
+  return script;
+}
+
+function writeScript(lang: ScriptLanguage, input: ScriptExportInput, csv: string, csvName = "data.csv", settings: Record<string, string | boolean> = {}) {
   const sub = mkdtempSync(join(dir, `${lang}-`));
   const script = join(sub, scriptFileName(input.def, lang));
-  writeFileSync(script, buildScript(lang, input));
+  writeFileSync(script, withSettings(lang, buildScript(lang, input), settings));
   writeFileSync(join(sub, csvName), csv);
   return { sub, script };
 }
@@ -139,28 +150,29 @@ describe("script export", () => {
     const notes = scriptExportNotes({ ...TRICKY_INPUT, def: { ...TRICKY_DEF, preScript: "rr.vars.set('a', 1)" } });
     expect(notes[0]).toMatch(/pre-request script is JavaScript/);
     expect(notes[1]).toMatch(/Dev environment/);
-    expect(scriptExportNotes({ ...TRICKY_INPUT, defaults: {} })).toEqual([]);
+    expect(scriptExportNotes({ ...TRICKY_INPUT, defaults: {}, options: { ...DEFAULT_BATCH_OPTIONS, concurrency: 1 } })).toEqual([]);
+    expect(scriptExportNotes({ ...TRICKY_INPUT, defaults: {} })).toEqual([expect.stringMatching(/one request at a time/)]);
   });
 
   it("keeps the runner text out of the settings", () => {
     const text = buildScript("python", { ...TRICKY_INPUT, def: { ...TRICKY_DEF, name: "@@SETTINGS@@ test" } });
     expect(text).not.toMatch(/^@@SETTINGS@@$/m);
-    expect(text).toContain('"name": "@@SETTINGS@@ test"');
+    expect(text).toContain("REST Runner batch script for \"@@SETTINGS@@ test\"");
   });
 
   for (const { lang, cmd } of LANGS) {
     describe(lang, () => {
       it.skipIf(!cmd)("builds the same requests as the app (dry run)", () => {
-        const { sub, script } = writeScript(lang, TRICKY_INPUT, TRICKY_CSV);
-        const out = execFileSync(cmd!, [script, "--dry-run"], { cwd: sub, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+        const { sub, script } = writeScript(lang, TRICKY_INPUT, TRICKY_CSV, "data.csv", { DRY_RUN: true });
+        const out = execFileSync(cmd!, [script], { cwd: sub, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
         expect(out).toBe(expectedDryRun(TRICKY_INPUT, TRICKY_CSV));
       });
 
       for (const { label, def, csv } of OTHER_DEFS) {
         it.skipIf(!cmd)(`builds the same requests as the app: ${label}`, () => {
           const input: ScriptExportInput = { def, options: DEFAULT_BATCH_OPTIONS, defaults: {} };
-          const { sub, script } = writeScript(lang, input, csv);
-          const out = execFileSync(cmd!, [script, "data.csv", "--dry-run"], { cwd: sub, encoding: "utf8" });
+          const { sub, script } = writeScript(lang, input, csv, "data.csv", { DRY_RUN: true });
+          const out = execFileSync(cmd!, [script, "data.csv"], { cwd: sub, encoding: "utf8" });
           expect(out).toBe(expectedDryRun(input, csv));
         });
       }
@@ -205,11 +217,6 @@ describe.skipIf(!curl && !python)("script export against a server", () => {
           res.end("=" + "x".repeat(40000));
           return;
         }
-        if (req.url?.startsWith("/image")) {
-          res.writeHead(200, { "Content-Type": "image/png" });
-          res.end(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0, 1, 2, 3, 0xff]));
-          return;
-        }
         const status = req.url?.includes("/users/2") ? 500 : 201;
         res.writeHead(status, { "Content-Type": "application/json", "X-Echo": req.headers["x-id"] ?? "" });
         res.end(JSON.stringify({ got: body ? JSON.parse(body) : null }));
@@ -235,6 +242,8 @@ describe.skipIf(!curl && !python)("script export against a server", () => {
   }
 
   for (const { lang, cmd } of LANGS) {
+    const out = { RESULTS_FILE: "out.csv" };
+
     it.skipIf(!cmd || (lang === "bash" && !curl))(`${lang}: sends every row and writes the results CSV`, async () => {
       received.length = 0;
       const def = request({
@@ -244,14 +253,13 @@ describe.skipIf(!curl && !python)("script export against a server", () => {
         bodyMode: "json",
         body: '{"name": "{{name}}", "token": "{{token}}"}',
       });
-      const input: ScriptExportInput = { def, options: { ...DEFAULT_BATCH_OPTIONS, concurrency: 2 }, defaults: { token: "tok" } };
-      const { sub, script } = writeScript(lang, input, csv);
-      const r = await run(cmd!, [script, "data.csv", "--out", "out.csv"], sub);
+      const input: ScriptExportInput = { def, options: DEFAULT_BATCH_OPTIONS, defaults: { token: "tok" } };
+      const { sub, script } = writeScript(lang, input, csv, "data.csv", out);
+      const r = await run(cmd!, [script, "data.csv"], sub);
       expect(r.code, r.stderr).toBe(1); // row 2 gets a 500
       expect(r.stdout).toMatch(/Finished: 3 of 3 sent, 2 passed, 1 failed/);
 
-      const bodies = received.map((x) => JSON.parse(x.body)).sort((a, b) => a.name.localeCompare(b.name));
-      expect(bodies).toEqual([
+      expect(received.map((x) => JSON.parse(x.body))).toEqual([
         { name: 'Ann "A"', token: "tok" },
         { name: "Bob", token: "tok" },
         { name: "Zoë", token: "tok" },
@@ -259,81 +267,60 @@ describe.skipIf(!curl && !python)("script export against a server", () => {
       expect(received.every((x) => x.method === "POST" && x.headers["content-type"] === "application/json")).toBe(true);
 
       const report = parseCsv(readFileSync(join(sub, "out.csv"), "utf8"));
-      expect(report.headers.slice(0, 4)).toEqual(["row", "result", "status", "status_text"]);
-      expect(report.headers.slice(-2)).toEqual(["var:id", "var:name"]);
+      expect(report.headers).toEqual(["row", "result", "status", "duration_ms", "url", "request", "response", "error"]);
       expect(report.rows.map((x) => [x.row, x.result, x.status])).toEqual([
         ["1", "PASS", "201"],
         ["2", "FAIL", "500"],
         ["3", "PASS", "201"],
       ]);
-      expect(report.rows[0].status_text).toBe("Created");
-      expect(report.rows[0].response_body).toBe('{"got":{"name":"Ann \\"A\\"","token":"tok"}}');
-      expect(report.rows[0].response_headers).toMatch(/x-echo: 1/i);
-      expect(report.rows[0].request_body).toBe('{"name": "Ann \\"A\\"", "token": "tok"}');
-      expect(report.rows[2]["var:name"]).toBe("Zoë");
+      const url = `http://127.0.0.1:${port}/users/1`;
+      expect(report.rows[0].url).toBe(url);
+      expect(report.rows[0].request).toBe(`POST ${url}\nX-Id: 1\nContent-Type: application/json\n\n{"name": "Ann \\"A\\"", "token": "tok"}`);
+      expect(report.rows[0].response).toMatch(/^HTTP 201 Created\n/);
+      expect(report.rows[0].response).toMatch(/^x-echo: 1$/im);
+      expect(report.rows[0].response.endsWith('\n\n{"got":{"name":"Ann \\"A\\"","token":"tok"}}')).toBe(true);
+      expect(report.rows[0].error).toBe("");
     });
 
     it.skipIf(!cmd || (lang === "bash" && !curl))(`${lang}: stops after a failure and reports connection errors`, async () => {
       const def = request({ url: "http://127.0.0.1:1/{{id}}" });
-      const input: ScriptExportInput = { def, options: { ...DEFAULT_BATCH_OPTIONS, concurrency: 1, stopOnFailure: true }, defaults: {} };
-      const { sub, script } = writeScript(lang, input, csv);
-      const r = await run(cmd!, [script, "data.csv", "--out", "out.csv"], sub);
+      const input: ScriptExportInput = { def, options: { ...DEFAULT_BATCH_OPTIONS, stopOnFailure: true }, defaults: {} };
+      const { sub, script } = writeScript(lang, input, csv, "data.csv", out);
+      const r = await run(cmd!, [script, "data.csv"], sub);
       expect(r.code).toBe(1);
       expect(r.stdout).toMatch(/Stopped after a failure: 1 of 3 sent, 0 passed, 1 failed/);
       const report = parseCsv(readFileSync(join(sub, "out.csv"), "utf8"));
       expect(report.rows).toHaveLength(1);
       expect(report.rows[0].status).toBe("ERR");
+      expect(report.rows[0].request).toBe("GET http://127.0.0.1:1/1");
+      expect(report.rows[0].response).toBe("");
       expect(report.rows[0].error).not.toBe("");
     });
 
-    it.skipIf(!cmd || (lang === "bash" && !curl))(`${lang}: cuts long cells, guards formulas and notes binary bodies`, async () => {
-      for (const [path, check] of [
-        ["big", (b: string) => { expect(b.startsWith("'=" + "x".repeat(100))).toBe(true); expect(b).toContain("[cut: 8,002 more characters; the full body is in the HTML report]"); }],
-        ["image", (b: string) => expect(b).toBe("(binary body: 9 bytes, image/png)")],
-      ] as const) {
-        const def = request({ url: `http://127.0.0.1:${port}/${path}` });
-        const input: ScriptExportInput = { def, options: DEFAULT_BATCH_OPTIONS, defaults: {} };
-        const { sub, script } = writeScript(lang, input, "x\n1\n");
-        const r = await run(cmd!, [script, "data.csv", "--out", "out.csv"], sub);
-        expect(r.code, r.stderr).toBe(0);
-        const report = parseCsv(readFileSync(join(sub, "out.csv"), "utf8"));
-        check(report.rows[0].response_body);
-      }
+    it.skipIf(!cmd || (lang === "bash" && !curl))(`${lang}: cuts cells to fit a spreadsheet`, async () => {
+      const def = request({ url: `http://127.0.0.1:${port}/big` });
+      const input: ScriptExportInput = { def, options: DEFAULT_BATCH_OPTIONS, defaults: {} };
+      const { sub, script } = writeScript(lang, input, "x\n1\n", "data.csv", out);
+      const r = await run(cmd!, [script, "data.csv"], sub);
+      expect(r.code, r.stderr).toBe(0);
+      const response = parseCsv(readFileSync(join(sub, "out.csv"), "utf8")).rows[0].response;
+      expect(response).toMatch(/^HTTP 200 OK\n/);
+      expect(response.endsWith("xxx... [cut]")).toBe(true);
+      expect(response.length).toBe(32000 + "... [cut]".length);
     });
 
     it.skipIf(!cmd || (lang === "bash" && !curl))(`${lang}: follows redirects and keeps the final response`, async () => {
       received.length = 0;
       const def = request({ url: `http://127.0.0.1:${port}/redirect` });
       const input: ScriptExportInput = { def, options: DEFAULT_BATCH_OPTIONS, defaults: {} };
-      const { sub, script } = writeScript(lang, input, "x\n1\n");
-      const r = await run(cmd!, [script, "data.csv", "--out", "out.csv"], sub);
+      const { sub, script } = writeScript(lang, input, "x\n1\n", "data.csv", out);
+      const r = await run(cmd!, [script, "data.csv"], sub);
       expect(r.code, r.stderr).toBe(0);
       expect(received.map((x) => x.url)).toEqual(["/redirect", "/users/redirected"]);
       const report = parseCsv(readFileSync(join(sub, "out.csv"), "utf8"));
       expect(report.rows[0].status).toBe("201");
-      expect(report.rows[0].response_headers).not.toMatch(/location/i);
-      expect(report.rows[0].final_url).toBe(`http://127.0.0.1:${port}/users/redirected`);
+      expect(report.rows[0].response).not.toMatch(/location/i);
     });
-  }
-});
-
-describe("runner spreadsheet safety", () => {
-  const gitBash = "C:/Program Files/Git/bin/bash.exe";
-  const runners = [
-    { lang: "python" as const, cmd: python },
-    { lang: "bash" as const, cmd: bash ?? (has(gitBash, ["--version"]) ? gitBash : null) },
-  ];
-  for (const { lang, cmd } of runners) {
-    it.skipIf(!cmd)(`${lang} guards input cells in its generated results file`, () => {
-      const input: ScriptExportInput = { def: request({ url: "http://127.0.0.1:1/" }), options: DEFAULT_BATCH_OPTIONS, defaults: {} };
-      const data = 'a,b,c,d,e,f,g,h\n=1,+1+2,-1+2,@x,"  =x","\t=x","=1,""x""\nnext","hello\nworld"\n';
-      const { sub, script } = writeScript(lang, input, data);
-      const result = spawnSync(cmd!, [script, "data.csv", "--out", "out.csv"], { cwd: sub, encoding: "utf8" });
-      expect(result.status, result.stderr).toBe(1);
-      const [head, row] = parseRecords(readFileSync(join(sub, "out.csv"), "utf8").replace(/^\ufeff/, "").trimEnd(), ",");
-      expect(head.slice(-8)).toEqual(["var:a", "var:b", "var:c", "var:d", "var:e", "var:f", "var:g", "var:h"]);
-      expect(row.slice(-8)).toEqual(["'=1", "'+1+2", "'-1+2", "'@x", "'  =x", "'\t=x", "'=1,\"x\"\nnext", "hello\nworld"]);
-    }, 30000);
   }
 });
 

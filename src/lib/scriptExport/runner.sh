@@ -1,35 +1,24 @@
 #!/usr/bin/env bash
 # @@HEADER@@
 #
-# Needs bash (3.2 or newer) and curl. macOS and Linux have both. On Windows, run it
-# in Git Bash (comes with Git for Windows) or WSL.
+# Needs bash 3.2 or newer and curl. On Windows, run it in Git Bash or WSL.
+# Run it:  bash @@FILE@@ @@CSV@@
 #
-# Usage:
-#   bash @@FILE@@ @@CSV@@
-#
-# Options:
-#   --concurrency N        requests in flight at once (1 to 50)
-#   --delay-ms N           pause before each request after the first ones
-#   --stop-on-failure      start no new requests after a failure
-#   --no-stop-on-failure
-#   --http-errors-fail     count 4xx and 5xx responses as failures
-#   --no-http-errors-fail
-#   --timeout SECONDS      give up on a request after this long (default 120)
-#   --out FILE             where to write the results CSV
-#   --dry-run              print the requests without sending them
-#
-# Each row of the CSV becomes one request. {{name}} placeholders take their value
-# from the row's column of that name, then from default_value below. A placeholder
-# with no value is sent as written, like in the app. The results CSV has the same
-# columns as the app's CSV report. The exit code is 1 when any request failed.
+# Each CSV row becomes one request, sent one at a time. {{name}} placeholders take
+# the value of the row's column with that name, then of default_value below. A
+# placeholder with no value is sent as written. The exit code is 1 when any request failed.
 
 # Work byte by byte, so URL encoding and escaping behave the same everywhere.
 export LC_ALL=C
 NL=$'\n'
 
-# ---------- Settings exported from REST Runner. Edit them freely. ----------
+# ---------- Settings. Edit them freely. ----------
 
 @@SETTINGS@@
+
+# ---------- The request ----------
+
+@@REQUEST@@
 
 # ---------- Helpers ----------
 
@@ -38,11 +27,11 @@ die() {
   exit 2
 }
 
-# Looks up a placeholder: the CSV row first, then default_value. Sets REPLY.
-# Returns 1 and leaves the placeholder as written ($2) when nothing has that name.
+# Looks up a placeholder ($1) in the CSV row, then in default_value. Sets REPLY,
+# or leaves the placeholder as written ($2) and returns 1 when nothing has that name.
 v() {
   local i=0
-  while [ "$i" -lt "$NCOLS" ]; do
+  while [ "$i" -lt "${#COLS[@]}" ]; do
     if [ "${COLS[$i]}" = "$1" ]; then
       REPLY=${ROW[$i]}
       return 0
@@ -54,13 +43,24 @@ v() {
   return 1
 }
 
-# Escapes REPLY for use inside a JSON string.
-json_escape() {
+# Replaces each {{name}} in $1 with its value (see v). Sets REPLY.
+fill() {
+  local rest=$1 out='' re='[{][{][[:space:]]*([^{}]*[^{}[:space:]])[[:space:]]*[}][}]' match
+  while [[ $rest =~ $re ]]; do
+    match=${BASH_REMATCH[0]}
+    out+=${rest%%"$match"*}
+    rest=${rest#*"$match"}
+    v "${BASH_REMATCH[1]}" "$match"
+    out+=$REPLY
+  done
+  REPLY=$out$rest
+}
+#@if json
+
+# Like v, but escapes the value for use inside a JSON string.
+vj() {
+  v "$1" "$2" || return 0
   local s=$REPLY out='' c i n
-  case $s in
-    *[\"\\]* | *[[:cntrl:]]*) ;;
-    *) return 0 ;;
-  esac
   for ((i = 0; i < ${#s}; i++)); do
     c=${s:i:1}
     case $c in
@@ -72,232 +72,187 @@ json_escape() {
       $'\b') out+='\b' ;;
       $'\f') out+='\f' ;;
       $'\177') out+=$c ;;
-      [[:cntrl:]])
-        printf -v n '\\u%04x' "'$c"
-        out+=$n
-        ;;
+      [[:cntrl:]]) printf -v n '\\u%04x' "'$c"; out+=$n ;;
       *) out+=$c ;;
     esac
   done
   REPLY=$out
 }
+#@end
+#@if encode
 
-# Like v, but escapes the value for a JSON string (placeholders inside "..." in a JSON body).
-vj() {
-  v "$1" "$2" && json_escape
-}
-
-# Same characters as JavaScript's encodeURIComponent. Sets REPLY.
-urlenc() {
-  local s=$1 out='' c i n
-  for ((i = 0; i < ${#s}; i++)); do
-    c=${s:i:1}
-    case $c in
-      [a-zA-Z0-9.~_!*\'\(\)-]) out+=$c ;;
-      *)
-        printf -v n '%d' "'$c"
-        [ "$n" -lt 0 ] && n=$((n + 256))
-        printf -v c '%%%02X' "$n"
-        out+=$c
-        ;;
-    esac
+# Joins the key/value arrays named $1 and $2 as a=1&b=2, encoded like JavaScript's
+# encodeURIComponent. Sets REPLY.
+encode_pairs() {
+  local out='' i=0 n s c j code side
+  eval "n=\${#$1[@]}"
+  while [ "$i" -lt "$n" ]; do
+    [ -n "$out" ] && out+='&'
+    for side in "$1" "$2"; do
+      eval "s=\${$side[$i]}"
+      for ((j = 0; j < ${#s}; j++)); do
+        c=${s:j:1}
+        case $c in
+          [a-zA-Z0-9.~_!*\'\(\)-]) out+=$c ;;
+          *) printf -v code '%d' "'$c"; printf -v c '%%%02X' $(((code + 256) % 256)); out+=$c ;;
+        esac
+      done
+      [ "$side" = "$1" ] && out+='='
+    done
+    i=$((i + 1))
   done
   REPLY=$out
 }
+#@end
 
 trim() {
   local s=$1
   s=${s#"${s%%[![:space:]]*}"}
-  s=${s%"${s##*[![:space:]]}"}
-  REPLY=$s
+  REPLY=${s%"${s##*[![:space:]]}"}
 }
-
-b64() {
-  REPLY=$(printf '%s' "$1" | base64 | tr -d '\r\n')
-}
+#@if apikeyheader
 
 has_header() {
-  local i=0 found=1
+  local h
   shopt -s nocasematch
-  while [ "$i" -lt "${#HK[@]}" ]; do
-    if [[ "${HK[$i]}" == "$1" ]]; then
-      found=0
-      break
-    fi
-    i=$((i + 1))
+  for h in ${HK[@]+"${HK[@]}"}; do
+    [[ $h == "$1" ]] && { shopt -u nocasematch; return 0; }
   done
   shopt -u nocasematch
-  return $found
+  return 1
 }
-
-add_header() {
-  HK+=("$1")
-  HV+=("$2")
-}
-
-# Joins key/value arrays named $1 and $2 as a=1&b=2. Sets REPLY.
-encode_pairs() {
-  local keys_name=$1 values_name=$2 out='' i=0 n k val
-  eval "n=\${#$keys_name[@]}"
-  while [ "$i" -lt "$n" ]; do
-    eval "k=\${$keys_name[$i]}; val=\${$values_name[$i]}"
-    urlenc "$k"
-    k=$REPLY
-    urlenc "$val"
-    [ -n "$out" ] && out+='&'
-    out+="$k=$REPLY"
-    i=$((i + 1))
-  done
-  REPLY=$out
-}
+#@end
 
 # Adds http:// when there is no scheme and appends the query parameters, like the app.
 finish_url() {
-  local url base hash sep
+  local base sep
   trim "$REQ_URL"
-  url=$REPLY
-  if [ -n "$url" ] && ! [[ $url =~ ^[a-zA-Z][a-zA-Z0-9+.-]*:// ]]; then
-    url="http://$url"
-  fi
-  if [ "${#QK[@]}" -gt 0 ]; then
-    base=${url%%#*}
-    hash=${url:${#base}}
-    case $base in
-      *\?) sep='' ;;
-      *\&) [[ $base == *\?* ]] && sep='' || sep='?' ;;
-      *\?*) sep='&' ;;
-      *) sep='?' ;;
-    esac
-    encode_pairs QK QV
-    url="$base$sep$REPLY$hash"
-  fi
-  REQ_URL=$url
+  REQ_URL=$REPLY
+  if [ -n "$REQ_URL" ] && ! [[ $REQ_URL =~ ^[a-zA-Z][a-zA-Z0-9+.-]*:// ]]; then REQ_URL="http://$REQ_URL"; fi
+  [ "${#QK[@]}" -gt 0 ] || return 0
+  base=${REQ_URL%%#*}
+  case $base in
+    *\?) sep='' ;;
+    *\&) [[ $base == *\?* ]] && sep='' || sep='?' ;;
+    *\?*) sep='&' ;;
+    *) sep='?' ;;
+  esac
+  encode_pairs QK QV
+  REQ_URL="$base$sep$REPLY${REQ_URL:${#base}}"
 }
 
-describe_request() {
+# The request as text: method and URL, headers, a blank line and the body. Sets REPLY.
+request_text() {
   local i=0
   REPLY="$REQ_METHOD $REQ_URL"
   while [ "$i" -lt "${#HK[@]}" ]; do
-    REPLY+=$'\n'"${HK[$i]}: ${HV[$i]}"
+    REPLY+="$NL${HK[$i]}: ${HV[$i]}"
     i=$((i + 1))
   done
-  if [ "$REQ_HAS_BODY" = 1 ] && [ -n "$REQ_BODY" ]; then
-    REPLY+=$'\n\n'"$REQ_BODY"
+  [ -n "$REQ_BODY" ] && REPLY+="$NL$NL$REQ_BODY"
+}
+
+# Prints one results CSV line. A cell that looks like a formula gets a ' in front,
+# so spreadsheets do not run it, and a cell is cut to fit Excel's 32,767 characters.
+csv_line() {
+  local s line=''
+  for s in "$@"; do
+    [[ $s =~ ^[[:space:][:cntrl:]]*[=+@-] ]] && s="'$s"
+    [ "${#s}" -gt 32000 ] && s="${s:0:32000}... [cut]"
+    line+="${line:+,}\"${s//\"/\"\"}\""
+  done
+  printf '%s\r\n' "$line"
+}
+
+# Sends the request built for the current row and adds its line to the results.
+send_request() {
+  local tmp="$TMP_DIR/r" meta rc status secs ms err='' response='' line result
+  local -a args=(-sS -L --max-time "$TIMEOUT" -o "$tmp.body" -D "$tmp.head" -w '%{http_code} %{time_total}')
+  rm -f "$tmp".*
+  if [ "$REQ_METHOD" = HEAD ]; then
+    args+=(--head)
+  elif [ "$REQ_METHOD" != GET ] && ! { [ "$REQ_METHOD" = POST ] && [ "$REQ_HAS_BODY" = 1 ]; }; then
+    args+=(-X "$REQ_METHOD") # otherwise curl picks GET or POST itself and follows redirects like a browser
   fi
-}
-
-# Excel keeps 32,767 characters per cell, so cells are cut a little under that.
-# These follow the same rules as the app's CSV report.
-CELL_LIMIT=32000
-
-# 1234567 -> 1,234,567
-group() {
-  awk -v n="$1" 'BEGIN { s = n; o = ""; while (length(s) > 3) { o = "," substr(s, length(s) - 2) o; s = substr(s, 1, length(s) - 3) } print s o }'
-}
-
-# The content type, without parameters, from "Name: value" lines. Sets REPLY.
-content_type() {
-  local line low
-  REPLY=''
-  while IFS= read -r line || [ -n "$line" ]; do
-    low=$(printf '%s' "${line%%:*}" | tr '[:upper:]' '[:lower:]')
-    if [ "$low" = content-type ]; then
-      line=${line#*:}
-      line=${line%%;*}
-      line=${line#"${line%%[![:space:]]*}"}
-      REPLY=${line%"${line##*[![:space:]]}"}
-      return 0
+  local k=0
+  while [ "$k" -lt "${#HK[@]}" ]; do
+    if [ -z "${HV[$k]}" ]; then args+=(-H "${HK[$k]};"); else args+=(-H "${HK[$k]}: ${HV[$k]}"); fi
+    k=$((k + 1))
+  done
+#@if cert
+  if [ -n "$CLIENT_CERT" ]; then
+    args+=(--cert "$CLIENT_CERT")
+    case "$CLIENT_CERT" in *.p12 | *.P12 | *.pfx | *.PFX) args+=(--cert-type P12) ;; esac
+    [ -n "${CLIENT_KEY:-}" ] && args+=(--key "$CLIENT_KEY")
+    [ -n "${REST_RUNNER_CERT_PASSPHRASE:-}" ] && args+=(--pass "$REST_RUNNER_CERT_PASSPHRASE")
+  fi
+  [ -n "${CA_CERT:-}" ] && args+=(--cacert "$CA_CERT")
+#@end
+  if [ "$REQ_HAS_BODY" = 1 ]; then
+    printf '%s' "$REQ_BODY" >"$tmp.req"
+    args+=(--data-binary "@$tmp.req")
+  fi
+  meta=$(curl "${args[@]}" --url "$REQ_URL" 2>"$tmp.err" </dev/null)
+  rc=$?
+  read -r status secs <<<"$meta"
+  ms=$(awk -v s="${secs:-0}" 'BEGIN { printf "%d", s * 1000 + 0.5 }')
+  if [ "$rc" -ne 0 ]; then
+    IFS= read -r err <"$tmp.err"
+    [ -n "$err" ] || err="curl exited with code $rc"
+    status=''
+  else
+    # Keep the last block of headers (curl writes one per redirect).
+    while IFS= read -r line || [ -n "$line" ]; do
+      line=${line%$'\r'}
+      case $line in
+        HTTP/*) response="HTTP ${line#* }" ;;
+        '') ;;
+        *) response+="$NL$line" ;;
+      esac
+    done <"$tmp.head"
+    if [ -s "$tmp.body" ]; then
+      IFS= read -r -d '' line <"$tmp.body"
+      response+="$NL$NL$line"
     fi
-  done <<<"$1"
-}
-
-# $1 body, $2 header lines, $3 size in bytes (optional), $4 "1" when the body held a NUL.
-# Sets REPLY to the body, or to a one-line note when it is binary.
-report_body() {
-  local body=$1 ctype size=${3:-} binary=${4:-0}
-  REPLY=$body
-  [ -n "$body" ] || [ "$binary" = 1 ] || return 0
-  content_type "$2"
-  ctype=$REPLY
-  REPLY=$body
-  if [ -n "$ctype" ]; then
-    case $(printf '%s' "$ctype" | tr '[:upper:]' '[:lower:]') in
-      text/* | *json* | *xml* | *javascript* | *ecmascript* | *x-www-form-urlencoded* | *yaml* | *csv* | *graphql*) ;;
-      *) binary=1 ;;
-    esac
   fi
-  if [ "$binary" = 1 ]; then
-    [ -n "$size" ] || size=${#body}
-    REPLY="(binary body: $(group "$size") bytes${ctype:+, $ctype})"
-  fi
+  LAST_FAILED=0
+  if [ -z "$status" ] || { [ "$HTTP_ERRORS_FAIL" = 1 ] && [ "$status" -ge 400 ]; }; then LAST_FAILED=1; fi
+  result=PASS
+  [ "$LAST_FAILED" = 1 ] && result=FAIL
+  printf '%s %3s %6d ms  row %d  %s %s  %s\n' "$result" "${status:-ERR}" "$ms" "$((INDEX + 1))" "$REQ_METHOD" "$REQ_URL" "$err"
+  request_text
+  csv_line "$((INDEX + 1))" "$result" "${status:-ERR}" "$ms" "$REQ_URL" "$REPLY" "$response" "$err" >>"$RESULTS_FILE"
 }
 
-# Stops Excel running a cell as a formula and cuts it at CELL_LIMIT. Sets REPLY.
-safe_cell() {
-  local s=$1
-  REPLY=$s
-  [ -n "$s" ] || return 0
-  local prefixed=0
-  if [[ $s =~ ^[[:space:][:cntrl:]]*[=+@-] ]]; then s="'$s"; prefixed=1; fi
-  if [ "${#s}" -gt "$CELL_LIMIT" ]; then
-    s="${s:0:CELL_LIMIT}… [cut: $(group $((${#s} - CELL_LIMIT))) more characters; the full body is in the HTML report]"
-  fi
-  if [ "$prefixed" -eq 1 ]; then s=${s:1}; fi
-  REPLY=$s
-}
-
-# Quotes a value for the results CSV. Sets REPLY.
-csvq() {
-  local s=$1
-  if [[ $s =~ ^[[:space:][:cntrl:]]*[=+@-] ]]; then s="'$s"; fi
-  REPLY="\"${s//\"/\"\"}\""
-}
-
-# The CSV reader: same rules as the app (delimiter detection, quotes, line breaks
-# inside quotes, blank lines skipped, header names trimmed and made unique).
-# Prints one "F<value>" line per field (backslash, CR and LF escaped) and "E" after each record.
+# Reads the CSV like the app (separator detection, quotes, line breaks inside quotes,
+# blank lines skipped, header names trimmed and made unique). Prints one "F<value>"
+# line per field, with backslash, CR and LF escaped, and "E" after each record.
 CSV_AWK='
-function esc(s,   out, i, c, n) {
-  if (index(s, "\\") == 0 && index(s, "\n") == 0 && index(s, "\r") == 0) return s
-  out = ""; n = length(s)
-  for (i = 1; i <= n; i++) {
+function esc(s,   out, i, c) {
+  out = ""
+  for (i = 1; i <= length(s); i++) {
     c = substr(s, i, 1)
-    if (c == "\\") out = out "\\\\"
-    else if (c == "\n") out = out "\\n"
-    else if (c == "\r") out = out "\\r"
-    else out = out c
+    out = out (c == "\\" ? "\\\\" : c == "\n" ? "\\n" : c == "\r" ? "\\r" : c)
   }
   return out
 }
-function trimws(s) {
-  sub(/^[ \t\r\n]+/, "", s)
-  sub(/[ \t\r\n]+$/, "", s)
-  return s
-}
-function end_field() { rec[nf++] = field; field = ""; started = 1 }
+function trimws(s) { sub(/^[ \t\r\n]+/, "", s); sub(/[ \t\r\n]+$/, "", s); return s }
+function end_field() { rec[nf++] = field; field = "" }
 function end_record(   i, name, k) {
   end_field()
-  started = 0
   if (nf == 1 && trimws(rec[0]) == "") { nf = 0; return }
-  if (!have_header) {
-    have_header = 1
+  if (!ncols) {
     ncols = nf
     for (i = 0; i < nf; i++) {
       name = trimws(rec[i])
       if (name == "") name = "column" (i + 1)
       k = seen[name]++
-      if (k > 0) {
-        printf "Warning: Column \"%s\" appears more than once; the copy is named \"%s_%d\".\n", name, name, k + 1 > "/dev/stderr"
-        name = name "_" (k + 1)
-      }
-      print "F" esc(name)
+      print "F" esc(k > 0 ? name "_" (k + 1) : name)
     }
-    print "E"
   } else {
-    if (nf != ncols) ragged++
     for (i = 0; i < ncols; i++) print "F" ((i < nf) ? esc(rec[i]) : "")
-    print "E"
   }
+  print "E"
   nf = 0
 }
 function put(c) {
@@ -310,304 +265,100 @@ function put(c) {
     } else if (c == "\"") { pending_quote = 1; return }
     else { field = field c; return }
   }
-  if (c == "\"" && field == "") { in_quotes = 1; started = 1 }
+  if (c == "\"" && field == "") in_quotes = 1
   else if (c == delim) end_field()
   else if (c == "\r") { end_record(); skip_lf = 1 }
   else if (c == "\n") end_record()
-  else { field = field c; started = 1 }
+  else field = field c
 }
 NR == 1 {
   if (substr($0, 1, 3) == "\357\273\277") $0 = substr($0, 4)
-  q = 0; best = ","; bestn = 0
-  cnt[","] = 0; cnt[";"] = 0; cnt["\t"] = 0; cnt["|"] = 0
+  # The separator is whichever of , ; tab | the first line has most of, outside quotes.
+  seps[1] = ","; seps[2] = ";"; seps[3] = "\t"; seps[4] = "|"; q = 0; delim = ","; best = 0
   for (i = 1; i <= length($0); i++) {
     c = substr($0, i, 1)
     if (c == "\"") q = !q
     else if (!q && c == "\r") break
-    else if (!q && (c in cnt)) cnt[c]++
+    else if (!q) cnt[c]++
   }
-  if (cnt[","] > bestn) { best = ","; bestn = cnt[","] }
-  if (cnt[";"] > bestn) { best = ";"; bestn = cnt[";"] }
-  if (cnt["\t"] > bestn) { best = "\t"; bestn = cnt["\t"] }
-  if (cnt["|"] > bestn) { best = "|"; bestn = cnt["|"] }
-  delim = best
+  for (i = 1; i <= 4; i++) if (cnt[seps[i]] > best) { delim = seps[i]; best = cnt[seps[i]] }
 }
 {
-  line = $0
-  # Fast path: a plain line with no quotes.
-  if (!in_quotes && !skip_lf && field == "" && nf == 0 && index(line, "\"") == 0) {
-    if (substr(line, length(line), 1) == "\r") line = substr(line, 1, length(line) - 1)
-    if (index(line, "\r") == 0) {
-      n = split(line, parts, delim == "|" ? "[|]" : delim)
-      if (n == 0) { n = 1; parts[1] = "" }
-      for (i = 1; i <= n; i++) rec[i - 1] = parts[i]
-      nf = n - 1
-      field = parts[n]
-      end_record()
-      next
-    }
-  }
-  for (i = 1; i <= length(line); i++) put(substr(line, i, 1))
+  for (i = 1; i <= length($0); i++) put(substr($0, i, 1))
   if (pending_quote) { pending_quote = 0; in_quotes = 0 }
   put("\n")
 }
 END {
-  if (pending_quote) { pending_quote = 0; in_quotes = 0 }
+  if (pending_quote) in_quotes = 0
   if (field != "" || nf > 0) end_record()
-  if (ragged > 0) printf "Warning: %d row(s) have a different number of values than the header. Missing values are left empty and extra values are ignored.\n", ragged > "/dev/stderr"
 }
 '
 
-# ---------- Sending ----------
-
-# Sends the request built for row $1 and writes its results CSV line. Runs in the background.
-run_row() {
-  local i=$1 base="$TMP_DIR/r$1" sent_at meta rc status secs size ms frac whole
-  local status_text='' resp_headers='' body='' err='' failed=0 result label line k body_nul=0
-  local -a args
-  local req_body=''
-  [ "$REQ_HAS_BODY" = 1 ] && req_body=$REQ_BODY
-  sent_at=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-  args=(-sS -L --max-time "$TIMEOUT" -o "$base.body" -D "$base.head" -w '%{http_code} %{time_total} %{size_download} %{url_effective}')
-  if [ "$REQ_METHOD" = HEAD ]; then
-    args+=(--head)
-  elif [ "$REQ_METHOD" = GET ] || { [ "$REQ_METHOD" = POST ] && [ "$REQ_HAS_BODY" = 1 ]; }; then
-    : # curl picks GET, or POST because of --data-binary, and follows redirects like a browser
-  else
-    args+=(-X "$REQ_METHOD")
-  fi
-  k=0
-  while [ "$k" -lt "${#HK[@]}" ]; do
-    if [ -z "${HV[$k]}" ]; then args+=(-H "${HK[$k]};"); else args+=(-H "${HK[$k]}: ${HV[$k]}"); fi
-    k=$((k + 1))
-  done
-  if [ -n "${CLIENT_CERT:-}" ]; then
-    args+=(--cert "$CLIENT_CERT")
-    case "$CLIENT_CERT" in *.p12 | *.P12 | *.pfx | *.PFX) args+=(--cert-type P12) ;; esac
-    [ -n "${CLIENT_KEY:-}" ] && args+=(--key "$CLIENT_KEY")
-    [ -n "${REST_RUNNER_CERT_PASSPHRASE:-}" ] && args+=(--pass "$REST_RUNNER_CERT_PASSPHRASE")
-  fi
-  [ -n "${CA_CERT:-}" ] && args+=(--cacert "$CA_CERT")
-  if [ "$REQ_HAS_BODY" = 1 ]; then
-    printf '%s' "$REQ_BODY" >"$base.req"
-    args+=(--data-binary "@$base.req")
-  fi
-  meta=$(curl "${args[@]}" --url "$REQ_URL" 2>"$base.err" </dev/null)
-  rc=$?
-  read -r status secs size effective <<<"$meta"
-  final_url=''
-  [ "${effective%/}" != "${REQ_URL%/}" ] && [ -n "$effective" ] && final_url=$effective
-  whole=${secs%%[.,]*}
-  frac=000
-  [ "$whole" != "$secs" ] && frac="${secs#*[.,]}000"
-  ms=$((10#${whole:-0} * 1000 + 10#${frac:0:3}))
-  if [ "$rc" -ne 0 ]; then
-    IFS= read -r err <"$base.err"
-    [ -z "$err" ] && err="curl exited with code $rc"
-    failed=1
-    status=''
-    final_url=''
-    size=''
-  else
-    # Keep the last block of headers (after any redirects).
-    while IFS= read -r line || [ -n "$line" ]; do
-      line=${line%$'\r'}
-      case $line in
-        HTTP/*)
-          status_text=${line#* }
-          status_text=${status_text#* }
-          [ "$status_text" = "${line#* }" ] && status_text=''
-          resp_headers=''
-          ;;
-        '') ;;
-        *) resp_headers+="${resp_headers:+$NL}$line" ;;
-      esac
-    done <"$base.head"
-    [ -f "$base.body" ] && IFS= read -r -d '' body <"$base.body"
-    # bash cannot hold a NUL, so look for one in the file.
-    if [ -f "$base.body" ] && [ "$(wc -c <"$base.body")" -ne "$(tr -d '\000' <"$base.body" | wc -c)" ]; then body_nul=1; fi
-    if [ "$HTTP_ERRORS_FAIL" = 1 ] && [ "$status" -ge 400 ]; then failed=1; fi
-  fi
-  if [ "$failed" = 1 ]; then
-    result=FAIL
-    [ "$STOP_ON_FAILURE" = 1 ] && : >"$TMP_DIR/stop"
-    : >"$base.fail"
-  else
-    result=PASS
-  fi
-  label=${status:-ERR}
-  printf '%s %3s %6d ms  row %d  %s %s%s\n' "$result" "$label" "$ms" "$((i + 1))" "$REQ_METHOD" "$REQ_URL" "${err:+  $err}"
-
-  local headers_text='' hk=0
-  while [ "$hk" -lt "${#HK[@]}" ]; do
-    headers_text+="${headers_text:+$NL}${HK[$hk]}: ${HV[$hk]}"
-    hk=$((hk + 1))
-  done
-  line=''
-  local cell s_url s_reqh s_reqb s_resh s_resb s_err s_final
-  safe_cell "$REQ_URL"; s_url=$REPLY
-  safe_cell "$headers_text"; s_reqh=$REPLY
-  report_body "$req_body" "$headers_text"; safe_cell "$REPLY"; s_reqb=$REPLY
-  safe_cell "$resp_headers"; s_resh=$REPLY
-  report_body "$body" "$resp_headers" "$size" "$body_nul"; safe_cell "$REPLY"; s_resb=$REPLY
-  safe_cell "$err"; s_err=$REPLY
-  safe_cell "$final_url"; s_final=$REPLY
-  for cell in "$((i + 1))" "$result" "$label" "$status_text" "$ms" "$sent_at" "$REQ_METHOD" "$s_url" \
-    "$s_reqh" "$s_reqb" "$s_resh" "$s_resb" "$size" "$s_err" "$s_final" \
-    ${ROW[@]+"${ROW[@]}"}; do
-    csvq "$cell"
-    line+="${line:+,}$REPLY"
-  done
-  printf '%s\r\n' "$line" >"$base.csv"
-  rm -f "$base.body" "$base.head" "$base.req" "$base.err"
-}
-
-wait_for_slot() {
-  local p
-  local -a alive
-  while :; do
-    alive=()
-    for p in ${PIDS[@]+"${PIDS[@]}"}; do
-      kill -0 "$p" 2>/dev/null && alive+=("$p")
-    done
-    PIDS=(${alive[@]+"${alive[@]}"})
-    [ "${#PIDS[@]}" -lt "$CONCURRENCY" ] && return 0
-    sleep 0.05
-  done
-}
-
 # ---------- Main ----------
 
-CSV_FILE=$DEFAULT_CSV
-OUT_FILE=''
-DRY_RUN=0
-TIMEOUT=120
-while [ $# -gt 0 ]; do
-  case $1 in
-    --concurrency) CONCURRENCY=$2; shift ;;
-    --delay-ms) DELAY_MS=$2; shift ;;
-    --stop-on-failure) STOP_ON_FAILURE=1 ;;
-    --no-stop-on-failure) STOP_ON_FAILURE=0 ;;
-    --http-errors-fail) HTTP_ERRORS_FAIL=1 ;;
-    --no-http-errors-fail) HTTP_ERRORS_FAIL=0 ;;
-    --timeout) TIMEOUT=$2; shift ;;
-    --out) OUT_FILE=$2; shift ;;
-    --dry-run) DRY_RUN=1 ;;
-    -h | --help)
-      sed -n '2,/^$/p' "$0" | sed 's/^# \{0,1\}//'
-      exit 0
-      ;;
-    -*) die "Unknown option: $1 (try --help)" ;;
-    *) CSV_FILE=$1 ;;
-  esac
-  shift
-done
-
-[ -n "$CSV_FILE" ] || die "Give the CSV file to read, for example: bash $0 data.csv"
+CSV_FILE=${1:-$CSV_FILE}
+case $CSV_FILE in '' | -*) die "Give the CSV file to read, for example: bash $0 data.csv${NL}Other settings are at the top of the script." ;; esac
 [ -r "$CSV_FILE" ] || die "Could not read $CSV_FILE"
-case $CONCURRENCY in '' | *[!0-9]*) die "--concurrency must be a number" ;; esac
-case $DELAY_MS in '' | *[!0-9]*) die "--delay-ms must be a number" ;; esac
-[ "$CONCURRENCY" -lt 1 ] && CONCURRENCY=1
-[ "$CONCURRENCY" -gt 50 ] && CONCURRENCY=50
-if [ "$DRY_RUN" = 0 ]; then
-  command -v curl >/dev/null 2>&1 || die "curl is needed but was not found."
-fi
+[ "$DRY_RUN" = 1 ] || command -v curl >/dev/null 2>&1 || die "curl is needed but was not found."
 
 TMP_DIR=$(mktemp -d 2>/dev/null || mktemp -d -t rest-runner) || die "Could not make a temporary folder."
 # curl on Windows is a native program: give it a C:/... style path.
 if command -v cygpath >/dev/null 2>&1; then TMP_DIR=$(cygpath -m "$TMP_DIR"); fi
 trap 'rm -rf "$TMP_DIR"' EXIT
-INTERRUPTED=0
-trap 'INTERRUPTED=1' INT
 
 awk "$CSV_AWK" "$CSV_FILE" >"$TMP_DIR/rows" || die "Could not read $CSV_FILE"
-TOTAL=-1
-while IFS= read -r line; do [ "$line" = E ] && TOTAL=$((TOTAL + 1)); done <"$TMP_DIR/rows"
-if [ "$TOTAL" -lt 1 ]; then
-  die "No data rows found in $CSV_FILE. The first line must be the column names."
-fi
-[ "$CONCURRENCY" -gt "$TOTAL" ] && CONCURRENCY=$TOTAL
+TOTAL=$(($(grep -c '^E$' "$TMP_DIR/rows") - 1))
+[ "$TOTAL" -ge 1 ] || die "No data rows found in $CSV_FILE. The first line must be the column names."
 
-if [ -z "$OUT_FILE" ]; then
+if [ "$DRY_RUN" = 0 ]; then
   name=${CSV_FILE##*/}
-  OUT_FILE="${name%.*}-results-$(date +%Y%m%d-%H%M%S).csv"
+  [ -n "$RESULTS_FILE" ] || RESULTS_FILE="${name%.*}-results-$(date +%Y%m%d-%H%M%S).csv"
+  csv_line row result status duration_ms url request response error >"$RESULTS_FILE"
+  printf 'Sending %d requests...\n' "$TOTAL"
 fi
 DELAY_S=$(awk -v ms="$DELAY_MS" 'BEGIN { printf "%.3f", ms / 1000 }')
-
-[ "$DRY_RUN" = 0 ] && printf 'Sending %d requests (%d at a time)%s...\n' "$TOTAL" "$CONCURRENCY" "$([ "$DELAY_MS" -gt 0 ] && printf ', %d ms apart' "$DELAY_MS")"
 STARTED=$(date +%s)
-COLS=()
-NCOLS=-1
-ROW=()
+END=Finished
+trap 'END=Stopped' INT
+SENT=0
+FAILED=0
 INDEX=0
-PIDS=()
+COLS=()
 FIELDS=()
-nf=0
+HEADER_READ=0
 while IFS= read -r line; do
-  [ "$INTERRUPTED" = 1 ] && break
   if [ "$line" != E ]; then
     f=${line#F}
     case $f in *\\*) printf -v f '%b' "$f" ;; esac
-    FIELDS[nf]=$f
-    nf=$((nf + 1))
+    FIELDS+=("$f")
     continue
   fi
-  if [ "$NCOLS" -lt 0 ]; then
+  if [ "$HEADER_READ" = 0 ]; then
     COLS=(${FIELDS[@]+"${FIELDS[@]}"})
-    NCOLS=$nf
+    HEADER_READ=1
   else
     ROW=(${FIELDS[@]+"${FIELDS[@]}"})
     build_request
     if [ "$DRY_RUN" = 1 ]; then
-      describe_request
+      request_text
       printf 'Row %d\n%s\n\n' "$((INDEX + 1))" "$REPLY"
     else
-      wait_for_slot
-      if [ "$INDEX" -ge "$CONCURRENCY" ] && [ "$DELAY_MS" -gt 0 ]; then sleep "$DELAY_S"; fi
-      [ -e "$TMP_DIR/stop" ] || [ "$INTERRUPTED" = 1 ] && break
-      run_row "$INDEX" &
-      PIDS+=($!)
+      [ "$INDEX" -gt 0 ] && [ "$DELAY_MS" -gt 0 ] && sleep "$DELAY_S"
+      [ "$END" = Finished ] || break
+      send_request
+      SENT=$((SENT + 1))
+      FAILED=$((FAILED + LAST_FAILED))
+      if [ "$LAST_FAILED" = 1 ] && [ "$STOP_ON_FAILURE" = 1 ] && [ "$SENT" -lt "$TOTAL" ]; then
+        END='Stopped after a failure'
+        break
+      fi
     fi
     INDEX=$((INDEX + 1))
   fi
   FIELDS=()
-  nf=0
 done <"$TMP_DIR/rows"
 
 [ "$DRY_RUN" = 1 ] && exit 0
-[ "$INTERRUPTED" = 1 ] && printf '\nStopping. Requests already sent are kept in the results.\n' >&2
-while ! wait; do :; done
-
-{
-  line=''
-  for cell in row result status status_text duration_ms sent_at method url request_headers request_body \
-    response_headers response_body response_size_bytes error final_url; do
-    line+="${line:+,}$cell"
-  done
-  for cell in ${COLS[@]+"${COLS[@]}"}; do
-    csvq "var:$cell"
-    line+=",$REPLY"
-  done
-  printf '%s\r\n' "$line"
-  SENT=0
-  FAILED=0
-  i=0
-  while [ "$i" -lt "$TOTAL" ]; do
-    if [ -f "$TMP_DIR/r$i.csv" ]; then
-      cat "$TMP_DIR/r$i.csv"
-      SENT=$((SENT + 1))
-      [ -f "$TMP_DIR/r$i.fail" ] && FAILED=$((FAILED + 1))
-    fi
-    i=$((i + 1))
-  done
-  printf '%s %s\n' "$SENT" "$FAILED" >"$TMP_DIR/counts"
-} >"$OUT_FILE"
-read -r SENT FAILED <"$TMP_DIR/counts"
-
-if [ "$INTERRUPTED" = 1 ]; then END=Stopped
-elif [ -e "$TMP_DIR/stop" ] && [ "$SENT" -lt "$TOTAL" ]; then END='Stopped after a failure'
-else END=Finished; fi
 printf '%s: %d of %d sent, %d passed, %d failed in %d s. Results: %s\n' \
-  "$END" "$SENT" "$TOTAL" "$((SENT - FAILED))" "$FAILED" "$(($(date +%s) - STARTED))" "$OUT_FILE"
-if [ "$FAILED" -gt 0 ] || [ "$INTERRUPTED" = 1 ]; then exit 1; fi
-exit 0
+  "$END" "$SENT" "$TOTAL" "$((SENT - FAILED))" "$FAILED" "$(($(date +%s) - STARTED))" "$RESULTS_FILE"
+[ "$FAILED" -eq 0 ] && [ "$END" != Stopped ]

@@ -70,8 +70,9 @@ describe("script exports with certificates", () => {
           const script = buildScript(lang, { ...input, envName: malicious, defaults: { x: "y" }, certificates: [{ ...pem, name: malicious }] });
           const path = join(dir, `test.${lang === "python" ? "py" : "sh"}`);
           writeFileSync(path, script);
-          const result = spawnSync(executable, [path, "--help"], { encoding: "utf8" });
-          expect(result.status, result.stderr).toBe(0);
+          const result = spawnSync(executable, [path], { encoding: "utf8", cwd: dir });
+          expect(result.status, result.stderr).toBe(2); // no CSV given: the script got past its header and settings
+          expect(result.stderr).toMatch(/Give the CSV file/);
           expect(existsSync(marker)).toBe(false);
         }
       }
@@ -93,7 +94,9 @@ describe("script exports with certificates", () => {
   it("leaves scripts without a matching certificate as they were", () => {
     expect(buildScript("python", plain)).not.toContain('CLIENT_CERT = ""');
     expect(buildScript("bash", plain)).not.toContain("CLIENT_CERT=''");
-    expect(buildScript("python", { ...input, def: { ...def, noCertificate: true } })).not.toContain('CLIENT_CERT = ""');
+    const caOnly = buildScript("python", { ...input, def: { ...def, noCertificate: true } });
+    expect(caOnly).not.toContain("Client certificate");
+    expect(caOnly).toContain('CA_CERT = ""');
   });
 
   it("matches on the address with environment values filled in", () => {
