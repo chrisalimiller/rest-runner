@@ -27,6 +27,8 @@ pub struct HttpRequest {
     pub body: Option<String>,
     /// No limit when missing, as before.
     pub timeout_ms: Option<u64>,
+    /// Maximum decoded body bytes; independently validated at the native boundary.
+    pub max_response_bytes: Option<usize>,
     /// Which imported certificates this call uses. Chosen by the caller (see src/lib/certificates.ts).
     #[serde(default)]
     pub tls: TlsSpec,
@@ -67,6 +69,8 @@ pub struct HttpResponse {
 }
 
 pub const CANCELLED: &str = "Request cancelled";
+const DEFAULT_RESPONSE_LIMIT: usize = 4 * 1024 * 1024;
+const MAX_RESPONSE_LIMIT: usize = 16 * 1024 * 1024;
 
 /// Sent when the request has no User-Agent of its own. Many firewalls and CDNs answer 403 to
 /// requests without one, and Postman and curl always send one.
@@ -91,11 +95,12 @@ pub struct HttpState {
     /// One client per TLS setup, so a batch against one host reuses its connections and handshakes.
     clients: Mutex<HashMap<String, Client>>,
     in_flight: Mutex<HashMap<String, AbortHandle>>,
+    response_slots: tokio::sync::Semaphore,
 }
 
 impl HttpState {
     pub fn new(certs: Arc<CertStore>) -> Self {
-        Self { certs, clients: Mutex::new(HashMap::new()), in_flight: Mutex::new(HashMap::new()) }
+        Self { certs, clients: Mutex::new(HashMap::new()), in_flight: Mutex::new(HashMap::new()), response_slots: tokio::sync::Semaphore::new(4) }
     }
 
     /// Forgets built clients. Call after a certificate changes or is deleted.
@@ -135,9 +140,11 @@ impl HttpState {
         let id = req.id.clone();
         let this = self.clone();
         let task = tokio::spawn(async move {
+            let _slot = this.response_slots.acquire().await.map_err(|_| "HTTP service stopped".to_string())?;
             // Building a client reads files and the keychain, which can block.
             let tls = req.tls.clone();
-            let client = tokio::task::spawn_blocking(move || this.client_for(&tls))
+            let client_state = this.clone();
+            let client = tokio::task::spawn_blocking(move || client_state.client_for(&tls))
                 .await
                 .map_err(|e| format!("The request stopped unexpectedly: {e}"))??;
             perform(client, req).await
@@ -162,6 +169,10 @@ impl HttpState {
 
 async fn perform(client: Client, req: HttpRequest) -> Result<HttpResponse, String> {
     let start = Instant::now();
+    let limit = req.max_response_bytes.unwrap_or(DEFAULT_RESPONSE_LIMIT);
+    if !(1..=MAX_RESPONSE_LIMIT).contains(&limit) {
+        return Err(format!("Response limit must be between 1 and {MAX_RESPONSE_LIMIT} bytes"));
+    }
     let method = Method::from_bytes(req.method.as_bytes())
         .map_err(|_| format!("Invalid HTTP method: {}", req.method))?;
     let mut builder = client.request(method, &req.url);
@@ -178,14 +189,20 @@ async fn perform(client: Client, req: HttpRequest) -> Result<HttpResponse, Strin
     if let Some(ms) = req.timeout_ms {
         builder = builder.timeout(Duration::from_millis(ms));
     }
-    let res = builder.send().await.map_err(|e| describe(&e))?;
+    let mut res = builder.send().await.map_err(|e| describe(&e))?;
     let status = res.status();
     let headers = res
         .headers()
         .iter()
         .map(|(name, value)| (name.to_string(), String::from_utf8_lossy(value.as_bytes()).into_owned()))
         .collect();
-    let bytes = res.bytes().await.map_err(|e| describe(&e))?;
+    let mut bytes = Vec::new();
+    while let Some(chunk) = res.chunk().await.map_err(|e| describe(&e))? {
+        if chunk.len() > limit - bytes.len() {
+            return Err(format!("Response exceeded {limit} bytes"));
+        }
+        bytes.extend_from_slice(&chunk);
+    }
     Ok(HttpResponse {
         status: status.as_u16(),
         status_text: status.canonical_reason().unwrap_or("").to_string(),
@@ -243,6 +260,7 @@ mod tests {
             headers: vec![],
             body: None,
             timeout_ms: None,
+            max_response_bytes: None,
             tls: TlsSpec::default(),
         }
     }
@@ -260,6 +278,41 @@ mod tests {
             fn delete(&self, _: &str) {}
         }
         Arc::new(HttpState::new(Arc::new(CertStore::new(std::env::temp_dir().join("rr-none"), Arc::new(None_)))))
+    }
+
+    #[tokio::test]
+    async fn response_limit_counts_streamed_bytes() {
+        for (wire, expected) in [
+            ("HTTP/1.1 200 OK\r\nContent-Length: 4\r\nConnection: close\r\n\r\nabcd", true),
+            ("HTTP/1.1 200 OK\r\nContent-Length: 5\r\nConnection: close\r\n\r\nabcde", true),
+            ("HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nabcdef", false),
+            ("HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\nConnection: close\r\n\r\n3\r\nabc\r\n3\r\ndef\r\n0\r\n\r\n", false),
+        ] {
+            let url = serve(wire, 0).await;
+            let mut req = request(&url);
+            req.max_response_bytes = Some(5);
+            let result = plain_state().send(req).await;
+            assert_eq!(result.is_ok(), expected, "{result:?}");
+            if !expected { assert_eq!(result.unwrap_err(), "Response exceeded 5 bytes"); }
+        }
+    }
+
+    #[tokio::test]
+    async fn response_limit_counts_decompressed_bytes() {
+        let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        tokio::spawn(async move {
+            let (mut socket, _) = listener.accept().await.unwrap();
+            let mut request = [0; 1024];
+            let _ = socket.read(&mut request).await;
+            let body: &[u8] = &[31, 139, 8, 0, 0, 0, 0, 0, 2, 255, 75, 76, 74, 78, 73, 77, 75, 207, 200, 204, 2, 0, 58, 112, 129, 57, 10, 0, 0, 0];
+            let header = format!("HTTP/1.1 200 OK\r\nContent-Encoding: gzip\r\nContent-Length: {}\r\nConnection: close\r\n\r\n", body.len());
+            let _ = socket.write_all(header.as_bytes()).await;
+            let _ = socket.write_all(body).await;
+        });
+        let mut req = request(&format!("http://{addr}/"));
+        req.max_response_bytes = Some(5);
+        assert_eq!(plain_state().send(req).await.unwrap_err(), "Response exceeded 5 bytes");
     }
 
     #[tokio::test]

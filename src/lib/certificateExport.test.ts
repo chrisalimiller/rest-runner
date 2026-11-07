@@ -1,6 +1,6 @@
 /// <reference types="node" />
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -55,6 +55,28 @@ describe("Copy as cURL with certificates", () => {
 describe("script exports with certificates", () => {
   const input: ScriptExportInput = { def, options: DEFAULT_BATCH_OPTIONS, defaults: {}, certificates: [pem] };
   const plain: ScriptExportInput = { ...input, certificates: [] };
+
+  it("keeps multiline environment and certificate notes in comments when scripts run", () => {
+    const dir = mkdtempSync(join(tmpdir(), "rr-comment-"));
+    try {
+      const python = ["python3", "python"].find((cmd) => spawnSync(cmd, ["--version"]).status === 0);
+      const bash = (process.platform === "win32" ? ["C:/Program Files/Git/bin/bash.exe"] : ["bash"]).find((cmd) => spawnSync(cmd, ["--version"]).status === 0);
+      for (const newline of ["\r", "\n", "\r\n"]) {
+        for (const [lang, executable] of [["python", python], ["bash", bash]] as const) {
+          if (!executable) continue;
+          const marker = join(dir, `injected-${lang}`);
+          const injection = lang === "python" ? `open(${JSON.stringify(marker)},'w').close()` : `touch '${marker.replace(/\\/g, "/")}'`;
+          const malicious = `name${newline}${injection}${newline}#`;
+          const script = buildScript(lang, { ...input, envName: malicious, defaults: { x: "y" }, certificates: [{ ...pem, name: malicious }] });
+          const path = join(dir, `test.${lang === "python" ? "py" : "sh"}`);
+          writeFileSync(path, script);
+          const result = spawnSync(executable, [path, "--help"], { encoding: "utf8" });
+          expect(result.status, result.stderr).toBe(0);
+          expect(existsSync(marker)).toBe(false);
+        }
+      }
+    } finally { rmSync(dir, { recursive: true, force: true }); }
+  });
 
   it("writes a settings block for the matching certificate", () => {
     const py = buildScript("python", input);

@@ -1,3 +1,4 @@
+import { redactReport } from "../secrets";
 import { certificateLabel } from "../certificates";
 import { CALL_COLUMNS, callCells, csvFile, reportBody, type CsvOptions } from "../reportCsv";
 import { describeMode } from "./describe";
@@ -85,6 +86,7 @@ function iterationLabel(r: CaseResult): string {
 
 /** One line per case per iteration, with every check, the full request and response, script output and notes. */
 export function toTestCsvReport(run: TestRun, options?: CsvOptions): string {
+  run = redactReport(run, options?.secrets ?? []);
   const head = [
     "iteration",
     "csv_row",
@@ -123,7 +125,7 @@ export function toTestCsvReport(run: TestRun, options?: CsvOptions): string {
       ...run.columns.map((c) => r.vars[c] ?? ""),
     ]);
   }
-  return csvFile(rows);
+  return csvFile(rows, options);
 }
 
 /* ---------- HTML ---------- */
@@ -209,7 +211,8 @@ ${scriptHtml("Post-response script", r.postScript)}`;
 }
 
 /** A single self-contained HTML file: summary, per-case table, run log, and every case result with its checks, request and response. */
-export function toTestHtmlReport(run: TestRun): string {
+export function toTestHtmlReport(run: TestRun, options?: { secrets?: readonly string[] }): string {
+  run = redactReport(run, options?.secrets ?? []);
   const t = testRunTimes(run);
   const perCase = caseStats(run);
   const title = `${run.suiteName} · ${formatTime(run.startedAt)}`;

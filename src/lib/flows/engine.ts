@@ -262,7 +262,8 @@ async function runSimpleNode(e: Engine, lane: Lane, node: FlowNode): Promise<Ste
       return { status: "done", output: "next", notes: [`Set ${name} to ${JSON.stringify(value)}.`] };
     }
     case "if": {
-      const check = evaluateCondition(node.condition, { vars: templateVars(e, lane), lastResult: lane.lastResult, lastResponse: lane.lastResponse });
+      const check = await evaluateCondition(node.condition, { vars: templateVars(e, lane), lastResult: lane.lastResult, lastResponse: lane.lastResponse }, e.ctx.signal);
+      if (e.ctx.signal.aborted) return { status: "cancelled", notes: ["Stopped while checking condition."] };
       return {
         status: "done",
         output: check.passed ? "true" : "false",

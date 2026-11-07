@@ -1,4 +1,5 @@
 import { cleanSuites } from "./suites";
+import { validateImportedMethods } from "../importMethods";
 import type { TestSuite } from "./types";
 
 /** File format for exporting and importing test suites. */
@@ -24,6 +25,7 @@ export function importSuitesFile(text: string, current: TestSuite[]): { suites: 
     throw new Error("The file is not valid JSON.");
   }
   if (data.app !== "rest-runner" || data.kind !== "test-suites") throw new Error("This is not a REST Runner test suites file.");
+  validateImportedMethods(data.suites);
   const incoming = cleanSuites(data.suites);
   const suites = [...current];
   let added = 0;

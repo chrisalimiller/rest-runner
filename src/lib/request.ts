@@ -45,6 +45,7 @@ export function prepareRequest(def: RequestDef, vars: Vars = {}): PreparedReques
   const query = activeRows(def.params, vars);
   const headers = activeRows(def.headers, vars);
   const auth = withAuthDefaults(def.auth);
+  const credentialHeaders: string[] = [];
 
   switch (auth.type) {
     case "bearer":
@@ -63,6 +64,7 @@ export function prepareRequest(def: RequestDef, vars: Vars = {}): PreparedReques
       if (key !== "") {
         const value = applyTemplate(auth.value, vars);
         if (auth.addTo === "header") {
+          credentialHeaders.push(key);
           if (!hasHeader(headers, key)) headers.push([key, value]);
         } else {
           query.push([key, value]);
@@ -91,7 +93,7 @@ export function prepareRequest(def: RequestDef, vars: Vars = {}): PreparedReques
   }
 
   const url = appendQuery(normalizeUrl(applyTemplate(def.url, vars)), query);
-  return { method: def.method, url, headers, body, ...(def.noCertificate ? { noCertificate: true } : {}) };
+  return { method: def.method, url, headers, body, ...(credentialHeaders.length ? { credentialHeaders } : {}), ...(def.noCertificate ? { noCertificate: true } : {}) };
 }
 
 /** Lists the {{placeholders}} a request uses in the parts that will actually be sent. */

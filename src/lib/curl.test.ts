@@ -72,7 +72,7 @@ describe("requestToCurl", () => {
 
   it("puts a multi-line JSON body on one line for cmd", () => {
     const r = requestToCurl(req({ method: "POST", url: "https://a.com", bodyMode: "json", body: '{\n  "a": 1\n}' }), {}, "cmd");
-    expect(r.command).toBe('curl --location --request POST "https://a.com" ^\n  --header "Content-Type: application/json" ^\n  --data-raw "{\\"a\\":1}"');
+    expect(r.command).toBe('curl --location --request "POST" "https://a.com" ^\n  --header "Content-Type: application/json" ^\n  --data-raw "{\\"a\\":1}"');
     expect(r.notes.length).toBe(1);
   });
 

@@ -12,7 +12,7 @@ Requests mode is where you build a request and read the response. The request is
 - **Copy final URL** in the ⋯ menu copies the resolved URL. The URL shows `{{placeholders}}` in colour while you type, and the same highlighting is used in the Params, Headers and form value fields.
 - Open the ⋯ menu next to Send to **Show cURL** (the `curl` command Send would run), or to **Copy as cURL (Bash)** or **Copy as cURL (Windows cmd)** in one click. The command includes with environment values, script variables, auth and the body filled in. Pick **Bash / zsh** (macOS, Linux, Git Bash) or **Windows cmd** in the panel, then **Copy** it into a terminal. Placeholders with no value are listed under the command. Choose **Hide cURL** to close it; whether it is open is remembered.
   - A pre-request script runs only when you press Send, so anything it changes is not in the command.
-  - cmd can't pass line breaks inside an argument, so a multi-line JSON body is put on one line there (it means the same thing).
+  - cmd can't pass line breaks inside an argument, so a multi-line JSON body is put on one line there (it means the same thing). Other line breaks and literal `%` or `!` cannot be represented safely in cmd: the command is unavailable and the panel explains why. Choose Bash to preserve those values.
 
 GET and HEAD requests never send a body, even if you filled one in. The summary line reads "No body for GET" and the details fill the space where the body would be.
 
@@ -164,3 +164,14 @@ Open requests are tabs in a bar directly under the top bar. With a single unpinn
 - **Keyboard.** Tab into the bar, then use ← / →, Home and End to move between tabs, Enter or Space to open one, and Delete to close it. See [Keyboard shortcuts](shortcuts.md#tabs) for the rest.
 
 The tabs bar is part of the Requests screen only. The Testing case editor and Flows are not affected.
+
+
+### Response size limits
+
+Responses are limited to 4 MiB of decoded body bytes per request, including each redirect hop in the desktop app. A response exceeding the limit fails rather than displaying or saving a partial success. Up to four responses are read at once. Use **Response size limit** in the right-hand toolbar to set a limit from 1 byte to 16 MiB. Memory use can be higher than the limit because decoded text and desktop IPC create copies. Batch and test results may retain multiple responses; use smaller batches when responses are large.
+
+### Redirects and credentials
+
+In the desktop app, redirects on the same origin retain request headers. When a redirect changes scheme, host, or port, REST Runner removes authentication headers, including the configured API-key header, and forwards only Accept, Accept-Language, Content-Type, Content-Language, and User-Agent from the original headers. This conservative rule also removes custom headers, which can contain credentials under arbitrary names. A 307 or 308 can still retain the request body; do not put credentials in a body sent to a server you do not trust.
+
+In browser mode (`npm run dev`), redirects are blocked because the browser does not expose enough redirect information to apply this policy. Use the desktop app for requests that require redirects.

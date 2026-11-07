@@ -171,6 +171,7 @@ impl Fixture {
             headers: vec![],
             body: None,
             timeout_ms: Some(5000),
+            max_response_bytes: None,
             tls: TlsSpec {
                 cert_id: cert.map(Into::into),
                 ca_ids: if trust_ca { vec!["serverca".into()] } else { vec![] },
@@ -300,4 +301,28 @@ async fn files_exported_inline_import_into_another_store_and_work() {
         })
         .unwrap();
     assert_eq!(f.get(Some("c2"), true).await.unwrap(), "secure");
+}
+
+#[tokio::test]
+async fn certificate_creation_preserves_existing_folder_and_keychain_on_collision() {
+    let f = Fixture::new().await;
+    let pfx = f.write("identity.p12", &p12(&f.pki, "pfx-pass"));
+    f.import("existing", &pfx, None, Some("pfx-pass")).unwrap();
+    let before = f.store.export_files("existing").unwrap();
+    assert!(f.import("existing", &pfx, None, Some("pfx-pass")).is_err());
+    assert_eq!(f.store.export_files("existing").unwrap(), before);
+    assert!(f.import("existing", &pfx, None, Some("wrong")).is_err());
+    assert_eq!(f.store.export_files("existing").unwrap(), before);
+}
+
+#[tokio::test]
+async fn certificate_creation_rejects_orphaned_keychain_identity() {
+    let f = Fixture::new().await;
+    let keys = Arc::new(MapStore::default());
+    keys.set("existing", "preserve").unwrap();
+    let store = CertStore::new(f._data.path().join("other-certificates"), keys.clone());
+    let ca = f.write("ca-collision.pem", f.pki.ca_pem.as_bytes());
+    assert!(store.import(&ImportRequest { id: "existing".into(), ca_path: Some(ca), ..Default::default() }).is_err());
+    assert_eq!(keys.get("existing").as_deref(), Some("preserve"));
+    assert!(!f._data.path().join("other-certificates").join("existing").exists());
 }

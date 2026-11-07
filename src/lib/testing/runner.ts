@@ -2,7 +2,7 @@ import type { SendFn } from "../batch";
 import { prepareRequest } from "../request";
 import { combineScripts } from "../requestScripts";
 import { findPlaceholders, type Vars } from "../template";
-import { evaluateAssertion } from "./assertions";
+import { evaluateAssertionAsync } from "./assertions";
 import { clampRepeat } from "./plan";
 import type { ScriptContext } from "./sandbox";
 import type { ScriptRunner } from "./scriptRunner";
@@ -173,7 +173,10 @@ export async function runCase(run: CaseRun, options: SuiteRunOptions, ctx: Omit<
 
   const assertions = tc.assertions.filter((a) => a.enabled);
   const assertVars = { ...ctx.envVars, ...iter.data, ...runVars };
-  for (const a of assertions) checks.push(evaluateAssertion(a, outcome.response, assertVars));
+  for (const a of assertions) {
+    checks.push(await evaluateAssertionAsync(a, outcome.response, assertVars, ctx.signal));
+    if (ctx.signal.aborted) return null;
+  }
 
   const status = outcome.response.status;
   const hasStatusAssertion = assertions.some((a) => a.source === "status");

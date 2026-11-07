@@ -187,6 +187,8 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, detail
 
   const postmanWarning = usesPostman(def.preScript ?? "") || usesPostman(def.postScript ?? "") ? POSTMAN_WARNING : undefined;
   const noUrl = def.url.trim() === "";
+  const bashCurl = requestToCurl(urlInputs.def, urlInputs.envVars, "bash", certificates).command;
+  const cmdCurl = requestToCurl(urlInputs.def, urlInputs.envVars, "cmd", certificates).command;
   const fullMenu: MenuItem[] | undefined = menuItems && [
     ...menuItems,
     { label: "Copy final URL", onSelect: () => copyToClipboard(finalUrl, "Copied the URL"), disabled: !finalUrl, separated: true },
@@ -194,13 +196,13 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, detail
     { label: curlOpen ? "Hide cURL" : "Show cURL", onSelect: () => setCurlOpen((o) => !o) },
     {
       label: "Copy as cURL (Bash)",
-      onSelect: () => copyToClipboard(requestToCurl(urlInputs.def, urlInputs.envVars, "bash", certificates).command, "Copied the cURL command (Bash)"),
-      disabled: noUrl,
+      onSelect: () => copyToClipboard(bashCurl, "Copied the cURL command (Bash)"),
+      disabled: noUrl || !bashCurl,
     },
     {
       label: "Copy as cURL (Windows cmd)",
-      onSelect: () => copyToClipboard(requestToCurl(urlInputs.def, urlInputs.envVars, "cmd", certificates).command, "Copied the cURL command (Windows cmd)"),
-      disabled: noUrl,
+      onSelect: () => copyToClipboard(cmdCurl, "Copied the cURL command (Windows cmd)"),
+      disabled: noUrl || !cmdCurl,
     },
   ];
 
