@@ -142,17 +142,6 @@
   background: var(--bad-subtle);
 }
 
-.topbar-variables {
-  font-size: 12px;
-  white-space: nowrap;
-}
-
-.topbar-variables.icon-only {
-  padding: 0 8px;
-  display: inline-flex;
-  align-items: center;
-}
-
 .icon-btn.overflow-btn:hover,
 .icon-btn.overflow-btn[aria-expanded="true"] {
   color: var(--text);
@@ -248,4 +237,157 @@
 .crash-actions {
   display: flex;
   gap: 8px;
+}
+
+/* ---------- Side rail: sections, then the Variables and Certificates tools ---------- */
+.side-rail {
+  flex: 0 0 52px;
+  width: 52px;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 0;
+  background: var(--bg-inset);
+  border-left: 1px solid var(--border-muted);
+}
+
+.rail-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.rail-tools {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+}
+
+.rail-spacer {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+
+.rail-divider {
+  width: 24px;
+  height: 1px;
+  margin: 6px 0;
+  background: var(--border-muted);
+}
+
+.rail-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-md, 10px);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.rail-btn:hover {
+  background: var(--bg-soft);
+  color: var(--text);
+}
+
+.rail-btn.on {
+  background: var(--btn-bg);
+  color: var(--text);
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.rail-btn.section.on {
+  color: var(--brand);
+}
+
+.rail-btn.section.on::after {
+  content: "";
+  position: absolute;
+  right: -7px;
+  top: 50%;
+  width: 3px;
+  height: 20px;
+  transform: translateY(-50%);
+  border-radius: 3px;
+  background: var(--brand);
+}
+
+.rail-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--accent-fg);
+}
+
+.rail-btn.on:focus-visible {
+  box-shadow:
+    inset 0 0 0 1px var(--border),
+    0 0 0 2px var(--accent-fg);
+}
+
+.rail-glyph {
+  font: 600 13px var(--mono);
+}
+
+.rail-badge {
+  position: absolute;
+  right: 1px;
+  bottom: 1px;
+  height: 13px;
+  box-sizing: border-box;
+  padding: 0 4px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  font: 700 9px var(--mono);
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--bg-inset);
+  pointer-events: none;
+}
+
+.rail-dot {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--bg-inset);
+  pointer-events: none;
+}
+
+.rail-badge.tone-bad {
+  background: color-mix(in srgb, var(--bad) 20%, transparent);
+  color: var(--bad);
+}
+
+.rail-badge.tone-accent {
+  background: color-mix(in srgb, var(--accent-fg) 20%, transparent);
+  color: var(--accent-fg);
+}
+
+.rail-badge.tone-ok {
+  background: color-mix(in srgb, var(--ok) 20%, transparent);
+  color: var(--ok);
+}
+
+.rail-badge.tone-warn {
+  background: color-mix(in srgb, var(--warn) 25%, transparent);
+  color: var(--warn);
+}
+
+.rail-dot.tone-ok {
+  background: var(--ok);
+}
+
+.rail-dot.tone-warn {
+  background: var(--warn);
 }

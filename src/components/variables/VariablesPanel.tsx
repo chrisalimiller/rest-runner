@@ -1,15 +1,14 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { useSidePanelSlot } from "../shell/SidePanelSlot";
 import { ENV_COLOR_VARS, type Environment } from "../../lib/environments";
 import { maskSecrets, SECRET_MASK, storedSecrets } from "../../lib/secrets";
 import { load, save } from "../../lib/storage";
 import { variableIndex, type SidebarEnvGroup, type SidebarEnvRow } from "../../lib/variables";
-import { useEscape } from "../useEscape";
 import { useVariables, type VariablesApi } from "./VariablesContext";
 import "./variables.css";
 
 const PANEL_KEY = "rest-runner.variables-panel";
-/** Below this window width the panel floats over the response instead of sharing the row. */
-export const DOCK_MIN_WIDTH = 1240;
 
 export type VariablesFilter = "request" | "all";
 
@@ -33,7 +32,6 @@ interface Props {
   onState: (patch: Partial<VariablesPanelState>) => void;
   /** Names the current request uses, in order of appearance. */
   used: string[];
-  docked: boolean;
   onClose: () => void;
   onEditEnvironments: (varId?: string) => void;
   onSwitchEnvironment: (id: string) => void;
@@ -206,27 +204,18 @@ function EnvRows({ group, api }: { group: SidebarEnvGroup; api: VariablesApi }) 
 }
 
 /** The Variables sidebar: every variable by priority, editable in place. */
-export function VariablesPanel({ state, onState, used, docked, onClose, onEditEnvironments, onSwitchEnvironment }: Props) {
+export function VariablesPanel({ state, onState, used, onClose, onEditEnvironments, onSwitchEnvironment }: Props) {
   const api = useVariables();
+  const slot = useSidePanelSlot();
   const ref = useRef<HTMLElement>(null);
   const [nameFilter, setNameFilter] = useState("");
 
-  useEscape(onClose, state.open && !docked);
-  useEffect(() => {
-    if (!state.open || docked) return;
-    const onDown = (e: MouseEvent) => {
-      const t = e.target as HTMLElement;
-      if (!ref.current?.contains(t) && !t.closest("[data-variables-trigger]") && !t.closest(".unfilled-dot") && !t.closest(".toast")) onClose();
-    };
-    window.addEventListener("mousedown", onDown);
-    return () => window.removeEventListener("mousedown", onDown);
-  }, [state.open, docked, onClose]);
 
   const groups = useMemo(
     () => (api ? variableIndex(api.environments, api.activeEnvId, api.scriptVars, state.filter === "request" ? used : null) : null),
     [api, state.filter, used],
   );
-  if (!api || !groups || !state.open) return null;
+  if (!api || !groups || !state.open || !slot) return null;
 
   const activeEnv = api.environments.find((e) => e.id === api.activeEnvId) ?? null;
   const needle = nameFilter.trim().toLowerCase();
@@ -238,14 +227,14 @@ export function VariablesPanel({ state, onState, used, docked, onClose, onEditEn
   const others = groups.others.map(narrow).filter((g) => g.rows.length > 0);
   const nothing = missing.length === 0 && script.length === 0 && !active?.rows.length && others.length === 0;
 
-  return (
+  return createPortal(
     <aside
       ref={ref}
-      className={`variables-panel ${docked ? "docked" : "overlay"}`}
+      className="variables-panel docked"
       aria-label="Variables"
       id="variables-panel"
       onKeyDown={(e) => {
-        if (docked && e.key === "Escape" && !e.defaultPrevented) {
+        if (e.key === "Escape" && !e.defaultPrevented) {
           e.preventDefault();
           onClose();
         }
@@ -364,6 +353,7 @@ export function VariablesPanel({ state, onState, used, docked, onClose, onEditEn
           Edit environments…
         </button>
       </div>
-    </aside>
+    </aside>,
+    slot,
   );
 }

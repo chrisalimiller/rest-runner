@@ -30,6 +30,7 @@ The app is a desktop window around a web view, and it keeps its data in that web
 | `rest-runner.certificates` | The certificate list: each entry's name, the hosts it applies to, whether it is on, and the details shown for its client certificate and CA |
 | `rest-runner.onboarded` | That the welcome screen was dismissed, so it is not shown again |
 | `rest-runner.variables-panel` | Whether the Variables sidebar is open, and its filter |
+| `rest-runner.certs-panel` | Whether the Certificates side panel is open |
 | `rest-runner.curl-open`, `rest-runner.curl-shell` | Whether the curl command is shown under the request, and its shell (Bash or Windows cmd) |
 | `rest-runner.script-export-language` | The language last picked in **Export script…** (Python or Bash) |
 | `rest-runner.testing-nav-collapsed`, `rest-runner.flows-nav-collapsed` | Whether the list on the left of Testing and of Flows is hidden |
@@ -61,7 +62,7 @@ Because environments, collections and suites can hold tokens and passwords you t
 From inside the app:
 
 - **History:** Quick open → History group → **Clear history**.
-- **Script variables:** **Clear** or **Clear all** in the Variables sidebar (top bar, Requests mode).
+- **Script variables:** **Clear** or **Clear all** in the Variables sidebar (side bar on the right, Requests mode).
 - **Collections, folders, requests, examples:** delete them from the request switcher's tree.
 - **Environments:** delete them in the environment editor.
 - **Suites:** **Delete suite** in the ⋯ menu of the suite header. Deleting a suite keeps its saved test runs.

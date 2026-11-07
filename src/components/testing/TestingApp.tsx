@@ -1,4 +1,5 @@
 import { setBusy } from "../../lib/busyWork";
+import { setSectionStatus } from "../../lib/sectionStatus";
 import { reinsert, removeById } from "../../lib/listUndo";
 import { useToast } from "../shell/Toast";
 import { useDeferredDelete } from "../shell/useDeferredDelete";
@@ -84,6 +85,7 @@ export function TestingApp({ active, shell, command }: Props) {
   const abortRef = useRef<AbortController | null>(null);
   const bufferRef = useRef<CaseResult[]>([]);
   useEffect(() => setBusy("testing", !!live?.running), [live?.running]);
+  useEffect(() => setSectionStatus("testing", { running: !!live?.running }), [live?.running]);
   const scripts = useMemo(() => createWorkerScriptRunner(), []);
   useEffect(() => () => scripts.dispose(), [scripts]);
 
@@ -184,6 +186,7 @@ export function TestingApp({ active, shell, command }: Props) {
       },
     });
     abortRef.current = null;
+    setSectionStatus("testing", { failed: all.filter((r) => !r.passed).length, unseen: true });
     const finishedAt = new Date();
     const buffered = bufferRef.current;
     bufferRef.current = [];
@@ -307,7 +310,6 @@ export function TestingApp({ active, shell, command }: Props) {
     <div className="mode testing-mode">
       <TopBar
         mode="testing"
-        onMode={shell.onMode}
         onQuickOpen={shell.onQuickOpen}
         searchPlaceholder="Jump to a suite, case or test run…"
         switcher={

@@ -1,4 +1,5 @@
 import { setBusy } from "../../lib/busyWork";
+import { setSectionStatus } from "../../lib/sectionStatus";
 import { scheduleChip } from "../../lib/flows/scheduleChip";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cleanCollections } from "../../lib/collections";
@@ -257,6 +258,7 @@ export function FlowsApp({ active, shell, command }: Props) {
             return { ...l, steps: [...l.steps, { ...step }], runningNodeIds: i === -1 ? l.runningNodeIds : l.runningNodeIds.filter((_, j) => j !== i) };
           }),
       });
+      setSectionStatus("flows", { failed: result.end === "failed" ? Math.max(1, result.failedSteps) : 0, unseen: true });
       setLive(f.id, (l) => ({
         ...l,
         running: false,
@@ -276,6 +278,7 @@ export function FlowsApp({ active, shell, command }: Props) {
       }
     } catch (e) {
       const message = e instanceof FlowNotRunnableError ? `The flow can't start: ${e.message}` : `The flow stopped with an error: ${e instanceof Error ? e.message : String(e)}`;
+      setSectionStatus("flows", { failed: 1, unseen: true });
       setLive(f.id, (l) => ({ ...l, running: false, runningNodeIds: [], error: message }));
     } finally {
       aborts.current.delete(f.id);
@@ -466,6 +469,7 @@ export function FlowsApp({ active, shell, command }: Props) {
   const flowRunning = !!flow && runningIds.includes(flow.id);
   const anyFlowRunning = runningIds.length > 0;
   useEffect(() => setBusy("flows", anyFlowRunning), [anyFlowRunning]);
+  useEffect(() => setSectionStatus("flows", { running: anyFlowRunning }), [anyFlowRunning]);
   const warningCount = problems.filter((p) => p.level === "warning").length;
   const chip = flow ? scheduleChip(flow, new Date()) : null;
   const guard = guardFor(environments.find((e) => e.id === envId));
@@ -482,7 +486,6 @@ export function FlowsApp({ active, shell, command }: Props) {
     <div className="mode flows-mode">
       <TopBar
         mode="flows"
-        onMode={shell.onMode}
         onQuickOpen={shell.onQuickOpen}
         searchPlaceholder="Jump to a flow, flow run, suite or case…"
         switcher={

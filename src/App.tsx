@@ -15,8 +15,7 @@ import { useToast } from "./components/shell/Toast";
 import { useCertificates } from "./components/CertificatesDialog";
 import { useDeferredDelete } from "./components/shell/useDeferredDelete";
 import { VariablesProvider } from "./components/variables/VariablesContext";
-import { loadPanelState, savePanelState, VariablesPanel, DOCK_MIN_WIDTH, type VariablesPanelState } from "./components/variables/VariablesPanel";
-import { useViewportWidth } from "./components/useViewportWidth";
+import { loadPanelState, savePanelState, VariablesPanel, type VariablesPanelState } from "./components/variables/VariablesPanel";
 import type { ShellCommand, ShellProps } from "./Root";
 import {
   addExample,
@@ -46,13 +45,16 @@ import {
   type SampleResponse,
 } from "./lib/collections";
 import { setBusy } from "./lib/busyWork";
+import { closeSidePanel, openSidePanel, useSidePanels } from "./lib/sidePanels";
 import { newRequest } from "./lib/defaults";
 import { earlierSendLabel, earlierSends, earlierSendTone, sendTooltip, whenLabel } from "./lib/earlierSends";
 import { cleanHistory, fitHistory, historyLabel, historyOutcome, MAX_HISTORY_BODY, responseNotKept } from "./lib/history";
 import { looksLikeCurl, parseCurl, type CurlCommand, type CurlNote } from "./lib/curlImport";
 import { matchVariables, type VarSwap } from "./lib/curlVariables";
 import { environmentVars, guardFor, loadEnvironments, type Environment } from "./lib/environments";
-import { loadCertificates, saveCertificates } from "./lib/certificates";
+import { loadCertificates, matchCertificate, saveCertificates } from "./lib/certificates";
+import { setRequestStatus } from "./lib/sectionStatus";
+import { resolvedUrl } from "./lib/requestSummary";
 import { certificatesForExport, describeCertificateImport, importCertificates } from "./lib/certificatesFile";
 import { isTauri, sendRequest } from "./lib/http";
 import { newId } from "./lib/ids";
@@ -252,8 +254,10 @@ export default function App({ active = true, shell, command }: Props) {
   const [activeEnvId, setActiveEnvId] = useState<string | null>(() => load<string | null>(ACTIVE_ENV_KEY, null, isString));
   const [showEnvEditor, setShowEnvEditor] = useState(false);
   const [focusVarId, setFocusVarId] = useState<string | undefined>(undefined);
-  const [variablesPanel, setVariablesPanel] = useState<VariablesPanelState>(loadPanelState);
-  const viewportWidth = useViewportWidth();
+  const [variablesView, setVariablesPanel] = useState<VariablesPanelState>(loadPanelState);
+  // Whether the panel is open lives in a small shared store, because the side rail's button and the Certificates panel use it too.
+  const panels = useSidePanels();
+  const variablesPanel = useMemo<VariablesPanelState>(() => ({ ...variablesView, open: panels.variables }), [variablesView, panels.variables]);
   const [exportDialog, setExportDialog] = useState(false);
   const toast = useToast();
   const notify = useCallback((message: string) => toast.show({ message }), [toast]);
@@ -799,7 +803,14 @@ export default function App({ active = true, shell, command }: Props) {
     else void exportWorkspace(false);
   };
 
-  const patchVariablesPanel = useCallback((patch: Partial<VariablesPanelState>) => setVariablesPanel((p) => ({ ...p, ...patch })), []);
+  const patchVariablesPanel = useCallback((patch: Partial<VariablesPanelState>) => {
+    const { open, ...rest } = patch;
+    if (open !== undefined) {
+      if (open) openSidePanel("variables");
+      else closeSidePanel("variables");
+    }
+    if (Object.keys(rest).length > 0) setVariablesPanel((p) => ({ ...p, ...rest }));
+  }, []);
   /** Opens the sidebar on the variables this request uses. */
   const openVariables = useCallback(() => patchVariablesPanel({ open: true, filter: "request" }), [patchVariablesPanel]);
   const closeVariables = useCallback(() => {
@@ -938,6 +949,27 @@ export default function App({ active = true, shell, command }: Props) {
 
   const usedNames = useMemo(() => requestPlaceholders(def), [def]);
   const unfilled = unresolvedPlaceholders(def, sendVars);
+
+  // The side rail shows this request's unfilled count and certificate state. Debounced like the URL bar's dot.
+  const patchRef = useRef(patch);
+  patchRef.current = patch;
+  const skipCertificate = useCallback((skip: boolean) => patchRef.current({ noCertificate: skip || undefined }), []);
+  const unfilledCount = unfilled.length;
+  const skippedCertificate = !!def.noCertificate;
+  const finalUrl = resolvedUrl(def, sendVars);
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      const match = matchCertificate(finalUrl, certificateList);
+      setRequestStatus({
+        unfilled: unfilledCount,
+        certInUse: match.client && !skippedCertificate ? match.client.name || "(unnamed)" : null,
+        url: finalUrl,
+        skipped: skippedCertificate,
+        onSkip: skipCertificate,
+      });
+    }, 150);
+    return () => window.clearTimeout(t);
+  }, [unfilledCount, finalUrl, skippedCertificate, certificateList, skipCertificate]);
   const foldRequest = pane === "batch" && batchWide && openRun === null;
   const summaryUrl = foldRequest ? prepareRequest(def, sendVars).url : "";
   const guard = guardFor(activeEnv);
@@ -1067,7 +1099,6 @@ export default function App({ active = true, shell, command }: Props) {
     <div className="mode requests-mode">
       <TopBar
         mode="requests"
-        onMode={shell.onMode}
         onQuickOpen={shell.onQuickOpen}
         searchPlaceholder="Jump to a request, example, run or history…"
         switcher={switcher}
@@ -1078,8 +1109,6 @@ export default function App({ active = true, shell, command }: Props) {
           setFocusVarId(undefined);
           setShowEnvEditor(true);
         }}
-        onVariables={() => (variablesPanel.open ? closeVariables() : openVariables())}
-        variablesOpen={variablesPanel.open}
       />
       {showTabBar(tabs.tabs) && (
         <RequestTabBar
@@ -1286,7 +1315,6 @@ export default function App({ active = true, shell, command }: Props) {
           state={variablesPanel}
           onState={patchVariablesPanel}
           used={usedNames}
-          docked={viewportWidth >= DOCK_MIN_WIDTH}
           onClose={closeVariables}
           onEditEnvironments={(varId) => {
             setFocusVarId(varId);

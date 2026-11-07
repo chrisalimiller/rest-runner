@@ -2,7 +2,7 @@
 
 **Documentation:** the [user guide](docs/README.md) covers every feature, including the [`rr` scripting reference](docs/scripting.md) for pre-request and post-response scripts.
 
-A lightweight desktop app for running REST requests, and (soon) batches of them driven by CSV files. The Requests screen puts the request on the left and the response on the right, with one top bar for switching requests, environments and modes.
+A lightweight desktop app for running REST requests, and (soon) batches of them driven by CSV files. The Requests screen puts the request on the left and the response on the right, with one top bar for switching requests and environments, and a slim bar on the right edge for the sections and tools.
 
 Runs on macOS and Windows from one codebase, built with [Tauri 2](https://tauri.app), React and TypeScript.
 
@@ -39,13 +39,13 @@ Runs on macOS and Windows from one codebase, built with [Tauri 2](https://tauri.
 
 ## Environments
 
-The top bar adapts to narrow windows (a search icon, an environment drop-down), the suite and flow names switch between items, and the lists on the left of Testing and Flows can be hidden. In Testing, a case's **Try up to here** runs the cases before it first, a run shows its progress and per-case counts, and the report has a grid of CSV rows by cases. In Flows, a schedule chip in the header shows when the flow runs next and can switch it off, and warnings are counted on the Run button.
+The side bar on the right edge holds the section buttons (Requests, Testing, Flows), Variables (Requests only) and Certificates, with badges for a failed or running suite or flow, unfilled variables and a certificate in use or about to expire. The **lock** opens a Certificates panel with the certificate the open request uses and every imported certificate. The top bar adapts to narrow windows (a search icon, an environment drop-down), the suite and flow names switch between items, and the lists on the left of Testing and Flows can be hidden. In Testing, a case's **Try up to here** runs the cases before it first, a run shows its progress and per-case counts, and the report has a grid of CSV rows by cases. In Flows, a schedule chip in the header shows when the flow runs next and can switch it off, and warnings are counted on the Run button.
 
 Click the pencil next to the environment switch in the top bar to add sets of variables, for example Dev and Prod, each with its own `baseUrl` and `token`. Pick one on the switch, and `{{baseUrl}}` or `{{token}}` anywhere in a request is filled from it. This works for single requests and batch runs. In a batch run, a CSV column with the same name takes priority over the environment.
 
 Each environment can have a colour (a dot on the switch). A coloured environment outlines **Send**, **Run suite** and **Run** and names it in the label, for example **Send to Prod**; environments named Prod start red.
 
-Environment values are stored on this computer only, in the app's local storage. A variable can be marked **secret** (lock button): it is masked on screen, in the cURL panel, and always in exported reports, and Export workspace leaves it out unless you choose to include it. The **Variables** button in the top bar lists the placeholders the open request uses and where each value comes from; an amber dot inside the URL box warns about placeholders with no value before you send.
+Environment values are stored on this computer only, in the app's local storage. A variable can be marked **secret** (lock button): it is masked on screen, in the cURL panel, and always in exported reports, and Export workspace leaves it out unless you choose to include it. The **{x}** button in the side bar on the right edge (Requests) lists the placeholders the open request uses and where each value comes from; an amber dot inside the URL box warns about placeholders with no value before you send.
 
 ## Batch runs from a CSV
 
@@ -86,7 +86,7 @@ Response bodies over 1 MB are cut to 1 MB when a run is saved, and the call's no
 
 ## Testing
 
-Switch to **Testing** with the section switcher at the top right (or press Ctrl/⌘ + 2). Suites and test runs are listed on the left, the open suite reads as a runbook in the middle (one step per case, with a pass/fail disc), and the latest run is summarized on the right. A **test suite** is an ordered list of **test cases**; a case is a request plus checks.
+Switch to **Testing** with the side bar on the right edge (or press Ctrl/⌘ + 2). Suites and test runs are listed on the left, the open suite reads as a runbook in the middle (one step per case, with a pass/fail disc), and the latest run is summarized on the right. A **test suite** is an ordered list of **test cases**; a case is a request plus checks.
 
 - **Add cases** from your saved requests (each case gets its own copy, and **Update from saved request** pulls in later changes) or start a blank one. Reorder with the arrows, untick a case to skip it, or duplicate it.
 - **Assertions** are a no-code table: status code (exact, or a class like `2xx`), response time, response size, a header, the body text, or a JSON path such as `$.data[0].id` or `$.items.length`. Conditions include equals, contains, less/greater than, exists, matches regex and is of type. Expected values can use `{{variables}}`.
@@ -113,7 +113,7 @@ Finished runs are saved (the last 50) under **Test runs**. The report shows case
 
 ## Flows
 
-Switch to **Flows** with the section switcher at the top right (or press Ctrl/⌘ + 3) to chain test cases, suites and saved requests into one run on a canvas. Wire steps by their **passed** and **failed** outputs, branch with **If**, run branches side by side with **Parallel** and **Join**, repeat steps per CSV row with **Loop over CSV**, and add **Wait**, **Set variable**, retries and sticky notes. A **Schedule** step runs the flow every N minutes, daily, or on chosen weekdays while the app is open.
+Switch to **Flows** with the side bar on the right edge (or press Ctrl/⌘ + 3) to chain test cases, suites and saved requests into one run on a canvas. Wire steps by their **passed** and **failed** outputs, branch with **If**, run branches side by side with **Parallel** and **Join**, repeat steps per CSV row with **Loop over CSV**, and add **Wait**, **Set variable**, retries and sticky notes. A **Schedule** step runs the flow every N minutes, daily, or on chosen weekdays while the app is open.
 
 A Run request step fails on a 4xx/5xx unless you turn off its **4xx/5xx counts as failed** checkbox. A flow that only got to its end because a failed step had a failed wire ends **Passed with handled failures** (amber). Deleting things never asks: an **Undo** toast appears, and Ctrl/Cmd + Z undoes canvas edits. A readable opening view and **Tidy layout** keep big flows usable.
 

@@ -2,11 +2,10 @@ import { useRef } from "react";
 import { ENV_COLOR_VARS, type Environment } from "../../lib/environments";
 import { BrandLockup } from "../BrandMark";
 import { overlayTitleBar } from "../../lib/windowChrome";
-import { MODES, nextModeIndex, topBarLayout } from "../../lib/topBar";
+import { topBarLayout } from "../../lib/topBar";
 import { useViewportWidth } from "../useViewportWidth";
-import { openCertificates } from "../../lib/certificatesDialog";
 import { openUpdateDialog } from "../../lib/updateDialog";
-import { ChevronDownIcon, FlowsIcon, InfoIcon, LockIcon, PencilIcon, RequestsIcon, SearchIcon, TestingIcon, VariablesIcon } from "./Icons";
+import { ChevronDownIcon, InfoIcon, PencilIcon, SearchIcon } from "./Icons";
 import { useTopBarFit } from "./useTopBarFit";
 import { OverflowMenu } from "./OverflowMenu";
 
@@ -14,7 +13,6 @@ export type Mode = "requests" | "testing" | "flows";
 
 interface Props {
   mode: Mode;
-  onMode: (mode: Mode) => void;
   onQuickOpen: () => void;
   searchPlaceholder: string;
   /** The request switcher (Requests) or the suite name (Testing). */
@@ -25,37 +23,28 @@ interface Props {
   /** Shows the pencil that opens the environment editor. */
   onEditEnvironments?: () => void;
   envTitle?: string;
-  /** Shows the Variables button next to the environment switch. */
-  onVariables?: () => void;
-  variablesOpen?: boolean;
 }
 
 export const MODE_LABELS: Record<Mode, string> = { requests: "Requests", testing: "Testing", flows: "Flows" };
 
-const MODE_ICONS: Record<Mode, () => React.ReactNode> = {
-  requests: () => <RequestsIcon />,
-  testing: () => <TestingIcon />,
-  flows: () => <FlowsIcon />,
-};
-
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 export const MOD_KEY = isMac ? "⌘" : "Ctrl";
 
-/** The one bar at the top of both modes: brand, switcher, quick open, environment, section switcher. */
+/** The one bar at the top of each section: brand, switcher, quick open, environment. Sections and tools live in the side rail. */
 export function TopBar(props: Props) {
   const width = useViewportWidth();
   const headerRef = useRef<HTMLElement>(null);
-  const fit = useTopBarFit(headerRef, `${props.mode}|${props.environments.length}|${!!props.onVariables}`);
+  const fit = useTopBarFit(headerRef, `${props.mode}|${props.environments.length}`);
   // The width rule is the minimum; the measured level can only collapse more.
   const rule = topBarLayout(width, props.environments.length);
   const layout = { compactSearch: rule.compactSearch || fit >= 2, envDropdown: rule.envDropdown || fit >= 3 };
-  const variablesIcon = fit >= 4;
   return (
     // With the macOS overlay title bar, empty parts of the top bar drag the window; buttons and fields still click.
     <header
       className="topbar"
       ref={headerRef}
       data-fit-crumbs={fit >= 1 ? "off" : undefined}
+      data-fit-max={fit >= 3 ? "" : undefined}
       data-tauri-drag-region={overlayTitleBar ? "deep" : undefined}
     >
       <BrandLockup />
@@ -80,64 +69,10 @@ export function TopBar(props: Props) {
         title={props.envTitle}
         dropdown={layout.envDropdown}
       />
-      {props.onVariables && (
-        <button
-          className={`secondary ghost topbar-variables ${variablesIcon ? "icon-only" : ""} ${props.variablesOpen ? "active" : ""}`}
-          data-variables-trigger
-          aria-expanded={!!props.variablesOpen}
-          aria-controls="variables-panel"
-          aria-label={variablesIcon ? "Variables" : undefined}
-          onClick={props.onVariables}
-          title={variablesIcon ? "Variables: by priority, for this request and every environment" : "Variables by priority, for this request and every environment"}
-        >
-          {variablesIcon ? <VariablesIcon /> : "Variables"}
-        </button>
-      )}
-      <button className="icon-btn topbar-certs" onClick={() => openCertificates()} aria-label="Certificates" title="Certificates">
-        <LockIcon />
-      </button>
       <button className="icon-btn topbar-about" onClick={openUpdateDialog} aria-label="About REST Runner" title="About and updates">
         <InfoIcon />
       </button>
-      <ModeSwitch mode={props.mode} onMode={props.onMode} />
     </header>
-  );
-}
-
-/** One segmented control for the three sections: the selected one shows its name, the others are icons. Arrow keys move focus. */
-export function ModeSwitch({ mode, onMode }: { mode: Mode; onMode: (mode: Mode) => void }) {
-  const ref = useRef<HTMLElement>(null);
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    const buttons = ref.current?.querySelectorAll<HTMLButtonElement>("button");
-    if (!buttons) return;
-    const current = Array.from(buttons).indexOf(document.activeElement as HTMLButtonElement);
-    if (current < 0) return;
-    const next = nextModeIndex(current, e.key, MODES.length);
-    if (next === null) return;
-    e.preventDefault();
-    buttons[next]?.focus();
-  };
-  return (
-    <nav className="mode-switch" aria-label="Section" ref={ref} onKeyDown={onKeyDown}>
-      {MODES.map((m, i) => {
-        const on = mode === m;
-        return (
-          <button
-            key={m}
-            type="button"
-            className={on ? "on" : ""}
-            aria-pressed={on}
-            aria-current={on ? "page" : undefined}
-            aria-keyshortcuts={`Control+${i + 1} Meta+${i + 1}`}
-            title={`${MODE_LABELS[m]} (${MOD_KEY} ${i + 1})`}
-            onClick={() => onMode(m)}
-          >
-            {MODE_ICONS[m]()}
-            <span className={on ? "mode-switch-label" : "visually-hidden"}>{MODE_LABELS[m]}</span>
-          </button>
-        );
-      })}
-    </nav>
   );
 }
 
