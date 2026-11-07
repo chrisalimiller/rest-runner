@@ -60,7 +60,7 @@ describe("csvCell", () => {
 });
 
 describe("Excel safety", () => {
-  const cell = (o: SendOutcome, col: (typeof CALL_COLUMNS)[number], opts = {}) => callCells(o, opts)[CALL_COLUMNS.indexOf(col)];
+  const cell = (o: SendOutcome, col: (typeof CALL_COLUMNS)[number], opts = {}) => parseRecords(csvFile([callCells(o, opts)]).slice(1).trimEnd(), ",")[0][CALL_COLUMNS.indexOf(col)];
   const withBody = (body: string, headers: [string, string][] = [["content-type", "text/plain"]], size = body.length): SendOutcome => ({
     ok: true,
     request: { method: "GET", url: "https://a.test/", headers: [] },
@@ -94,8 +94,8 @@ describe("Excel safety", () => {
     expect(cell(withBody("@SUM(A1)"), "response_body")).toBe("'@SUM(A1)");
     expect(cell(withBody("-cmd|' /C calc'!A0"), "response_body")).toBe("'-cmd|' /C calc'!A0");
     expect(cell(withBody("+x"), "response_body")).toBe("'+x");
-    expect(cell(withBody("-1"), "response_body")).toBe("-1");
-    expect(cell(withBody("+12.5"), "response_body")).toBe("+12.5");
+    expect(cell(withBody("-1"), "response_body")).toBe("'-1");
+    expect(cell(withBody("+12.5"), "response_body")).toBe("'+12.5");
     expect(cell(withBody("hello =1"), "response_body")).toBe("hello =1");
     expect(guardFormula("-")).toBe("'-");
   });

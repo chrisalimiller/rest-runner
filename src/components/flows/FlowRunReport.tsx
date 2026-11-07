@@ -155,7 +155,7 @@ export function FlowRunReport({ runId, onBack, onDelete, onShowCanvas }: Props) 
     setMessage(null);
     try {
       const secrets = storedSecrets();
-      const content = kind === "html" ? maskSecrets(toFlowHtmlReport(run), secrets) : maskSecrets(toFlowCsvReport(run, { secrets }), secrets);
+      const content = kind === "html" ? maskSecrets(toFlowHtmlReport(run), secrets) : toFlowCsvReport(run, { secrets });
       const result = await saveTextFile(flowReportFileName(run, kind), content, kind === "html" ? "HTML report" : "CSV report", kind);
       if (result.saved) setMessage(result.path ? `Saved to ${result.path}` : "Report downloaded.");
     } catch (e) {
