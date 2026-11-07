@@ -74,3 +74,18 @@ export function currentMasker(): (text: string) => string {
   const secrets = storedSecrets();
   return (text) => maskSecrets(text, secrets);
 }
+
+/** Copy report data and redact user-controlled strings before any formatting or escaping. */
+export function redactReport<T>(value: T, secrets: readonly string[], field = ""): T {
+  if (typeof value === "string") {
+    // These are structural discriminants consumed by report logic, not user text.
+    if (["status", "end", "method", "type", "nodeType"].includes(field)) return value;
+    return maskSecrets(value, secrets) as T;
+  }
+  if (Array.isArray(value)) return value.map((v) => redactReport(v, secrets)) as T;
+  if (value && typeof value === "object") {
+    const dynamicKeys = ["vars", "scriptVars", "varsBefore", "varsAfter", "before", "after"].includes(field);
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [dynamicKeys ? maskSecrets(k, secrets) : k, redactReport(v, secrets, dynamicKeys ? "" : k)])) as T;
+  }
+  return value;
+}

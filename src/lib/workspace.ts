@@ -11,10 +11,11 @@ import {
 import type { ExportedCertificate } from "./certificatesFile";
 import { cleanEnvironments, type Environment } from "./environments";
 import { importFlowsFile } from "./flows/flowFile";
-import { cleanFlows } from "./flows/flows";
+import { cleanImportedFlows } from "./flows/flows";
 import type { Flow } from "./flows/types";
 import { importSuitesFile } from "./testing/suiteFile";
 import { cleanSuites } from "./testing/suites";
+import { validateImportedMethods } from "./importMethods";
 import type { TestSuite } from "./testing/types";
 import { detectPostmanFile, importPostmanCollection, importPostmanEnvironment } from "./postman";
 import type { RequestDef } from "./types";
@@ -152,6 +153,7 @@ function parseExport(text: string): Record<string, unknown> {
     throw new Error("The file is not valid JSON.");
   }
   if (!data || data.app !== "rest-runner") throw new Error("This is not a REST Runner export file.");
+  validateImportedMethods([data.collections, data.savedRequests, data.suites, data.requests]);
   return data;
 }
 
@@ -212,7 +214,7 @@ export function importWorkspace(text: string, current: Workspace): WorkspaceImpo
   }
   const base = importCollectionsAndEnvironments(data, current.collections, current.environments);
   const suites = mergeById(current.suites, cleanSuites(data.suites));
-  const flows = mergeById(current.flows, cleanFlows(data.flows));
+  const flows = mergeById(current.flows, cleanImportedFlows(data.flows));
   const incomingEnvs = (Array.isArray(data.environments) ? data.environments : []).filter(isEnvironment);
   const envReplaced = incomingEnvs.filter((e) => current.environments.some((x) => x.id === e.id)).length;
   const envCount: [number, number] = [incomingEnvs.length - envReplaced, envReplaced];
@@ -286,5 +288,5 @@ export function describeWorkspaceImport(name: string, c: WorkspaceImport["counts
     part("suites", c.suites),
     part("flows", c.flows),
   ].filter(Boolean);
-  return `Imported ${name}: ${parts.join("; ") || "nothing new"}.`;
+  return `Imported ${name}: ${parts.join("; ") || "nothing new"}.${c.flows[0] || c.flows[1] ? " Imported schedules are off; review and enable them in Flows." : ""}`;
 }

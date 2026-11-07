@@ -119,3 +119,5 @@ Both exports open the native Save dialog in the app (in a plain browser they dow
 `row`, `result` (PASS or FAIL), `status`, `status_text`, `duration_ms`, `sent_at`, `method`, `url`, `request_headers`, `request_body`, `response_headers`, `response_body`, `response_size_bytes`, `error`, `notes`, `script_tests`, `script_log`, then one `var:<column>` column per CSV column.
 
 It is written with a UTF-8 byte-order mark so Excel opens it correctly. Environment values are not copied into the `var:` columns, so tokens do not end up in reports through them (a token that appears in a request header or body still does).
+
+Spreadsheet-safe CSV exports, including reports from Testing and Flows and exported runners, prefix formula-like text with an apostrophe. This can change literal text when the CSV is read by other tools.

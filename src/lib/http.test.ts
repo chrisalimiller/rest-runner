@@ -1,3 +1,5 @@
+import { createServer, type Server, type RequestListener } from "node:http";
+import { once } from "node:events";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const invoke = vi.fn();
@@ -168,4 +170,50 @@ describe("browser response limit", () => {
     const out = await sendRequest(req, undefined, 0);
     expect(!out.ok && out.error).toMatch(/Response limit/);
   });
+});
+
+it("fails closed on browser redirects", async () => {
+  const fetch = vi.fn().mockRejectedValue(new TypeError("redirect blocked"));
+  vi.stubGlobal("window", { fetch });
+  const out = await sendRequest(req);
+  expect(fetch.mock.calls[0][1].redirect).toBe("error");
+  expect(out.ok).toBe(false);
+});
+
+it("does not forward credentials through a real two-origin redirect chain", async () => {
+  const seen: Array<Record<string, string | string[] | undefined>> = [];
+  const servers: Server[] = [];
+  const listen = async (handler: RequestListener) => {
+    const server = createServer(handler);
+    servers.push(server);
+    server.listen(0, "127.0.0.1");
+    await once(server, "listening");
+    return `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+  };
+  try {
+    const other = await listen((request, response) => { seen.push(request.headers); response.writeHead(302, { Location: "/final" }); response.end(); });
+    const first = await listen((request, response) => { seen.push(request.headers); response.writeHead(302, { Location: other + "/next" }); response.end(); });
+    invoke.mockImplementation(async (_command, args) => {
+      const r = await fetch(args.request.url, { method: args.request.method, headers: args.request.headers, redirect: "manual" });
+      const body = await r.text();
+      return reply(r.status, Array.from(r.headers.entries()), body);
+    });
+    // End the chain at the second origin after checking a second hop there.
+    servers[0].removeAllListeners("request");
+    servers[0].on("request", (request, response) => {
+      seen.push(request.headers);
+      if (request.url === "/next") response.writeHead(302, { Location: "/final" });
+      else response.writeHead(200);
+      response.end();
+    });
+    const out = await sendRequest({ method: "GET", url: first, headers: [["x-PARTNER", "secret"], ["Accept", "application/json"]], credentialHeaders: ["X-Partner"] });
+    expect(out.ok, JSON.stringify(out)).toBe(true);
+    expect(seen).toHaveLength(3);
+    expect(seen[0]["x-partner"]).toBe("secret");
+    expect(seen[1]["x-partner"]).toBeUndefined();
+    expect(seen[2]["x-partner"]).toBeUndefined();
+    expect(seen[2].accept).toBe("application/json");
+  } finally {
+    await Promise.all(servers.map((server) => new Promise<void>((resolve) => server.close(() => resolve()))));
+  }
 });

@@ -87,7 +87,7 @@ async function nativeSend(req: PreparedRequest, tls: TlsSpec | undefined, limit:
   }
 }
 
-/** Sends the request in the browser, where redirects are followed by fetch itself. */
+/** Browsers hide redirect destinations, so fail closed instead of forwarding credentials. */
 async function browserSend(req: PreparedRequest, limit: number, signal?: AbortSignal): Promise<ResponseResult> {
   const start = performance.now();
   const res = await window.fetch(req.url, {
@@ -95,6 +95,7 @@ async function browserSend(req: PreparedRequest, limit: number, signal?: AbortSi
     headers: req.headers,
     body: req.body,
     signal,
+    redirect: "error",
   });
   const reader = res.body?.getReader();
   let buffer = new Uint8Array(Math.min(limit, 65536));

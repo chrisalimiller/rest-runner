@@ -1,3 +1,4 @@
+import { redactReport } from "./secrets";
 import { certificateLabel } from "./certificates";
 import { durationOf, runStats, statusLabel, type Run, type RunEntry } from "./run";
 import { CALL_COLUMNS, callCells, csvFile, reportBody, type CsvOptions } from "./reportCsv";
@@ -26,6 +27,7 @@ function scriptLogText(e: RunEntry): string {
 
 /** One line per call with the full request, response, and notes. CSV columns come last, prefixed "var:". */
 export function toCsvReport(run: Run, options?: CsvOptions): string {
+  run = redactReport(run, options?.secrets ?? []);
   const head = ["row", "result", ...CALL_COLUMNS, "notes", "script_tests", "script_log", ...run.columns.map((c) => `var:${c}`)];
   const rows: (string | number)[][] = [head];
   for (const e of run.entries) {
@@ -39,7 +41,7 @@ export function toCsvReport(run: Run, options?: CsvOptions): string {
       ...run.columns.map((c) => e.vars[c] ?? ""),
     ]);
   }
-  return csvFile(rows);
+  return csvFile(rows, options);
 }
 
 /* ---------- HTML ---------- */
@@ -99,7 +101,8 @@ function scriptsHtml(e: RunEntry): string {
 }
 
 /** A single self-contained HTML file: summary, run log, and every call with its full request and response. */
-export function toHtmlReport(run: Run): string {
+export function toHtmlReport(run: Run, options?: { secrets?: readonly string[] }): string {
+  run = redactReport(run, options?.secrets ?? []);
   const st = runStats(run);
   const title = `${run.requestName} · ${formatTime(run.startedAt)}`;
 

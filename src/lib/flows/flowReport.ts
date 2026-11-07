@@ -1,3 +1,4 @@
+import { redactReport } from "../secrets";
 import { CALL_COLUMNS, callCells, csvFile, emptyCallCells, type CsvOptions } from "../reportCsv";
 import { caseBodyHtml, scriptLog, toTestHtmlReport } from "../testing/testReport";
 import type { Vars } from "../template";
@@ -90,6 +91,7 @@ function formatDuration(ms: number): string {
  * (the step columns repeat on those lines, so the file filters well in a spreadsheet).
  */
 export function toFlowCsvReport(run: FlowRun, options?: CsvOptions): string {
+  run = redactReport(run, options?.secrets ?? []);
   const head = [
     "step",
     "branch",
@@ -145,7 +147,7 @@ export function toFlowCsvReport(run: FlowRun, options?: CsvOptions): string {
       ]);
     }
   }
-  return csvFile(rows);
+  return csvFile(rows, options);
 }
 
 /* ---------- HTML ---------- */
@@ -154,7 +156,7 @@ function esc(value: string | number): string {
   return String(value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 }
 
-function stepHtml(s: FlowStep): string {
+function stepHtml(s: FlowStep, secrets: readonly string[]): string {
   const mark = s.status === "failed" ? "✕" : s.status === "cancelled" ? "■" : "✓";
   const tone = s.status === "failed" ? "bad" : s.status === "cancelled" ? "muted" : "ok";
   const where = stepWhere(s);
@@ -177,7 +179,7 @@ ${
     ? `<div class="call-inline"><h4>${esc(call.caseName)}</h4>${caseBodyHtml(call)}</div>`
     : child
     ? `<h4>${esc(child.suiteName)}: ${child.passed} of ${child.completed} case${child.completed === 1 ? "" : "s"} passed</h4>
-<iframe class="child" loading="lazy" title="${esc(`Report for ${s.label}`)}" srcdoc="${esc(toTestHtmlReport(child))}"></iframe>`
+<iframe class="child" loading="lazy" title="${esc(`Report for ${s.label}`)}" srcdoc="${esc(toTestHtmlReport(child, { secrets }))}"></iframe>`
     : ""
 }
 </div>
@@ -185,7 +187,8 @@ ${
 }
 
 /** One self-contained HTML file: the flow run summary, every step, and each Run step's full test report inside it. */
-export function toFlowHtmlReport(run: FlowRun): string {
+export function toFlowHtmlReport(run: FlowRun, options?: { secrets?: readonly string[] }): string {
+  run = redactReport(run, options?.secrets ?? []);
   const steps = orderedSteps(run);
   const title = `${run.flowName} · ${formatTime(run.startedAt)}`;
   const resultTone = endTone(run.end);
@@ -260,7 +263,7 @@ ${run.endReason ? `<tr><th>Why it ended</th><td>${esc(run.endReason)}</td></tr>`
   <button type="button" id="expand">Expand all</button>
 </div>
 <div id="steps">
-${steps.map(stepHtml).join("\n")}
+${steps.map((step) => stepHtml(step, options?.secrets ?? [])).join("\n")}
 </div>
 </main>
 <script>

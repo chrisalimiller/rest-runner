@@ -57,3 +57,14 @@ describe("nextHop", () => {
     expect(nextHop(post, 302, location("http://"))).toBeNull();
   });
 });
+
+it("strips configured and sensitive custom headers across origin changes and later hops", () => {
+  const req: PreparedRequest = { ...post, credentialHeaders: ["X-Partner"], headers: [["x-PARTNER", "secret"], ["X-Api-Key", "key"], ["Accept", "application/json"], ["COOKIE", "cookie"], ["Ocp-Apim-Subscription-Key", "key"]] };
+  const same = nextHop(req, 307, location("/same"))!;
+  expect(same.headers).toEqual(req.headers);
+  for (const target of ["http://api.acme.com/x", "https://api.acme.com:8443/x", "https://other.test/x"]) {
+    const cross = nextHop(same, 307, location(target))!;
+    expect(cross.headers).toEqual([["Accept", "application/json"]]);
+    expect(nextHop(cross, 308, location("https://api.acme.com/back"))!.headers).toEqual([["Accept", "application/json"]]);
+  }
+});
