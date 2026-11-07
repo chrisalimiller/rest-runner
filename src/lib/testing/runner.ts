@@ -127,7 +127,7 @@ export async function runCase(run: CaseRun, options: SuiteRunOptions, ctx: Omit<
 
   let preScript: ScriptOutput | undefined;
   if (preCode.trim() !== "") {
-    preScript = await ctx.scripts(preCode, scriptCtx("pre"), options.scriptTimeoutMs);
+    preScript = await ctx.scripts(preCode, scriptCtx("pre"), options.scriptTimeoutMs, ctx.signal);
     replaceVars(runVars, preScript.vars);
     if (preScript.error) {
       notes.push(`Pre-request script failed, so the request was not sent: ${preScript.error}`);
@@ -167,7 +167,7 @@ export async function runCase(run: CaseRun, options: SuiteRunOptions, ctx: Omit<
     const c = scriptCtx("post");
     c.request = { method: prepared.method, url: prepared.url, headers: prepared.headers, body: prepared.body };
     c.response = outcome.response;
-    postScript = await ctx.scripts(postCode, c, options.scriptTimeoutMs);
+    postScript = await ctx.scripts(postCode, c, options.scriptTimeoutMs, ctx.signal);
     replaceVars(runVars, postScript.vars);
   }
 

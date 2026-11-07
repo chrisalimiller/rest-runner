@@ -1,8 +1,8 @@
 /// <reference lib="webworker" />
 import { executeScript, type ScriptContext } from "./sandbox";
 
-self.onmessage = (e: MessageEvent<{ id: number; code: string; ctx: ScriptContext }>) => {
-  const { id, code, ctx } = e.data;
-  const output = executeScript(code, ctx);
+self.onmessage = async (e: MessageEvent<{ id: number; code: string; ctx: ScriptContext; timeoutMs: number }>) => {
+  const { id, code, ctx, timeoutMs } = e.data;
+  const output = await executeScript(code, ctx, timeoutMs);
   (self as DedicatedWorkerGlobalScope).postMessage({ id, output });
 };

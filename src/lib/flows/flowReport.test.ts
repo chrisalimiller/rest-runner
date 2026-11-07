@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SendFn } from "../batch";
-import { inlineScriptRunner } from "../testing/scriptRunner";
+import { inlineScriptRunner } from "../testing/scriptTestHelper";
 import { newSuite, newTestCase } from "../testing/suites";
 import { DEFAULT_SUITE_OPTIONS, type TestSuite } from "../testing/types";
 import { parseRecords } from "../csv";

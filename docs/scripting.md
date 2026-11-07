@@ -174,7 +174,9 @@ Where the output shows: the **Scripts** tab (single send), the call detail (batc
   | A test case | The suite's **Script time limit (ms)** under **Run settings & data** (default 5000, minimum 100). Applies to each script run, and **Try case** uses it too. |
 
 - **Fresh each time.** Each run of a script starts with a new scope. Do not rely on globals surviving from one run to the next. Use variables.
-- **No outside access.** There is no `require` or `import`, and no page access (`document`, `window`). Standard JavaScript built-ins (`JSON`, `Math`, `Date`, `RegExp`, `Array`, `String`, `Number`, …) are available.
+- **Isolation.** Each invocation runs in a fresh QuickJS WebAssembly runtime in a background worker. Network, browser storage, native app APIs, workers and module loading are unavailable. Standard JavaScript built-ins (`JSON`, `Math`, `Date`, `RegExp`, `Array`, `String`, `Number`, …) are available, but browser-specific globals are not. If the runtime cannot start, the script fails without running.
+- **Resource limits.** Each invocation has a 16 MiB JavaScript heap and a 1 MiB serialized output limit. Exceeding a limit fails the script and discards its changes. The time limit includes worker and runtime startup.
+- Scripts can influence outgoing requests by setting variables used in URL and other placeholders. Review imported scripts and requests before running them.
 
 ## Variable scoping
 

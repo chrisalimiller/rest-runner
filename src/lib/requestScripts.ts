@@ -88,7 +88,7 @@ export async function sendWithScripts(input: ScriptedSendInput): Promise<Scripte
 
   let preScript: ScriptOutput | undefined;
   if (pre.trim() !== "") {
-    preScript = await input.scripts(pre, scriptContext("pre", input, vars), timeout);
+    preScript = await input.scripts(pre, scriptContext("pre", input, vars), timeout, input.signal);
     vars = { ...preScript.vars };
     if (preScript.error) {
       const request = prepareRequest(input.def, { ...input.env, ...input.data, ...vars });
@@ -111,7 +111,7 @@ export async function sendWithScripts(input: ScriptedSendInput): Promise<Scripte
     const ctx = scriptContext("post", input, vars);
     ctx.request = { method: prepared.method, url: prepared.url, headers: prepared.headers, body: prepared.body };
     ctx.response = outcome.response;
-    postScript = await input.scripts(post, ctx, timeout);
+    postScript = await input.scripts(post, ctx, timeout, input.signal);
     vars = { ...postScript.vars };
   }
 
