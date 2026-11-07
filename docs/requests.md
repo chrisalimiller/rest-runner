@@ -80,11 +80,11 @@ For example, if the environment defines `baseUrl`, the CSV has a `baseUrl` colum
 
 Rest the pointer on a `{{placeholder}}` for a moment (or press **Ctrl/Cmd + I** with the caret inside one) to see a small card with its current value and where it comes from: **Env · Dev**, **Script** or **Unset**. It works in the URL box, Params and Headers values, form-body values, Auth fields and the raw/JSON body. If a script variable hides an environment value of the same name, the card shows the hidden value struck through.
 
-Edit the value right in the card: Enter or clicking away saves it to whichever place supplies it now (the script variable, or the environment variable), with an **Undo** notice. Esc cancels. For an unset variable the card offers **Add to Dev** (with a Secret switch and an environment picker when you have several). **Show in Variables** opens the sidebar; **Clear script value** forgets a script variable. [Secret](#secret-values) values stay masked until you press **Show**. Testing and Flows do not show these cards.
+Edit the value right in the card: Enter or clicking away saves it to whichever place supplies it now (the script variable, or the environment variable), with an **Undo** notice. Esc cancels. For an unset variable the card offers **Add to Dev** (with a Secret switch and an environment picker when you have several). **Show in Variables** opens the sidebar; **Clear script value** forgets a script variable. [Secret](#secret-values) values stay masked until you press **Show**. Testing and Flows do not show these cards, but they have the Variables sidebar.
 
 ## The Variables sidebar
 
-Click **{x}** in the side bar on the right edge (Requests mode) to open a sidebar. It sits between the content and the side bar at any window width, never over the content, the same way the Certificates panel does. The ✕ button, Escape (with focus inside the panel) and the **{x}** button all close it, and it stays open or closed the next time you start the app.
+Click **{x}** in the side bar on the right edge to open a sidebar. The button sits at the bottom, just above Certificates, in Requests, Testing and Flows, and the panel stays open when you switch section. It sits between the content and the side bar at any window width, never over the content, the same way the Certificates panel does. The ✕ button, Escape (with focus inside the panel) and the **{x}** button all close it, and it stays open or closed the next time you start the app.
 
 **This request / All** switches between the variables the open request uses and every variable. **Filter by name** narrows the list. Groups are listed with the winner first, as a send resolves them:
 
@@ -92,6 +92,8 @@ Click **{x}** in the side bar on the right edge (Requests mode) to open a sideba
 - **Script variables**: set by scripts. **Clear** forgets one, **Clear all** forgets them all. A script variable beats the environment value of the same name, which shows struck through as *by Script*.
 - **Env · name (active)**: the active environment. If it repeats a name, the last enabled row is the one used and the earlier ones are struck through.
 - **Other environments**: folded by default. **Switch to** makes one active.
+
+In **Testing** and **Flows** the sidebar follows that section's own environment switch. **This suite** / **This flow** lists the variables the open suite or flow uses (its requests, assertions, Set variable values and If conditions). There are no Script variables there, because those belong to Requests. Edits are saved to the same environments, so Requests sees them. **Edit environments…** switches to Requests and opens the editor.
 
 Click a value to edit it; Enter or clicking away saves it (with an **Undo** notice), Escape cancels. [Secret](#secret-values) values stay masked until you press **Show**. **Edit environments…** opens the full environment editor.
 

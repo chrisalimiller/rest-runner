@@ -3,7 +3,10 @@ import { setSectionStatus } from "../../lib/sectionStatus";
 import { scheduleChip } from "../../lib/flows/scheduleChip";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cleanCollections } from "../../lib/collections";
-import { environmentVars, guardFor, loadEnvironments, type Environment } from "../../lib/environments";
+import { ENVIRONMENTS_KEY, environmentVars, guardFor, loadEnvironments, type Environment } from "../../lib/environments";
+import { SectionVariablesPanel } from "../variables/SectionVariablesPanel";
+import { flowPlaceholders } from "../../lib/usedVariables";
+
 import { FlowNotRunnableError, runFlow } from "../../lib/flows/engine";
 import { stepStatusCode } from "../../lib/flows/flowReport";
 import { activeEdgeIds } from "../../lib/flows/progress";
@@ -152,6 +155,12 @@ export function FlowsApp({ active, shell, command }: Props) {
 
   const flow = viewed ? viewed.flow : (flows.find((f) => f.id === openFlowId) ?? null);
   const readOnly = viewed !== null;
+  /** Edits made in the Variables panel go straight to storage, where Requests and the other sections read them. */
+  const editEnvironments = useCallback((envs: Environment[]) => {
+    setEnvironments(envs);
+    save(ENVIRONMENTS_KEY, envs);
+  }, []);
+  const usedNames = useMemo(() => (flow ? flowPlaceholders(flow, items) : []), [flow, items]);
   const problems = useMemo(() => (flow && !readOnly ? validateFlow(flow, items.suites, items.findRequest) : []), [flow, items, readOnly]);
   // A run deleted with Undo pending is already gone from the Last run panel.
   const latestRunId = flow && !readOnly ? (runs.find((r) => r.flowId === flow.id && !runDelete.hidden.has(r.id))?.id ?? null) : null;
@@ -682,6 +691,17 @@ export function FlowsApp({ active, shell, command }: Props) {
           </main>
         )}
       </div>
+      {shell.section === "flows" && (
+        <SectionVariablesPanel
+          environments={environments}
+          activeEnvId={envId}
+          setEnvironments={editEnvironments}
+          setActiveEnvId={setEnvId}
+          used={usedNames}
+          scope="This flow"
+          onEditEnvironments={shell.onEditEnvironments}
+        />
+      )}
     </div>
   );
 }

@@ -5,7 +5,10 @@ import { useToast } from "../shell/Toast";
 import { useDeferredDelete } from "../shell/useDeferredDelete";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { parseCsv } from "../../lib/csv";
-import { environmentVars, guardFor, loadEnvironments, type Environment } from "../../lib/environments";
+import { ENVIRONMENTS_KEY, environmentVars, guardFor, loadEnvironments, type Environment } from "../../lib/environments";
+import { SectionVariablesPanel } from "../variables/SectionVariablesPanel";
+import { suitePlaceholders } from "../../lib/usedVariables";
+
 import { sendRequest } from "../../lib/http";
 import { newId } from "../../lib/ids";
 import { saveTextFile } from "../../lib/saveFile";
@@ -120,7 +123,13 @@ export function TestingApp({ active, shell, command }: Props) {
 
   const env = environments.find((e) => e.id === envId) ?? null;
   const envVars = useMemo(() => environmentVars(env), [env]);
+  /** Edits made in the Variables panel go straight to storage, where Requests and the other sections read them. */
+  const editEnvironments = useCallback((envs: Environment[]) => {
+    setEnvironments(envs);
+    save(ENVIRONMENTS_KEY, envs);
+  }, []);
   const suite = suites.find((s) => s.id === openSuiteId) ?? null;
+  const usedNames = useMemo(() => (suite ? suitePlaceholders(suite) : []), [suite]);
   const openCaseId = suite ? (suite.id in openCases ? openCases[suite.id] : (suite.cases[0]?.id ?? null)) : null;
   const latestRunId = suite ? (runs.find((r) => r.suiteId === suite.id)?.id ?? null) : null;
 
@@ -442,6 +451,17 @@ export function TestingApp({ active, shell, command }: Props) {
           </main>
         )}
       </div>
+      {shell.section === "testing" && (
+        <SectionVariablesPanel
+          environments={environments}
+          activeEnvId={envId}
+          setEnvironments={editEnvironments}
+          setActiveEnvId={setEnvId}
+          used={usedNames}
+          scope="This suite"
+          onEditEnvironments={shell.onEditEnvironments}
+        />
+      )}
     </div>
   );
 }
