@@ -1,4 +1,4 @@
-import { evaluateAssertion } from "./assertions";
+import { evaluateAssertionAsync } from "./assertions";
 import type { TestRun } from "./testRun";
 import type { Assertion, CaseResult, Check } from "./types";
 
@@ -23,13 +23,14 @@ export interface AssertionResult {
  * had after its post-response script. Assertions are matched by id, so edits made
  * since the result show their new outcome.
  */
-export function assertionResults(assertions: Assertion[], result: CaseResult | null): Map<string, AssertionResult> {
+export async function assertionResults(assertions: Assertion[], result: CaseResult | null, signal?: AbortSignal): Promise<Map<string, AssertionResult>> {
   const out = new Map<string, AssertionResult>();
   const o = result?.outcome;
   if (!result || !o || !o.ok) return out;
   const vars = { ...result.vars, ...(result.postScript?.vars ?? {}) };
   for (const a of assertions) {
-    const check = evaluateAssertion(a, o.response, vars);
+    const check = await evaluateAssertionAsync(a, o.response, vars, signal);
+    if (signal?.aborted) break;
     out.set(a.id, { passed: check.passed, actual: (check.message ?? "").replace(/^Got /, "") });
   }
   return out;

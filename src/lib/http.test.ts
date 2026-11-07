@@ -85,6 +85,7 @@ describe("sendRequest in the desktop app", () => {
       command === "http_send" ? new Promise((resolve) => (finish = resolve)) : Promise.resolve(),
     );
     const pending = sendRequest(req, controller.signal);
+    await Promise.resolve();
     controller.abort();
     expect(invoke).toHaveBeenCalledWith("http_cancel", { id: invoke.mock.calls[0][1].request.id });
     finish(undefined);
@@ -138,5 +139,33 @@ describe("sendRequest in the desktop app", () => {
       const out = await sendRequest(req);
       expect(!out.ok && out.error).toMatch(/none matched api\.acme\.com/);
     });
+  });
+});
+
+describe("browser response limit", () => {
+  it.each([4, 5, 6])("enforces the decoded byte limit for %i bytes", async (size) => {
+    const cancel = vi.fn();
+    let sent = false;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (!sent) { sent = true; controller.enqueue(new Uint8Array(size).fill(97)); }
+        else if (size <= 5) controller.close();
+      },
+      cancel,
+    });
+    vi.stubGlobal("window", { fetch: vi.fn().mockResolvedValue(new Response(stream, { headers: { "content-length": "1" } })) });
+    const out = await sendRequest(req, undefined, 5);
+    if (size <= 5) {
+      expect(out.ok && out.response.sizeBytes).toBe(size);
+    } else {
+      expect(!out.ok && out.error).toBe("Response exceeded 5 bytes");
+      expect(cancel).toHaveBeenCalled();
+    }
+  });
+
+  it("rejects an invalid limit", async () => {
+    vi.stubGlobal("window", { fetch: vi.fn() });
+    const out = await sendRequest(req, undefined, 0);
+    expect(!out.ok && out.error).toMatch(/Response limit/);
   });
 });

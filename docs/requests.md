@@ -164,3 +164,8 @@ Open requests are tabs in a bar directly under the top bar. With a single unpinn
 - **Keyboard.** Tab into the bar, then use ← / →, Home and End to move between tabs, Enter or Space to open one, and Delete to close it. See [Keyboard shortcuts](shortcuts.md#tabs) for the rest.
 
 The tabs bar is part of the Requests screen only. The Testing case editor and Flows are not affected.
+
+
+### Response size limits
+
+Responses are limited to 4 MiB of decoded body bytes per request, including each redirect hop in the desktop app. A response exceeding the limit fails rather than displaying or saving a partial success. Up to four responses are read at once. Use **Response size limit** in the right-hand toolbar to set a limit from 1 byte to 16 MiB. Memory use can be higher than the limit because decoded text and desktop IPC create copies. Batch and test results may retain multiple responses; use smaller batches when responses are large.

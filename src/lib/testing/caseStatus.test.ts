@@ -44,26 +44,26 @@ describe("latestCaseResult", () => {
 });
 
 describe("assertionResults", () => {
-  it("shows pass/fail and the value seen for each assertion", () => {
+  it("shows pass/fail and the value seen for each assertion", async () => {
     const status = newAssertion({ source: "status", op: "eq", expected: "201" });
     const field = newAssertion({ source: "json", property: "$.status", op: "eq", expected: "{{want}}" });
     const time = newAssertion({ source: "time", op: "lt", expected: "300" });
-    const map = assertionResults([status, field, time], result());
+    const map = await assertionResults([status, field, time], result());
     expect(map.get(status.id)).toEqual({ passed: true, actual: "201" });
     expect(map.get(field.id)?.passed).toBe(true);
     expect(map.get(field.id)?.actual).toContain("acknowledged");
     expect(map.get(time.id)).toEqual({ passed: false, actual: "412" });
   });
 
-  it("uses variables set by the post-response script", () => {
+  it("uses variables set by the post-response script", async () => {
     const a = newAssertion({ source: "json", property: "$.id", op: "eq", expected: "{{id}}" });
     const r = result({ postScript: { tests: [], logs: [], vars: { id: "T1" }, durationMs: 1 } });
-    expect(assertionResults([a], r).get(a.id)?.passed).toBe(true);
+    expect((await assertionResults([a], r)).get(a.id)?.passed).toBe(true);
   });
 
-  it("is empty without a response", () => {
-    expect(assertionResults([newAssertion()], result({ outcome: undefined })).size).toBe(0);
-    expect(assertionResults([newAssertion()], null).size).toBe(0);
+  it("is empty without a response", async () => {
+    expect((await assertionResults([newAssertion()], result({ outcome: undefined }))).size).toBe(0);
+    expect((await assertionResults([newAssertion()], null)).size).toBe(0);
   });
 });
 

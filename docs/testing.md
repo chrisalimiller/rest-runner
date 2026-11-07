@@ -156,3 +156,6 @@ Response bodies over 1 MB are cut to 1 MB in saved runs.
 ## Exporting suites
 
 In the Testing sidebar, **Export** writes every suite (cases, assertions, scripts, options and saved CSV data) to one JSON file, and **Import** merges such a file: a suite with the same id is replaced, others are added. A file that is not a REST Runner test-suites file is rejected. Test runs are not included. Export their reports instead.
+
+
+Regular-expression assertions run in a separate worker with a 250 ms deadline. A pattern that times out, is invalid, or cannot start its worker fails the check; subsequent checks can still run. Patterns are limited to 4,096 characters and inputs to 4 MiB of text. Flow conditions use the same protection and take the false branch on an evaluation error.
