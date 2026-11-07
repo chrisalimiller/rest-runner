@@ -123,7 +123,7 @@ export function TestRunExplorer({ runId, preloaded, onBack, backLabel = "← Bac
     setMessage(null);
     try {
       const secrets = storedSecrets();
-      const content = kind === "html" ? maskSecrets(toTestHtmlReport(run), secrets) : maskSecrets(toTestCsvReport(run, { secrets }), secrets);
+      const content = kind === "html" ? maskSecrets(toTestHtmlReport(run), secrets) : toTestCsvReport(run, { secrets });
       const result = await saveTextFile(testReportFileName(run, kind), content, kind === "html" ? "HTML report" : "CSV report", kind);
       if (result.saved) setMessage(result.path ? `Saved to ${result.path}` : "Report downloaded.");
     } catch (e) {

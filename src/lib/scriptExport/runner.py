@@ -360,16 +360,23 @@ def report_body(body, headers, size=None):
     return body
 
 
+def guard_formula(value):
+    if isinstance(value, str) and re.match(r"^[\s\x00-\x1f\x7f]*[=+@-]", value):
+        return "'" + value
+    return value
+
+
 def safe_cell(text):
     """Stops Excel running a cell as a formula, and cuts it at CELL_LIMIT."""
     if not text:
         return text
-    if re.match(r"[=@]|[+-](?!\d)", text):
-        text = "'" + text
+    guarded = guard_formula(text)
+    prefixed = guarded != text
+    text = guarded
     if len(text) > CELL_LIMIT:
         more = format(len(text) - CELL_LIMIT, ",")
         text = text[:CELL_LIMIT] + "\u2026 [cut: " + more + " more characters; the full body is in the HTML report]"
-    return text
+    return text[1:] if prefixed else text
 
 
 def describe(prepared):
@@ -481,13 +488,13 @@ def main():
         finished = sorted(results.items())
     with open(out_path, "w", encoding="utf-8", newline="") as f:
         writer = csv.writer(f)
-        writer.writerow(
+        writer.writerow(map(guard_formula,
             ["row", "result", "status", "status_text", "duration_ms", "sent_at", "method", "url", "request_headers", "request_body",
              "response_headers", "response_body", "response_size_bytes", "error", "final_url"] + ["var:" + c for c in columns]
-        )
+        ))
         for index, (prepared, outcome, failed) in finished:
             ok = outcome["ok"]
-            writer.writerow(
+            writer.writerow(map(guard_formula,
                 [index + 1, "FAIL" if failed else "PASS", outcome["status"] if ok else "ERR", outcome.get("status_text", ""),
                  outcome["duration_ms"], outcome["sent_at"], prepared["method"], safe_cell(prepared["url"]),
                  safe_cell(header_lines(prepared["headers"])), safe_cell(report_body(prepared["body"] or "", prepared["headers"])),
@@ -495,7 +502,7 @@ def main():
                  safe_cell(report_body(outcome["body"], outcome["headers"], outcome["size"])) if ok else "",
                  outcome["size"] if ok else "", "" if ok else safe_cell(outcome["error"]), safe_cell(outcome["final_url"]) if ok else ""]
                 + [rows[index].get(c, "") for c in columns]
-            )
+            ))
 
     passed = len(finished) - state["failed"]
     end = "Stopped" if cancelled else ("Stopped after a failure" if state["stop"] and len(finished) < total else "Finished")

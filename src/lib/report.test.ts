@@ -54,6 +54,13 @@ describe("toCsvReport", () => {
   });
 });
 
+it("guards batch variables, notes and script text at export", () => {
+  const modified = { ...run, columns: ["=heading"], entries: run.entries.map((e) => ({ ...e, vars: { "=heading": "+1+2" }, notes: ["=note"] })) };
+  const [head, row] = parseRecords(toCsvReport(modified).slice(1).trimEnd(), ",");
+  expect(row[head.indexOf("var:=heading")]).toBe("'+1+2");
+  expect(row[head.indexOf("notes")]).toBe("'=note");
+});
+
 describe("toHtmlReport", () => {
   const html = toHtmlReport(run);
   it("escapes all user content", () => {
