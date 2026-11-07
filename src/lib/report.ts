@@ -39,7 +39,7 @@ export function toCsvReport(run: Run, options?: CsvOptions): string {
       ...run.columns.map((c) => e.vars[c] ?? ""),
     ]);
   }
-  return csvFile(rows);
+  return csvFile(rows, options);
 }
 
 /* ---------- HTML ---------- */

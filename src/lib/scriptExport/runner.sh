@@ -237,19 +237,20 @@ safe_cell() {
   local s=$1
   REPLY=$s
   [ -n "$s" ] || return 0
-  case $s in
-    [+-][0-9]*) ;;
-    [=@]* | [+-]*) s="'$s" ;;
-  esac
+  local prefixed=0
+  if [[ $s =~ ^[[:space:][:cntrl:]]*[=+@-] ]]; then s="'$s"; prefixed=1; fi
   if [ "${#s}" -gt "$CELL_LIMIT" ]; then
     s="${s:0:CELL_LIMIT}… [cut: $(group $((${#s} - CELL_LIMIT))) more characters; the full body is in the HTML report]"
   fi
+  if [ "$prefixed" -eq 1 ]; then s=${s:1}; fi
   REPLY=$s
 }
 
 # Quotes a value for the results CSV. Sets REPLY.
 csvq() {
-  REPLY="\"${1//\"/\"\"}\""
+  local s=$1
+  if [[ $s =~ ^[[:space:][:cntrl:]]*[=+@-] ]]; then s="'$s"; fi
+  REPLY="\"${s//\"/\"\"}\""
 }
 
 # The CSV reader: same rules as the app (delimiter detection, quotes, line breaks

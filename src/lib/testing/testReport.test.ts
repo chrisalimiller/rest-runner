@@ -70,6 +70,14 @@ describe("test reports", () => {
   });
 });
 
+it("guards untrusted case names, notes and variables in CSV", () => {
+  const modified = { ...run, results: run.results.map((r) => ({ ...r, caseName: "=case", notes: ["+1+2"], vars: { id: "\t@x" } })) };
+  const [head, row] = parseRecords(toTestCsvReport(modified).slice(1).trimEnd(), ",");
+  expect(row[head.indexOf("case")]).toBe("'=case");
+  expect(row[head.indexOf("notes")]).toBe("'+1+2");
+  expect(row[head.indexOf("var:id")]).toBe("'\t@x");
+});
+
 describe("suite files", () => {
   it("round-trips suites and merges by id", () => {
     const a = { ...newSuite("A"), cases: [{ ...newTestCase(), assertions: [newAssertion({ source: "time", op: "lt", expected: "300" })] }] };

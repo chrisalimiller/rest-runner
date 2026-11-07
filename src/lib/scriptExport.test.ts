@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DEFAULT_BATCH_OPTIONS } from "./batch";
-import { parseCsv } from "./csv";
+import { parseCsv, parseRecords } from "./csv";
 import { prepareRequest } from "./request";
 import { buildScript, scriptExportNotes, scriptFileName, scriptRunCommand, type ScriptExportInput, type ScriptLanguage } from "./scriptExport";
 import type { KeyValue, RequestDef } from "./types";
@@ -314,6 +314,26 @@ describe.skipIf(!curl && !python)("script export against a server", () => {
       expect(report.rows[0].response_headers).not.toMatch(/location/i);
       expect(report.rows[0].final_url).toBe(`http://127.0.0.1:${port}/users/redirected`);
     });
+  }
+});
+
+describe("runner spreadsheet safety", () => {
+  const gitBash = "C:/Program Files/Git/bin/bash.exe";
+  const runners = [
+    { lang: "python" as const, cmd: python },
+    { lang: "bash" as const, cmd: bash ?? (has(gitBash, ["--version"]) ? gitBash : null) },
+  ];
+  for (const { lang, cmd } of runners) {
+    it.skipIf(!cmd)(`${lang} guards input cells in its generated results file`, () => {
+      const input: ScriptExportInput = { def: request({ url: "http://127.0.0.1:1/" }), options: DEFAULT_BATCH_OPTIONS, defaults: {} };
+      const data = 'a,b,c,d,e,f,g,h\n=1,+1+2,-1+2,@x,"  =x","\t=x","=1,""x""\nnext","hello\nworld"\n';
+      const { sub, script } = writeScript(lang, input, data);
+      const result = spawnSync(cmd!, [script, "data.csv", "--out", "out.csv"], { cwd: sub, encoding: "utf8" });
+      expect(result.status, result.stderr).toBe(1);
+      const [head, row] = parseRecords(readFileSync(join(sub, "out.csv"), "utf8").replace(/^\ufeff/, "").trimEnd(), ",");
+      expect(head.slice(-8)).toEqual(["var:a", "var:b", "var:c", "var:d", "var:e", "var:f", "var:g", "var:h"]);
+      expect(row.slice(-8)).toEqual(["'=1", "'+1+2", "'-1+2", "'@x", "'  =x", "'\t=x", "'=1,\"x\"\nnext", "hello\nworld"]);
+    }, 30000);
   }
 });
 
