@@ -1,7 +1,7 @@
 import { newRequest } from "../defaults";
 import { newId } from "../ids";
 import { clampRepeat } from "./plan";
-import type { RequestDef } from "../types";
+import { isHttpMethod, type RequestDef } from "../types";
 import { ASSERTION_OPS, DEFAULT_SUITE_OPTIONS, type Assertion, type TestCase, type TestSuite } from "./types";
 
 export function newAssertion(partial: Partial<Assertion> = {}): Assertion {
@@ -50,7 +50,7 @@ export function cleanSuites(input: unknown): TestSuite[] {
       options: { ...DEFAULT_SUITE_OPTIONS, ...(s.options ?? {}), repeat: clampRepeat(s.options?.repeat ?? DEFAULT_SUITE_OPTIONS.repeat) },
       data: s.data && typeof s.data.name === "string" && typeof s.data.text === "string" ? { name: s.data.name, text: s.data.text } : undefined,
       cases: s.cases
-        .filter((c) => !!c && typeof c.id === "string" && !!c.request && typeof c.request.url === "string")
+        .filter((c) => !!c && typeof c.id === "string" && !!c.request && typeof c.request.url === "string" && (c.request.method === undefined || isHttpMethod(c.request.method)))
         .map((c) => ({
           id: c.id,
           name: typeof c.name === "string" ? c.name : "Test case",

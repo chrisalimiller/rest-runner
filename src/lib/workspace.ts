@@ -15,6 +15,7 @@ import { cleanFlows } from "./flows/flows";
 import type { Flow } from "./flows/types";
 import { importSuitesFile } from "./testing/suiteFile";
 import { cleanSuites } from "./testing/suites";
+import { validateImportedMethods } from "./importMethods";
 import type { TestSuite } from "./testing/types";
 import { detectPostmanFile, importPostmanCollection, importPostmanEnvironment } from "./postman";
 import type { RequestDef } from "./types";
@@ -152,6 +153,7 @@ function parseExport(text: string): Record<string, unknown> {
     throw new Error("The file is not valid JSON.");
   }
   if (!data || data.app !== "rest-runner") throw new Error("This is not a REST Runner export file.");
+  validateImportedMethods([data.collections, data.savedRequests, data.suites, data.requests]);
   return data;
 }
 

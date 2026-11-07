@@ -1,7 +1,7 @@
 import { certificateForExport, type CertificateEntry, type CertificateExport } from "./certificates";
 import { prepareRequest } from "./request";
 import { findPlaceholders, type Vars } from "./template";
-import type { PreparedRequest, RequestDef } from "./types";
+import { isHttpMethod, type PreparedRequest, type RequestDef } from "./types";
 
 /** The terminal the command is written for. */
 export type CurlShell = "bash" | "cmd";
@@ -32,6 +32,7 @@ export function bashQuote(arg: string): string {
  * quote state on every ", escaped or not, so those characters get a ^ where cmd would see them.
  */
 export function cmdQuote(arg: string): string {
+  if (/[\r\n%!]/.test(arg)) throw new Error("Windows cmd cannot safely represent line breaks, % or ! in an argument. Use Bash instead.");
   let crt = '"';
   let slashes = 0;
   for (const ch of arg) {
@@ -68,7 +69,7 @@ function bodyForCmd(body: string, isJson: boolean): { body: string; note?: strin
       // Not valid JSON; fall through.
     }
   }
-  return { body: body.replace(/\r?\n/g, " "), broken: true };
+  return { body, broken: true };
 }
 
 function headerArg(name: string, value: string): string {
@@ -78,11 +79,13 @@ function headerArg(name: string, value: string): string {
 
 /** Builds the curl command for a request that is already prepared (placeholders filled, auth applied). */
 export function preparedToCurl(req: PreparedRequest, shell: CurlShell, isJsonBody = false, certificate: CertificateExport | null = null): Omit<CurlResult, "unresolved"> {
+  if (!isHttpMethod(req.method)) return { command: "", notes: ["Unsupported HTTP method; no cURL command was generated."] };
+  try {
   const quote = shell === "bash" ? bashQuote : cmdQuote;
   const notes: string[] = [];
   const first = ["curl", "--location"];
   if (req.method === "HEAD") first.push("--head");
-  else if (req.method !== "GET") first.push("--request", req.method);
+  else if (req.method !== "GET") first.push("--request", quote(req.method));
   first.push(quote(req.url));
 
   const lines = [first.join(" ")];
@@ -93,13 +96,17 @@ export function preparedToCurl(req: PreparedRequest, shell: CurlShell, isJsonBod
       const fixed = bodyForCmd(body, isJsonBody);
       body = fixed.body;
       if (fixed.note) notes.push(fixed.note);
-      if (fixed.broken) notes.push("Line breaks in the body were turned into spaces, because cmd can't pass them. Use the Bash version to send the body exactly.");
+      if (fixed.broken) throw new Error("Windows cmd cannot pass line breaks in this body. Use Bash instead.");
     }
     lines.push(`--data-raw ${quote(body)}`);
   }
   if (certificate) lines.push(...certificateArgs(certificate, shell, quote, notes));
   const join = shell === "bash" ? " \\\n  " : " ^\n  ";
   return { command: lines.join(join), notes };
+  } catch (error) {
+    if (shell !== "cmd") throw error;
+    return { command: "", notes: [error instanceof Error ? error.message : "Cannot generate a Windows cmd command."] };
+  }
 }
 
 /** The certificate flags, with placeholder paths: the files are not copied out of the app. */
