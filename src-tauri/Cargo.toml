@@ -1,6 +1,6 @@
 [package]
 name = "rest-runner"
-version = "0.2.0"
+version = "0.2.1"
 description = "Run batches of REST calls from a Postman-style editor and CSV files"
 edition = "2021"
 
