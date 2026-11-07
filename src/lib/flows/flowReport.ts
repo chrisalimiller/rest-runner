@@ -147,7 +147,7 @@ export function toFlowCsvReport(run: FlowRun, options?: CsvOptions): string {
       ]);
     }
   }
-  return csvFile(rows);
+  return csvFile(rows, options);
 }
 
 /* ---------- HTML ---------- */

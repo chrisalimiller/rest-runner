@@ -215,10 +215,13 @@ impl CertStore {
             ca = Some(CaDetails { count: certs.len(), details: details_of(&certs[0])? });
         }
 
-        // Everything parsed. Now write, starting from a clean folder.
-        let _ = fs::remove_dir_all(&folder);
+        // Reserve the identity atomically. Never replace an existing folder or keychain item.
+        fs::create_dir_all(&self.dir).map_err(|e| format!("Could not create certificate store: {e}"))?;
+        if self.passphrases.get(&req.id).is_some() {
+            return Err("A certificate with this id already exists in the keychain.".into());
+        }
+        fs::create_dir(&folder).map_err(|e| format!("Could not create certificate identity (it may already exist): {e}"))?;
         let write = || -> Result<(), String> {
-            fs::create_dir_all(&folder).map_err(|e| format!("Could not create {}: {e}", folder.display()))?;
             let put = |name: &str, bytes: &[u8]| {
                 fs::write(folder.join(name), bytes).map_err(|e| format!("Could not save {name}: {e}"))
             };
@@ -240,7 +243,7 @@ impl CertStore {
             _ => Ok(()),
         });
         if let Err(e) = stored {
-            self.delete(&req.id);
+            let _ = fs::remove_dir_all(&folder);
             return Err(e);
         }
         Ok(Imported { client, ca })

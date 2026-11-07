@@ -1,5 +1,5 @@
 import { newId } from "./ids";
-import type { KeyValue, RequestDef, ResponseResult } from "./types";
+import { isHttpMethod, type KeyValue, type RequestDef, type ResponseResult } from "./types";
 
 /**
  * Saved requests live in collections. A collection holds folders and requests,
@@ -391,7 +391,7 @@ export function countRequests(items: TreeNode[]): number {
 
 function isRequestDef(x: unknown): x is RequestDef {
   const r = x as RequestDef;
-  return !!r && typeof r.id === "string" && typeof r.url === "string" && typeof r.method === "string" && Array.isArray(r.headers) && Array.isArray(r.params);
+  return !!r && typeof r.id === "string" && typeof r.url === "string" && isHttpMethod(r.method) && Array.isArray(r.headers) && Array.isArray(r.params);
 }
 
 function cleanNode(x: unknown): TreeNode | null {

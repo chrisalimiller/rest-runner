@@ -71,6 +71,13 @@ describe("flow reports", () => {
   });
 });
 
+it("guards flow step labels in exported CSV", async () => {
+  const run = await sampleRun();
+  const modified = { ...run, stepList: run.stepList.map((step) => ({ ...step, label: "=label" })) };
+  const [head, row] = parseRecords(toFlowCsvReport(modified).slice(1).trimEnd(), ",");
+  expect(row[head.indexOf("step_name")]).toBe("'=label");
+});
+
 describe("variableRows", () => {
   it("lists every variable once, marking new, changed and removed ones", () => {
     const rows = variableRows({ token: "a", ticketId: "TT-1", old: "x" }, { ticketId: "TT-2", token: "a", siteId: "MN-1" });

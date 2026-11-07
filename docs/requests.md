@@ -12,7 +12,7 @@ Requests mode is where you build a request and read the response. The request is
 - **Copy final URL** in the ⋯ menu copies the resolved URL. The URL shows `{{placeholders}}` in colour while you type, and the same highlighting is used in the Params, Headers and form value fields.
 - Open the ⋯ menu next to Send to **Show cURL** (the `curl` command Send would run), or to **Copy as cURL (Bash)** or **Copy as cURL (Windows cmd)** in one click. The command includes with environment values, script variables, auth and the body filled in. Pick **Bash / zsh** (macOS, Linux, Git Bash) or **Windows cmd** in the panel, then **Copy** it into a terminal. Placeholders with no value are listed under the command. Choose **Hide cURL** to close it; whether it is open is remembered.
   - A pre-request script runs only when you press Send, so anything it changes is not in the command.
-  - cmd can't pass line breaks inside an argument, so a multi-line JSON body is put on one line there (it means the same thing).
+  - cmd can't pass line breaks inside an argument, so a multi-line JSON body is put on one line there (it means the same thing). Other line breaks and literal `%` or `!` cannot be represented safely in cmd: the command is unavailable and the panel explains why. Choose Bash to preserve those values.
 
 GET and HEAD requests never send a body, even if you filled one in. The summary line reads "No body for GET" and the details fill the space where the body would be.
 

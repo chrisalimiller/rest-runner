@@ -125,7 +125,7 @@ export function toTestCsvReport(run: TestRun, options?: CsvOptions): string {
       ...run.columns.map((c) => r.vars[c] ?? ""),
     ]);
   }
-  return csvFile(rows);
+  return csvFile(rows, options);
 }
 
 /* ---------- HTML ---------- */

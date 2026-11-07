@@ -164,7 +164,7 @@ Each skip is noted in the Schedule step's settings and under the flow in the lis
 
 **Export** in the Flows list saves every flow to one JSON file; **Export** above the canvas saves only the open flow. The file also carries the suites and saved requests the flows run, so it works on another computer.
 
-**Import** reads such a file. A flow, suite or saved request with the same id as one you have replaces it; everything else is added. Saved requests go back into a collection and folders with the same names, made if they are missing. The message after the import says how many of each were added and updated. Schedule history is not in the file, so imported schedules start fresh.
+**Import** reads such a file. A flow, suite or saved request with the same id as one you have replaces it; everything else is added. Saved requests go back into a collection and folders with the same names, made if they are missing. The message after the import says how many of each were added and updated. Imported schedules are turned off, including when an existing flow is replaced. Review the flow and its selected environment, then enable each schedule locally. Schedule history is not in the file.
 
 ## Quick open
 

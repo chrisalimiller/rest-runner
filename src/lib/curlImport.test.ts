@@ -96,6 +96,10 @@ describe("round trip with the exporter", () => {
   for (const shell of ["bash", "cmd"] as const) {
     it.each(defs)(`${shell}: %s`, (_name, def) => {
       const command = requestToCurl(def, {}, shell).command;
+      if (shell === "cmd" && (_name === "params and headers" || _name === "urlencoded body")) {
+        expect(command).toBe(""); // Percent-encoded values cannot safely be copied to cmd.
+        return;
+      }
       const c = one(command);
       const got = norm(c.def);
       const want = expected(def);

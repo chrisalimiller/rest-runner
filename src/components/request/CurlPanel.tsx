@@ -60,7 +60,7 @@ export function CurlPanel({ def, vars, envName }: Props) {
         </div>
         <span className="muted small">{envName ? `values from ${envName}` : "no environment"}</span>
         <span className="flex-gap" />
-        <button className="link-btn small" onClick={copy} disabled={empty} title="Copy the command">
+        <button className="link-btn small" onClick={copy} disabled={empty || !result.command} title="Copy the command">
           {copied ? "Copied" : "Copy"}
         </button>
         <button
