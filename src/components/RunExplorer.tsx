@@ -1,4 +1,4 @@
-import { currentMasker, maskSecrets, storedSecrets } from "../lib/secrets";
+import { currentMasker, storedSecrets } from "../lib/secrets";
 import { useEffect, useMemo, useState } from "react";
 import { statusClass } from "../lib/format";
 import { toCsvReport, toHtmlReport, reportFileName } from "../lib/report";
@@ -93,7 +93,7 @@ export function RunExplorer({ runId, onBack, onDelete, onLoadRequest }: Props) {
     setMessage(null);
     try {
       const secrets = storedSecrets();
-      const content = kind === "html" ? maskSecrets(toHtmlReport(run), secrets) : maskSecrets(toCsvReport(run, { secrets }), secrets);
+      const content = kind === "html" ? toHtmlReport(run, { secrets }) : toCsvReport(run, { secrets });
       const result = await saveTextFile(reportFileName(run, kind), content, kind === "html" ? "HTML report" : "CSV report", kind);
       if (result.saved) setMessage(result.path ? `Saved to ${result.path}` : "Report downloaded.");
     } catch (e) {

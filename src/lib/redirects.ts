@@ -7,6 +7,8 @@ const REDIRECT_STATUSES = new Set([301, 302, 303, 307, 308]);
 
 /** Headers that must not follow a redirect to another origin. */
 const CREDENTIAL_HEADERS = new Set(["authorization", "cookie", "proxy-authorization"]);
+// Unknown headers may carry credentials under arbitrary names.
+const CROSS_ORIGIN_HEADERS = new Set(["accept", "accept-language", "content-type", "content-language", "user-agent"]);
 
 /**
  * The request to send after a redirect response, or null when the response is
@@ -35,14 +37,15 @@ export function nextHop(
   const sameOrigin = from.origin === to.origin;
   const headers = req.headers.filter(([name]) => {
     const lower = name.toLowerCase();
-    if (!sameOrigin && CREDENTIAL_HEADERS.has(lower)) return false;
+    if (!sameOrigin && (CREDENTIAL_HEADERS.has(lower) || req.credentialHeaders?.some((header) => header.toLowerCase() === lower) || !CROSS_ORIGIN_HEADERS.has(lower))) return false;
     if (toGet && (lower.startsWith("content-") || lower === "transfer-encoding")) return false;
     return true;
   });
   return {
+    ...req,
     method: toGet ? "GET" : req.method,
     url: to.toString(),
     headers,
-    ...(toGet || req.body === undefined ? {} : { body: req.body }),
+    body: toGet ? undefined : req.body,
   };
 }

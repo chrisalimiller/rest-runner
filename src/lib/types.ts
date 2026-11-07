@@ -47,6 +47,8 @@ export interface PreparedRequest {
   url: string;
   headers: [string, string][];
   body?: string;
+  /** Resolved authentication header names, removed on an origin change. */
+  credentialHeaders?: string[];
   /** Mirrors RequestDef.noCertificate. */
   noCertificate?: boolean;
 }

@@ -161,3 +161,9 @@ describe("comments in JSON bodies", () => {
     expect(requestPlaceholders(def).sort()).toEqual(["n", "name"]);
   });
 });
+
+it("records the resolved API key header even when a manual header wins", () => {
+  const p = prepareRequest(req({ url: "https://a.com", headers: [row("x-PARTNER", "manual")], auth: { type: "apikey", key: "{{name}}", value: "key", addTo: "header" } }), { name: "X-Partner" });
+  expect(p.credentialHeaders).toEqual(["X-Partner"]);
+  expect(p.headers).toEqual([["x-PARTNER", "manual"]]);
+});

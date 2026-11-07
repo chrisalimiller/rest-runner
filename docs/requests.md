@@ -164,3 +164,9 @@ Open requests are tabs in a bar directly under the top bar. With a single unpinn
 - **Keyboard.** Tab into the bar, then use ← / →, Home and End to move between tabs, Enter or Space to open one, and Delete to close it. See [Keyboard shortcuts](shortcuts.md#tabs) for the rest.
 
 The tabs bar is part of the Requests screen only. The Testing case editor and Flows are not affected.
+
+### Redirects and credentials
+
+In the desktop app, redirects on the same origin retain request headers. When a redirect changes scheme, host, or port, REST Runner removes authentication headers, including the configured API-key header, and forwards only Accept, Accept-Language, Content-Type, Content-Language, and User-Agent from the original headers. This conservative rule also removes custom headers, which can contain credentials under arbitrary names. A 307 or 308 can still retain the request body; do not put credentials in a body sent to a server you do not trust.
+
+In browser mode (`npm run dev`), redirects are blocked because the browser does not expose enough redirect information to apply this policy. Use the desktop app for requests that require redirects.
