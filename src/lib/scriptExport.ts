@@ -52,37 +52,10 @@ export function scriptExportNotes(input: ScriptExportInput): string[] {
   if (cert?.ca) {
     notes.push(`The app also trusts the CA of "${cert.ca.name}" for this address; set CA_CERT to your copy of that file.`);
   }
+  if (input.options.concurrency > 1) {
+    notes.push(`The script sends one request at a time, not ${Math.floor(input.options.concurrency)} at once like the app.`);
+  }
   return notes;
-}
-
-function certificateSettingsPython(cert: CertificateExport): string[] {
-  const client = cert.client?.client;
-  const lines = [""];
-  if (client) {
-    lines.push(
-      `# Client certificate "${oneLine(cert.client!.name)}". The files stay in the app: point these at your own copies.`,
-      `CLIENT_CERT = ""  # ${client.format === "pkcs12" ? "a .p12/.pfx file (Python cannot read it; the script prints the openssl command to convert it)" : "a .pem file"}`,
-    );
-    if (client.separateKey) lines.push('CLIENT_KEY = ""  # the private key, PEM');
-    if (client.hasPassphrase) lines.push("# The key's passphrase is read from the REST_RUNNER_CERT_PASSPHRASE environment variable.");
-  }
-  if (cert.ca) lines.push(`# Extra trusted CA from "${oneLine(cert.ca.name)}".`, 'CA_CERT = ""', `CA_ONLY = ${cert.ca.caOnly ? "True" : "False"}`);
-  return lines;
-}
-
-function certificateSettingsBash(cert: CertificateExport): string[] {
-  const client = cert.client?.client;
-  const lines = [""];
-  if (client) {
-    lines.push(
-      `# Client certificate "${oneLine(cert.client!.name)}". The files stay in the app: point these at your own copies.`,
-      `CLIENT_CERT=''  # ${client.format === "pkcs12" ? "a .p12/.pfx file" : "a .pem file"}`,
-    );
-    if (client.separateKey) lines.push("CLIENT_KEY=''  # the private key, PEM");
-    if (client.hasPassphrase) lines.push("# The key's passphrase is read from the REST_RUNNER_CERT_PASSPHRASE environment variable.");
-  }
-  if (cert.ca) lines.push(`# Extra trusted CA from "${oneLine(cert.ca.name)}". curl then trusts only this CA.`, "CA_CERT=''");
-  return lines;
 }
 
 const PLACEHOLDER = /\{\{\s*([^{}]+?)\s*\}\}/g;
@@ -103,7 +76,8 @@ function headerComment(input: ScriptExportInput): string {
     `Sends ${def.method} ${oneLine(def.url)} once per row of a CSV file.`,
   ];
   if (input.envName) lines.push(`Environment: ${oneLine(input.envName)} (its values are in the settings below).`);
-  for (const note of scriptExportNotes(input)) lines.push(`Note: ${note}`);
+  // The runner text already says requests go one at a time.
+  for (const note of scriptExportNotes(input)) if (!note.startsWith("The script sends one request")) lines.push(`Note: ${note}`);
   return lines.flatMap((line) => line.split(/\r\n|\r|\n/)).map((line) => `# ${line}`).join("\n").replace(/^# /, "");
 }
 
@@ -129,9 +103,41 @@ export function scriptRunCommand(language: ScriptLanguage, fileName: string, csv
   return `${program} ${file} ${csvArg({ csvName })}`;
 }
 
-function fill(runner: string, values: Record<string, string>): string {
+
+/** Fills the @@NAME@@ markers and keeps the "#@if name" ... "#@end" blocks whose flag is on ("!name" for off). */
+function fill(runner: string, values: Record<string, string>, flags: Record<string, boolean>): string {
   // The runner files are checked out with LF endings, but be safe if git converted them.
-  return runner.replace(/\r\n/g, "\n").replace(/@@([A-Z]+)@@/g, (m, name: string) => values[name] ?? m);
+  const kept = runner
+    .replace(/\r\n/g, "\n")
+    .replace(/^#@if (!?)(\w+)\n([\s\S]*?)^#@end\n/gm, (_m, not: string, name: string, body: string) => (Boolean(flags[name]) !== Boolean(not) ? body : ""));
+  return kept.replace(/@@([A-Z]+)@@/g, (m, name: string) => values[name] ?? m);
+}
+
+/** The body as it is sent: JSON comments are removed. */
+function requestBody(def: RequestDef): string {
+  return def.bodyMode === "json" ? stripJsonComments(def.body) : def.body;
+}
+
+function sendsBody(def: RequestDef): boolean {
+  return def.method !== "GET" && def.method !== "HEAD" && def.bodyMode !== "none";
+}
+
+/** Header names are compared without placeholders filled in; they almost never have any. */
+function hasHeader(rows: [string, string][], name: string): boolean {
+  return rows.some(([k]) => k.toLowerCase() === name.toLowerCase());
+}
+
+/** What parts of the runner a request needs. */
+function runnerFlags(input: ScriptExportInput): Record<string, boolean> {
+  const { def } = input;
+  const auth = withAuthDefaults(def.auth);
+  const body = sendsBody(def) ? def.bodyMode : "none";
+  return {
+    json: body === "json" && jsonSegments(requestBody(def)).some((seg) => "name" in seg && seg.json),
+    encode: activeRows(def.params).length > 0 || body === "urlencoded" || (auth.type === "apikey" && auth.addTo !== "header"),
+    apikeyheader: auth.type === "apikey" && auth.addTo === "header",
+    cert: exportedCertificate(input) !== null,
+  };
 }
 
 /* ---------- Python ---------- */
@@ -140,8 +146,11 @@ function py(value: unknown): string {
   if (value === null || value === undefined) return "None";
   if (typeof value === "boolean") return value ? "True" : "False";
   if (typeof value === "number") return String(value);
-  // A JSON string is also a valid Python string literal.
-  if (typeof value === "string") return JSON.stringify(value);
+  if (typeof value === "string") {
+    // A JSON string is also a valid Python string literal. Single quotes read better around JSON bodies.
+    const text = JSON.stringify(value);
+    return value.includes('"') && !value.includes("'") ? `'${text.slice(1, -1).replace(/\\(.)/g, (m, c: string) => (c === '"' ? c : m))}'` : text;
+  }
   if (Array.isArray(value)) return `[${value.map(py).join(", ")}]`;
   return `{${Object.entries(value as Record<string, unknown>).map(([k, v]) => `${py(k)}: ${py(v)}`).join(", ")}}`;
 }
@@ -152,48 +161,94 @@ function pyBlock(fields: [string, unknown][]): string {
   return `{\n${fields.map(([k, v]) => `    ${py(k)}: ${py(v)},`).join("\n")}\n}`;
 }
 
-/** The body as it is sent: JSON comments are removed. */
-function requestBody(def: RequestDef): string {
-  return def.bodyMode === "json" ? stripJsonComments(def.body) : def.body;
+/** A Python expression for text with placeholders filled in from v. */
+function pyFill(text: string, json = false): string {
+  if (!(json ? jsonSegments(text).some((seg) => "name" in seg) : hasPlaceholder(text))) return py(text);
+  return `${json ? "fill_json" : "fill"}(${py(text)}, v)`;
+}
+
+function pyPairs(rows: [string, string][], indent = "    "): string {
+  if (rows.length === 0) return "[]";
+  return `[\n${rows.map(([k, val]) => `${indent}    (${pyFill(k)}, ${pyFill(val)}),`).join("\n")}\n${indent}]`;
 }
 
 function pyRequest(def: RequestDef): string {
-  return pyBlock([
-    ["name", def.name],
-    ["method", def.method],
-    ["url", def.url],
-    ["params", activeRows(def.params)],
-    ["headers", activeRows(def.headers)],
-    ["bodyMode", def.bodyMode],
-    ["body", requestBody(def)],
-    ["form", activeRows(def.formBody)],
-    ["auth", withAuthDefaults(def.auth)],
-  ]);
+  const headers = activeRows(def.headers);
+  const lines = [
+    "def build_request(v):",
+    '    """Fills in the request for one CSV row. v holds the values for the placeholders."""',
+    `    url = ${pyFill(def.url)}`,
+    `    query = ${pyPairs(activeRows(def.params))}`,
+    `    headers = ${pyPairs(headers)}`,
+  ];
+  const auth = withAuthDefaults(def.auth);
+  if (auth.type === "bearer" && !hasHeader(headers, "Authorization")) {
+    lines.push(`    headers.append(("Authorization", "Bearer " + ${pyFill(auth.token)}))`);
+  } else if (auth.type === "basic" && !hasHeader(headers, "Authorization")) {
+    lines.push(
+      `    login = ${pyFill(auth.username)} + ":" + ${pyFill(auth.password)}`,
+      '    headers.append(("Authorization", "Basic " + base64.b64encode(login.encode("utf-8")).decode("ascii")))',
+    );
+  } else if (auth.type === "apikey") {
+    lines.push(`    key = ${pyFill(auth.key)}.strip()`);
+    lines.push(
+      auth.addTo === "header"
+        ? `    if key and not any(k.lower() == key.lower() for k, _ in headers):\n        headers.append((key, ${pyFill(auth.value)}))`
+        : `    if key:\n        query.append((key, ${pyFill(auth.value)}))`,
+    );
+  }
+  let body = "None";
+  if (sendsBody(def)) {
+    const type = { json: "application/json", text: "text/plain", urlencoded: "application/x-www-form-urlencoded" }[def.bodyMode as "json" | "text" | "urlencoded"];
+    if (!hasHeader(headers, "Content-Type")) lines.push(`    headers.append(("Content-Type", ${py(type)}))`);
+    if (def.bodyMode === "urlencoded") {
+      lines.push(`    body = encode(${pyPairs(activeRows(def.formBody))})`);
+    } else {
+      lines.push(`    body = ${pyFill(requestBody(def), def.bodyMode === "json")}`);
+    }
+    body = "body";
+  }
+  lines.push(`    return ${py(def.method)}, full_url(url, query), headers, ${body}`);
+  return lines.join("\n");
+}
+
+function pyCertificateSettings(cert: CertificateExport): string[] {
+  const client = cert.client?.client;
+  const lines = ["", "# Certificates. The files stay in the app: point these at your own copies."];
+  if (client) {
+    lines.push(`# Client certificate "${oneLine(cert.client!.name)}".${client.hasPassphrase ? " Its passphrase is read from the REST_RUNNER_CERT_PASSPHRASE environment variable." : ""}`);
+  }
+  lines.push(
+    `CLIENT_CERT = ""  # ${client ? (client.format === "pkcs12" ? "a .p12/.pfx file (Python cannot read it; the script prints the openssl command to convert it)" : "a .pem file") : "none"}`,
+    `CLIENT_KEY = ""  # ${client?.separateKey ? "the private key, PEM" : "not needed"}`,
+    `CA_CERT = ""  # ${cert.ca ? `extra trusted CA from "${oneLine(cert.ca.name)}"` : "none"}`,
+    `CA_ONLY = ${cert.ca?.caOnly ? "True" : "False"}  # True trusts only CA_CERT`,
+  );
+  return lines;
 }
 
 export function buildPythonScript(input: ScriptExportInput): string {
   if (!isHttpMethod(input.def.method)) throw new Error("Unsupported HTTP method.");
   const { def, options } = input;
+  const cert = exportedCertificate(input);
   const settings = [
-    "# The request. {{name}} placeholders are filled from each CSV row.",
-    `REQUEST = ${pyRequest(def)}`,
+    `CSV_FILE = ${py(input.csvName ?? "")}  # used when none is given on the command line`,
+    `STOP_ON_FAILURE = ${py(options.stopOnFailure)}  # stop after the first failed request`,
+    `HTTP_ERRORS_FAIL = ${py(options.httpErrorsFail)}  # count 4xx and 5xx responses as failures`,
+    `DELAY_MS = ${Math.max(0, Math.floor(options.delayMs) || 0)}  # pause between requests`,
+    "TIMEOUT = 120  # seconds to wait for each response",
+    'RESULTS_FILE = ""  # empty: <csv name>-results-<date and time>.csv',
+    "DRY_RUN = False  # True prints the requests without sending them",
     "",
     "# Values for placeholders that no CSV column fills (a column with the same name wins).",
-    `DEFAULTS = ${pyBlock(Object.entries(input.defaults))}`,
-    "",
-    "# The CSV file used when none is given on the command line.",
-    `DEFAULT_CSV = ${py(input.csvName ?? "")}`,
-    "",
-    "# Run options. Command-line options override these.",
-    `OPTIONS = ${pyBlock([
-      ["concurrency", options.concurrency],
-      ["delay_ms", options.delayMs],
-      ["stop_on_failure", options.stopOnFailure],
-      ["http_errors_fail", options.httpErrorsFail],
-    ])}`,
-    ...(exportedCertificate(input) ? certificateSettingsPython(exportedCertificate(input)!) : []),
+    `VALUES = ${pyBlock(Object.entries(input.defaults))}`,
+    ...(cert ? pyCertificateSettings(cert) : []),
   ].join("\n");
-  return fill(pythonRunner, { HEADER: headerComment(input), FILE: scriptFileName(def, "python"), CSV: csvArg(input), SETTINGS: settings });
+  return fill(
+    pythonRunner,
+    { HEADER: headerComment(input), FILE: scriptFileName(def, "python"), CSV: csvArg(input), SETTINGS: settings, REQUEST: pyRequest(def) },
+    runnerFlags(input),
+  );
 }
 
 /* ---------- Bash ---------- */
@@ -204,19 +259,6 @@ function sq(text: string): string {
 }
 
 type Segment = { text: string } | { name: string; raw: string; json: boolean };
-
-/** Splits text like applyTemplate does. */
-function plainSegments(input: string): Segment[] {
-  const out: Segment[] = [];
-  let last = 0;
-  for (const m of input.matchAll(PLACEHOLDER)) {
-    if (m.index > last) out.push({ text: input.slice(last, m.index) });
-    out.push({ name: m[1], raw: m[0], json: false });
-    last = m.index + m[0].length;
-  }
-  if (last < input.length) out.push({ text: input.slice(last) });
-  return out;
-}
 
 /** Splits a JSON body like applyJsonTemplate does: placeholders inside JSON strings are marked for escaping. */
 function jsonSegments(input: string): Segment[] {
@@ -253,122 +295,136 @@ function jsonSegments(input: string): Segment[] {
   return out;
 }
 
-/** Bash lines that leave the filled-in text in $s. */
-function bashTemplate(input: string, json = false, indent = "  "): string[] {
-  const segments = json ? jsonSegments(input) : plainSegments(input);
-  const first = segments[0];
-  const startsWithText = first !== undefined && "text" in first;
-  const lines = [`${indent}s=${startsWithText ? sq(first.text) : "''"}`];
-  for (const seg of startsWithText ? segments.slice(1) : segments) {
-    if ("text" in seg) lines.push(`${indent}s+=${sq(seg.text)}`);
-    else lines.push(`${indent}${seg.json ? "vj" : "v"} ${sq(seg.name)} ${sq(seg.raw)}; s+=$REPLY`);
-  }
-  return lines;
+function hasPlaceholder(text: string): boolean {
+  PLACEHOLDER.lastIndex = 0;
+  return PLACEHOLDER.test(text);
 }
 
+/** Bash for one value: a quoted literal, or a fill call that leaves the value in $REPLY. */
+function bashValue(text: string): { fill: string; ref: string } {
+  return hasPlaceholder(text) ? { fill: `fill ${sq(text)}; `, ref: '"$REPLY"' } : { fill: "", ref: sq(text) };
+}
+
+/** Bash lines that add key/value rows to the arrays named keys and values. */
 function bashPairs(rows: [string, string][], keys: string, values: string): string[] {
-  const lines: string[] = [];
-  for (const [k, val] of rows) {
-    lines.push(...bashTemplate(k), "  k=$s", ...bashTemplate(val), `  ${keys}+=("$k"); ${values}+=("$s")`);
+  return rows.map(([k, val]) => {
+    const key = bashValue(k);
+    const value = bashValue(val);
+    return key.fill
+      ? `  ${key.fill}k=$REPLY; ${value.fill}${keys}+=("$k"); ${values}+=(${value.ref})`
+      : `  ${value.fill}${keys}+=(${key.ref}); ${values}+=(${value.ref})`;
+  });
+}
+
+/** Bash lines that leave a JSON body in $REPLY: values inside JSON strings are escaped (vj). */
+function bashJsonBody(body: string): string[] {
+  const parts: string[] = [];
+  let plain = "";
+  for (const seg of jsonSegments(body)) {
+    if ("name" in seg && seg.json) {
+      if (plain) parts.push(`fill ${sq(plain)}`);
+      parts.push(`vj ${sq(seg.name)} ${sq(seg.raw)}`);
+      plain = "";
+    } else {
+      plain += "text" in seg ? seg.text : seg.raw;
+    }
   }
-  return lines;
+  if (plain) parts.push(`fill ${sq(plain)}`);
+  if (parts.length <= 1) return [`  ${parts[0] ?? "REPLY=''"}`];
+  return ["  s=''", ...parts.map((part) => `  ${part}; s+=$REPLY`), "  REPLY=$s"];
 }
 
-/** Header names are compared without placeholders filled in; they almost never have any. */
-function hasHeader(rows: [string, string][], name: string): boolean {
-  return rows.some(([k]) => k.toLowerCase() === name.toLowerCase());
-}
-
-function bashBuild(def: RequestDef): string {
+function bashRequest(def: RequestDef): string {
   const headers = activeRows(def.headers);
+  const url = bashValue(def.url);
   const lines: string[] = [
-    "# Fills in the request for the current CSV row (ROW). Sets REQ_METHOD, REQ_URL,",
-    "# REQ_BODY, REQ_HAS_BODY and the headers in HK (names) and HV (values).",
+    "# Fills in the request for the current CSV row: REQ_METHOD, REQ_URL, REQ_BODY,",
+    "# the headers in HK (names) and HV (values) and the query parameters in QK and QV.",
     "build_request() {",
     "  local s k",
     "  HK=(); HV=(); QK=(); QV=(); FK=(); FV=()",
     `  REQ_METHOD=${sq(def.method)}`,
-    "  REQ_BODY=''",
-    "  REQ_HAS_BODY=0",
-    "  # URL",
-    ...bashTemplate(def.url),
-    "  REQ_URL=$s",
+    `  ${url.fill}REQ_URL=${url.ref}`,
+    ...bashPairs(activeRows(def.params), "QK", "QV"),
+    ...bashPairs(headers, "HK", "HV"),
   ];
-  const params = activeRows(def.params);
-  if (params.length) lines.push("  # Query parameters", ...bashPairs(params, "QK", "QV"));
-  if (headers.length) lines.push("  # Headers", ...bashPairs(headers, "HK", "HV"));
 
   const auth = withAuthDefaults(def.auth);
   if (auth.type === "bearer" && !hasHeader(headers, "Authorization")) {
-    lines.push("  # Auth: bearer token", ...bashTemplate(auth.token), '  add_header Authorization "Bearer $s"');
+    lines.push(`  fill ${sq(auth.token)}; HK+=(Authorization); HV+=("Bearer $REPLY")`);
   } else if (auth.type === "basic" && !hasHeader(headers, "Authorization")) {
     lines.push(
-      "  # Auth: basic",
-      ...bashTemplate(auth.username),
-      "  k=$s",
-      ...bashTemplate(auth.password),
-      '  b64 "$k:$s"',
-      '  add_header Authorization "Basic $REPLY"',
+      `  fill ${sq(auth.username)}; k=$REPLY; fill ${sq(auth.password)}`,
+      `  HK+=(Authorization); HV+=("Basic $(printf '%s' "$k:$REPLY" | base64 | tr -d '\\r\\n')")`,
     );
   } else if (auth.type === "apikey") {
     lines.push(
-      `  # Auth: API key in the ${auth.addTo === "header" ? "header" : "query"}`,
-      ...bashTemplate(auth.key),
-      '  trim "$s"; k=$REPLY',
-      ...bashTemplate(auth.value),
+      `  fill ${sq(auth.key)}; trim "$REPLY"; k=$REPLY; fill ${sq(auth.value)}`,
       auth.addTo === "header"
-        ? '  if [ -n "$k" ] && ! has_header "$k"; then add_header "$k" "$s"; fi'
-        : '  if [ -n "$k" ]; then QK+=("$k"); QV+=("$s"); fi',
+        ? '  if [ -n "$k" ] && ! has_header "$k"; then HK+=("$k"); HV+=("$REPLY"); fi'
+        : '  if [ -n "$k" ]; then QK+=("$k"); QV+=("$REPLY"); fi',
     );
   }
 
-  if (def.method !== "GET" && def.method !== "HEAD") {
-    if (def.bodyMode === "json" || def.bodyMode === "text") {
-      const type = def.bodyMode === "json" ? "application/json" : "text/plain";
-      lines.push("  # Body", ...bashTemplate(requestBody(def), def.bodyMode === "json"), "  REQ_BODY=$s", "  REQ_HAS_BODY=1");
-      if (!hasHeader(headers, "Content-Type")) lines.push(`  add_header Content-Type ${sq(type)}`);
-    } else if (def.bodyMode === "urlencoded") {
-      lines.push("  # Form body", ...bashPairs(activeRows(def.formBody), "FK", "FV"), "  encode_pairs FK FV", "  REQ_BODY=$REPLY", "  REQ_HAS_BODY=1");
-      if (!hasHeader(headers, "Content-Type")) lines.push("  add_header Content-Type 'application/x-www-form-urlencoded'");
+  if (sendsBody(def)) {
+    const type = { json: "application/json", text: "text/plain", urlencoded: "application/x-www-form-urlencoded" }[def.bodyMode as "json" | "text" | "urlencoded"];
+    if (def.bodyMode === "urlencoded") {
+      lines.push(...bashPairs(activeRows(def.formBody), "FK", "FV"), "  encode_pairs FK FV");
+    } else if (def.bodyMode === "json") {
+      lines.push(...bashJsonBody(requestBody(def)));
+    } else {
+      lines.push(`  fill ${sq(requestBody(def))}`);
     }
+    lines.push("  REQ_BODY=$REPLY", "  REQ_HAS_BODY=1");
+    if (!hasHeader(headers, "Content-Type")) lines.push(`  HK+=(Content-Type); HV+=(${sq(type)})`);
+  } else {
+    lines.push("  REQ_BODY=''", "  REQ_HAS_BODY=0");
   }
   lines.push("  finish_url", "}");
   return lines.join("\n");
 }
 
-function bashDefaults(defaults: Vars): string {
-  const entries = Object.entries(defaults);
-  const lines = [
-    "# Values for placeholders that no CSV column fills (a column with the same name wins).",
-    "default_value() {",
-    '  case "$1" in',
-    ...entries.map(([k, val]) => `    ${sq(k)}) REPLY=${sq(val)} ;;`),
-    "    *) return 1 ;;",
-    "  esac",
-    "}",
-  ];
-  return lines.join("\n");
+function bashCertificateSettings(cert: CertificateExport): string[] {
+  const client = cert.client?.client;
+  const lines = ["", "# Certificates. The files stay in the app: point these at your own copies."];
+  if (client) {
+    lines.push(`# Client certificate "${oneLine(cert.client!.name)}".${client.hasPassphrase ? " Its passphrase is read from the REST_RUNNER_CERT_PASSPHRASE environment variable." : ""}`);
+    lines.push(`CLIENT_CERT=''  # ${client.format === "pkcs12" ? "a .p12/.pfx file" : "a .pem file"}`);
+    if (client.separateKey) lines.push("CLIENT_KEY=''  # the private key, PEM");
+  } else {
+    lines.push("CLIENT_CERT=''");
+  }
+  if (cert.ca) lines.push(`CA_CERT=''  # extra trusted CA from "${oneLine(cert.ca.name)}" (curl then trusts only this CA)`);
+  return lines;
 }
 
 export function buildBashScript(input: ScriptExportInput): string {
   if (!isHttpMethod(input.def.method)) throw new Error("Unsupported HTTP method.");
   const { def, options } = input;
+  const cert = exportedCertificate(input);
   const settings = [
-    "# Run options. Command-line options override these.",
-    `CONCURRENCY=${Math.max(1, Math.floor(options.concurrency) || 1)}`,
-    `DELAY_MS=${Math.max(0, Math.floor(options.delayMs) || 0)}`,
-    `STOP_ON_FAILURE=${options.stopOnFailure ? 1 : 0}`,
-    `HTTP_ERRORS_FAIL=${options.httpErrorsFail ? 1 : 0}`,
+    `CSV_FILE=${sq(input.csvName ?? "")}  # used when none is given on the command line`,
+    `STOP_ON_FAILURE=${options.stopOnFailure ? 1 : 0}  # 1 stops after the first failed request`,
+    `HTTP_ERRORS_FAIL=${options.httpErrorsFail ? 1 : 0}  # 1 counts 4xx and 5xx responses as failures`,
+    `DELAY_MS=${Math.max(0, Math.floor(options.delayMs) || 0)}  # pause between requests`,
+    "TIMEOUT=120  # seconds to wait for each response",
+    "RESULTS_FILE=''  # empty: <csv name>-results-<date and time>.csv",
+    "DRY_RUN=0  # 1 prints the requests without sending them",
     "",
-    "# The CSV file used when none is given on the command line.",
-    `DEFAULT_CSV=${sq(input.csvName ?? "")}`,
-    "",
-    bashDefaults(input.defaults),
-    "",
-    bashBuild(def),
-    ...(exportedCertificate(input) ? certificateSettingsBash(exportedCertificate(input)!) : []),
+    "# Values for placeholders that no CSV column fills (a column with the same name wins).",
+    "default_value() {",
+    '  case "$1" in',
+    ...Object.entries(input.defaults).map(([k, val]) => `    ${sq(k)}) REPLY=${sq(val)} ;;`),
+    "    *) return 1 ;;",
+    "  esac",
+    "}",
+    ...(cert ? bashCertificateSettings(cert) : []),
   ].join("\n");
-  return fill(bashRunner, { HEADER: headerComment(input), FILE: scriptFileName(def, "bash"), CSV: csvArg(input), SETTINGS: settings });
+  return fill(
+    bashRunner,
+    { HEADER: headerComment(input), FILE: scriptFileName(def, "bash"), CSV: csvArg(input), SETTINGS: settings, REQUEST: bashRequest(def) },
+    runnerFlags(input),
+  );
 }
 
 export function buildScript(language: ScriptLanguage, input: ScriptExportInput): string {

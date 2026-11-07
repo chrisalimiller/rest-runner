@@ -60,7 +60,7 @@ If the request has scripts they run for every row. See [Scripting](scripting.md#
 
 ## Exporting a batch as a script
 
-**Export script…** (next to **Preview**) turns the batch into a Python or Bash script that runs in a terminal without the app. The script holds the request, the run options, and the values of the selected environment. It reads a CSV file you give it, sends one request per row, prints a line per result, and writes a results CSV with the same columns as the app's [CSV report](#reports) (without the notes and script columns).
+**Export script…** (next to **Preview**) turns the batch into a short Python or Bash script that runs in a terminal without the app. The script holds the request, the run settings, and the values of the selected environment. It reads a CSV file you give it, sends one request per row, one at a time, prints a line per result, and writes a results CSV.
 
 The panel shows the script in the app, highlighted like other code. Pick **Python** or **Bash** at the top (the app remembers your choice), then either:
 
@@ -77,16 +77,37 @@ Both give the same script. The view updates as you change the request, the optio
 
 If a CSV was loaded when you exported, its file name is the default, so the script finds it when it sits in the same folder.
 
-Options (both scripts): `--concurrency N`, `--delay-ms N`, `--stop-on-failure` / `--no-stop-on-failure`, `--http-errors-fail` / `--no-http-errors-fail`, `--timeout SECONDS` (default 120), `--out FILE` (default `<csv name>-results-<time>.csv`), and `--dry-run` to print the requests without sending them. The defaults are the options you had set in the app. `--help` lists them.
+The script reads like this, top to bottom:
 
-The script fills placeholders with the same rules as the app: a CSV column wins, then the environment, then variables left by earlier sends' scripts. A placeholder with no value is sent as written. The CSV is read the same way too (separator detection, quotes, line breaks inside quotes). The exit code is 0 when every request passed and 1 when any failed or the run was stopped. Ctrl+C stops starting new requests and still writes the results.
+1. **Settings** you can edit: the default CSV file, stop after a failure, count 4xx and 5xx responses as failures, the delay between requests, the timeout (120 seconds), the results file name (empty means `<csv name>-results-<date and time>.csv`), and a dry run setting that prints the requests without sending them. The first ones start with the options you had set in the app. Below them are the environment values for placeholders.
+2. **The request**: one function that fills in the URL, query parameters, headers, auth and body for a row. Only the parts your request uses are there.
+3. **Helpers** for filling placeholders, reading the CSV and sending.
+
+The only thing the script takes on the command line is the CSV file. Everything else is a setting at the top.
+
+The script fills placeholders with the same rules as the app: a CSV column wins, then the environment, then variables left by earlier sends' scripts. A placeholder with no value is sent as written. The CSV is read the same way too (separator detection, quotes, line breaks inside quotes). The exit code is 0 when every request passed and 1 when any failed or the run was stopped. Ctrl+C stops the run, and the rows already sent stay in the results.
+
+The results CSV has one line per request with these columns:
+
+| Column | What it holds |
+| --- | --- |
+| `row` | The CSV row number |
+| `result` | `PASS` or `FAIL` |
+| `status` | The HTTP status code, or `ERR` when no response came back |
+| `duration_ms` | How long the request took |
+| `url` | The URL that was sent, with placeholders and query parameters filled in |
+| `request` | The request as sent: method and URL, headers, a blank line and the body |
+| `response` | The response: status line, headers, a blank line and the body (after any redirects) |
+| `error` | Why there was no response, if there was none |
+
+A cell that would start like a spreadsheet formula gets an apostrophe in front, and a cell longer than 32,000 characters is cut and ends with `... [cut]`, so the file opens safely in Excel.
 
 Differences from a run in the app:
 
+- **Requests are sent one at a time.** The app's concurrency setting is not used. Use the delay setting to space them out.
 - **Pre-request and post-response scripts are not included.** They are JavaScript for the app's `rr` API. Values they set are not filled in, and their checks do not run. The export panel warns you when the request has scripts.
-- **Environment values are copied into the script as plain text**, including tokens and passwords. Check the script before you share it. To change them, edit the settings block at the top of the script.
+- **Environment values are copied into the script as plain text**, including tokens and passwords. Check the script before you share it. To change them, edit the settings at the top of the script.
 - Results go to the results CSV and the terminal. They do not appear in the app's run explorer.
-- The Bash script applies the delay before each request after the first few (one per concurrent slot) rather than per worker. With 1 concurrent request it is the same gap between requests.
 
 ## The run explorer
 
