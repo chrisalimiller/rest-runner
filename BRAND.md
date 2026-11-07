@@ -9,7 +9,8 @@ The mark is a runner between JSON braces. Beside it, the name is set in monospac
 | `brand/mark.svg` | Mark for dark backgrounds |
 | `brand/mark-light-bg.svg` | Mark for light backgrounds |
 | `brand/mark-mono.svg` | One color, uses `currentColor` |
-| `brand/app-icon.svg`, `brand/app-icon.png` | 1024×1024 app icon tile |
+| `brand/app-icon.svg`, `brand/app-icon.png` | 1024×1024 app icon tile, full bleed (Windows) |
+| `brand/app-icon-macos.svg`, `brand/app-icon-macos.png` | Same tile at 824×824 centered on a clear 1024×1024 canvas (macOS) |
 | `src/components/BrandMark.tsx` | `BrandMark` and `BrandLockup` (top bar) for the app |
 
 ## Colors
@@ -33,4 +34,13 @@ After changing `brand/app-icon.png`, regenerate the desktop icons and commit the
 npm run tauri icon brand/app-icon.png
 ```
 
-That command also writes Android, iOS and Windows Store icons. This app ships only for macOS and Windows, so delete `src-tauri/icons/android`, `src-tauri/icons/ios`, `Square*.png`, `StoreLogo.png` and `64x64.png` afterwards.
+Then rebuild the macOS icon from the padded source and keep only its `icon.icns`:
+
+```sh
+npm run tauri icon brand/app-icon-macos.png -- -o /tmp/mac-icons
+cp /tmp/mac-icons/icon.icns src-tauri/icons/icon.icns
+```
+
+macOS doesn't add a margin around app icons. Apple's grid puts the tile at 824×824 with about 100px clear on each side, so a full-bleed `icon.icns` looks about 20% bigger than other apps in the Dock and Cmd+Tab. Windows icons stay full bleed. If you change `app-icon.svg`, update `app-icon-macos.svg` too: it wraps the same content in `translate(100 100) scale(0.8046875)`.
+
+The first command also writes Android, iOS and Windows Store icons. This app ships only for macOS and Windows, so delete `src-tauri/icons/android`, `src-tauri/icons/ios`, `Square*.png`, `StoreLogo.png` and `64x64.png` afterwards.
