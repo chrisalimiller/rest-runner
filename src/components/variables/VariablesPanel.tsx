@@ -1,38 +1,62 @@
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { useSidePanelSlot } from "../shell/SidePanelSlot";
 import { ENV_COLOR_VARS, type Environment } from "../../lib/environments";
 import { maskSecrets, SECRET_MASK, storedSecrets } from "../../lib/secrets";
 import { load, save } from "../../lib/storage";
 import { variableIndex, type SidebarEnvGroup, type SidebarEnvRow } from "../../lib/variables";
-import { useVariables, type VariablesApi } from "./VariablesContext";
+import { closeSidePanel, useSidePanels } from "../../lib/sidePanels";
+import { useVariables, type PanelVariablesApi } from "./VariablesContext";
 import "./variables.css";
 
 const PANEL_KEY = "rest-runner.variables-panel";
 
 export type VariablesFilter = "request" | "all";
 
-export interface VariablesPanelState {
-  open: boolean;
+/** How the list is shown. Whether the panel is open lives in lib/sidePanels. All three sections share this. */
+export interface VariablesView {
   filter: VariablesFilter;
   othersOpen: boolean;
 }
 
-export function loadPanelState(): VariablesPanelState {
-  const s = load<Partial<VariablesPanelState>>(PANEL_KEY, {});
-  return { open: s.open === true, filter: s.filter === "all" ? "all" : "request", othersOpen: s.othersOpen === true };
+function readView(): VariablesView {
+  const s = load<Partial<VariablesView>>(PANEL_KEY, {});
+  return { filter: s.filter === "all" ? "all" : "request", othersOpen: s.othersOpen === true };
 }
 
-export function savePanelState(state: VariablesPanelState) {
-  save(PANEL_KEY, state);
+let view: VariablesView = readView();
+const viewListeners = new Set<() => void>();
+
+function patchView(patch: Partial<VariablesView>) {
+  view = { ...view, ...patch };
+  save(PANEL_KEY, { ...load<Record<string, unknown>>(PANEL_KEY, {}), ...view });
+  viewListeners.forEach((l) => l());
+}
+
+/** Shows the list for the open request, case or flow only. Used when the Variables button is clicked from a placeholder. */
+export function showOwnVariables() {
+  patchView({ filter: "request" });
+}
+
+function useView(): VariablesView {
+  return useSyncExternalStore(
+    (l) => {
+      viewListeners.add(l);
+      return () => viewListeners.delete(l);
+    },
+    () => view,
+  );
 }
 
 interface Props {
-  state: VariablesPanelState;
-  onState: (patch: Partial<VariablesPanelState>) => void;
-  /** Names the current request uses, in order of appearance. */
+  /** Names the open request, case or flow uses, in order of appearance. */
   used: string[];
-  onClose: () => void;
+  /** What the list is scoped to, as the first toggle says it: "This request", "This case", "This flow". */
+  scope: string;
+  /** Script variables only exist in Requests. */
+  showScript?: boolean;
+  /** Overrides the Requests context, for sections that have no hover card. */
+  api?: PanelVariablesApi;
   onEditEnvironments: (varId?: string) => void;
   onSwitchEnvironment: (id: string) => void;
 }
@@ -185,7 +209,7 @@ function AddVariable({ envName, onAdd }: { envName: string; onAdd: (name: string
   );
 }
 
-function EnvRows({ group, api }: { group: SidebarEnvGroup; api: VariablesApi }) {
+function EnvRows({ group, api }: { group: SidebarEnvGroup; api: PanelVariablesApi }) {
   const row = (r: SidebarEnvRow) => {
     return (
       <li key={r.varId} className={`variables-row ${r.overriddenBy ? "overridden" : ""}`}>
@@ -204,8 +228,15 @@ function EnvRows({ group, api }: { group: SidebarEnvGroup; api: VariablesApi }) 
 }
 
 /** The Variables sidebar: every variable by priority, editable in place. */
-export function VariablesPanel({ state, onState, used, onClose, onEditEnvironments, onSwitchEnvironment }: Props) {
-  const api = useVariables();
+export function VariablesPanel({ used, scope, showScript = true, api: given, onEditEnvironments, onSwitchEnvironment }: Props) {
+  const fromContext = useVariables();
+  const api = given ?? fromContext;
+  const state = { ...useView(), open: useSidePanels().variables };
+  const onState = patchView;
+  const onClose = () => {
+    if (document.getElementById("variables-panel")?.contains(document.activeElement)) document.querySelector<HTMLElement>("[data-variables-trigger]")?.focus();
+    closeSidePanel("variables");
+  };
   const slot = useSidePanelSlot();
   const ref = useRef<HTMLElement>(null);
   const [nameFilter, setNameFilter] = useState("");
@@ -222,7 +253,7 @@ export function VariablesPanel({ state, onState, used, onClose, onEditEnvironmen
   const match = (name: string) => needle === "" || name.toLowerCase().includes(needle);
   const narrow = (g: SidebarEnvGroup): SidebarEnvGroup => ({ ...g, rows: g.rows.filter((r) => match(r.name)) });
   const missing = groups.missing.filter(match);
-  const script = groups.script.filter((r) => match(r.name));
+  const script = showScript ? groups.script.filter((r) => match(r.name)) : [];
   const active = groups.active ? narrow(groups.active) : null;
   const others = groups.others.map(narrow).filter((g) => g.rows.length > 0);
   const nothing = missing.length === 0 && script.length === 0 && !active?.rows.length && others.length === 0;
@@ -256,7 +287,7 @@ export function VariablesPanel({ state, onState, used, onClose, onEditEnvironmen
       <div className="variables-panel-tools">
         <div className="seg-toggle" role="group" aria-label="Which variables to list">
           <button className={state.filter === "request" ? "on" : ""} aria-pressed={state.filter === "request"} onClick={() => onState({ filter: "request" })}>
-            This request
+            {scope}
           </button>
           <button className={state.filter === "all" ? "on" : ""} aria-pressed={state.filter === "all"} onClick={() => onState({ filter: "all" })}>
             All
@@ -280,7 +311,7 @@ export function VariablesPanel({ state, onState, used, onClose, onEditEnvironmen
           </section>
         )}
 
-        {(script.length > 0 || state.filter === "all") && (
+        {showScript && (script.length > 0 || state.filter === "all") && (
           <section>
             <div className="variables-head">
               <span className="section-title">Script variables</span>
@@ -318,7 +349,7 @@ export function VariablesPanel({ state, onState, used, onClose, onEditEnvironmen
           {active && active.rows.length > 0 ? (
             <EnvRows group={active} api={api} />
           ) : (
-            <p className="muted small">{activeEnv ? (state.filter === "request" ? "Nothing here is used by this request." : "No variables yet.") : "Pick or create an environment to keep values."}</p>
+            <p className="muted small">{activeEnv ? (state.filter === "request" ? `Nothing here is used by ${scope.toLowerCase()}.` : "No variables yet.") : "Pick or create an environment to keep values."}</p>
           )}
           {activeEnv && <AddVariable envName={activeEnv.name || "(unnamed)"} onAdd={(name, value, secret) => api.add(name, value, secret)} />}
         </section>
@@ -345,7 +376,7 @@ export function VariablesPanel({ state, onState, used, onClose, onEditEnvironmen
           </section>
         )}
 
-        {nothing && activeEnv && state.filter === "request" && used.length === 0 && <p className="muted small">This request has no {"{{placeholders}}"}.</p>}
+        {nothing && activeEnv && state.filter === "request" && used.length === 0 && <p className="muted small">{scope} has no {"{{placeholders}}"}.</p>}
       </div>
 
       <div className="variables-panel-foot">

@@ -32,7 +32,9 @@ export type ShellCommand =
   | { type: "open"; item: QuickItem; nonce: number; permanent?: boolean }
   | { type: "clear-history"; nonce: number }
   /** Another mode changed saved data this mode keeps in memory: read it again from storage. */
-  | { type: "reload"; nonce: number };
+  | { type: "reload"; nonce: number }
+  /** Another mode's Variables panel asked for the environment editor, which only Requests has. */
+  | { type: "edit-environments"; nonce: number; varId?: string };
 
 function modeFor(item: QuickItem): Mode {
   if (item.kind === "flow" || item.kind === "flow-run") return "flows";
@@ -117,7 +119,12 @@ export default function Root() {
   const send = (mode: Mode, cmd: ShellCommand) =>
     setCommands((c) => ({ ...c, [mode]: cmd }));
   const shell: ShellProps = {
+    section,
     onQuickOpen: () => setQuickOpen(true),
+    onEditEnvironments: (varId) => {
+      setSection("requests");
+      send("requests", { type: "edit-environments", nonce: Date.now(), varId });
+    },
     onDataChanged: (what) => {
       const nonce = Date.now();
       if (what.includes("collections"))
@@ -197,6 +204,10 @@ export default function Root() {
 }
 
 export interface ShellProps {
+  /** The section on screen. */
+  section: Mode;
+  /** Opens the environment editor in Requests, on the variable `varId` when given. */
+  onEditEnvironments: (varId?: string) => void;
   onQuickOpen: () => void;
   /** A mode wrote saved data that another mode holds in memory (Flows importing suites or requests). */
   onDataChanged: (what: ("suites" | "collections" | "flows")[]) => void;

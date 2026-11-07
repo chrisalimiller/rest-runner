@@ -70,7 +70,8 @@ export function SideRail({ section, onMode }: Props) {
     return "";
   };
 
-  const unfilled = status.request?.unfilled ?? 0;
+  // The unfilled count belongs to the open request, so it is only shown while Requests is on screen.
+  const unfilled = section === "requests" ? (status.request?.unfilled ?? 0) : 0;
   const variablesNote = unfilled > 0 ? `${unfilled} unfilled` : "";
   const days = soonestExpiryDays(certNotAfter, now);
   const certNotes = [
@@ -78,8 +79,6 @@ export function SideRail({ section, onMode }: Props) {
     days !== null && days <= CERT_WARNING_DAYS ? (days < 0 ? "a certificate has expired" : `a certificate expires in ${days} d`) : "",
   ].filter(Boolean);
   const certNote = certNotes.join(", ");
-
-  const showVariables = section === "requests";
 
   return (
     <aside className="side-rail" aria-label="Sections and tools">
@@ -106,27 +105,22 @@ export function SideRail({ section, onMode }: Props) {
         })}
       </nav>
       <div className="rail-group rail-tools" role="group" aria-label="Tools">
-        {showVariables && (
-          <>
-            <span className="rail-divider" aria-hidden />
-            <button
-              type="button"
-              className={`rail-btn ${panels.variables ? "on" : ""}`}
-              data-variables-trigger
-              aria-expanded={panels.variables}
-              aria-controls="variables-panel"
-              aria-label={variablesNote ? `Variables, ${variablesNote}` : "Variables"}
-              title={`Variables${variablesNote ? ` · ${variablesNote}` : ""}`}
-              onClick={() => toggleSidePanel("variables")}
-            >
-              <span className="rail-glyph" aria-hidden>
-                {"{x}"}
-              </span>
-              <Badge badge={badge("variables")} />
-            </button>
-          </>
-        )}
         <div className="rail-spacer" data-tauri-drag-region={overlayTitleBar ? "" : undefined} />
+        <button
+          type="button"
+          className={`rail-btn ${panels.variables ? "on" : ""}`}
+          data-variables-trigger
+          aria-expanded={panels.variables}
+          aria-controls="variables-panel"
+          aria-label={variablesNote ? `Variables, ${variablesNote}` : "Variables"}
+          title={`Variables${variablesNote ? ` · ${variablesNote}` : ""}`}
+          onClick={() => toggleSidePanel("variables")}
+        >
+          <span className="rail-glyph" aria-hidden>
+            {"{x}"}
+          </span>
+          <Badge badge={section === "requests" ? badge("variables") : null} />
+        </button>
         <button
           type="button"
           className={`rail-btn ${panels.certificates ? "on" : ""}`}

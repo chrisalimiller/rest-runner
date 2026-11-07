@@ -15,7 +15,7 @@ import { useToast } from "./components/shell/Toast";
 import { useCertificates } from "./components/CertificatesDialog";
 import { useDeferredDelete } from "./components/shell/useDeferredDelete";
 import { VariablesProvider } from "./components/variables/VariablesContext";
-import { loadPanelState, savePanelState, VariablesPanel, type VariablesPanelState } from "./components/variables/VariablesPanel";
+import { showOwnVariables, VariablesPanel } from "./components/variables/VariablesPanel";
 import type { ShellCommand, ShellProps } from "./Root";
 import {
   addExample,
@@ -45,7 +45,7 @@ import {
   type SampleResponse,
 } from "./lib/collections";
 import { setBusy } from "./lib/busyWork";
-import { closeSidePanel, openSidePanel, useSidePanels } from "./lib/sidePanels";
+import { openSidePanel } from "./lib/sidePanels";
 import { newRequest } from "./lib/defaults";
 import { earlierSendLabel, earlierSends, earlierSendTone, sendTooltip, whenLabel } from "./lib/earlierSends";
 import { cleanHistory, fitHistory, historyLabel, historyOutcome, MAX_HISTORY_BODY, responseNotKept } from "./lib/history";
@@ -254,10 +254,6 @@ export default function App({ active = true, shell, command }: Props) {
   const [activeEnvId, setActiveEnvId] = useState<string | null>(() => load<string | null>(ACTIVE_ENV_KEY, null, isString));
   const [showEnvEditor, setShowEnvEditor] = useState(false);
   const [focusVarId, setFocusVarId] = useState<string | undefined>(undefined);
-  const [variablesView, setVariablesPanel] = useState<VariablesPanelState>(loadPanelState);
-  // Whether the panel is open lives in a small shared store, because the side rail's button and the Certificates panel use it too.
-  const panels = useSidePanels();
-  const variablesPanel = useMemo<VariablesPanelState>(() => ({ ...variablesView, open: panels.variables }), [variablesView, panels.variables]);
   const [exportDialog, setExportDialog] = useState(false);
   const toast = useToast();
   const notify = useCallback((message: string) => toast.show({ message }), [toast]);
@@ -803,23 +799,11 @@ export default function App({ active = true, shell, command }: Props) {
     else void exportWorkspace(false);
   };
 
-  const patchVariablesPanel = useCallback((patch: Partial<VariablesPanelState>) => {
-    const { open, ...rest } = patch;
-    if (open !== undefined) {
-      if (open) openSidePanel("variables");
-      else closeSidePanel("variables");
-    }
-    if (Object.keys(rest).length > 0) setVariablesPanel((p) => ({ ...p, ...rest }));
-  }, []);
   /** Opens the sidebar on the variables this request uses. */
-  const openVariables = useCallback(() => patchVariablesPanel({ open: true, filter: "request" }), [patchVariablesPanel]);
-  const closeVariables = useCallback(() => {
-    if (document.getElementById("variables-panel")?.contains(document.activeElement)) document.querySelector<HTMLElement>("[data-variables-trigger]")?.focus();
-    patchVariablesPanel({ open: false });
-  }, [patchVariablesPanel]);
-  useEffect(() => {
-    savePanelState(variablesPanel);
-  }, [variablesPanel]);
+  const openVariables = useCallback(() => {
+    showOwnVariables();
+    openSidePanel("variables");
+  }, []);
 
   /** Certificate rules in a workspace file, merged into the Certificates list. Returns text for the notice, or null when the file has none. */
   const importCertificatesFrom = async (text: string): Promise<string | null> => {
@@ -883,12 +867,21 @@ export default function App({ active = true, shell, command }: Props) {
     }
   };
 
+  // Testing and Flows can edit environments too (in their Variables panel), so read them again on coming back.
+  useEffect(() => {
+    if (shell.section === "requests") setEnvironments(loadEnvironments());
+  }, [shell.section]);
+
   const lastCommand = useRef<number | null>(null);
   useEffect(() => {
     if (!command || lastCommand.current === command.nonce) return;
     lastCommand.current = command.nonce;
     if (command.type === "clear-history") setHistory([]);
-    else if (command.type === "reload") {
+    else if (command.type === "edit-environments") {
+      setEnvironments(loadEnvironments());
+      setFocusVarId(command.varId);
+      setShowEnvEditor(true);
+    } else if (command.type === "reload") {
       setCollections(loadCollections());
       setEnvironments(loadEnvironments());
       setActiveEnvId(load<string | null>(ACTIVE_ENV_KEY, null, isString));
@@ -1311,17 +1304,17 @@ export default function App({ active = true, shell, command }: Props) {
         </section>
       </div>
         </div>
-        <VariablesPanel
-          state={variablesPanel}
-          onState={patchVariablesPanel}
-          used={usedNames}
-          onClose={closeVariables}
-          onEditEnvironments={(varId) => {
-            setFocusVarId(varId);
-            setShowEnvEditor(true);
-          }}
-          onSwitchEnvironment={setActiveEnvId}
-        />
+        {shell.section === "requests" && (
+          <VariablesPanel
+            used={usedNames}
+            scope="This request"
+            onEditEnvironments={(varId) => {
+              setFocusVarId(varId);
+              setShowEnvEditor(true);
+            }}
+            onSwitchEnvironment={setActiveEnvId}
+          />
+        )}
       </div>
 
       {curlDialog && (

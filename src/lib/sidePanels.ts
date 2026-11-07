@@ -26,6 +26,7 @@ function set(next: State) {
   if (next.variables === state.variables && next.certificates === state.certificates) return;
   state = next;
   save(CERTS_PANEL_KEY, { open: state.certificates });
+  save(VARIABLES_KEY, { ...load<Record<string, unknown>>(VARIABLES_KEY, {}), open: state.variables });
   listeners.forEach((l) => l());
 }
 

@@ -10,7 +10,8 @@ import { VariableHoverCard, type HoverTarget } from "./VariableHoverCard";
 const OPEN_MS = 300;
 const CLOSE_MS = 150;
 
-export interface VariablesApi {
+/** What the Variables panel needs: reading and editing values. The hover card adds the rest in Requests. */
+export interface PanelVariablesApi {
   environments: Environment[];
   activeEnvId: string | null;
   scriptVars: Vars;
@@ -23,6 +24,9 @@ export interface VariablesApi {
   clearAllScript(): void;
   /** Opens the Variables sidebar, on the request's own variables. */
   showInSidebar(name?: string): void;
+}
+
+export interface VariablesApi extends PanelVariablesApi {
   /** The pointer is over a placeholder. */
   hoverShow(name: string, rect: DOMRect, origin: HTMLElement | null): void;
   /** The pointer left the placeholder. */
@@ -49,33 +53,19 @@ interface ProviderProps {
   children: React.ReactNode;
 }
 
-export function VariablesProvider({ environments, activeEnvId, scriptVars, setEnvironments, setActiveEnvId, setScriptVars, onShowInSidebar, children }: ProviderProps) {
+interface CoreProps {
+  environments: Environment[];
+  activeEnvId: string | null;
+  scriptVars: Vars;
+  setEnvironments: (envs: Environment[]) => void;
+  setActiveEnvId: (id: string | null) => void;
+  setScriptVars: (vars: Vars) => void;
+  onShowInSidebar: (name?: string) => void;
+}
+
+/** Reading and editing variables, with a toast and Undo for each change. Testing and Flows use it without the hover card. */
+export function useVariablesCore({ environments, activeEnvId, scriptVars, setEnvironments, setActiveEnvId, setScriptVars, onShowInSidebar }: CoreProps): PanelVariablesApi {
   const toast = useToast();
-  const [card, setCard] = useState<HoverTarget | null>(null);
-  const cardRef = useRef<HoverTarget | null>(null);
-  cardRef.current = card;
-  const openTimer = useRef<number | undefined>(undefined);
-  const closeTimer = useRef<number | undefined>(undefined);
-  /** Once the card has focus or an edit in it, it stays until it is dismissed. */
-  const pinned = useRef(false);
-  const clearTimers = () => {
-    window.clearTimeout(openTimer.current);
-    window.clearTimeout(closeTimer.current);
-  };
-  useEffect(() => clearTimers, []);
-
-  const pin = useCallback(() => {
-    pinned.current = true;
-  }, []);
-  const closeCard = useCallback((restoreFocus: boolean) => {
-    window.clearTimeout(openTimer.current);
-    window.clearTimeout(closeTimer.current);
-    const origin = cardRef.current?.origin;
-    pinned.current = false;
-    setCard(null);
-    if (restoreFocus) origin?.focus();
-  }, []);
-
   /** Applies a change and offers to put things back as they were. */
   const change = useCallback(
     (message: string, apply: () => void, undo: () => void) => {
@@ -84,8 +74,7 @@ export function VariablesProvider({ environments, activeEnvId, scriptVars, setEn
     },
     [toast],
   );
-
-  const api = useMemo<VariablesApi>(
+  return useMemo<PanelVariablesApi>(
     () => ({
       environments,
       activeEnvId,
@@ -121,6 +110,41 @@ export function VariablesProvider({ environments, activeEnvId, scriptVars, setEn
         change("Cleared all script variables", () => setScriptVars({}), () => setScriptVars(scriptVars));
       },
       showInSidebar: onShowInSidebar,
+    }),
+    [environments, activeEnvId, scriptVars, setEnvironments, setActiveEnvId, setScriptVars, onShowInSidebar, change],
+  );
+}
+
+export function VariablesProvider({ environments, activeEnvId, scriptVars, setEnvironments, setActiveEnvId, setScriptVars, onShowInSidebar, children }: ProviderProps) {
+  const core = useVariablesCore({ environments, activeEnvId, scriptVars, setEnvironments, setActiveEnvId, setScriptVars, onShowInSidebar });
+  const [card, setCard] = useState<HoverTarget | null>(null);
+  const cardRef = useRef<HoverTarget | null>(null);
+  cardRef.current = card;
+  const openTimer = useRef<number | undefined>(undefined);
+  const closeTimer = useRef<number | undefined>(undefined);
+  /** Once the card has focus or an edit in it, it stays until it is dismissed. */
+  const pinned = useRef(false);
+  const clearTimers = () => {
+    window.clearTimeout(openTimer.current);
+    window.clearTimeout(closeTimer.current);
+  };
+  useEffect(() => clearTimers, []);
+
+  const pin = useCallback(() => {
+    pinned.current = true;
+  }, []);
+  const closeCard = useCallback((restoreFocus: boolean) => {
+    window.clearTimeout(openTimer.current);
+    window.clearTimeout(closeTimer.current);
+    const origin = cardRef.current?.origin;
+    pinned.current = false;
+    setCard(null);
+    if (restoreFocus) origin?.focus();
+  }, []);
+
+  const api = useMemo<VariablesApi>(
+    () => ({
+      ...core,
       hoverShow(name, rect, origin) {
         window.clearTimeout(closeTimer.current);
         if (pinned.current) return;
@@ -142,7 +166,7 @@ export function VariablesProvider({ environments, activeEnvId, scriptVars, setEn
         setCard({ name, rect, origin, focus: true });
       },
     }),
-    [environments, activeEnvId, scriptVars, setEnvironments, setActiveEnvId, setScriptVars, onShowInSidebar, change, closeCard],
+    [core, closeCard],
   );
 
   return (
