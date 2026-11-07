@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { SendFn } from "../batch";
 import { newRequest } from "../defaults";
-import { inlineScriptRunner } from "../testing/scriptRunner";
+import { inlineScriptRunner } from "../testing/scriptTestHelper";
 import { newAssertion, newSuite, newTestCase } from "../testing/suites";
 import { DEFAULT_SUITE_OPTIONS, type TestCase, type TestSuite } from "../testing/types";
 import type { PreparedRequest, RequestDef, SendOutcome } from "../types";

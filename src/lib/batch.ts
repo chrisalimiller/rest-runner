@@ -1,8 +1,10 @@
 import { sendWithScripts } from "./requestScripts";
 import type { Vars } from "./template";
-import { inlineScriptRunner, type ScriptRunner } from "./testing/scriptRunner";
+import { createWorkerScriptRunner, type ScriptRunner } from "./testing/scriptRunner";
 import type { ScriptOutput } from "./testing/types";
 import type { PreparedRequest, RequestDef, SendOutcome } from "./types";
+
+const defaultScriptRunner: ScriptRunner = (...args) => createWorkerScriptRunner().run(...args);
 
 export interface BatchOptions {
   /** How many requests may be in flight at once. */
@@ -86,7 +88,7 @@ export async function runBatch(
   /** Environment variables. A CSV column with the same name takes priority. */
   baseVars: Vars = {},
   /** How to run the request's pre/post scripts. */
-  scripts: BatchScripts = { runner: inlineScriptRunner },
+  scripts: BatchScripts = { runner: defaultScriptRunner },
 ): Promise<BatchEnd> {
   let next = 0;
   let stoppedOnFailure = false;

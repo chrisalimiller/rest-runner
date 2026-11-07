@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { maskSecrets } from "../secrets";
 import type { SendFn } from "../batch";
-import { inlineScriptRunner } from "../testing/scriptRunner";
+import { inlineScriptRunner } from "../testing/scriptTestHelper";
 import { newSuite, newTestCase } from "../testing/suites";
 import { DEFAULT_SUITE_OPTIONS, type TestSuite } from "../testing/types";
 import { parseRecords } from "../csv";
@@ -133,4 +134,35 @@ describe("run results", () => {
     expect(stepResultLabel(step)).toMatch(/ · 500$/);
     expect(toFlowHtmlReport(run)).toContain(`· 500</span>`);
   });
+});
+
+it("redacts report data before search indexes, CSV and nested srcdoc encoding without changing the run", async () => {
+  const secret = 'MiX&"Secret';
+  const run = await sampleRun();
+  const step = run.stepList.find((s) => s.child)!;
+  const result = step.child!.results[0];
+  result.caseName = secret;
+  result.notes = [secret, encodeURIComponent(secret), JSON.stringify(secret)];
+  step.label = secret;
+  step.varsAfter = { [secret]: secret, status: secret, type: secret };
+  step.child!.results.push(structuredClone(result));
+  const before = JSON.stringify(run);
+  // The previous export masked only the completed markup and leaves a doubly escaped secret.
+  const oldExport = maskSecrets(toFlowHtmlReport(run), [secret]);
+  expect(oldExport).toContain("MiX&amp;amp;");
+  const html = toFlowHtmlReport(run, { secrets: [secret] });
+  const csv = toFlowCsvReport(run, { secrets: [secret] });
+  expect(html).toContain("<iframe");
+  expect(html).not.toContain(secret);
+  expect(html.toLowerCase()).not.toContain(secret.toLowerCase());
+  expect(html).not.toContain("MiX&amp;amp;");
+  const srcdoc = html.match(/srcdoc="([^"]*)"/)![1];
+  const decode = (text: string) => text.replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+  const child = decode(srcdoc);
+  expect(decode(child)).not.toContain(secret);
+  expect(child.toLowerCase()).not.toContain(secret.toLowerCase());
+  expect(csv).not.toContain(secret);
+  expect(csv).not.toContain(encodeURIComponent(secret));
+  expect(csv).not.toContain("MiX&");
+  expect(JSON.stringify(run)).toBe(before);
 });

@@ -3,7 +3,7 @@ import { MAX_REPEAT } from "./plan";
 import type { SendFn } from "../batch";
 import type { PreparedRequest, SendOutcome } from "../types";
 import { planIterations, runSuite, runUpTo } from "./runner";
-import { inlineScriptRunner } from "./scriptRunner";
+import { inlineScriptRunner } from "./scriptTestHelper";
 import { newAssertion, newSuite, newTestCase } from "./suites";
 import { buildTestRun, caseStats } from "./testRun";
 import { DEFAULT_SUITE_OPTIONS, type CaseResult, type SuiteRunOptions, type TestCase, type TestSuite } from "./types";

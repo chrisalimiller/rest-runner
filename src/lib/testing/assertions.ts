@@ -1,3 +1,4 @@
+import { matchRegex } from "./regex";
 import { applyTemplate, type Vars } from "../template";
 import type { ResponseResult } from "../types";
 import { readPath } from "./jsonPath";
@@ -181,11 +182,7 @@ export function compareValue(op: AssertionOp, actual: unknown, expected: string)
       result = actual === undefined;
       break;
     case "matches":
-      try {
-        result = actual !== undefined && new RegExp(expected).test(typeof actual === "string" ? actual : JSON.stringify(actual));
-      } catch {
-        result = `"${expected}" is not a valid regular expression`;
-      }
+      result = "Regular expressions require asynchronous evaluation";
       break;
     case "isType":
       result = typeOf(actual) === expected.trim().toLowerCase();
@@ -208,4 +205,17 @@ export function evaluateAssertion(a: Assertion, res: ResponseResult, vars: Vars 
   if (typeof result === "string") return { name, passed: false, message: result, source: "assertion" };
   const seen = a.op === "isType" ? `${show(actual)} (${typeOf(actual)})` : show(actual);
   return { name, passed: result, message: `Got ${seen}`, source: "assertion" };
+}
+
+/** Async entry point for runtime and preview callers, including isolated regex evaluation. */
+export async function evaluateAssertionAsync(a: Assertion, res: ResponseResult, vars: Vars = {}, signal?: AbortSignal): Promise<Check> {
+  if (a.op !== "matches") return evaluateAssertion(a, res, vars);
+  const filled = { ...a, expected: applyTemplate(a.expected, vars), property: applyTemplate(a.property, vars) };
+  const name = describeAssertion(filled);
+  const got = actualValue(filled, res);
+  if ("error" in got) return { name, passed: false, message: got.error, source: "assertion" };
+  const actual = got.value;
+  const result = actual === undefined ? false : await matchRegex(filled.expected, typeof actual === "string" ? actual : JSON.stringify(actual), signal);
+  if (typeof result === "string") return { name, passed: false, message: result, source: "assertion" };
+  return { name, passed: result, message: `Got ${show(actual)}`, source: "assertion" };
 }

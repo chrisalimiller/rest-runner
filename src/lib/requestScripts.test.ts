@@ -4,7 +4,7 @@ import { newRequest } from "./defaults";
 import { toCsvReport, toHtmlReport } from "./report";
 import { combineScripts, hasScripts, sendWithScripts } from "./requestScripts";
 import { buildRun } from "./run";
-import { inlineScriptRunner } from "./testing/scriptRunner";
+import { inlineScriptRunner } from "./testing/scriptTestHelper";
 import type { PreparedRequest, RequestDef, SendOutcome } from "./types";
 
 function fakeServer(body = "{}", status = 200) {

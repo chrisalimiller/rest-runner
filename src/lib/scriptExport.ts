@@ -3,7 +3,7 @@ import { certificateForExport, type CertificateEntry, type CertificateExport } f
 import { stripJsonComments } from "./jsonFormat";
 import { withAuthDefaults } from "./request";
 import { applyTemplate, type Vars } from "./template";
-import type { KeyValue, RequestDef } from "./types";
+import { isHttpMethod, type KeyValue, type RequestDef } from "./types";
 import pythonRunner from "./scriptExport/runner.py?raw";
 import bashRunner from "./scriptExport/runner.sh?raw";
 
@@ -104,7 +104,7 @@ function headerComment(input: ScriptExportInput): string {
   ];
   if (input.envName) lines.push(`Environment: ${oneLine(input.envName)} (its values are in the settings below).`);
   for (const note of scriptExportNotes(input)) lines.push(`Note: ${note}`);
-  return lines.map((l) => `# ${l}`).join("\n").replace(/^# /, "");
+  return lines.flatMap((line) => line.split(/\r\n|\r|\n/)).map((line) => `# ${line}`).join("\n").replace(/^# /, "");
 }
 
 export function scriptFileName(def: RequestDef, language: ScriptLanguage): string {
@@ -172,6 +172,7 @@ function pyRequest(def: RequestDef): string {
 }
 
 export function buildPythonScript(input: ScriptExportInput): string {
+  if (!isHttpMethod(input.def.method)) throw new Error("Unsupported HTTP method.");
   const { def, options } = input;
   const settings = [
     "# The request. {{name}} placeholders are filled from each CSV row.",
@@ -350,6 +351,7 @@ function bashDefaults(defaults: Vars): string {
 }
 
 export function buildBashScript(input: ScriptExportInput): string {
+  if (!isHttpMethod(input.def.method)) throw new Error("Unsupported HTTP method.");
   const { def, options } = input;
   const settings = [
     "# Run options. Command-line options override these.",

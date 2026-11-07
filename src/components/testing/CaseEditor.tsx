@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { requestSummaryLine } from "../../lib/requestSummary";
 import type { Vars } from "../../lib/template";
 import { assertionResults, failureLine } from "../../lib/testing/caseStatus";
@@ -49,7 +49,15 @@ export function CaseEditor(props: Props) {
   const def = tc.request;
   const patchReq = (p: Partial<RequestDef>) => onChange({ ...tc, request: { ...def, ...p } });
   const activeAssertions = tc.assertions.filter((a) => a.enabled).length;
-  const results = useMemo(() => assertionResults(tc.assertions, latest), [tc.assertions, latest]);
+  const [results, setResults] = useState<Map<string, import("../../lib/testing/caseStatus").AssertionResult>>(new Map());
+  useEffect(() => {
+    const controller = new AbortController();
+    setResults(new Map());
+    void assertionResults(tc.assertions, latest, controller.signal).then((next) => {
+      if (!controller.signal.aborted) setResults(next);
+    });
+    return () => controller.abort();
+  }, [tc.assertions, latest]);
   const varSets = useMemo(() => detectVarSets(tc.postScript), [tc.postScript]);
   const lastVars = latest?.postScript?.vars;
 

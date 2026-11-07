@@ -171,6 +171,7 @@ impl Fixture {
             headers: vec![],
             body: None,
             timeout_ms: Some(5000),
+            max_response_bytes: None,
             tls: TlsSpec {
                 cert_id: cert.map(Into::into),
                 ca_ids: if trust_ca { vec!["serverca".into()] } else { vec![] },

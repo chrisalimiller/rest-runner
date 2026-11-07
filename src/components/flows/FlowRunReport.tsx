@@ -1,7 +1,7 @@
 import { triggerText } from "../../lib/flows/scheduleChip";
 import { OverflowMenu } from "../shell/OverflowMenu";
 import { TrashIcon } from "../shell/Icons";
-import { currentMasker, maskSecrets, storedSecrets } from "../../lib/secrets";
+import { currentMasker, storedSecrets } from "../../lib/secrets";
 import { useEffect, useMemo, useState } from "react";
 import { formatMs } from "../../lib/earlierSends";
 import { getFlowRun } from "../../lib/flows/flowRunStore";
@@ -155,7 +155,7 @@ export function FlowRunReport({ runId, onBack, onDelete, onShowCanvas }: Props) 
     setMessage(null);
     try {
       const secrets = storedSecrets();
-      const content = kind === "html" ? maskSecrets(toFlowHtmlReport(run), secrets) : toFlowCsvReport(run, { secrets });
+      const content = kind === "html" ? toFlowHtmlReport(run, { secrets }) : toFlowCsvReport(run, { secrets });
       const result = await saveTextFile(flowReportFileName(run, kind), content, kind === "html" ? "HTML report" : "CSV report", kind);
       if (result.saved) setMessage(result.path ? `Saved to ${result.path}` : "Report downloaded.");
     } catch (e) {

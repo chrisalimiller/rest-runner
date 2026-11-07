@@ -51,7 +51,7 @@ describe("evaluateAssertion", () => {
   it("reads headers case-insensitively", () => {
     expect(check({ source: "header", property: "Content-Type", op: "contains", expected: "json" }).passed).toBe(true);
     expect(check({ source: "header", property: "X-Missing", op: "notExists", expected: "" }).passed).toBe(true);
-    expect(check({ source: "header", property: "x-request-id", op: "matches", expected: "^abc-\\d+$" }).passed).toBe(true);
+
   });
 
   it("checks JSON values loosely and by type", () => {

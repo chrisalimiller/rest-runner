@@ -1,5 +1,6 @@
 import { applyTemplate, type Vars } from "../template";
-import { compareValue, describeAssertion, evaluateAssertion, OP_LABELS, opNeedsValue, OPS_FOR_SOURCE, SOURCE_LABELS, showValue } from "../testing/assertions";
+import { matchRegex } from "../testing/regex";
+import { compareValue, describeAssertion, evaluateAssertionAsync, OP_LABELS, opNeedsValue, OPS_FOR_SOURCE, SOURCE_LABELS, showValue } from "../testing/assertions";
 import type { AssertionOp, Check } from "../testing/types";
 import type { ResponseResult } from "../types";
 import type { ConditionSource, FlowCondition } from "./types";
@@ -35,7 +36,7 @@ export interface ConditionInput {
 }
 
 /** Checks an If node's condition. The check's `passed` is the branch: true or false. */
-export function evaluateCondition(c: FlowCondition, input: ConditionInput): Check {
+export async function evaluateCondition(c: FlowCondition, input: ConditionInput, signal?: AbortSignal): Promise<Check> {
   const filled: FlowCondition = { ...c, property: applyTemplate(c.property, input.vars), expected: applyTemplate(c.expected, input.vars) };
   const name = describeCondition(filled);
 
@@ -49,7 +50,9 @@ export function evaluateCondition(c: FlowCondition, input: ConditionInput): Chec
     if (filled.source === "last-result" && actual === undefined) {
       return { name, passed: false, message: "No Run step has run yet, so this counts as false.", source: "assertion" };
     }
-    const result = compareValue(filled.op, actual, filled.expected.trim());
+    const result = filled.op === "matches"
+      ? actual === undefined ? false : await matchRegex(filled.expected.trim(), typeof actual === "string" ? actual : JSON.stringify(actual), signal)
+      : compareValue(filled.op, actual, filled.expected.trim());
     if (typeof result === "string") return { name, passed: false, message: `${result}, so this counts as false.`, source: "assertion" };
     return { name, passed: result, message: `Got ${showValue(actual)}`, source: "assertion" };
   }
@@ -57,6 +60,6 @@ export function evaluateCondition(c: FlowCondition, input: ConditionInput): Chec
   if (!input.lastResponse) {
     return { name, passed: false, message: "No response from an earlier step to check, so this counts as false.", source: "assertion" };
   }
-  const check = evaluateAssertion({ id: "", enabled: true, ...c, source: filled.source }, input.lastResponse, input.vars);
+  const check = await evaluateAssertionAsync({ id: "", enabled: true, ...c, source: filled.source }, input.lastResponse, input.vars, signal);
   return { ...check, name };
 }

@@ -2,7 +2,7 @@ import type { SendFn } from "../batch";
 import { prepareRequest } from "../request";
 import { combineScripts } from "../requestScripts";
 import { findPlaceholders, type Vars } from "../template";
-import { evaluateAssertion } from "./assertions";
+import { evaluateAssertionAsync } from "./assertions";
 import { clampRepeat } from "./plan";
 import type { ScriptContext } from "./sandbox";
 import type { ScriptRunner } from "./scriptRunner";
@@ -127,7 +127,7 @@ export async function runCase(run: CaseRun, options: SuiteRunOptions, ctx: Omit<
 
   let preScript: ScriptOutput | undefined;
   if (preCode.trim() !== "") {
-    preScript = await ctx.scripts(preCode, scriptCtx("pre"), options.scriptTimeoutMs);
+    preScript = await ctx.scripts(preCode, scriptCtx("pre"), options.scriptTimeoutMs, ctx.signal);
     replaceVars(runVars, preScript.vars);
     if (preScript.error) {
       notes.push(`Pre-request script failed, so the request was not sent: ${preScript.error}`);
@@ -167,13 +167,16 @@ export async function runCase(run: CaseRun, options: SuiteRunOptions, ctx: Omit<
     const c = scriptCtx("post");
     c.request = { method: prepared.method, url: prepared.url, headers: prepared.headers, body: prepared.body };
     c.response = outcome.response;
-    postScript = await ctx.scripts(postCode, c, options.scriptTimeoutMs);
+    postScript = await ctx.scripts(postCode, c, options.scriptTimeoutMs, ctx.signal);
     replaceVars(runVars, postScript.vars);
   }
 
   const assertions = tc.assertions.filter((a) => a.enabled);
   const assertVars = { ...ctx.envVars, ...iter.data, ...runVars };
-  for (const a of assertions) checks.push(evaluateAssertion(a, outcome.response, assertVars));
+  for (const a of assertions) {
+    checks.push(await evaluateAssertionAsync(a, outcome.response, assertVars, ctx.signal));
+    if (ctx.signal.aborted) return null;
+  }
 
   const status = outcome.response.status;
   const hasStatusAssertion = assertions.some((a) => a.source === "status");

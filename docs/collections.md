@@ -1,5 +1,7 @@
 # Collections, examples and import/export
 
+REST Runner supports GET, POST, PUT, PATCH, DELETE, HEAD and OPTIONS. REST Runner files containing unsupported request methods are rejected; Postman imports skip unsupported requests and report a warning.
+
 ## Collections and folders
 
 Saved requests live in **collections**. A collection holds requests and **folders**, and folders nest as deep as you like.

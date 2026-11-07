@@ -139,29 +139,29 @@ describe("nodeLabel", () => {
   });
 });
 
-describe("evaluateCondition", () => {
+describe("evaluateCondition", async () => {
   const res: ResponseResult = { status: 404, statusText: "", headers: [["X-Id", "7"]], body: '{"items":[1,2]}', sizeBytes: 10, durationMs: 120 };
   const input = { vars: { role: "admin", count: "3" }, lastResult: "failed" as const, lastResponse: res };
 
-  it("checks variables", () => {
-    expect(evaluateCondition({ source: "variable", property: "role", op: "eq", expected: "admin" }, input).passed).toBe(true);
-    expect(evaluateCondition({ source: "variable", property: "count", op: "gt", expected: "2" }, input).passed).toBe(true);
-    expect(evaluateCondition({ source: "variable", property: "nope", op: "notExists", expected: "" }, input).passed).toBe(true);
-    expect(evaluateCondition({ source: "variable", property: "role", op: "eq", expected: "{{role}}" }, input).passed).toBe(true);
+  it("checks variables", async () => {
+    expect((await evaluateCondition({ source: "variable", property: "role", op: "eq", expected: "admin" }, input)).passed).toBe(true);
+    expect((await evaluateCondition({ source: "variable", property: "count", op: "gt", expected: "2" }, input)).passed).toBe(true);
+    expect((await evaluateCondition({ source: "variable", property: "nope", op: "notExists", expected: "" }, input)).passed).toBe(true);
+    expect((await evaluateCondition({ source: "variable", property: "role", op: "eq", expected: "{{role}}" }, input)).passed).toBe(true);
   });
 
-  it("checks the last result and the last response", () => {
-    expect(evaluateCondition({ source: "last-result", property: "", op: "eq", expected: "failed" }, input).passed).toBe(true);
-    expect(evaluateCondition({ source: "status", property: "", op: "eq", expected: "4xx" }, input).passed).toBe(true);
-    expect(evaluateCondition({ source: "json", property: "$.items", op: "contains", expected: "2" }, input).passed).toBe(true);
-    expect(evaluateCondition({ source: "header", property: "x-id", op: "eq", expected: "7" }, input).passed).toBe(true);
+  it("checks the last result and the last response", async () => {
+    expect((await evaluateCondition({ source: "last-result", property: "", op: "eq", expected: "failed" }, input)).passed).toBe(true);
+    expect((await evaluateCondition({ source: "status", property: "", op: "eq", expected: "4xx" }, input)).passed).toBe(true);
+    expect((await evaluateCondition({ source: "json", property: "$.items", op: "contains", expected: "2" }, input)).passed).toBe(true);
+    expect((await evaluateCondition({ source: "header", property: "x-id", op: "eq", expected: "7" }, input)).passed).toBe(true);
   });
 
-  it("counts as false when there is nothing to check yet", () => {
+  it("counts as false when there is nothing to check yet", async () => {
     const empty = { vars: {}, lastResult: null, lastResponse: null };
-    const c = evaluateCondition({ source: "status", property: "", op: "eq", expected: "200" }, empty);
+    const c = await evaluateCondition({ source: "status", property: "", op: "eq", expected: "200" }, empty);
     expect(c.passed).toBe(false);
     expect(c.message).toMatch(/No response/);
-    expect(evaluateCondition({ source: "last-result", property: "", op: "neq", expected: "failed" }, empty).passed).toBe(false);
+    expect((await evaluateCondition({ source: "last-result", property: "", op: "neq", expected: "failed" }, empty)).passed).toBe(false);
   });
 });

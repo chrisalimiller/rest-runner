@@ -1,5 +1,6 @@
 import { cleanCollections, locate, newCollection, newFolder, type Collection, type FolderNode, type RequestNode, type TreeNode } from "../collections";
 import { cleanSuites } from "../testing/suites";
+import { validateImportedMethods } from "../importMethods";
 import type { TestSuite } from "../testing/types";
 import { cleanImportedFlows } from "./flows";
 import type { Flow } from "./types";
@@ -120,6 +121,7 @@ export function importFlowsFile(text: string, current: { flows: Flow[]; suites: 
     throw new Error("The file is not valid JSON.");
   }
   if (data.app !== "rest-runner" || data.kind !== "flows") throw new Error("This is not a REST Runner flows file.");
+  validateImportedMethods([data.requests, data.suites]);
   const flows = mergeById(current.flows, cleanImportedFlows(data.flows));
   const suites = mergeById(current.suites, cleanSuites(data.suites));
 
