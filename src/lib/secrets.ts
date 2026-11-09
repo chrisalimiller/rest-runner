@@ -1,5 +1,5 @@
-import { ENVIRONMENTS_KEY, type Environment } from "./environments";
-import { load } from "./storage";
+import { loadEnvironments, type Environment } from "./environments";
+import { allValues } from "./secretStore";
 
 export const SECRET_MASK = "••••••";
 
@@ -63,10 +63,9 @@ export function secretValues(envs: readonly Environment[]): string[] {
   return [...out];
 }
 
-/** Secret values from the environments saved on this computer (all of them: a run may have used any). */
+/** Secret values known on this computer: the secret store (all environments: a run may have used any) plus any still in the loaded environments. */
 export function storedSecrets(): string[] {
-  const envs = load<unknown>(ENVIRONMENTS_KEY, []);
-  return Array.isArray(envs) ? secretValues(envs.filter((e): e is Environment => !!e && typeof e === "object" && Array.isArray((e as Environment).vars))) : [];
+  return [...new Set([...allValues(), ...secretValues(loadEnvironments())])];
 }
 
 /** A function that masks text with the secrets saved right now. */

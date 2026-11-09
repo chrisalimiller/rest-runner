@@ -51,7 +51,7 @@ import { earlierSendLabel, earlierSends, earlierSendTone, sendTooltip, whenLabel
 import { cleanHistory, fitHistory, historyLabel, historyOutcome, MAX_HISTORY_BODY, responseNotKept } from "./lib/history";
 import { looksLikeCurl, parseCurl, type CurlCommand, type CurlNote } from "./lib/curlImport";
 import { matchVariables, type VarSwap } from "./lib/curlVariables";
-import { environmentVars, guardFor, loadEnvironments, type Environment } from "./lib/environments";
+import { environmentVars, guardFor, loadEnvironments, saveEnvironments, type Environment } from "./lib/environments";
 import { loadCertificates, matchCertificate, saveCertificates } from "./lib/certificates";
 import { setRequestStatus } from "./lib/sectionStatus";
 import { resolvedUrl } from "./lib/requestSummary";
@@ -135,7 +135,6 @@ const MAX_HISTORY = 50;
 const SAVED_KEY = "rest-runner.saved";
 const COLLECTIONS_KEY = "rest-runner.collections";
 const EXPANDED_KEY = "rest-runner.expanded";
-const ENVIRONMENTS_KEY = "rest-runner.environments";
 const ACTIVE_ENV_KEY = "rest-runner.active-environment";
 const DETAILS_KEY = "rest-runner.request-details";
 const SPLIT_KEY = "rest-runner.split";
@@ -304,7 +303,7 @@ export default function App({ active = true, shell, command }: Props) {
     save(EXPANDED_KEY, existingExpanded(expanded, collections));
   }, [expanded, collections]);
   useEffect(() => {
-    save(ENVIRONMENTS_KEY, environments);
+    saveEnvironments(environments);
   }, [environments]);
   useEffect(() => {
     save(ACTIVE_ENV_KEY, activeEnvId);
