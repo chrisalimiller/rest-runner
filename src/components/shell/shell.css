@@ -16,7 +16,7 @@
   padding: 8px 8px 8px 14px;
   background: var(--bg-overlay);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-md);
   box-shadow: 0 8px 24px rgba(1, 4, 9, 0.6);
   font-size: 13px;
 }
@@ -51,7 +51,7 @@
   padding: 4px;
   background: var(--bg-overlay);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-md);
   box-shadow: 0 8px 24px rgba(1, 4, 9, 0.6);
   display: flex;
   flex-direction: column;
@@ -65,7 +65,7 @@
   text-align: left;
   background: none;
   border: 0;
-  border-radius: var(--radius);
+  border-radius: var(--r-sm);
   color: var(--text);
   padding: 6px 10px;
   font-size: 13px;
@@ -124,7 +124,7 @@
 .source-chip {
   font-size: 11px;
   padding: 0 7px;
-  border-radius: 10px;
+  border-radius: var(--r-pill);
   border: 1px solid var(--border);
   color: var(--muted);
   white-space: nowrap;
@@ -197,7 +197,7 @@
   padding: 14px;
   background: var(--bg-soft);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-md);
   color: var(--text);
   font: inherit;
   cursor: pointer;
@@ -230,7 +230,7 @@
   padding: 10px 12px;
   background: var(--bg-soft);
   border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border-radius: var(--r-md);
   color: var(--danger);
   font-family: var(--mono);
   font-size: 12px;
@@ -293,7 +293,7 @@
   height: 38px;
   padding: 0;
   border: 0;
-  border-radius: var(--r-md, 10px);
+  border-radius: var(--r-md);
   background: transparent;
   color: var(--muted);
   cursor: pointer;
@@ -322,7 +322,7 @@
   width: 3px;
   height: 20px;
   transform: translateY(-50%);
-  border-radius: 3px;
+  border-radius: var(--r-xs);
   background: var(--brand);
 }
 
@@ -350,7 +350,7 @@
   padding: 0 4px;
   display: inline-flex;
   align-items: center;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   font: 700 9px var(--mono);
   line-height: 1;
   box-shadow: 0 0 0 2px var(--bg-inset);
