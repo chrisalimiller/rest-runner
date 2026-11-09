@@ -41,7 +41,7 @@ colors:
   border-strong-light: "#a9b3c0"
   ink-light: "#18212b"
   ink-soft-light: "#2e3a47"
-  muted-light: "#586575"
+  muted-light: "#4a5666"
   faint-light: "#5a6674"
   accent-light: "#1f5fd0"
   send-green-light: "#1a7f37"
@@ -191,12 +191,12 @@ Cool grey ground, one blue, one green, and a status rainbow that always carries 
 - **Hover** (dark `#1c2128`, light `#e0e6ed`): row hover and active row background.
 - **Border / Muted border / Strong border** (dark `#30363d` / `#21262d` / `#484f58`; light `#c8d0da` / `#d7dde5` / `#a9b3c0`): control outlines, hairline dividers, hover outlines.
 - **Ink** (dark `#e6edf3`, light `#18212b`): primary text, 16.0:1 and 13.8:1 on canvas. **Ink soft** (`#c9d1d9` / `#2e3a47`): secondary text in flows and summaries.
-- **Muted** (dark `#8d96a0` 6.3:1; light `#586575` 5.05:1 on canvas, 4.6:1 on inset): labels, placeholders, inactive tabs.
-- **Faint** (dark `#7d8590` 5.1:1; light `#5a6674`): separators, line numbers, folder icons.
+- **Muted** (dark `#8d96a0` 6.3:1; light `#4a5666` 6.35:1 on canvas, 5.77:1 on inset): labels, placeholders, inactive tabs.
+- **Faint** (dark `#7d8590` 5.1:1; light `#5a6674` 4.98:1 on canvas, 4.53:1 on inset): separators, line numbers, folder icons.
 
 ### Status and method
 - **OK** (`#3fb950` / `#176a30`), **Redirect** (`#58a6ff` / `#0b5cc4`), **Warn** (`#d29922` / `#7a5200`), **Bad/Danger** (`#f85149` / `#bf1f2a`; solid fill `#da3633` / `#bf1f2a`): status text, response tile tint, pass/fail, unsaved dot (warn), error boxes. Tints are `color-mix(... 10-15%, transparent)`, never separate swatches.
-- **Methods**: GET `#3fb950` / `#176a30`; POST `#d29922` / `#8a5a00`; PUT `#58a6ff` / `#0b5cc4`; PATCH `#a371f7` / `#7240d0`; DELETE `#f85149` / `#bf1f2a`; HEAD, OPTIONS use Other (`#7d8590` / `#586575`). All pass 4.5:1 on canvas, surface and inset in both themes (lowest: dark Other 4.64:1 on surface; light POST 4.59:1 on inset). Method text is 11px bold uppercase, with a 14% tinted pill in the URL bar.
+- **Methods**: GET `#3fb950` / `#176a30`; POST `#d29922` / `#8a5a00`; PUT `#58a6ff` / `#0b5cc4`; PATCH `#a371f7` / `#7240d0`; DELETE `#f85149` / `#bf1f2a`; HEAD, OPTIONS use Other (`#7d8590` / `#586575` (hard-coded, not tied to `--muted`)). All pass 4.5:1 on canvas, surface and inset in both themes (lowest: dark Other 4.64:1 on surface; light POST 4.59:1 on inset). Method text is 11px bold uppercase, with a 14% tinted pill in the URL bar.
 - **Tab underline** (dark `#f78166`, light `#c4451c`): the one warm accent. It underlines the active tab in `.tabs` and the case tabs (2px, weight 600). It is not the focus colour.
 - **Placeholder** (`#ffa657` on 12% tint / `#9a4a00` on 8% tint): `{{variable}}` marks in URLs and bodies; 9.8:1 dark, 5.3:1 light.
 - **Node colours** (flows): Loop `#db61a2` / `#b0286f`; Note `#e3b341` / `#9a6700` with `--node-note-fg`; the rest reuse method and status tokens.
@@ -340,9 +340,9 @@ Quiet and compact. Every interactive element has a hover, a keyboard focus ring 
 - **Don't** use `Collapse` for long lists; its children stay mounted.
 
 ### Known gaps (as shipped)
-- **Light `--muted` and `--faint` are nearly identical** (`#586575` and `#5a6674`, 5.05:1 and 4.98:1 on canvas). Muted and faint text cannot be told apart in Mist. Dark has more separation (`#8d96a0` and `#7d8590`).
-- **Light muted text on inset is borderline** (`#586575` on `#dde3ea` is 4.60:1; light accent on inset is 4.51:1; light POST on inset is 4.59:1). They pass AA but with almost no margin.
-- **The collection tree does not animate its content.** Folder and collection children render with `{open && ...}`, so they appear instantly; only the chevron rotates (100ms, hard-coded). `Collapse` is used for the Variables panel, cURL panel and flow run panel, not the tree.
+- **Light `--other` and `--syn-comment` still use the old `#586575`.** They are hard-coded and no longer match `--muted` (`#4a5666`). They read at 4.60:1 on the inset background.
+- **Light muted/faint steps are small on inset.** `--faint` (`#5a6674`) is 4.53:1 on `#dde3ea`, and light accent on inset is 4.51:1; light POST on inset is 4.59:1. They pass AA with almost no margin.
+- **The collection tree animates only small subtrees.** `TreeChildren` animates expand and collapse for up to 40 rows and skips reduced motion, repeated toggles and drags; larger subtrees open instantly. The chevron still rotates at a hard-coded 100ms. `Collapse` is used for the Variables, cURL and flow run panels.
 - **Some motion is not on the tokens.** The request details drawer uses `150ms ease`, the chevron `0.1s`, the response body arrival `110ms ease-out`, and several loops (spinners 0.8s, pulse 1.2s, indeterminate 1.1s) use literals. The status tile and its code use `--dur-base` but `ease`, not `--ease-out`.
 - **Two focus treatments exist.** `styles.css` paints `--focus-ring` as a 2px `box-shadow`; `layout.css` later sets `outline: 2px solid var(--accent-fg); outline-offset: 1px` for buttons, summaries, separators and file-label links. `layout.css` loads last, so on buttons both apply (a box-shadow ring and an outline with 1px offset, both blue 2px). Inputs, selects and textareas use only the box-shadow.
 - **Legacy duplicate rules.** `styles.css` defines `.send`, `.modal`, `.chip`, `.secondary` and `.tabs` twice (an older GitHub-style block, then an overriding block). Edit the later block; the first is dead for most properties.
