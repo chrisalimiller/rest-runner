@@ -16,7 +16,7 @@ The app is a desktop window around a web view, and it keeps its data in that web
 | `rest-runner.collections` | Collections, folders, requests and examples |
 | `rest-runner.saved` | The old flat list of saved requests, read once to move them into collections, then left alone as a backup |
 | `rest-runner.expanded` | Which collections and folders are expanded |
-| `rest-runner.environments` | Environments and their variables |
+| `rest-runner.environments` | Environments and their variables. Values of variables marked secret are not kept here: they live in the operating system keychain (blank in this key), and older plain-text values are moved there on launch |
 | `rest-runner.active-environment` | The environment selected in Requests mode |
 | `rest-runner.script-vars` | [Script variables](scripting.md#variable-scoping) set by request scripts |
 | `rest-runner.batch-options` | Your batch run options |

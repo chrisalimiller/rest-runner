@@ -1,5 +1,5 @@
 import { cleanCollections } from "./collections";
-import { loadEnvironments, ENVIRONMENTS_KEY } from "./environments";
+import { loadEnvironments, saveEnvironments } from "./environments";
 import { cleanFlows, FLOWS_KEY } from "./flows/flows";
 import { load, save } from "./storage";
 import { cleanSuites } from "./testing/suites";
@@ -21,7 +21,7 @@ export function readWorkspace(): Workspace {
 
 /** Saves all four parts. Returns false when storage refused one of them. */
 export function writeWorkspace(ws: Workspace): boolean {
-  const results = [save(COLLECTIONS_KEY, ws.collections), save(ENVIRONMENTS_KEY, ws.environments), save(SUITES_KEY, ws.suites), save(FLOWS_KEY, ws.flows)];
+  const results = [save(COLLECTIONS_KEY, ws.collections), saveEnvironments(ws.environments), save(SUITES_KEY, ws.suites), save(FLOWS_KEY, ws.flows)];
   return results.every(Boolean);
 }
 

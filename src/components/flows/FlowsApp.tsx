@@ -3,7 +3,7 @@ import { setSectionStatus } from "../../lib/sectionStatus";
 import { scheduleChip } from "../../lib/flows/scheduleChip";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cleanCollections } from "../../lib/collections";
-import { ENVIRONMENTS_KEY, environmentVars, guardFor, loadEnvironments, type Environment } from "../../lib/environments";
+import { environmentVars, guardFor, loadEnvironments, saveEnvironments, type Environment } from "../../lib/environments";
 import { SectionVariablesPanel } from "../variables/SectionVariablesPanel";
 import { flowPlaceholders } from "../../lib/usedVariables";
 
@@ -158,7 +158,7 @@ export function FlowsApp({ active, shell, command }: Props) {
   /** Edits made in the Variables panel go straight to storage, where Requests and the other sections read them. */
   const editEnvironments = useCallback((envs: Environment[]) => {
     setEnvironments(envs);
-    save(ENVIRONMENTS_KEY, envs);
+    saveEnvironments(envs);
   }, []);
   const usedNames = useMemo(() => (flow ? flowPlaceholders(flow, items) : []), [flow, items]);
   const problems = useMemo(() => (flow && !readOnly ? validateFlow(flow, items.suites, items.findRequest) : []), [flow, items, readOnly]);

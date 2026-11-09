@@ -4,6 +4,7 @@ import Root from "./Root";
 import { ErrorBoundary } from "./components/shell/ErrorBoundary";
 import { ToastProvider } from "./components/shell/Toast";
 import { initSecretStore } from "./lib/secretStore";
+import { runSecretsMigration } from "./lib/secretsMigration";
 import { initTheme } from "./lib/theme";
 import { showWindowWhenReady } from "./lib/showWindow";
 import { setupWindowChrome } from "./lib/windowChrome";
@@ -29,4 +30,6 @@ void initSecretStore().then(() => {
       </ErrorBoundary>
     </React.StrictMode>,
   );
+  // After the first render: moves any plain-text secrets from local storage into the keychain (retried next launch on failure).
+  void runSecretsMigration();
 });
