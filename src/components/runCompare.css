@@ -23,9 +23,9 @@
 .compare-warnings {
   margin: 0;
   padding: 8px 10px 8px 26px;
-  background: var(--bg-soft);
-  border-left: 2px solid var(--warn);
-  border-radius: var(--r-xs);
+  background: color-mix(in srgb, var(--warn) 12%, var(--bg-soft));
+  border: 1px solid color-mix(in srgb, var(--warn) 35%, transparent);
+  border-radius: var(--r-sm);
 }
 
 .compare-stats {
