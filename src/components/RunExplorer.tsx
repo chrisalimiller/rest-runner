@@ -7,6 +7,7 @@ import { getRun } from "../lib/runStore";
 import { saveTextFile } from "../lib/saveFile";
 import { keepSelected } from "../lib/selection";
 import { CallDetail } from "./CallDetail";
+import { RunCompare } from "./RunCompare";
 
 interface Props {
   runId: string;
@@ -35,8 +36,10 @@ export function RunExplorer({ runId, onBack, onDelete, onLoadRequest }: Props) {
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [showLog, setShowLog] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [comparing, setComparing] = useState(false);
 
   useEffect(() => {
+    setComparing(false);
     let live = true;
     setRun(undefined);
     setMessage(null);
@@ -86,6 +89,8 @@ export function RunExplorer({ runId, onBack, onDelete, onLoadRequest }: Props) {
       </section>
     );
 
+  if (comparing) return <RunCompare run={run} onClose={() => setComparing(false)} />;
+
   const visible = filtered.slice(0, limit);
   const entry = run.entries.find((e) => e.index === selected) ?? null;
 
@@ -130,6 +135,9 @@ export function RunExplorer({ runId, onBack, onDelete, onLoadRequest }: Props) {
               Load this request
             </button>
           )}
+          <button className="secondary" onClick={() => setComparing(true)} title="Compare this run with another saved run of the same request">
+            Compare with…
+          </button>
           <button className="secondary" onClick={() => void exportReport("html")}>
             Export HTML report
           </button>

@@ -124,10 +124,27 @@ Buttons at the top of the explorer:
 
 - **← Back to request**
 - **Load this request**: opens the request as it was when the run started, on the Batch run tab.
+- **Compare with…**: see [Comparing two runs](#comparing-two-runs).
 - **Export HTML report**, **Export CSV report**
 - **Delete**: removes the run (exported reports are not affected).
 
 The last 30 runs are kept. Response bodies over 1 MB are cut to 1 MB when a run is saved, and the call's notes say so.
+
+## Comparing two runs
+
+**Compare with…** (in the run explorer) shows what changed between this run and another saved run, for example before and after a deploy.
+
+1. Pick the baseline in **Compare this run with**. The list holds other saved runs of the same request first (matched by request, or by method, URL and name for older runs), then runs of a different request that used the same CSV file name. With no other candidate you see a message instead; run the batch again and come back.
+2. Rows are matched by **row number**. If the runs have different row counts, different CSV files or columns, a different URL, or did not finish, a note above the results says so. Rows that exist in only one run are listed as **New row** or **Not in this run**.
+3. The summary shows passed, failed, average, median and 95th percentile time in this run, each with the change from the baseline (green is better, red is worse).
+4. The table lists only rows that changed, with the filters **All changes**, **Regressions**, **Fixes** and **Slower**:
+   - **Regression**: passed before and fails now, or the status class got worse (for example 4xx to 5xx).
+   - **Fix**: failed before and passes now, or the status class got better.
+   - **Slower**: at least 50% and at least 100 ms longer than the baseline. Both conditions must hold, so a 10 ms call becoming 90 ms is not flagged.
+   - Status classes are compared, not exact codes, so 200 to 201 is not a change.
+5. Click a row (or use the up and down arrow keys) to see the two calls side by side, with a field-by-field table of changed JSON response fields above them. The field table is skipped when a body is not JSON or when either saved response was cut short (the 1 MB limit); the full bodies are still in each side's Response tab.
+
+If nothing changed you see **No differences** together with the summary. Comparisons are computed only after you pick a run, and the table shows 500 rows at a time. Comparing is not included in the exported HTML or CSV reports.
 
 ## Reports
 
