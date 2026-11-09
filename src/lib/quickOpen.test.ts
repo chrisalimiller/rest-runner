@@ -3,7 +3,8 @@ import { newCollection, newFolder, requestNode, type Collection } from "./collec
 import { newRequest } from "./defaults";
 import { newFlow, newNode } from "./flows/flows";
 import type { FlowRunSummary } from "./flows/types";
-import { collectionItems, commandItems, flowItems, flowRunItems, fuzzyScore, historyItems, KIND_ORDER, readableUrl, searchQuickOpen, suiteItems, type QuickItem } from "./quickOpen";
+import { collectionItems, flowItems, flowRunItems, fuzzyScore, historyItems, KIND_ORDER, readableUrl, searchQuickOpen, suiteItems, type QuickItem } from "./quickOpen";
+import { buildCommands, commandItems, type CommandCtx } from "./commands";
 import { newSuite, newTestCase } from "./testing/suites";
 
 function sampleCollections(): Collection[] {
@@ -129,11 +130,19 @@ describe("readableUrl", () => {
   });
 });
 
-describe("command items", () => {
-  const items = [...commandItems(), ...collectionItems(sampleCollections())];
+const ctx: CommandCtx = {
+  section: "requests",
+  environments: [{ id: "e1", name: "Staging" }],
+  activeEnvId: null,
+  theme: "system",
+  actions: {} as CommandCtx["actions"],
+};
 
-  it("are hidden with no query and found by curl, paste or import", () => {
-    expect(searchQuickOpen(items, "", KIND_ORDER.requests).map((g) => g.kind)).not.toContain("command");
+describe("command items", () => {
+  const items = [...commandItems(buildCommands(ctx), ctx), ...collectionItems(sampleCollections())];
+  const kinds = (q: string) => searchQuickOpen(items, q, KIND_ORDER.requests).map((g) => g.kind);
+
+  it("are found by curl, paste or import, and come first when no request is named that", () => {
     for (const q of ["curl", "cu", "paste", "import", "Import from"]) {
       const groups = searchQuickOpen(items, q, KIND_ORDER.requests);
       expect(groups[0]).toMatchObject({ kind: "command", label: "Commands" });
@@ -141,12 +150,31 @@ describe("command items", () => {
     }
   });
 
-  it("do not match unrelated or one-letter queries", () => {
-    expect(searchQuickOpen(items, "r", KIND_ORDER.requests).map((g) => g.kind)).not.toContain("command");
-    expect(searchQuickOpen(items, "ticket", KIND_ORDER.requests).map((g) => g.kind)).not.toContain("command");
+  it("come after the other groups with no query, and after a request whose title contains the query", () => {
+    expect(kinds("").at(-1)).toBe("command");
+    expect(kinds("ticket")).not.toContain("command");
+    const withName = [...items, { kind: "request" as const, id: "x", title: "Send invoice", detail: "" }];
+    const groups = searchQuickOpen(withName, "send", KIND_ORDER.requests);
+    expect(groups[0].kind).toBe("request");
+    expect(groups.at(-1)?.kind).toBe("command");
   });
 
-  it("come first in every mode", () => {
-    for (const order of Object.values(KIND_ORDER)) expect(order[0]).toBe("command");
+  it("do not match one-letter queries", () => {
+    expect(kinds("r")).not.toContain("command");
+  });
+
+  it("with a leading > show only commands, all of them when nothing follows", () => {
+    const all = searchQuickOpen(items, ">", KIND_ORDER.requests);
+    expect(all).toHaveLength(1);
+    expect(all[0].items.length).toBe(items.filter((i) => i.kind === "command").length);
+    const dark = searchQuickOpen(items, "> dark", KIND_ORDER.requests);
+    expect(dark).toHaveLength(1);
+    expect(dark[0].items[0].title).toBe("Appearance: Dark");
+    expect(searchQuickOpen(items, ">zzzz", KIND_ORDER.requests)).toEqual([]);
+  });
+
+  it("find environments by name after the Environment: prefix", () => {
+    const titles = searchQuickOpen(items, ">Environment: ", KIND_ORDER.requests)[0].items.map((i) => i.title);
+    expect(titles).toEqual(["Environment: None", "Environment: Staging"]);
   });
 });

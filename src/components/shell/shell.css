@@ -423,3 +423,46 @@
   .toast[data-state="closing"],
   .overflow-popover[data-state="closing"] { animation: overlay-fade-out var(--dur-fast, 100ms) linear both; }
 }
+
+/* --- Keyboard shortcuts dialog (ShortcutsDialog) --- */
+.shortcuts-modal {
+  width: min(520px, 94vw);
+  height: auto;
+  max-height: 86vh;
+}
+
+.shortcuts-body {
+  padding: 4px 16px 16px;
+  overflow: auto;
+  font-size: var(--fs-md);
+}
+
+.shortcuts-group {
+  margin: 14px 0 4px;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.shortcuts-list {
+  margin: 0;
+}
+
+.shortcuts-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  min-height: 28px;
+}
+
+.shortcuts-row dt {
+  min-width: 0;
+}
+
+.shortcuts-row dd {
+  margin: 0;
+  flex: none;
+}
