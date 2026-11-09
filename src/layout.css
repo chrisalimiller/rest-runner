@@ -1319,6 +1319,11 @@ button.unfilled-dot:hover {
 
 .splitter:focus-visible {
   outline: none;
+  box-shadow: var(--focus-ring-inset);
+}
+
+.splitter:focus-visible::before {
+  width: 6px;
 }
 
 .pane-switch {

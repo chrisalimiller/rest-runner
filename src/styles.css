@@ -12,6 +12,8 @@
   --muted: #8d96a0;
   --accent: #2f81f7;
   --accent-fg: #4493f8;
+  --focus-ring: 0 0 0 2px var(--accent-fg);
+  --focus-ring-inset: inset 0 0 0 2px var(--accent-fg);
   --accent-subtle: rgba(56, 139, 253, 0.15);
   --accent-text: #ffffff;
   --tab-underline: #f78166;
@@ -109,6 +111,31 @@ input:focus,
 select:focus,
 textarea:focus {
   border-color: var(--accent);
+}
+
+/* Keyboard focus ring (not painted on mouse click). */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+a:focus-visible,
+[tabindex]:focus-visible,
+[role="tab"]:focus-visible,
+[role="menuitem"]:focus-visible,
+[role="option"]:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  border-color: var(--accent);
+}
+
+[tabindex="-1"]:focus-visible {
+  box-shadow: none;
 }
 
 button {
@@ -1468,8 +1495,8 @@ textarea {
 }
 
 .code-editor-frame:focus-within {
-  border-color: #1f6feb;
-  box-shadow: inset 0 0 0 1px #1f6feb;
+  border-color: var(--accent-fg);
+  box-shadow: var(--focus-ring-inset);
 }
 
 /* In the soft body block the block itself shows the focus ring. */
