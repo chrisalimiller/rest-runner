@@ -1,5 +1,3 @@
-> DRAFT derived from the repository; needs owner review.
-
 # Product
 
 <!-- impeccable:product-schema 1 -->
@@ -13,7 +11,7 @@ Note: the UI is a React web app shown in a Tauri 2 desktop web view (macOS and W
 ## Users
 Evidence suggests people who send and check REST API calls by hand and in bulk: they paste cURL or import Postman collections, run one request per CSV row, write test suites with assertions and scripts, and chain them into scheduled flows. Docs also mention handing a workspace to a teammate and exporting batch runs as Python/Bash scripts to run without the app.
 
-> TODO(owner): Who is the primary user (developer, QA/test engineer, support or ops person, integrator)? What situation are they in when they open the app, and how technical are they?
+**Owner-confirmed:** mixed users, developer-led. Developers are the primary users; QA and ops people are secondary.
 
 ## Product Purpose
 A lightweight desktop app for running REST requests, running a request once per CSV row with `{{placeholders}}`, checking responses with test suites, and chaining cases, suites and saved requests into flows (README.md, docs/README.md).
@@ -27,12 +25,12 @@ Jobs evidenced in the repo:
 - Chain steps in flows with branches, loops, retries and schedules (scheduled while the app is open).
 - Use client certificates / CA for hosts that need them.
 
-> TODO(owner): What does success look like (adoption, time to first request, trust in batch runs, replacing which tool)? The repo has no success metrics.
+**Owner-confirmed success:** it serves as a personal or internal tool, with no adoption target. The measure that matters is trust in batch runs: people rely on bulk runs and their reports without re-checking by hand.
 
 ## Positioning
 Evidenced mechanisms: everything is local (no account, server or sync; requests go straight from the machine, sent from the Rust side so browser CORS does not apply); CSV-driven batch runs are a first-class feature; one app covers requests, tests and flows; installers for macOS and Windows.
 
-> TODO(owner): How do you position this against neighbouring tools, and which competitors or anti-references (tools or looks to avoid resembling) are binding? The repo names none.
+**Owner-confirmed positioning:** lightweight and local. Anti-references, all binding: cloud-first clients (account walls, sync prompts, team upsells, telemetry banners), crowded icon-heavy toolbars in the style of large API platforms, and generic SaaS styling (gradient heroes, pastel cards, marketing polish) inside a work tool.
 
 ## Operating Context
 - Desktop window used for sustained, repeated work, with several requests open as tabs and batches, suites and flows running side by side.
@@ -52,7 +50,7 @@ Evidenced mechanisms: everything is local (no account, server or sync; requests 
 ## Brand Commitments
 From BRAND.md: the name is "REST Runner", set in monospace as `rest-runner` with a purple hyphen; the mark is a runner between JSON braces (4:3, `brand/`); brand purple `#bc8cff` (strong `#8957e5`) kept distinct from the PATCH method color; the runner is not colored purple; mark at least 20px tall in UI. The README describes the app as lightweight and offline-capable, with a GitHub-style dark theme. Docs voice is plain, direct and task-oriented.
 
-> TODO(owner): Which personality words describe the product and its voice? Is the GitHub-style dark theme a binding commitment or a current default?
+**Owner-confirmed personality:** fast and no-nonsense. Terse, keyboard-driven, gets out of the way. **Appearance:** the GitHub-style dark theme is the current default, not a binding commitment. Dark and the Mist light theme are both supported, and the System setting decides by default.
 
 ## Evidence on Hand
 - Brand files in `brand/`, rules in BRAND.md.
@@ -61,26 +59,14 @@ From BRAND.md: the name is "REST Runner", set in monospace as `rest-runner` with
 - Absent: no user research, testimonials, metrics, pricing, or competitor analysis in the repo. Do not fabricate them.
 
 ## Product Principles
-Derived from repo behaviour; confirm.
+Derived from repo behaviour; confirmed correct and complete by the owner.
 1. Local first: nothing leaves the machine except the requests the user sends.
 2. Show exactly what will be and was sent (URL preview, Preview of batch rows, the request actually sent, notes on every call).
 3. Guard against costly mistakes: warn on unfilled placeholders, mark production environments, mask secrets, undo instead of confirm on deletes.
 4. One set of ideas across the app: placeholders, environments and scripts work the same in Requests, Testing and Flows.
 5. Results stay portable: HTML/CSV reports, workspace JSON, standalone scripts.
 
-> TODO(owner): Are these the right principles, and are any missing or wrong?
-
 ## Accessibility & Inclusion
 Repo shows focus trapping in dialogs, Escape handling, arrow-key radio groups and system/light/dark appearance support. No stated standard.
 
-> TODO(owner): Is there a required accessibility target (for example WCAG 2.1 AA) or known user needs?
-
-## Open questions
-1. Who is the primary user, and in what situation do they use the app?
-2. What does success look like (metrics, adoption, tools replaced)?
-3. How is REST Runner positioned against neighbouring API clients?
-4. Which competitors or anti-references are binding (looks or behaviours to avoid)?
-5. Which brand personality words and voice describe the product?
-6. Is the GitHub-style dark theme a binding commitment or a current default?
-7. Is there a required accessibility standard or known user needs?
-8. Are the derived product principles correct and complete?
+**Owner-confirmed:** best effort, with no formal standard. Keep the existing practices (visible focus, keyboard access, contrast checked on both themes, reduced-motion paths).
