@@ -107,7 +107,7 @@ An environment is a named set of variables, such as Dev and Prod, each with its 
 - Each environment has a **colour** (none, green, blue, amber or red), picked with the swatches at the top of the editor. It shows as a dot on the switch. Environments named Prod, Production or PRD start red. An environment with a colour also marks the buttons that act on it: **Send**, **Run suite** and **Run** (in Flows) get an outline in that colour and say where they will go, for example **Send to Prod**. There is no confirmation dialog; the colour and the label are the guard.
 - Only enabled variables with a non-empty name are used.
 - Environments are edited in Requests mode. Testing mode has its own environment switch (its choice is remembered separately from Requests), and it picks up edits when you switch over.
-- Environment values are stored on this computer only, in the app's local storage. Workspace exports leave [secret values](#secret-values) out unless you ask for them.
+- Environment values are stored on this computer only, in the app's local storage, except [secret values](#secret-values), which are kept in the system keychain. Workspace exports leave [secret values](#secret-values) out unless you ask for them.
 
 ### Secret values
 
@@ -115,9 +115,10 @@ Each variable row has a **lock** button. A locked (secret) value shows as dots w
 
 - hidden as `••••••` in the cURL panel (the **Copy** button still copies the real command), the **Sent request** view, batch call details, and the test and flow reports;
 - always masked in the HTML and CSV report exports;
+- stored in the system keychain (macOS Keychain or Windows Credential Manager), not in local storage: see [Secret variables and the system keychain](data-and-storage.md#secret-variables-and-the-system-keychain);
 - left out of **Export workspace** unless you choose **Include them** in the export dialog. Leaving them out is the default: the file keeps each secret variable with an empty value, so a teammate who imports it sees which values to fill in, and importing such a file never blanks a secret you already have.
 
-Masking matches the value wherever it appears, including inside JSON, URL-encoded text and the HTML report. It cannot hide a secret that was transformed first, for example inside a Basic auth header (which is base64).
+Masking matches the value wherever it appears, including inside JSON, URL-encoded text and the HTML report. It cannot hide a secret that was transformed first, for example inside a Basic auth header (which is base64). A credential typed directly into a header or auth field (not through a secret variable) is stored as plain text and shows a **Plain text** badge.
 
 ## Sending
 
