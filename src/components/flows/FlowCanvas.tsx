@@ -29,6 +29,29 @@ import type { FlowProblem } from "../../lib/flows/validate";
 import { StepPicker } from "./StepPicker";
 import { CanvasActions, NoteNodeView, StepNodeView, type CanvasStatus, type StepData } from "./FlowNodeView";
 
+/** The resolved theme, following data-theme on <html> (falls back to the system setting before it is set). */
+function useResolvedColorMode(): "dark" | "light" {
+  const read = (): "dark" | "light" => {
+    const t = document.documentElement.dataset.theme;
+    if (t === "light" || t === "dark") return t;
+    return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  };
+  const [mode, setMode] = useState(read);
+  useEffect(() => {
+    const update = () => setMode(read());
+    const observer = new MutationObserver(update);
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    const mq = window.matchMedia?.("(prefers-color-scheme: light)");
+    mq?.addEventListener("change", update);
+    update();
+    return () => {
+      observer.disconnect();
+      mq?.removeEventListener("change", update);
+    };
+  }, []);
+  return mode;
+}
+
 const NODE_TYPES = { step: StepNodeView, note: NoteNodeView };
 
 /** What each step type is for, shown as the palette tooltip. */
@@ -114,6 +137,7 @@ const EDGE_CLASS: Record<FlowOutput, string> = {
 };
 
 function Canvas({ flow, items, problems, runState, animatedEdges, onChange, onSelect, focusNodeId, focusNonce, readOnly, deselectNonce }: Props) {
+  const colorMode = useResolvedColorMode();
   const rf = useReactFlow();
   const wrapRef = useRef<HTMLDivElement>(null);
   const flowRef = useRef(flow);
@@ -393,7 +417,7 @@ function Canvas({ flow, items, problems, runState, animatedEdges, onChange, onSe
             deleteKeyCode={readOnly ? null : ["Backspace", "Delete"]}
             nodesDraggable={!readOnly}
             nodesConnectable={!readOnly}
-            colorMode="dark"
+            colorMode={colorMode}
             minZoom={MIN_ZOOM}
             maxZoom={2}
           >

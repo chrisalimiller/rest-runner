@@ -91,7 +91,224 @@
   --group-pink-fg: #f778ba;
   --group-neutral-bg: rgba(141, 150, 160, 0.12);
   --group-neutral-fg: var(--muted);
+  --accent-rgb: 56, 139, 253;
+  --node-note-bg: rgba(187, 128, 9, 0.16);
+  --scrim: rgba(1, 4, 9, 0.7);
+  --scrim-soft: rgb(0 0 0 / 35%);
+  --shadow-lg: rgba(1, 4, 9, 0.85);
+  --shadow-pop: rgba(1, 4, 9, 0.65);
+  --shadow-md: rgba(1, 4, 9, 0.6);
+  --shadow-sm: rgba(1, 4, 9, 0.5);
+  --shadow-xs: rgba(1, 4, 9, 0.4);
+  --shadow-ambient: rgb(0 0 0 / 25%);
+  --minimap-mask: rgba(1, 4, 9, 0.6);
+  --selection: rgba(56, 139, 253, 0.4);
+  /* Code editor syntax, on --bg-inset. */
+  --syn-property: #7ee787;
+  --syn-string: #a5d6ff;
+  --syn-number: #79c0ff;
+  --syn-punct: #e6edf3;
+  --syn-invalid: #f85149;
+  --syn-keyword: #ff7b72;
+  --syn-function: #d2a8ff;
+  --syn-comment: #8b949e;
+  --syn-class: #ffa657;
+  --syn-selection: rgba(56, 139, 253, 0.3);
+  --syn-bracket-bg: rgba(63, 185, 80, 0.25);
+  --syn-bracket-ring: rgba(63, 185, 80, 0.6);
   color-scheme: dark;
+}
+
+/* Mist: the light theme. Cool slate, deliberately not bright white.
+   Applies when the app sets data-theme="light", and, before it does, when the system prefers light. */
+:root[data-theme="light"] {
+  --bg: #e9edf2;
+  --bg-soft: #f2f5f8;
+  --bg-inset: #dde3ea;
+  --bg-input: #f2f5f8;
+  --bg-overlay: #f2f5f8;
+  --bg-hover: #e0e6ed;
+  --border: #c8d0da;
+  --border-muted: #d7dde5;
+  --border-strong: #a9b3c0;
+  --text: #18212b;
+  --text-soft: #2e3a47;
+  --muted: #586575;
+  --faint: #5f6c7b;
+  --accent: #1f5fd0;
+  --accent-fg: #1f5fd0;
+  --accent-rgb: 31, 95, 208;
+  --accent-subtle: rgba(31, 95, 208, 0.06);
+  --accent-text: #ffffff;
+  --text-on-accent: #ffffff;
+  --tab-underline: #c4451c;
+  --btn-bg: #e3e8ee;
+  --btn-hover: #d5dce5;
+  --btn-border: rgba(24, 33, 43, 0.18);
+  --primary: #1a7f37;
+  --primary-hover: #166b2e;
+  --danger: #bf1f2a;
+  --danger-bg: #bf1f2a;
+  --danger-fg: #a5202b;
+  --danger-hover: #a5202b;
+  --ok: #176a30;
+  --redirect: #0b5cc4;
+  --bad: #bf1f2a;
+  --warn: #7a5200;
+  --get: #176a30;
+  --post: #8a5a00;
+  --put: #0b5cc4;
+  --patch: #7240d0;
+  --delete: #bf1f2a;
+  --other: #586575;
+  --border-focus: #1f5fd0;
+  --border-hover: #7d8896;
+  --scroll-thumb: #b4bdc9;
+  --node-loop: #b0286f;
+  --node-note: #9a6700;
+  --node-note-fg: #7a5200;
+  --node-note-bg: rgba(122, 82, 0, 0.12);
+  --edge-muted: #7a8796;
+  --canvas-dot: #c3cbd6;
+  --placeholder-fg: #9a4a00;
+  --placeholder-bg: rgba(154, 74, 0, 0.08);
+  --brand: #6f3fc9;
+  --brand-strong: #5b2fb0;
+  --ok-subtle: rgba(23, 106, 48, 0.14);
+  --bad-subtle: rgba(191, 31, 42, 0.08);
+  --group-purple-bg: rgba(111, 63, 201, 0.12);
+  --group-purple-fg: #6f3fc9;
+  --group-blue-bg: rgba(11, 92, 196, 0.12);
+  --group-blue-fg: #0b5cc4;
+  --group-green-bg: rgba(23, 106, 48, 0.12);
+  --group-green-fg: #176a30;
+  --group-amber-bg: rgba(122, 82, 0, 0.12);
+  --group-amber-fg: #7a5200;
+  --group-pink-bg: rgba(168, 32, 95, 0.12);
+  --group-pink-fg: #a8205f;
+  --group-neutral-bg: rgba(88, 101, 117, 0.08);
+  --group-neutral-fg: var(--muted);
+  /* Scrims and shadows: slate instead of near-black. */
+  --scrim: rgba(24, 33, 43, 0.4);
+  --scrim-soft: rgba(24, 33, 43, 0.3);
+  --shadow-lg: rgba(24, 33, 43, 0.28);
+  --shadow-pop: rgba(24, 33, 43, 0.24);
+  --shadow-md: rgba(24, 33, 43, 0.2);
+  --shadow-sm: rgba(24, 33, 43, 0.18);
+  --shadow-xs: rgba(24, 33, 43, 0.12);
+  --shadow-ambient: rgba(24, 33, 43, 0.16);
+  --minimap-mask: rgba(88, 101, 117, 0.28);
+  --selection: rgba(31, 95, 208, 0.28);
+  /* Code editor syntax, on --bg-inset. */
+  --syn-property: #116329;
+  --syn-string: #0a3069;
+  --syn-number: #0550ae;
+  --syn-punct: #18212b;
+  --syn-invalid: #bf1f2a;
+  --syn-keyword: #b31d28;
+  --syn-function: #6639ba;
+  --syn-comment: #586575;
+  --syn-class: #953800;
+  --syn-selection: rgba(31, 95, 208, 0.24);
+  --syn-bracket-bg: rgba(23, 106, 48, 0.18);
+  --syn-bracket-ring: rgba(23, 106, 48, 0.6);
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #e9edf2;
+    --bg-soft: #f2f5f8;
+    --bg-inset: #dde3ea;
+    --bg-input: #f2f5f8;
+    --bg-overlay: #f2f5f8;
+    --bg-hover: #e0e6ed;
+    --border: #c8d0da;
+    --border-muted: #d7dde5;
+    --border-strong: #a9b3c0;
+    --text: #18212b;
+    --text-soft: #2e3a47;
+    --muted: #586575;
+    --faint: #5f6c7b;
+    --accent: #1f5fd0;
+    --accent-fg: #1f5fd0;
+    --accent-rgb: 31, 95, 208;
+    --accent-subtle: rgba(31, 95, 208, 0.06);
+    --accent-text: #ffffff;
+    --text-on-accent: #ffffff;
+    --tab-underline: #c4451c;
+    --btn-bg: #e3e8ee;
+    --btn-hover: #d5dce5;
+    --btn-border: rgba(24, 33, 43, 0.18);
+    --primary: #1a7f37;
+    --primary-hover: #166b2e;
+    --danger: #bf1f2a;
+    --danger-bg: #bf1f2a;
+    --danger-fg: #a5202b;
+    --danger-hover: #a5202b;
+    --ok: #176a30;
+    --redirect: #0b5cc4;
+    --bad: #bf1f2a;
+    --warn: #7a5200;
+    --get: #176a30;
+    --post: #8a5a00;
+    --put: #0b5cc4;
+    --patch: #7240d0;
+    --delete: #bf1f2a;
+    --other: #586575;
+    --border-focus: #1f5fd0;
+    --border-hover: #7d8896;
+    --scroll-thumb: #b4bdc9;
+    --node-loop: #b0286f;
+    --node-note: #9a6700;
+    --node-note-fg: #7a5200;
+    --node-note-bg: rgba(122, 82, 0, 0.12);
+    --edge-muted: #7a8796;
+    --canvas-dot: #c3cbd6;
+    --placeholder-fg: #9a4a00;
+    --placeholder-bg: rgba(154, 74, 0, 0.08);
+    --brand: #6f3fc9;
+    --brand-strong: #5b2fb0;
+    --ok-subtle: rgba(23, 106, 48, 0.14);
+    --bad-subtle: rgba(191, 31, 42, 0.08);
+    --group-purple-bg: rgba(111, 63, 201, 0.12);
+    --group-purple-fg: #6f3fc9;
+    --group-blue-bg: rgba(11, 92, 196, 0.12);
+    --group-blue-fg: #0b5cc4;
+    --group-green-bg: rgba(23, 106, 48, 0.12);
+    --group-green-fg: #176a30;
+    --group-amber-bg: rgba(122, 82, 0, 0.12);
+    --group-amber-fg: #7a5200;
+    --group-pink-bg: rgba(168, 32, 95, 0.12);
+    --group-pink-fg: #a8205f;
+    --group-neutral-bg: rgba(88, 101, 117, 0.08);
+    --group-neutral-fg: var(--muted);
+    /* Scrims and shadows: slate instead of near-black. */
+    --scrim: rgba(24, 33, 43, 0.4);
+    --scrim-soft: rgba(24, 33, 43, 0.3);
+    --shadow-lg: rgba(24, 33, 43, 0.28);
+    --shadow-pop: rgba(24, 33, 43, 0.24);
+    --shadow-md: rgba(24, 33, 43, 0.2);
+    --shadow-sm: rgba(24, 33, 43, 0.18);
+    --shadow-xs: rgba(24, 33, 43, 0.12);
+    --shadow-ambient: rgba(24, 33, 43, 0.16);
+    --minimap-mask: rgba(88, 101, 117, 0.28);
+    --selection: rgba(31, 95, 208, 0.28);
+    /* Code editor syntax, on --bg-inset. */
+    --syn-property: #116329;
+    --syn-string: #0a3069;
+    --syn-number: #0550ae;
+    --syn-punct: #18212b;
+    --syn-invalid: #bf1f2a;
+    --syn-keyword: #b31d28;
+    --syn-function: #6639ba;
+    --syn-comment: #586575;
+    --syn-class: #953800;
+    --syn-selection: rgba(31, 95, 208, 0.24);
+    --syn-bracket-bg: rgba(23, 106, 48, 0.18);
+    --syn-bracket-ring: rgba(23, 106, 48, 0.6);
+    color-scheme: light;
+  }
 }
 
 * {
@@ -1170,7 +1387,7 @@ button.chip.active {
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgb(0 0 0 / 35%);
+  background: var(--scrim-soft);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1185,7 +1402,7 @@ button.chip.active {
   height: min(560px, 86vh);
   display: flex;
   flex-direction: column;
-  box-shadow: 0 10px 40px rgb(0 0 0 / 25%);
+  box-shadow: 0 10px 40px var(--shadow-ambient);
 }
 
 .modal-head {
@@ -1254,7 +1471,24 @@ button.chip.active {
    =================================================================== */
 
 ::selection {
-  background: rgba(56, 139, 253, 0.4);
+  background: var(--selection);
+}
+
+/* Browser autofill paints its own (often yellow or white) background; keep it on the theme. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  -webkit-text-fill-color: var(--text);
+  caret-color: var(--text);
+  transition: background-color 9999s ease-out 0s;
+}
+
+/* Native <select> popups: follow the theme where the platform allows it. */
+select option {
+  background: var(--bg-soft);
+  color: var(--text);
 }
 
 /* Scrollbars */
@@ -1577,31 +1811,31 @@ textarea {
 .response-meta .status {
   padding: 1px 8px;
   border-radius: var(--r-pill);
-  background: rgba(110, 118, 129, 0.15);
+  background: color-mix(in srgb, var(--edge-muted) 15%, transparent);
 }
 
 .response-meta .status.ok {
-  background: rgba(46, 160, 67, 0.15);
+  background: color-mix(in srgb, var(--primary-hover) 15%, transparent);
 }
 
 .response-meta .status.bad {
-  background: rgba(248, 81, 73, 0.15);
+  background: color-mix(in srgb, var(--bad) 15%, transparent);
 }
 
 .response-meta .status.redirect {
-  background: rgba(56, 139, 253, 0.15);
+  background: rgba(var(--accent-rgb), 0.15);
 }
 
 .error-box {
-  background: rgba(248, 81, 73, 0.1);
-  border: 1px solid rgba(248, 81, 73, 0.4);
+  background: color-mix(in srgb, var(--bad) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bad) 40%, transparent);
   border-radius: var(--r-sm);
   padding: 10px 12px;
 }
 
 /* Chips and pills */
 .chip {
-  background: rgba(110, 118, 129, 0.1);
+  background: color-mix(in srgb, var(--edge-muted) 10%, transparent);
   border-color: var(--border);
   border-radius: var(--r-pill);
   font-size: var(--fs-xs);
@@ -1609,20 +1843,20 @@ textarea {
 }
 
 .chip.ok {
-  background: rgba(46, 160, 67, 0.15);
-  border-color: rgba(63, 185, 80, 0.4);
+  background: color-mix(in srgb, var(--primary-hover) 15%, transparent);
+  border-color: color-mix(in srgb, var(--ok) 40%, transparent);
   color: var(--ok);
 }
 
 .chip.bad {
-  background: rgba(248, 81, 73, 0.1);
-  border-color: rgba(248, 81, 73, 0.4);
+  background: color-mix(in srgb, var(--bad) 10%, transparent);
+  border-color: color-mix(in srgb, var(--bad) 40%, transparent);
   color: var(--danger);
 }
 
 .chip.env {
-  background: rgba(56, 139, 253, 0.1);
-  border-color: rgba(56, 139, 253, 0.4);
+  background: rgba(var(--accent-rgb), 0.1);
+  border-color: rgba(var(--accent-rgb), 0.4);
   color: var(--accent-fg);
 }
 
@@ -1722,14 +1956,14 @@ table.results tr.selected {
 
 /* Modal */
 .modal-backdrop {
-  background: rgba(1, 4, 9, 0.7);
+  background: var(--scrim);
 }
 
 .modal {
   background: var(--bg-overlay);
   border-color: var(--border);
   border-radius: var(--r-lg);
-  box-shadow: 0 0 0 1px var(--border), 0 16px 32px rgba(1, 4, 9, 0.85);
+  box-shadow: 0 0 0 1px var(--border), 0 16px 32px var(--shadow-lg);
 }
 
 .modal-head {
@@ -1883,7 +2117,7 @@ select {
 .tree-count {
   font-size: var(--fs-xs);
   color: var(--muted);
-  background: rgba(110, 118, 129, 0.15);
+  background: color-mix(in srgb, var(--edge-muted) 15%, transparent);
   border-radius: var(--r-pill);
   padding: 0 6px;
   flex: none;
@@ -1940,7 +2174,7 @@ select {
   background: var(--bg-overlay);
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
-  box-shadow: 0 8px 24px rgba(1, 4, 9, 0.85);
+  box-shadow: 0 8px 24px var(--shadow-lg);
   padding: 4px;
   display: flex;
   flex-direction: column;
@@ -2039,8 +2273,8 @@ select {
 }
 
 .chip.example-chip {
-  border: 1px solid rgba(163, 113, 247, 0.4);
-  background: rgba(163, 113, 247, 0.12);
+  border: 1px solid color-mix(in srgb, var(--patch) 40%, transparent);
+  background: color-mix(in srgb, var(--patch) 12%, transparent);
   color: var(--patch);
   white-space: nowrap;
 }

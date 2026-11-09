@@ -23,20 +23,20 @@ import { useEffect, useRef } from "react";
 import { findJsonComments, findJsonProblem, formatJson } from "../lib/jsonFormat";
 import { placeholderAt, placeholderPattern } from "../lib/requestSummary";
 
-/** GitHub dark syntax colors. */
-const githubDarkHighlight = HighlightStyle.define([
-  { tag: t.propertyName, color: "#7ee787" },
-  { tag: t.string, color: "#a5d6ff" },
-  { tag: [t.number, t.bool, t.null], color: "#79c0ff" },
-  { tag: [t.brace, t.squareBracket, t.separator, t.punctuation], color: "#e6edf3" },
-  { tag: t.invalid, color: "#f85149" },
-  { tag: [t.keyword, t.operatorKeyword, t.modifier, t.controlKeyword], color: "#ff7b72" },
-  { tag: [t.function(t.variableName), t.function(t.propertyName)], color: "#d2a8ff" },
-  { tag: [t.lineComment, t.blockComment], color: "#8b949e", fontStyle: "italic" },
-  { tag: t.regexp, color: "#7ee787" },
-  { tag: [t.definition(t.variableName), t.function(t.definition(t.variableName))], color: "#d2a8ff" },
-  { tag: [t.className, t.self, t.special(t.variableName)], color: "#ffa657" },
-  { tag: [t.atom, t.standard(t.variableName), t.escape], color: "#79c0ff" },
+/** Syntax colors come from --syn-* tokens, so they follow the theme. */
+const themedHighlight = HighlightStyle.define([
+  { tag: t.propertyName, color: "var(--syn-property)" },
+  { tag: t.string, color: "var(--syn-string)" },
+  { tag: [t.number, t.bool, t.null], color: "var(--syn-number)" },
+  { tag: [t.brace, t.squareBracket, t.separator, t.punctuation], color: "var(--syn-punct)" },
+  { tag: t.invalid, color: "var(--syn-invalid)" },
+  { tag: [t.keyword, t.operatorKeyword, t.modifier, t.controlKeyword], color: "var(--syn-keyword)" },
+  { tag: [t.function(t.variableName), t.function(t.propertyName)], color: "var(--syn-function)" },
+  { tag: [t.lineComment, t.blockComment], color: "var(--syn-comment)", fontStyle: "italic" },
+  { tag: t.regexp, color: "var(--syn-property)" },
+  { tag: [t.definition(t.variableName), t.function(t.definition(t.variableName))], color: "var(--syn-function)" },
+  { tag: [t.className, t.self, t.special(t.variableName)], color: "var(--syn-class)" },
+  { tag: [t.atom, t.standard(t.variableName), t.escape], color: "var(--syn-number)" },
 ]);
 
 /** Languages for read-only views of exported scripts. */
@@ -54,9 +54,9 @@ const editorTheme = EditorView.theme(
     ".cm-line": { padding: "0 12px" },
     "&.cm-focused": { outline: "none" },
     ".cm-cursor": { borderLeftColor: "var(--accent-fg)" },
-    "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": { backgroundColor: "rgba(56, 139, 253, 0.3) !important" },
+    "&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection": { backgroundColor: "var(--syn-selection) !important" },
     ".cm-activeLine": { backgroundColor: "transparent" },
-    ".cm-matchingBracket": { backgroundColor: "rgba(63, 185, 80, 0.25)", outline: "1px solid rgba(63, 185, 80, 0.6)" },
+    ".cm-matchingBracket": { backgroundColor: "var(--syn-bracket-bg)", outline: "1px solid var(--syn-bracket-ring)" },
     ".cm-placeholder": { color: "var(--muted)" },
     ".cm-template-var": { borderRadius: "4px", padding: "0 2px", textDecoration: "underline dotted", textUnderlineOffset: "3px" },
     "&.hover-var .cm-content, &.hover-var .cm-line": { cursor: "help" },
@@ -292,16 +292,16 @@ export function CodeEditor({
   onViewRef.current = onView;
 
   const modeExtensions = (): Extension[] => {
-    if (language) return [scriptLanguages[language](), syntaxHighlighting(githubDarkHighlight)];
+    if (language) return [scriptLanguages[language](), syntaxHighlighting(themedHighlight)];
     if (isJs) {
       return [
         javascript(),
-        syntaxHighlighting(githubDarkHighlight),
+        syntaxHighlighting(themedHighlight),
         completions && !readOnly ? autocompletion({ override: [completions] }) : [],
         findIssues && !readOnly ? issueLinter(findIssues) : [],
       ];
     }
-    return isJson ? [json(), jsonCommentTokens, commentMarks, syntaxHighlighting(githubDarkHighlight), readOnly ? [] : [jsonLinter, formatOnPaste]] : [];
+    return isJson ? [json(), jsonCommentTokens, commentMarks, syntaxHighlighting(themedHighlight), readOnly ? [] : [jsonLinter, formatOnPaste]] : [];
   };
 
   useEffect(() => {

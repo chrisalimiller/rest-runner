@@ -109,14 +109,14 @@
 
 .cert-badge.soon {
   color: var(--warn);
-  background: rgba(210, 153, 34, 0.15);
-  border: 1px solid rgba(210, 153, 34, 0.5);
+  background: color-mix(in srgb, var(--warn) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 50%, transparent);
 }
 
 .cert-badge.expired {
   color: var(--danger);
-  background: rgba(248, 81, 73, 0.12);
-  border: 1px solid rgba(248, 81, 73, 0.5);
+  background: color-mix(in srgb, var(--bad) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bad) 50%, transparent);
 }
 
 .cert-tester {
@@ -136,8 +136,8 @@
   gap: 4px;
   font-size: var(--fs-xs);
   color: var(--ok);
-  background: rgba(63, 185, 80, 0.12);
-  border: 1px solid rgba(63, 185, 80, 0.45);
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ok) 45%, transparent);
   border-radius: var(--r-pill);
   padding: 0 8px;
   white-space: nowrap;
@@ -154,8 +154,8 @@
 
 .cert-chip.warn {
   color: var(--warn);
-  background: rgba(210, 153, 34, 0.15);
-  border-color: rgba(210, 153, 34, 0.5);
+  background: color-mix(in srgb, var(--warn) 15%, transparent);
+  border-color: color-mix(in srgb, var(--warn) 50%, transparent);
 }
 
 /* The Certificates side panel: docked beside the content, in the slot next to the side rail. */

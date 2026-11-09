@@ -174,7 +174,7 @@
   border: 1px solid var(--node-color, var(--border));
   border-radius: var(--r-md);
   background: var(--bg-overlay);
-  box-shadow: 0 8px 24px rgba(1, 4, 9, 0.6);
+  box-shadow: 0 8px 24px var(--shadow-md);
   font-size: var(--fs-sm);
 }
 
@@ -219,7 +219,7 @@
   --xy-controls-button-color: var(--text-soft);
   --xy-controls-button-border-color: var(--border);
   --xy-minimap-background-color: var(--bg-inset);
-  --xy-minimap-mask-background-color: rgba(1, 4, 9, 0.6);
+  --xy-minimap-mask-background-color: var(--minimap-mask);
   --xy-minimap-node-background-color: var(--border);
   --xy-attribution-background-color: transparent;
   --xy-selection-background-color: var(--accent-subtle);
@@ -249,7 +249,7 @@
   background: var(--bg-soft);
   color: var(--text);
   font-size: var(--fs-sm);
-  box-shadow: 0 1px 0 rgba(1, 4, 9, 0.4);
+  box-shadow: 0 1px 0 var(--shadow-xs);
 }
 
 .flow-node.selected {
@@ -417,9 +417,9 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  border: 1px solid rgba(227, 179, 65, 0.45);
+  border: 1px solid color-mix(in srgb, var(--node-note) 45%, transparent);
   border-radius: var(--r-sm);
-  background: rgba(187, 128, 9, 0.16);
+  background: var(--node-note-bg);
 }
 
 .flow-note.selected {
@@ -430,7 +430,7 @@
   flex: none;
   height: 12px;
   cursor: grab;
-  border-bottom: 1px dashed rgba(227, 179, 65, 0.3);
+  border-bottom: 1px dashed color-mix(in srgb, var(--node-note) 30%, transparent);
 }
 
 .flow-note-text {
@@ -562,13 +562,13 @@
 .flow-problem.error {
   color: var(--text);
   background: var(--bad-subtle);
-  border-color: rgba(248, 81, 73, 0.4);
+  border-color: color-mix(in srgb, var(--bad) 40%, transparent);
 }
 
 .flow-problem.warning {
   color: var(--text-soft);
-  background: rgba(210, 153, 34, 0.12);
-  border-color: rgba(210, 153, 34, 0.35);
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  border-color: color-mix(in srgb, var(--warn) 35%, transparent);
 }
 
 button.flow-problem:disabled {
@@ -594,9 +594,9 @@ button.flow-problem:hover:not(:disabled) {
   border: 1px solid var(--border);
 }
 
-.flow-run-end.end-passed { border-color: rgba(63, 185, 80, 0.5); background: var(--ok-subtle); }
-.flow-run-end.end-passed-handled { border-color: rgba(210, 153, 34, 0.5); background: rgba(210, 153, 34, 0.15); }
-.flow-run-end.end-failed { border-color: rgba(248, 81, 73, 0.5); background: var(--bad-subtle); }
+.flow-run-end.end-passed { border-color: color-mix(in srgb, var(--ok) 50%, transparent); background: var(--ok-subtle); }
+.flow-run-end.end-passed-handled { border-color: color-mix(in srgb, var(--warn) 50%, transparent); background: color-mix(in srgb, var(--warn) 15%, transparent); }
+.flow-run-end.end-failed { border-color: color-mix(in srgb, var(--bad) 50%, transparent); background: var(--bad-subtle); }
 
 .flow-steps {
   list-style: none;
@@ -649,8 +649,8 @@ button.flow-problem:hover:not(:disabled) {
   color: var(--muted);
 }
 
-.flow-step-out.out-failed { color: var(--bad); border-color: rgba(248, 81, 73, 0.4); }
-.flow-step-out.out-passed { color: var(--ok); border-color: rgba(63, 185, 80, 0.4); }
+.flow-step-out.out-failed { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, transparent); }
+.flow-step-out.out-passed { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
 
 .flow-step-where {
   font-size: var(--fs-xs);
@@ -896,7 +896,7 @@ table.results.flow-report-steps td {
   background: var(--bg-overlay);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
-  box-shadow: 0 8px 24px rgba(1, 4, 9, 0.6);
+  box-shadow: 0 8px 24px var(--shadow-md);
 }
 
 .step-picker-search {

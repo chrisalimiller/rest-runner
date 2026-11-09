@@ -236,7 +236,7 @@
   background: var(--bg-overlay);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
-  box-shadow: 0 8px 24px rgba(1, 4, 9, 0.6);
+  box-shadow: 0 8px 24px var(--shadow-md);
   font-size: var(--fs-sm);
 }
 
