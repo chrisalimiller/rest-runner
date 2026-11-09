@@ -28,7 +28,7 @@
 }
 
 .cert-field > span {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 
@@ -51,7 +51,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   white-space: nowrap;
 }
 
@@ -63,8 +63,8 @@
   padding: 10px 12px;
   background: var(--bg-soft);
   border: 1px solid var(--border-muted);
-  border-radius: var(--radius);
-  font-size: 12px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-sm);
 }
 
 .cert-details dt {
@@ -77,23 +77,23 @@
 }
 
 .cert-fingerprint {
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 
 .cert-error {
   color: var(--danger);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .cert-warn {
   color: var(--warn);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .cert-note {
   margin: 0;
   padding: 8px 12px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .cert-note.warn {
@@ -101,22 +101,22 @@
 }
 
 .cert-badge {
-  font-size: 10px;
-  border-radius: 10px;
+  font-size: var(--fs-xs);
+  border-radius: var(--r-pill);
   padding: 0 6px;
   white-space: nowrap;
 }
 
 .cert-badge.soon {
   color: var(--warn);
-  background: rgba(210, 153, 34, 0.15);
-  border: 1px solid rgba(210, 153, 34, 0.5);
+  background: color-mix(in srgb, var(--warn) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--warn) 50%, transparent);
 }
 
 .cert-badge.expired {
   color: var(--danger);
-  background: rgba(248, 81, 73, 0.12);
-  border: 1px solid rgba(248, 81, 73, 0.5);
+  background: color-mix(in srgb, var(--bad) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--bad) 50%, transparent);
 }
 
 .cert-tester {
@@ -134,11 +134,11 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--ok);
-  background: rgba(63, 185, 80, 0.12);
-  border: 1px solid rgba(63, 185, 80, 0.45);
-  border-radius: 10px;
+  background: color-mix(in srgb, var(--ok) 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--ok) 45%, transparent);
+  border-radius: var(--r-pill);
   padding: 0 8px;
   white-space: nowrap;
   max-width: 220px;
@@ -154,8 +154,8 @@
 
 .cert-chip.warn {
   color: var(--warn);
-  background: rgba(210, 153, 34, 0.15);
-  border-color: rgba(210, 153, 34, 0.5);
+  background: color-mix(in srgb, var(--warn) 15%, transparent);
+  border-color: color-mix(in srgb, var(--warn) 50%, transparent);
 }
 
 /* The Certificates side panel: docked beside the content, in the slot next to the side rail. */
@@ -200,7 +200,7 @@
 
 .certs-panel-section code {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 
 .certs-this-name {
@@ -218,7 +218,7 @@
   align-items: center;
   gap: 8px;
   margin-top: 8px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .certs-list {
@@ -235,7 +235,7 @@
   width: 100%;
   padding: 6px 8px;
   border: 0;
-  border-radius: var(--r-sm, 8px);
+  border-radius: var(--r-md);
   background: transparent;
   color: var(--text);
   text-align: left;

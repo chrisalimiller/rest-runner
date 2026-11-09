@@ -41,6 +41,10 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
   const [pretty, setPretty] = useState(true);
   const [now, setNow] = useState(Date.now());
   const startRef = useRef(0);
+  // Counts distinct responses (by outcome identity), so the arrival cue replays per send but not on tab switches or other re-renders.
+  const arrivalRef = useRef<{ outcome: SendOutcome | null; n: number }>({ outcome: null, n: 0 });
+  if (outcome && arrivalRef.current.outcome !== outcome) arrivalRef.current = { outcome, n: arrivalRef.current.n + 1 };
+  const arrival = arrivalRef.current.n % 2 ? "a" : "b";
 
   useEffect(() => {
     if (!sending) return;
@@ -87,7 +91,7 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
     <section className="response">
       <div className="response-top">
         <div className="status-hero">
-          <span className={`status-tile tint-${tone}`}>
+          <span className={`status-tile tint-${tone}`} data-arrive={arrival}>
             <span className={`hero-code tone-${tone}`}>{res ? res.status : "ERR"}</span>
             <span className="hero-text">{res ? res.statusText || "" : cancelled ? "Cancelled" : "No response"}</span>
           </span>
@@ -160,7 +164,7 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
             </button>
           </div>
         )}
-      <div className="response-body">
+      <div className="response-body" data-arrive={tab === "body" && (res?.body.length ?? 0) <= 200_000 ? arrival : undefined}>
         {tab === "body" &&
           (res && bodyNote ? (
             <p className="muted small body-note">{bodyNote}</p>

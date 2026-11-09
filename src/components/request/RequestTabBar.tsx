@@ -144,7 +144,7 @@ export function RequestTabBar(props: Props) {
     if (t.pinned) {
       return (
         <div key={t.id} className={`rtab-wrap pinned ${active ? "on" : ""}`} role="presentation" {...wrapProps}>
-          <button {...common} className={`rtab-pin m-${t.def.method.toLowerCase()}`} title={`${name} (${t.def.method}, pinned)`}>
+          <button {...common} className={`rtab-pin m-${t.def.method.toLowerCase()}`} aria-label={`${name} (${t.def.method}, pinned)`} title={`${name} (${t.def.method}, pinned)`}>
             {tabMonogram(t.def.name, t.def.method)}
           </button>
           {busy ? <span className="rtab-pin-badge"><Spinner /></span> : dirty ? <span className="rtab-dot rtab-pin-badge" aria-hidden /> : null}

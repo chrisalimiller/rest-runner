@@ -13,12 +13,12 @@
     "windows": [
       {
         "label": "main",
+        "visible": false,
         "title": "REST Runner",
         "width": 1280,
         "height": 820,
         "minWidth": 900,
         "minHeight": 600,
-        "theme": "Dark",
         "backgroundColor": "#0d1117",
         "titleBarStyle": "Overlay",
         "hiddenTitle": true,

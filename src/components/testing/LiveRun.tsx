@@ -51,7 +51,7 @@ export function LiveRun({ live, onOpenReport, compact = false }: { live: LiveRun
           </span>
         </div>
         <div className="progress-bar">
-          <div className={`progress-fill ${failed ? "has-failures" : ""}`} style={{ width: `${pct}%` }} />
+          <div className={`progress-fill ${failed ? "has-failures" : ""}`} style={{ transform: `scaleX(${Math.min(1, Math.max(0, pct / 100))})` }} />
         </div>
         <div className="progress-stats small">
           <span className={failed ? "status bad" : "muted"}>{failed} failed</span>
@@ -82,7 +82,7 @@ export function LiveRun({ live, onOpenReport, compact = false }: { live: LiveRun
   return (
     <div className="live-run">
       <div className="progress-bar">
-        <div className={`progress-fill ${failed ? "has-failures" : ""}`} style={{ width: `${pct}%` }} />
+        <div className={`progress-fill ${failed ? "has-failures" : ""}`} style={{ transform: `scaleX(${Math.min(1, Math.max(0, pct / 100))})` }} />
       </div>
       <div className="progress-stats small">
         <span>

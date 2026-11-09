@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ExitDiv } from "../ExitDiv";
 import { useEscape } from "../useEscape";
 import { MoreIcon } from "./Icons";
 import "./shell.css";
@@ -80,7 +81,7 @@ export function OverflowMenu({ items, label = "More actions", disabled, trigger,
         {trigger ?? <MoreIcon />}
       </button>
       {open && (
-        <div className="overflow-popover" role="menu" aria-label={label} ref={menu} onKeyDown={onKeyDown} style={pos ? { top: pos.top, right: pos.right } : { visibility: "hidden" }}>
+        <ExitDiv className="overflow-popover" role="menu" aria-label={label} ref={menu} onKeyDown={onKeyDown} style={pos ? { top: pos.top, right: pos.right } : { visibility: "hidden" }}>
           {items.map((item) => (
             <button
               key={item.label}
@@ -101,7 +102,7 @@ export function OverflowMenu({ items, label = "More actions", disabled, trigger,
               {item.hint && <kbd className="overflow-hint">{item.hint}</kbd>}
             </button>
           ))}
-        </div>
+        </ExitDiv>
       )}
     </span>
   );

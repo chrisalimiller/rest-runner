@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
+import { Collapse } from "../Collapse";
 import { useSidePanelSlot } from "../shell/SidePanelSlot";
 import { ENV_COLOR_VARS, type Environment } from "../../lib/environments";
 import { maskSecrets, SECRET_MASK, storedSecrets } from "../../lib/secrets";
@@ -359,8 +360,8 @@ export function VariablesPanel({ used, scope, showScript = true, api: given, onE
             <button className="variables-fold" aria-expanded={state.othersOpen} onClick={() => onState({ othersOpen: !state.othersOpen })}>
               {state.othersOpen ? "▾" : "▸"} Other environments ({others.length})
             </button>
-            {state.othersOpen &&
-              others.map((g) => (
+            <Collapse open={state.othersOpen}>
+              {others.map((g) => (
                 <div key={g.env.id} className="variables-other">
                   <div className="variables-head">
                     <span className="small">
@@ -373,6 +374,7 @@ export function VariablesPanel({ used, scope, showScript = true, api: given, onE
                   <EnvRows group={g} api={api} />
                 </div>
               ))}
+            </Collapse>
           </section>
         )}
 

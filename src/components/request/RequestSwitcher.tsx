@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { HttpMethod } from "../../lib/types";
 import { ChevronDownIcon, PencilIcon } from "../shell/Icons";
+import { ExitDiv } from "../ExitDiv";
 import { useEscape } from "../useEscape";
 
 interface Props {
@@ -42,7 +43,8 @@ export function RequestSwitcher(props: Props) {
 
   return (
     <div className="switcher" ref={wrapRef}>
-      <div className={`switcher-btn ${open ? "open" : ""}`} onClick={(e) => e.target === e.currentTarget && onOpenChange(!open)}>
+      {/* Pointer-only convenience: clicking the bar's padding toggles the popover. Keyboard and screen-reader users operate the real buttons inside. */}
+      <div className={`switcher-btn ${open ? "open" : ""}`} role="presentation" onClick={(e) => e.target === e.currentTarget && onOpenChange(!open)}>
         <button
           className="switcher-open"
           onClick={() => onOpenChange(!open)}
@@ -95,9 +97,9 @@ export function RequestSwitcher(props: Props) {
         </button>
       </div>
       {open && (
-        <div className="switcher-popover" role="dialog" aria-label="Collections">
+        <ExitDiv className="switcher-popover" role="dialog" aria-label="Collections">
           {props.children}
-        </div>
+        </ExitDiv>
       )}
     </div>
   );

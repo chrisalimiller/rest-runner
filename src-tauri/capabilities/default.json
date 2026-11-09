@@ -8,6 +8,9 @@
   "permissions": [
     "core:default",
     "core:window:allow-start-dragging",
+    "core:window:allow-show",
+    "core:window:allow-set-theme",
+    "core:window:allow-set-background-color",
     "dialog:allow-save",
     "dialog:allow-open",
     "updater:allow-check",

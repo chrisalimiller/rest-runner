@@ -7,7 +7,7 @@
 .update-body {
   padding: 14px 16px 4px;
   overflow: auto;
-  font-size: 13.5px;
+  font-size: var(--fs-md);
 }
 
 .update-body p {
@@ -16,20 +16,20 @@
 
 .update-notes {
   font-family: var(--mono, inherit);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   max-height: 180px;
   overflow: auto;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   padding: 8px 10px;
   margin: 0 0 10px;
   color: var(--text-muted, inherit);
 }
 
 .update-error {
-  color: var(--danger, #f85149);
+  color: var(--danger);
 }
 
 .update-warn {

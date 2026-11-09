@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "./shell/Modal";
+import { AppearanceControl } from "./shell/AppearanceControl";
 import { isBusy } from "../lib/busyWork";
 import { canUpdate, checkForUpdate, installedVersion, type FoundUpdate } from "../lib/updater";
 import { downloadPercent, plainNotes, releaseDate, versionLabel, type UpdateInfo, type UpdateState } from "../lib/updates";
@@ -67,6 +68,7 @@ export function UpdateDialog({ onClose }: { onClose: () => void }) {
         <p className="update-version">
           Installed version <strong>{versionLabel(version) || "unknown"}</strong>
         </p>
+        <AppearanceControl />
         <UpdateStatus state={state} supported={supported} />
       </div>
       <div className="update-foot">
@@ -110,7 +112,7 @@ function UpdateStatus({ state, supported }: { state: UpdateState; supported: boo
             <>
               <p>Downloading…{percent !== null ? ` ${percent}%` : ""}</p>
               <div className="progress-bar" aria-hidden>
-                <div className="progress-fill" style={{ width: `${percent ?? 100}%`, opacity: percent === null ? 0.4 : 1 }} />
+                <div className="progress-fill" style={{ transform: `scaleX(${Math.min(1, Math.max(0, (percent ?? 100) / 100))})`, opacity: percent === null ? 0.4 : 1 }} />
               </div>
             </>
           )}
