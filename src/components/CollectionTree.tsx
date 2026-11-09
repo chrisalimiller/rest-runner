@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useEscape } from "./useEscape";
+import { TreeChildren } from "./TreeChildren";
+import { countVisibleRows } from "../lib/treeMotion";
 import {
   countRequests,
   type Collection,
@@ -117,16 +119,14 @@ export function CollectionTree(props: Props) {
           )}
           <MenuButton label={folder.name} onClick={(e) => openMenu(e, folder.id, menuItems)} />
         </div>
-        {open && (
-          <ul className="tree">
+        <TreeChildren open={open} rows={countVisibleRows(folder.items, expanded)}>
             {renderNodes(collectionId, folder.items, depth + 1)}
             {folder.items.length === 0 && (
               <li className="tree-empty muted small" style={indent(depth + 1)}>
                 Empty folder
               </li>
             )}
-          </ul>
-        )}
+        </TreeChildren>
       </li>
     );
   };
@@ -172,8 +172,8 @@ export function CollectionTree(props: Props) {
           )}
           <MenuButton label={r.name} onClick={(e) => openMenu(e, node.id, menuItems)} />
         </div>
-        {open && hasExamples && (
-          <ul className="tree">
+        {hasExamples && (
+          <TreeChildren open={open} rows={node.examples.length}>
             {node.examples.map((ex) => {
               const exItems: MenuItem[] = [
                 { label: "Open in new tab", run: run(() => props.onOpenExample(node, ex, true)) },
@@ -205,7 +205,7 @@ export function CollectionTree(props: Props) {
                 </li>
               );
             })}
-          </ul>
+          </TreeChildren>
         )}
       </li>
     );
@@ -237,8 +237,7 @@ export function CollectionTree(props: Props) {
                 )}
                 <MenuButton label={c.name} onClick={(e) => openMenu(e, c.id, menuItems)} />
               </div>
-              {open && (
-                <ul className="tree">
+              <TreeChildren open={open} rows={countVisibleRows(c.items, expanded)}>
                   {renderNodes(c.id, c.items, 1)}
                   {c.items.length === 0 && (
                     <li className="tree-empty small" style={indent(1)}>
@@ -247,8 +246,7 @@ export function CollectionTree(props: Props) {
                       </button>
                     </li>
                   )}
-                </ul>
-              )}
+              </TreeChildren>
             </li>
           );
         })}
