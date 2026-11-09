@@ -2292,3 +2292,33 @@ select {
 .rtab-group {
   font-feature-settings: "tnum" 1;
 }
+
+/* Animated collapse: see components/Collapse.tsx. */
+.collapse {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-base, 160ms) var(--ease-out, ease-out);
+}
+
+.collapse.open {
+  grid-template-rows: 1fr;
+}
+
+.collapse-inner {
+  min-height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  transition: visibility 0s linear var(--dur-base, 160ms);
+}
+
+.collapse.open > .collapse-inner {
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .collapse,
+  .collapse-inner {
+    transition: none;
+  }
+}

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { CURL_SHELL_LABELS, requestToCurl, type CurlShell } from "../../lib/curl";
+import { Collapse } from "../Collapse";
 import { useCertificates } from "../CertificatesDialog";
 import { currentMasker } from "../../lib/secrets";
 import { load, save } from "../../lib/storage";
@@ -75,13 +76,15 @@ export function CurlPanel({ def, vars, envName }: Props) {
           </svg>
         </button>
       </div>
-      {collapsed ? null : empty ? (
+      <Collapse open={!collapsed}>
+      <div className="curl-body">
+      {empty ? (
         <p className="muted small">Enter a URL to see the command.</p>
       ) : (
         <pre className="curl-command">{shown}</pre>
       )}
-      {!collapsed && !empty && hasSecret && <p className="muted small">Secret values are hidden here. Copy puts the real command on your clipboard.</p>}
-      {!collapsed && !empty && result.unresolved.length > 0 && (
+      {!empty && hasSecret && <p className="muted small">Secret values are hidden here. Copy puts the real command on your clipboard.</p>}
+      {!empty && result.unresolved.length > 0 && (
         <p className="warning small">
           No value for{" "}
           {result.unresolved.map((n) => (
@@ -90,11 +93,13 @@ export function CurlPanel({ def, vars, envName }: Props) {
           , so {result.unresolved.length === 1 ? "it stays" : "they stay"} in the command as written.
         </p>
       )}
-      {!collapsed && !empty && result.notes.map((n) => (
+      {!empty && result.notes.map((n) => (
         <p key={n} className="muted small">
           {n}
         </p>
       ))}
+      </div>
+      </Collapse>
     </div>
   );
 }

@@ -2719,10 +2719,16 @@ details.case-try .call-detail {
 
 /* ---------- cURL command (request builder) ---------- */
 
-.curl-panel {
+.curl-body {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  padding-top: 6px;
+}
+
+.curl-panel {
+  display: flex;
+  flex-direction: column;
   padding: 8px 10px 10px;
   border: 1px solid var(--border);
   border-radius: var(--r-md);
@@ -2754,7 +2760,7 @@ details.case-try .call-detail {
 }
 
 .curl-collapse svg {
-  transition: transform 0.15s;
+  transition: transform var(--dur-base, 160ms) var(--ease-out, ease-out);
 }
 
 .curl-panel.collapsed .curl-collapse svg {

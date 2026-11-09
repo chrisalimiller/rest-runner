@@ -1,5 +1,6 @@
 import { currentMasker } from "../../lib/secrets";
 import { useEffect, useState } from "react";
+import { Collapse } from "../Collapse";
 import { formatMs, whenLabel } from "../../lib/earlierSends";
 import type { FlowRunEnd, FlowStep } from "../../lib/flows/types";
 import type { FlowProblem } from "../../lib/flows/validate";
@@ -62,7 +63,7 @@ function StepRow({ step, onFocus }: { step: FlowStep; onFocus: () => void }) {
         {step.output && step.output !== "next" && <span className={`flow-step-out out-${step.output}`}>{step.output}</span>}
         <span className="muted mono small">{formatMs(step.durationMs)}</span>
       </button>
-      {open && (
+      <Collapse open={open}>
         <div className="flow-step-body small">
           {step.notes.map((n, i) => (
             <p key={i}>{n}</p>
@@ -93,7 +94,7 @@ function StepRow({ step, onFocus }: { step: FlowStep; onFocus: () => void }) {
             Show on canvas
           </button>
         </div>
-      )}
+      </Collapse>
     </li>
   );
 }
