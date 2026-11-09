@@ -9,8 +9,7 @@
   <a href="docs/shortcuts.md">Shortcuts</a>
 </p>
 
-<!-- TODO: screenshot of the Requests screen (request left, response right)
-     <p align="center"><img src="docs/images/requests.png" alt="The Requests screen: request on the left, response on the right" width="860"></p> -->
+<p align="center"><img src="docs/images/requests.png" alt="The Requests screen: request on the left, response on the right" width="860"></p>
 
 ## One app, four jobs
 
@@ -20,8 +19,7 @@ Build a request with params, headers, auth and a JSON body, with `{{placeholders
 ### Batch runs from a CSV
 Write the request once with `{{column}}` placeholders, pick a CSV, choose how many run at once and how long to pause, and results stream in as they arrive. Export an HTML or CSV report, or a Python/Bash script to run it without the app.
 
-<!-- TODO: screenshot of a batch run in progress
-     <p align="center"><img src="docs/images/batch.png" alt="A batch run with results arriving" width="760"></p> -->
+<p align="center"><img src="docs/images/batch.png" alt="A batch run with results arriving" width="760"></p>
 
 ### Test suites
 Ordered test cases with no-code assertions (status, time, headers, JSON paths) and optional JavaScript scripts using the `rr` API. A suite can run once per CSV row.
@@ -29,8 +27,7 @@ Ordered test cases with no-code assertions (status, time, headers, JSON paths) a
 ### Flows
 Chain cases, suites and saved requests on a canvas with branches, loops, retries and schedules.
 
-<!-- TODO: screenshot of the Flows canvas
-     <p align="center"><img src="docs/images/flows.png" alt="A flow on the canvas" width="760"></p> -->
+<p align="center"><img src="docs/images/flows.png" alt="A flow on the canvas" width="760"></p>
 
 ## Local by design
 
