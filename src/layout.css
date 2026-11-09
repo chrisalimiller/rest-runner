@@ -3015,3 +3015,39 @@ select:focus-visible,
   padding: 0 7px;
   min-width: 0;
 }
+
+/* WCAG 2.5.8: enlarge hit areas of small controls to >=24x24 without changing visible size. */
+.switcher-pencil,
+.tree-toggle,
+.tree-menu-btn,
+.segmented.small button,
+.nav-group-head .sidebar-actions .icon-btn,
+.env-swatch {
+  position: relative;
+}
+
+.switcher-pencil::after,
+.tree-menu-btn::after,
+.segmented.small button::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+}
+
+.tree-toggle::after {
+  content: "";
+  position: absolute;
+  inset: -2px -4px;
+}
+
+.nav-group-head .sidebar-actions .icon-btn::after {
+  content: "";
+  position: absolute;
+  inset: -4px -2px;
+}
+
+.env-swatch::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+}
