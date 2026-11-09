@@ -1817,6 +1817,7 @@ textarea {
 }
 
 .response-meta .status {
+  transition: color var(--dur-base, 160ms) ease, background-color var(--dur-base, 160ms) ease;
   padding: 1px 8px;
   border-radius: var(--r-pill);
   background: color-mix(in srgb, var(--edge-muted) 15%, transparent);
