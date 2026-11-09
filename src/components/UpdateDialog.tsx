@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "./shell/Modal";
+import { keychainNote } from "../lib/secretsUi";
 import { AppearanceControl } from "./shell/AppearanceControl";
 import { isBusy } from "../lib/busyWork";
 import { canUpdate, checkForUpdate, installedVersion, type FoundUpdate } from "../lib/updater";
@@ -69,6 +70,7 @@ export function UpdateDialog({ onClose }: { onClose: () => void }) {
           Installed version <strong>{versionLabel(version) || "unknown"}</strong>
         </p>
         <AppearanceControl />
+        <p className="muted small">{keychainNote(typeof navigator === "undefined" ? "" : navigator.platform)}</p>
         <UpdateStatus state={state} supported={supported} />
       </div>
       <div className="update-foot">

@@ -45,7 +45,7 @@ Click the pencil next to the environment switch in the top bar to add sets of va
 
 Each environment can have a colour (a dot on the switch). A coloured environment outlines **Send**, **Run suite** and **Run** and names it in the label, for example **Send to Prod**; environments named Prod start red.
 
-Environment values are stored on this computer only, in the app's local storage. A variable can be marked **secret** (lock button): it is masked on screen, in the cURL panel, and always in exported reports, and Export workspace leaves it out unless you choose to include it. The **{x}** button in the side bar on the right edge (Requests) lists the placeholders the open request uses and where each value comes from; an amber dot inside the URL box warns about placeholders with no value before you send.
+Environment values are stored on this computer only, in the app's local storage. A variable can be marked **secret** (lock button): its value is kept in the macOS Keychain or Windows Credential Manager instead of local storage, and it is masked on screen, in the cURL panel, and always in exported reports, and Export workspace leaves it out unless you choose to include it. The **{x}** button in the side bar on the right edge (Requests) lists the placeholders the open request uses and where each value comes from; an amber dot inside the URL box warns about placeholders with no value before you send.
 
 ## Batch runs from a CSV
 

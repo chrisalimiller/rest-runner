@@ -51,7 +51,9 @@ import { earlierSendLabel, earlierSends, earlierSendTone, sendTooltip, whenLabel
 import { cleanHistory, fitHistory, historyLabel, historyOutcome, MAX_HISTORY_BODY, responseNotKept } from "./lib/history";
 import { looksLikeCurl, parseCurl, type CurlCommand, type CurlNote } from "./lib/curlImport";
 import { matchVariables, type VarSwap } from "./lib/curlVariables";
-import { environmentVars, guardFor, loadEnvironments, type Environment } from "./lib/environments";
+import { SecretStatusBanner } from "./components/shell/SecretStatusBanner";
+import { hasSecretVars } from "./lib/secretsUi";
+import { environmentVars,guardFor, loadEnvironments, mergeHydrated, onSecretsHydrated, saveEnvironments, type Environment } from "./lib/environments";
 import { loadCertificates, matchCertificate, saveCertificates } from "./lib/certificates";
 import { setRequestStatus } from "./lib/sectionStatus";
 import { resolvedUrl } from "./lib/requestSummary";
@@ -135,7 +137,6 @@ const MAX_HISTORY = 50;
 const SAVED_KEY = "rest-runner.saved";
 const COLLECTIONS_KEY = "rest-runner.collections";
 const EXPANDED_KEY = "rest-runner.expanded";
-const ENVIRONMENTS_KEY = "rest-runner.environments";
 const ACTIVE_ENV_KEY = "rest-runner.active-environment";
 const DETAILS_KEY = "rest-runner.request-details";
 const SPLIT_KEY = "rest-runner.split";
@@ -251,6 +252,11 @@ export default function App({ active = true, shell, command }: Props) {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [environments, setEnvironments] = useState<Environment[]>(loadEnvironments);
+  // The keychain can finish loading (or be retried) after first render: fill in secrets without losing edits.
+  useEffect(() => onSecretsHydrated(() => {
+    const fresh = loadEnvironments();
+    setEnvironments((cur) => mergeHydrated(cur, fresh));
+  }), []);
   const [activeEnvId, setActiveEnvId] = useState<string | null>(() => load<string | null>(ACTIVE_ENV_KEY, null, isString));
   const [showEnvEditor, setShowEnvEditor] = useState(false);
   const [focusVarId, setFocusVarId] = useState<string | undefined>(undefined);
@@ -304,7 +310,7 @@ export default function App({ active = true, shell, command }: Props) {
     save(EXPANDED_KEY, existingExpanded(expanded, collections));
   }, [expanded, collections]);
   useEffect(() => {
-    save(ENVIRONMENTS_KEY, environments);
+    saveEnvironments(environments);
   }, [environments]);
   useEffect(() => {
     save(ACTIVE_ENV_KEY, activeEnvId);
@@ -1117,6 +1123,7 @@ export default function App({ active = true, shell, command }: Props) {
           setShowEnvEditor(true);
         }}
       />
+      <SecretStatusBanner variant="shell" hasSecrets={hasSecretVars(environments)} />
       {showTabBar(tabs.tabs) && (
         <RequestTabBar
           tabs={tabs.tabs}

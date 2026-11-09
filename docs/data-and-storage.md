@@ -16,7 +16,7 @@ The app is a desktop window around a web view, and it keeps its data in that web
 | `rest-runner.collections` | Collections, folders, requests and examples |
 | `rest-runner.saved` | The old flat list of saved requests, read once to move them into collections, then left alone as a backup |
 | `rest-runner.expanded` | Which collections and folders are expanded |
-| `rest-runner.environments` | Environments and their variables |
+| `rest-runner.environments` | Environments and their variables. Values of variables marked secret are not kept here: they live in the operating system keychain (blank in this key), and older plain-text values are moved there on launch ([details](#secret-variables-and-the-system-keychain)) |
 | `rest-runner.active-environment` | The environment selected in Requests mode |
 | `rest-runner.script-vars` | [Script variables](scripting.md#variable-scoping) set by request scripts |
 | `rest-runner.batch-options` | Your batch run options |
@@ -44,7 +44,45 @@ The app is a desktop window around a web view, and it keeps its data in that web
 
 The oldest runs are removed automatically past those limits.
 
-Because environments, collections and suites can hold tokens and passwords you typed in, treat the app's data folder and any export file as sensitive. Tokens are stored as plain text. Marking an environment variable as a [secret](requests.md#secret-values) only hides it on screen and in reports and exports; it is still stored as plain text in local storage.
+Because environments, collections and suites can hold tokens and passwords you typed in, treat the app's data folder and any export file as sensitive. Tokens you type straight into a request (a header, or the Bearer, Basic or API key fields) are stored as plain text. Values of environment variables marked [secret](requests.md#secret-values) are the exception: they are kept in the system keychain, not in local storage. See the next section.
+
+## Secret variables and the system keychain
+
+**What is in the keychain.** Values of environment variables marked secret (the lock button) are stored in the macOS Keychain or Windows Credential Manager, under the service name `rest-runner`. Each environment's secret values are saved as one JSON text, cut into chunks of at most 1200 bytes. The items are:
+
+- `secrets:env:<environment id>:<n>`, one per chunk;
+- `secrets:env:<environment id>`, a small header item holding the number of chunks;
+- `secrets:index`, the list of environments that have secrets.
+
+**What stays in local storage.** `rest-runner.environments` keeps the variable's name and its `secret` flag, with an empty value. Nothing else about the secret is kept there.
+
+**One-time migration.** If an earlier version stored secret values as plain text, the app moves them on launch, once the keychain has answered. A value is written to the keychain and checked first; only values confirmed there are blanked in local storage, so nothing is deleted before the keychain write is confirmed. If the keychain already holds a value for a variable, the keychain value wins. If anything blocks the move, the plain values stay where they are, a notice says "Some secret values couldn't be moved to your system keychain. They'll be tried again next launch.", and the move is retried on every launch until it works. After a successful move a notice says how many values were moved (shown once per install), and the app masks copies of those values still sitting in old history, open tabs, script variables and saved runs.
+
+**When the keychain is unavailable or denied.** If the keychain is locked, does not answer within 3 seconds, or access is denied, secret values cannot be loaded or saved. You can still type them, but they exist only in memory for that session; they are never written to local storage as plain text. A banner (under the top bar, and above the Variables list) explains it and, for the first two cases, offers **Retry**:
+
+- "The system keychain isn't available, so secret values can't be loaded or saved. Anything you enter stays in memory for this session."
+- "Access to the system keychain was denied. Allow it in your system settings, then retry."
+- If a save fails after retries: "Some secret values haven't been saved to the keychain yet. We'll keep trying." (no Retry button; the save is attempted again on later edits and on Retry).
+
+The banner appears only when some variable is marked secret, and can be dismissed for the session. On macOS you may be asked to allow Keychain access on first launch; choose Allow (or Always Allow) so the app can read its own items.
+
+**Running in a browser (development).** Outside the desktop app, for example `npm run dev` in a browser, there is no keychain. Nothing is migrated or blanked there: plain secret values already in local storage stay as they are. Secret values are kept in the tab's `sessionStorage` (key `rest-runner.dev-secrets`), which is cleared when the tab closes, and the banner says "Dev mode: secret values are kept for this browser tab only."
+
+**Exporting and importing.** **Export workspace...** leaves secret values out by default: each secret variable stays in the file with an empty value. If you choose to include them, they are written to the file in plain text, so protect that file. On **Import**, a secret variable that arrives blank keeps the value you already have on this computer; a secret that arrives with a value replaces yours and is saved to the keychain.
+
+**Size limit.** Windows Credential Manager limits one item to 2560 bytes. The app splits an environment's secrets into chunks to stay under that, so many secrets are fine. Extremely large single values may still be refused by the keychain, in which case the save fails with a message that the value is too large for the keychain.
+
+**Going back to an older version.** Versions before this change read secrets from local storage only. After the migration they find an empty value for each secret variable, so you would need to type them again. Export your workspace with secrets included first if you may downgrade.
+
+**Redaction at write time.** Known secret values are masked in the copies of data the app stores, so they do not leak into other local storage:
+
+- **History and saved runs** (batch, test and flow runs): every stored string, such as the resolved URL, response, errors and script output, has known secret values replaced with the mask. History keeps the request as you typed it (with its `{{placeholders}}`) unchanged. Open tabs hold only requests as typed, so they pass through unchanged.
+- **Saved example responses** in collections (headers and body) are masked the same way when saved and in workspace exports (unless you include secrets); request definitions are never changed.
+- Secret values shorter than 4 characters are not masked, because they would hide ordinary text.
+- **Script variables** (`rest-runner.script-vars`): a variable is not saved at all if its name looks like a credential (it contains `token`, `secret`, `password`, `passwd`, `apikey`, `api-key`, `api_key`, `auth` (but not words like "author"), `bearer`, `cookie` or `session`, in any letter case), or if its value contains a known secret. It is set again the next time the script runs.
+- **Minimum length:** secret values shorter than 4 characters are not masked, because they would mangle ordinary text.
+- **Limits of detection:** only values the app holds as secret variables can be recognised. A value the app never stored as a secret (for example a token a server returned that you did not save as a secret variable), or one that a server or script transformed (base64, hashed, split, re-encoded), cannot be detected and is stored as it appeared.
+- **Not protected:** a secret typed literally into a header or auth field is not a secret variable, so it is stored as plain text with the request. Such fields show a **Plain text** badge; replace the value with a `{{placeholder}}` that points to a secret variable.
 
 ## Limits
 

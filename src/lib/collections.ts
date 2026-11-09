@@ -11,6 +11,9 @@ import { isHttpMethod, type KeyValue, type RequestDef, type ResponseResult } fro
  * ids never clash, so one id is enough to find any node.
  */
 
+/** Local storage key for the saved collections. */
+export const COLLECTIONS_KEY = "rest-runner.collections";
+
 export interface SampleResponse {
   status: number;
   statusText: string;

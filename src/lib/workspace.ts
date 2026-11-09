@@ -8,6 +8,8 @@ import {
   updateRequest,
   type Collection,
 } from "./collections";
+import { redactCollectionsForStorage } from "./redactStorage";
+import { storedSecrets } from "./secrets";
 import type { ExportedCertificate } from "./certificatesFile";
 import { cleanEnvironments, type Environment } from "./environments";
 import { importFlowsFile } from "./flows/flowFile";
@@ -61,7 +63,13 @@ export function toWorkspaceFile(
   environments: Environment[],
   options: { includeSecrets?: boolean; suites?: TestSuite[]; flows?: Flow[]; certificates?: ExportedCertificate[] } = {},
 ): string {
-  environments = exportEnvironments(environments, options.includeSecrets ?? false);
+  const includeSecrets = options.includeSecrets ?? false;
+  if (!includeSecrets) {
+    // Saved example responses may hold a value a server echoed back; mask known secrets there (requests are left as they are).
+    const known = [...storedSecrets(), ...environments.flatMap((e) => e.vars.filter((v) => v.secret && v.value !== "").map((v) => v.value))];
+    collections = redactCollectionsForStorage(collections, known) as Collection[];
+  }
+  environments = exportEnvironments(environments, includeSecrets);
   const file: WorkspaceFile = {
     app: "rest-runner",
     kind: "workspace",
