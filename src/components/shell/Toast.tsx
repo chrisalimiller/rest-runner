@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { useExitTransition } from "../useExitTransition";
 import "./shell.css";
 
 export const TOAST_MS = 8000;
@@ -27,12 +28,14 @@ export function useToast(): ToastApi {
 }
 
 function ToastView({ item, onDone }: { item: Item; onDone: (id: number, undone: boolean) => void }) {
+  const el = useRef<HTMLDivElement>(null);
+  useExitTransition(el);
   useEffect(() => {
     const t = setTimeout(() => onDone(item.id, false), item.ms ?? TOAST_MS);
     return () => clearTimeout(t);
   }, [item, onDone]);
   return (
-    <div className="toast" role="status">
+    <div ref={el} data-state="open" className="toast" role="status">
       <span className="toast-text">{item.message}</span>
       {item.onUndo && (
         <button className="toast-undo" onClick={() => onDone(item.id, true)}>

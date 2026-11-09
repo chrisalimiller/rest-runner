@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import { useEscape } from "../useEscape";
+import { useExitTransition } from "../useExitTransition";
 import { useFocusTrap } from "../useFocusTrap";
 
 interface Props {
@@ -15,10 +16,12 @@ interface Props {
 /** A modal dialog: backdrop click and Escape close it, Tab stays inside, focus goes back to where it was. */
 export function Modal({ label, onClose, children, className = "", sheet = false }: Props) {
   const box = useRef<HTMLDivElement>(null);
+  const backdrop = useRef<HTMLDivElement>(null);
+  useExitTransition(backdrop);
   useEscape(onClose);
   useFocusTrap(box);
   return (
-    <div className={sheet ? "sheet-backdrop" : "modal-backdrop"} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div ref={backdrop} data-state="open" className={sheet ? "sheet-backdrop" : "modal-backdrop"} onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div ref={box} className={`${sheet ? "sheet" : "modal"} ${className}`.trim()} role="dialog" aria-modal="true" aria-label={label}>
         {children}
       </div>

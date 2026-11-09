@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { HttpMethod } from "../../lib/types";
 import { ChevronDownIcon, PencilIcon } from "../shell/Icons";
+import { ExitDiv } from "../ExitDiv";
 import { useEscape } from "../useEscape";
 
 interface Props {
@@ -96,9 +97,9 @@ export function RequestSwitcher(props: Props) {
         </button>
       </div>
       {open && (
-        <div className="switcher-popover" role="dialog" aria-label="Collections">
+        <ExitDiv className="switcher-popover" role="dialog" aria-label="Collections">
           {props.children}
-        </div>
+        </ExitDiv>
       )}
     </div>
   );
