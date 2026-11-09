@@ -73,6 +73,14 @@
   --r-sm: 6px;
   --r-md: 8px;
   --r-lg: 12px;
+
+  /* Motion: exits use --dur-fast, routine state changes --dur-base,
+     layout/overlay --dur-slow at most. No bounce/elastic easing. */
+  --dur-fast: 100ms;
+  --dur-base: 160ms;
+  --dur-slow: 280ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.4, 0, 1, 1);
   --r-pill: 999px;
   --panel-ring: 0 0 0 1px var(--border-muted);
   --ok-subtle: rgba(63, 185, 80, 0.15);
@@ -1524,7 +1532,7 @@ select,
 textarea {
   border-radius: var(--r-sm);
   border-color: var(--border);
-  transition: border-color 0.12s, box-shadow 0.12s;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
 
 input::placeholder,
@@ -1556,7 +1564,7 @@ select {
   border-radius: var(--r-sm);
   color: var(--text);
   font-weight: 500;
-  transition: background-color 0.12s, border-color 0.12s;
+  transition: background-color var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
 
 .secondary:hover:not(:disabled),
@@ -1584,7 +1592,7 @@ select {
   border: 1px solid var(--btn-border);
   border-radius: var(--r-sm);
   color: var(--text-on-accent);
-  transition: background-color 0.12s;
+  transition: background-color var(--dur-fast) var(--ease-out);
 }
 
 .send:hover:not(:disabled) {
@@ -1686,7 +1694,7 @@ textarea {
   color: var(--muted);
   border-radius: var(--r-sm) var(--r-sm) 0 0;
   margin-bottom: -1px;
-  transition: color 0.12s;
+  transition: color var(--dur-fast) var(--ease-out);
 }
 
 .tabs button:hover {

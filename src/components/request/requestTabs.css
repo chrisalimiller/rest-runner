@@ -97,7 +97,7 @@
   border: 0;
   border-radius: var(--r-md);
   color: var(--muted);
-  transition: background-color 120ms;
+  transition: background-color var(--dur-fast) var(--ease-out);
 }
 
 .rtab-wrap:not(.pinned) {
@@ -193,7 +193,7 @@
   font-size: var(--fs-lg);
   line-height: 1;
   cursor: pointer;
-  transition: background-color 120ms;
+  transition: background-color var(--dur-fast) var(--ease-out);
 }
 
 .rtab-x:hover {
@@ -279,7 +279,7 @@
   color: var(--muted);
   font-size: var(--fs-lg);
   cursor: pointer;
-  transition: background-color 120ms;
+  transition: background-color var(--dur-fast) var(--ease-out);
 }
 
 .rtab-add:hover,

@@ -185,6 +185,18 @@ label.link-btn:focus-within {
   }
 }
 
+/* Reduced-motion policy: fewer/gentler, not none. Transitions and pulses stop;
+   spinners slow to 2.4s (they still convey "working"); colour feedback stays. */
+@media (prefers-reduced-motion: reduce) {
+  .pulse-dot {
+    animation: none;
+    opacity: 1;
+  }
+  .spinner {
+    animation-duration: 2.4s;
+  }
+}
+
 body.dragging-split {
   cursor: col-resize;
   user-select: none;
