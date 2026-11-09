@@ -2464,12 +2464,29 @@ select {
 }
 
 table.results.row-picker-table {
-  table-layout: auto;
+  table-layout: fixed;
 }
 
 table.results.row-picker-table th {
   width: auto;
   white-space: nowrap;
+}
+
+/* Fixed row height: the picker only draws the rows in view and needs to know how tall each one is (ROW_H in RowPicker.tsx). */
+.row-picker-table tbody tr {
+  height: 30px;
+}
+
+.row-picker-table tbody td {
+  padding-top: 0;
+  padding-bottom: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.row-picker-table tr.rp-spacer td {
+  padding: 0;
+  border: 0;
 }
 
 table.results.row-picker-table th.rp-check {
