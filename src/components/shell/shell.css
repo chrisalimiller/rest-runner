@@ -86,6 +86,10 @@
   outline: none;
 }
 
+.overflow-item:focus-visible {
+  box-shadow: var(--focus-ring-inset);
+}
+
 .overflow-hint {
   margin-left: auto;
   padding-left: 12px;

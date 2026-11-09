@@ -616,8 +616,14 @@ table.results.test-results .url-cell,
   background: var(--bad-subtle);
 }
 
-.grid-cell.selected,
+.grid-cell.selected {
+  border-color: var(--accent-fg);
+}
+
 .grid-cell:focus-visible {
   border-color: var(--accent-fg);
   outline: none;
+  box-shadow: var(--focus-ring);
+  position: relative;
+  z-index: 1;
 }
