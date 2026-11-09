@@ -178,6 +178,16 @@ pub fn run() {
                     title_bar::paint(window.hwnd().map(|h| h.0 as isize), theme);
                 }
             }
+            // Safety net: the window starts hidden (tauri.conf.json) and the frontend shows it after the
+            // theme is applied and the first paint. If that never happens (JS error, blocked IPC), show it anyway.
+            if let Some(window) = tauri::Manager::get_webview_window(app, "main") {
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_millis(1500));
+                    if !window.is_visible().unwrap_or(false) {
+                        let _ = window.show();
+                    }
+                });
+            }
             Ok(())
         })
         .run(tauri::generate_context!())
