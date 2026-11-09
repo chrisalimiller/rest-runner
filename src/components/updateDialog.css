@@ -22,7 +22,7 @@
   max-height: 180px;
   overflow: auto;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   padding: 8px 10px;
   margin: 0 0 10px;
   color: var(--text-muted, inherit);

@@ -64,7 +64,7 @@
   gap: 8px;
   text-align: left;
   padding: 6px 8px;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   border: 1px solid var(--border-muted);
   background: var(--bg-soft);
 }
@@ -96,7 +96,7 @@ ol.cases li {
   display: flex;
   align-items: center;
   gap: 4px;
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   padding: 0 4px;
 }
 
@@ -378,7 +378,7 @@ ul.checks li.bad .check-message {
   align-items: flex-start;
   padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   cursor: pointer;
 }
 
@@ -405,7 +405,7 @@ ul.checks li.bad .check-message {
   max-height: 200px;
   overflow: auto;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   margin-top: 8px;
 }
 
@@ -425,7 +425,7 @@ ul.checks li.bad .check-message {
   margin-top: 14px;
   padding: 8px 10px;
   background: var(--bg-soft);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
 }
 
 /* Live run and results tables */
@@ -464,7 +464,7 @@ table.results tr.failed td:first-child {
   max-height: 180px;
   overflow: auto;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   flex: none;
 }
 
@@ -499,7 +499,7 @@ ul.picker-list label {
   align-items: center;
   gap: 8px;
   padding: 5px 6px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   cursor: pointer;
 }
 
@@ -555,7 +555,7 @@ table.results.test-results .url-cell,
   margin: 4px 0 0;
   padding: 6px 10px;
   border: 1px solid var(--border-muted);
-  border-radius: var(--radius);
+  border-radius: var(--r-sm);
   background: var(--bg-soft);
   font-size: 13px;
 }
@@ -600,7 +600,7 @@ table.results.test-results .url-cell,
   height: 24px;
   padding: 0 8px;
   border: 1px solid transparent;
-  border-radius: var(--radius);
+  border-radius: var(--r-sm);
   font: inherit;
   font-family: var(--mono);
   cursor: pointer;

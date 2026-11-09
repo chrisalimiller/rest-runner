@@ -41,13 +41,17 @@
   --sans: "Red Hat Text Variable", "Red Hat Text", -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif;
   --display: "Red Hat Display Variable", "Red Hat Display", var(--sans);
   --method-font: var(--sans);
-  --radius: 6px;
-  --radius-lg: 8px;
-  --radius-xl: 10px;
-  /* Soft scale for the Requests section */
-  --r-sm: 8px; /* tabs, rows in the details drawer, small buttons */
-  --r-md: 12px; /* URL field, Send, more, code blocks, status tile */
-  --r-lg: 16px; /* request and response panels, the details drawer */
+  /* Radius scale, by role. One scale for the whole app.
+     xs 4  : tiny inline marks (variable chips, swatches, bars)
+     sm 6  : compact controls (inputs, small buttons, rows, tabs)
+     md 8  : standard buttons, cards, menus, code blocks
+     lg 12 : panels, dialogs, drawers
+     pill  : chips, badges, status tiles, scrollbar thumbs
+     50% (circles) and 0 are used directly. */
+  --r-xs: 4px;
+  --r-sm: 6px;
+  --r-md: 8px;
+  --r-lg: 12px;
   --r-pill: 999px;
   --panel-ring: 0 0 0 1px var(--border-muted);
   --ok-subtle: rgba(63, 185, 80, 0.15);
@@ -100,7 +104,7 @@ select,
 textarea {
   background: var(--bg-input);
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   padding: 6px 8px;
   outline: none;
 }
@@ -155,7 +159,7 @@ button:disabled {
 .primary-outline {
   border: 1px solid var(--accent);
   color: var(--accent);
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   padding: 6px;
 }
 
@@ -190,7 +194,7 @@ button:disabled {
   align-items: center;
   width: 100%;
   padding: 5px 4px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   text-align: left;
 }
 
@@ -272,7 +276,7 @@ button:disabled {
 .send {
   background: var(--accent);
   color: var(--accent-text);
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   padding: 0 22px;
   font-weight: 600;
 }
@@ -489,7 +493,7 @@ textarea.code {
   white-space: pre-wrap;
   word-break: break-word;
   background: var(--bg-soft);
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   padding: 10px;
   flex: 1;
 }
@@ -532,7 +536,7 @@ textarea.code {
 .secondary {
   border: 1px solid var(--border);
   background: var(--bg-soft);
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   padding: 6px 12px;
 }
 
@@ -594,7 +598,7 @@ textarea.code {
   font-family: var(--mono);
   background: var(--bg-soft);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--r-pill);
   padding: 0 7px;
   margin-right: 4px;
 }
@@ -649,7 +653,7 @@ textarea.code {
   gap: 6px;
   padding: 10px 12px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
 }
 
 .batch-export p {
@@ -669,7 +673,7 @@ textarea.code {
 .progress-bar {
   height: 6px;
   background: var(--bg-soft);
-  border-radius: 3px;
+  border-radius: var(--r-xs);
   overflow: hidden;
 }
 
@@ -701,7 +705,7 @@ textarea.code {
   padding: 6px 12px;
   background: var(--bg-soft);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--r-sm);
   white-space: nowrap;
 }
 
@@ -760,7 +764,7 @@ textarea.code {
   flex: 1;
   overflow: auto;
   border: 1px solid var(--border);
-  border-radius: 4px;
+  border-radius: var(--r-xs);
 }
 
 table.results {
@@ -902,7 +906,7 @@ table.results tr.selected {
 
 .stat {
   background: var(--bg-soft);
-  border-radius: 6px;
+  border-radius: var(--r-sm);
   padding: 8px 10px;
 }
 
@@ -938,7 +942,7 @@ button.chip.active {
   margin: 0;
   padding: 8px 10px;
   background: var(--bg-soft);
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   max-height: 140px;
   overflow: auto;
 }
@@ -998,7 +1002,7 @@ button.chip.active {
   font-size: 11px;
   font-weight: 700;
   padding: 1px 8px;
-  border-radius: 10px;
+  border-radius: var(--r-pill);
   color: var(--accent-text);
 }
 
@@ -1130,7 +1134,7 @@ button.chip.active {
 .modal {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--r-md);
   width: min(860px, 92vw);
   height: min(560px, 86vh);
   display: flex;
@@ -1171,7 +1175,7 @@ button.chip.active {
 .env-list button {
   text-align: left;
   padding: 6px 8px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
 }
 
 .env-list button.active {
@@ -1220,7 +1224,7 @@ button.chip.active {
 
 ::-webkit-scrollbar-thumb {
   background: #30363d;
-  border-radius: 10px;
+  border-radius: var(--r-pill);
   border: 2px solid transparent;
   background-clip: padding-box;
 }
@@ -1238,7 +1242,7 @@ button.chip.active {
 input,
 select,
 textarea {
-  border-radius: var(--radius);
+  border-radius: var(--r-sm);
   border-color: var(--border);
   transition: border-color 0.12s, box-shadow 0.12s;
 }
@@ -1269,7 +1273,7 @@ select {
 .primary-outline {
   background: var(--btn-bg);
   border: 1px solid var(--btn-border);
-  border-radius: var(--radius);
+  border-radius: var(--r-sm);
   color: var(--text);
   font-weight: 500;
   transition: background-color 0.12s, border-color 0.12s;
@@ -1298,7 +1302,7 @@ select {
 .send {
   background: var(--primary);
   border: 1px solid var(--btn-border);
-  border-radius: var(--radius);
+  border-radius: var(--r-sm);
   color: #ffffff;
   transition: background-color 0.12s;
 }
@@ -1324,7 +1328,7 @@ select {
 }
 
 .icon-btn {
-  border-radius: var(--radius);
+  border-radius: var(--r-sm);
 }
 
 /* Sidebar */
@@ -1340,7 +1344,7 @@ select {
 }
 
 .history button {
-  border-radius: var(--radius);
+  border-radius: var(--r-sm);
   color: var(--text);
 }
 
@@ -1400,7 +1404,7 @@ textarea {
 
 .tabs button {
   color: var(--muted);
-  border-radius: var(--radius) var(--radius) 0 0;
+  border-radius: var(--r-sm) var(--r-sm) 0 0;
   margin-bottom: -1px;
   transition: color 0.12s;
 }
@@ -1441,7 +1445,7 @@ textarea {
 .code-view {
   background: var(--bg-inset);
   border: 1px solid var(--border-muted);
-  border-radius: var(--radius);
+  border-radius: var(--r-sm);
   font-size: 12.5px;
   line-height: 1.55;
   color: var(--text);
@@ -1452,7 +1456,7 @@ textarea {
   flex: 1;
   min-height: 0;
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--r-sm);
   overflow: hidden;
   background: var(--bg-inset);
   display: flex;
@@ -1486,7 +1490,7 @@ textarea {
 .cm-template-var {
   color: var(--placeholder-fg) !important;
   background: var(--placeholder-bg);
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   padding: 0 2px;
 }
 
@@ -1526,7 +1530,7 @@ textarea {
 
 .response-meta .status {
   padding: 1px 8px;
-  border-radius: 2em;
+  border-radius: var(--r-pill);
   background: rgba(110, 118, 129, 0.15);
 }
 
@@ -1545,7 +1549,7 @@ textarea {
 .error-box {
   background: rgba(248, 81, 73, 0.1);
   border: 1px solid rgba(248, 81, 73, 0.4);
-  border-radius: var(--radius);
+  border-radius: var(--r-sm);
   padding: 10px 12px;
 }
 
@@ -1553,7 +1557,7 @@ textarea {
 .chip {
   background: rgba(110, 118, 129, 0.1);
   border-color: var(--border);
-  border-radius: 2em;
+  border-radius: var(--r-pill);
   font-size: 11.5px;
   padding: 1px 8px;
 }
@@ -1598,12 +1602,12 @@ button.chip.active {
 .progress-bar {
   background: var(--border-muted);
   height: 8px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
 }
 
 .progress-fill {
   background: var(--ok);
-  border-radius: 4px;
+  border-radius: var(--r-xs);
 }
 
 .progress-fill.has-failures {
@@ -1612,7 +1616,7 @@ button.chip.active {
 
 .results-scroll {
   border-color: var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--r-sm);
   background: var(--bg);
 }
 
@@ -1647,7 +1651,7 @@ table.results tr.selected {
 .stat {
   background: var(--bg-soft);
   border: 1px solid var(--border-muted);
-  border-radius: var(--radius);
+  border-radius: var(--r-sm);
 }
 
 .stat b {
@@ -1657,7 +1661,7 @@ table.results tr.selected {
 .run-log {
   background: var(--bg-inset);
   border: 1px solid var(--border-muted);
-  border-radius: var(--radius);
+  border-radius: var(--r-sm);
   font-family: var(--mono);
   font-size: 12px;
 }
@@ -1678,7 +1682,7 @@ table.results tr.selected {
 .modal {
   background: var(--bg-overlay);
   border-color: var(--border);
-  border-radius: 12px;
+  border-radius: var(--r-lg);
   box-shadow: 0 0 0 1px var(--border), 0 16px 32px rgba(1, 4, 9, 0.85);
 }
 
@@ -1745,7 +1749,7 @@ select {
 .tree-row {
   display: flex;
   align-items: center;
-  border-radius: var(--radius);
+  border-radius: var(--r-sm);
   min-height: 28px;
 }
 
@@ -1834,7 +1838,7 @@ select {
   font-size: 11px;
   color: var(--muted);
   background: rgba(110, 118, 129, 0.15);
-  border-radius: 2em;
+  border-radius: var(--r-pill);
   padding: 0 6px;
   flex: none;
 }
@@ -1889,7 +1893,7 @@ select {
   min-width: 160px;
   background: var(--bg-overlay);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: var(--r-sm);
   box-shadow: 0 8px 24px rgba(1, 4, 9, 0.85);
   padding: 4px;
   display: flex;
@@ -1899,7 +1903,7 @@ select {
 .menu button {
   text-align: left;
   padding: 5px 10px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
   color: var(--text);
 }
 
@@ -1950,7 +1954,7 @@ select {
 
 .dialog-body select[size] option {
   padding: 3px 6px;
-  border-radius: 4px;
+  border-radius: var(--r-xs);
 }
 
 .dialog-body .check {
