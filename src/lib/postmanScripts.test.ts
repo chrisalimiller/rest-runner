@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { convertPostmanScript, findPostmanCalls, postmanApiNames, usesPostman } from "./postmanScripts";
+import { parser } from "@lezer/javascript";
 import { RR_COMPLETIONS } from "./testing/snippets";
 
 const conv = (code: string) => convertPostmanScript(code);
@@ -221,5 +222,80 @@ describe("mapping table", () => {
         expect(ok, `${path} in ${expected}`).toBe(true);
       }
     }
+  });
+});
+
+describe("generated fixes are only offered when they are safe", () => {
+  const fixOf = (code: string) => findPostmanCalls(code)[0]?.fix?.insert;
+  const parsesCleanly = (code: string) => {
+    let bad = false;
+    parser.parse(code).iterate({
+      enter: (n) => {
+        if (n.type.isError) bad = true;
+      },
+    });
+    return !bad;
+  };
+
+  it("keeps hostile pieces inside their argument", () => {
+    const pieces = [
+      '"a\\"); evil(); (\\""',
+      "'it\\'s'",
+      "`t${1 + 1}\\``",
+      '"*/ x /*"',
+      '"a\\u2028b"',
+      "/* c */ a /* d */",
+      "a\n  + b",
+      "(1, 2)",
+      "cond ? x : y",
+      "x => x",
+      "{ a: 1 }",
+      "[1, 2, 3]",
+      "a || b",
+    ];
+    for (const piece of pieces) {
+      const templates = [
+        `pm.environment.get(${piece})`,
+        `pm.environment.set(${piece}, ${piece})`,
+        `postman.getEnvironmentVariable(${piece})`,
+        `pm.response.headers.get(${piece})`,
+        `tests[${piece}] = ${piece};`,
+        `environment[${piece}]`,
+      ];
+      for (const tpl of templates) {
+        for (const c of findPostmanCalls(tpl)) {
+          if (!c.fix) continue;
+          expect(parsesCleanly(c.fix.insert), tpl).toBe(true);
+        }
+        const out = convertPostmanScript(tpl).code;
+        expect(parsesCleanly(out), out).toBe(true);
+      }
+    }
+  });
+
+  it("does not add statements or change precedence", () => {
+    expect(convertPostmanScript("x = 1 + pm.environment.get(a || b) * 2;").code).toBe("x = 1 + rr.vars.get(a || b) * 2;");
+    expect(convertPostmanScript('tests["ok"] = a && b;').code).toBe('rr.test("ok", () => rr.expect(a && b).toBeTruthy());');
+  });
+
+  it("falls back to message-only for spread and comma index", () => {
+    expect(fixOf("pm.environment.get(...args)")).toBeUndefined();
+    expect(findPostmanCalls("pm.environment.get(...args)").length).toBeGreaterThan(0);
+    expect(fixOf("environment[a, b]")).toBeUndefined();
+  });
+
+  it("copes with comments and unicode line separators in a script", () => {
+    const out = convertPostmanScript('pm.environment.get("a" /* x */) // tail pm.environment.get("b")');
+    // The parser may treat U+2028 as part of the comment; either way the output must stay valid.
+    expect(out.converted).toBeGreaterThanOrEqual(1);
+    expect(out.code).toContain('rr.vars.get("a") // tail');
+    expect(parsesCleanly(out.code)).toBe(true);
+  });
+
+  it("handles huge inputs without offering an oversized fix", () => {
+    const big = '"' + "a".repeat(300_000) + '"';
+    expect(fixOf(`pm.environment.get(${big})`)).toBeUndefined();
+    const many = Array.from({ length: 2000 }, (_, i) => `pm.environment.get("k${i}");`).join("\n");
+    expect(convertPostmanScript(many).converted).toBe(2000);
   });
 });
