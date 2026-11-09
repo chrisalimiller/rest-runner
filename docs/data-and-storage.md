@@ -27,7 +27,7 @@ The app is a desktop window around a web view, and it keeps its data in that web
 | `rest-runner.flows` | [Flows](flows.md): their steps, wires, sticky notes and settings |
 | `rest-runner.flow-open`, `rest-runner.flow-environment` | The open flow, and the environment selected in Flows |
 | `rest-runner.flow-schedules` | For each [Schedule](flows.md#schedules) step: the last time it came due, the last run, and the last skipped run with its reason |
-| `rest-runner.certificates` | The certificate list: each entry's name, the hosts it applies to, whether it is on, and the details shown for its client certificate and CA |
+| `rest-runner.certificates` | The certificate list: each entry's name, the hosts it applies to, whether it is on, and the details shown for its client certificate and CA. Never the certificate or key files (kept in the app's data folder) or a passphrase (kept in the system keychain); only these fields are written |
 | `rest-runner.onboarded` | That the welcome screen was dismissed, so it is not shown again |
 | `rest-runner.variables-panel` | Whether the Variables sidebar is open, and its filter |
 | `rest-runner.certs-panel` | Whether the Certificates side panel is open |

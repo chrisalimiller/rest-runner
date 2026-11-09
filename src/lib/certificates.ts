@@ -296,15 +296,50 @@ export function explainTlsError(message: string, ctx: { host: string; usedCertif
 let current: CertificateEntry[] | null = null;
 const listeners = new Set<() => void>();
 
+/**
+ * Keeps only the fields of CertificateEntry, so key material or a passphrase can never reach local storage
+ * even if one rides along on an entry (a hand-edited or newer-version value, or a workspace file entry).
+ * The real files live in the app data folder and the passphrase in the system keychain (src-tauri/src/certs.rs).
+ * Entries without an id are dropped.
+ */
+export function sanitizeCertificateEntry(raw: unknown): CertificateEntry | null {
+  if (!raw || typeof raw !== "object") return null;
+  const e = raw as Record<string, any>;
+  if (typeof e.id !== "string") return null;
+  const details = (d: any): CertDetails => ({ subject: d?.subject, issuer: d?.issuer, notBefore: d?.notBefore, notAfter: d?.notAfter, sha256: d?.sha256 });
+  const out: CertificateEntry = {
+    id: e.id,
+    name: e.name,
+    enabled: e.enabled,
+    patterns: Array.isArray(e.patterns) ? e.patterns.filter((p: unknown) => typeof p === "string") : [],
+  };
+  if (e.client && typeof e.client === "object") {
+    out.client = { format: e.client.format, separateKey: e.client.separateKey, hasPassphrase: e.client.hasPassphrase, keyUnencrypted: e.client.keyUnencrypted, details: details(e.client.details) };
+  }
+  if (e.ca && typeof e.ca === "object") out.ca = { count: e.ca.count, details: details(e.ca.details) };
+  if (e.caOnly !== undefined) out.caOnly = e.caOnly;
+  if (e.needsFile !== undefined) out.needsFile = e.needsFile;
+  return out;
+}
+
+export function sanitizeCertificates(entries: readonly unknown[]): CertificateEntry[] {
+  return entries.map(sanitizeCertificateEntry).filter((e): e is CertificateEntry => e !== null);
+}
+
 export function loadCertificates(): CertificateEntry[] {
-  if (current === null) current = load<CertificateEntry[]>(CERTIFICATES_KEY, [], isArray);
+  if (current === null) {
+    const stored = load<unknown[]>(CERTIFICATES_KEY, [], isArray);
+    current = sanitizeCertificates(stored);
+    // Older data that carried extra fields is rewritten once without them.
+    if (JSON.stringify(current) !== JSON.stringify(stored)) save(CERTIFICATES_KEY, current);
+  }
   return current;
 }
 
 /** Returns false when the browser refused to store the list. */
 export function saveCertificates(entries: CertificateEntry[]): boolean {
   current = entries;
-  const ok = save(CERTIFICATES_KEY, entries);
+  const ok = save(CERTIFICATES_KEY, sanitizeCertificates(entries));
   listeners.forEach((l) => l());
   return ok;
 }
