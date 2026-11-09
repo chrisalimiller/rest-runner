@@ -15,7 +15,7 @@ describe("secretStatusMessage", () => {
   it("offers retry only for unavailable and denied", () => {
     expect(statusOffersRetry("unavailable")).toBe(true);
     expect(statusOffersRetry("denied")).toBe(true);
-    expect(statusOffersRetry("unsaved")).toBe(false);
+    expect(statusOffersRetry("unsaved")).toBe(true);
     expect(statusOffersRetry("browser-fallback")).toBe(false);
   });
 });

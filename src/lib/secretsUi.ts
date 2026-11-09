@@ -6,7 +6,7 @@ import type { StoreStatus } from "./secretStore";
 export function secretStatusMessage(status: StoreStatus): string | null {
   switch (status) {
     case "unavailable":
-      return "The system keychain isn't available, so secret values can't be loaded or saved. Anything you enter stays in memory for this session.";
+      return "The system keychain isn't available, so secret values can't be loaded or saved. Secret values are read-only until it is available; retry once it is.";
     case "denied":
       return "Access to the system keychain was denied. Allow it in your system settings, then retry.";
     case "unsaved":
@@ -18,9 +18,9 @@ export function secretStatusMessage(status: StoreStatus): string | null {
   }
 }
 
-/** Retry only helps when the keychain itself is the problem. */
+/** Retry helps when the keychain is the problem, and for values that could not be written yet. */
 export function statusOffersRetry(status: StoreStatus): boolean {
-  return status === "unavailable" || status === "denied";
+  return status === "unavailable" || status === "denied" || status === "unsaved";
 }
 
 /** True when any environment has a variable marked secret. */
@@ -33,9 +33,9 @@ export function shouldShowBanner(status: StoreStatus, hasSecrets: boolean, dismi
   return secretStatusMessage(status) !== null && hasSecrets && !dismissed.has(status);
 }
 
-/** Secret value inputs wait only for the first load attempt to finish; a failed attempt does not lock them. */
-export function secretInputsDisabled(loaded: boolean): boolean {
-  return !loaded;
+/** Secret value inputs stay read-only until the keychain has been read (hydrated), so nothing is edited blind. */
+export function secretInputsDisabled(hydrated: boolean): boolean {
+  return !hydrated;
 }
 
 export const SECRETS_NOTICE_SEEN_KEY = "rest-runner.secrets-notice-seen";

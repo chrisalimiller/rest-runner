@@ -5,7 +5,7 @@ import { useToast } from "../shell/Toast";
 import { useDeferredDelete } from "../shell/useDeferredDelete";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { parseCsv } from "../../lib/csv";
-import { environmentVars, guardFor, loadEnvironments, saveEnvironments, type Environment } from "../../lib/environments";
+import { environmentVars, guardFor, loadEnvironments, mergeHydrated, onSecretsHydrated, saveEnvironments, type Environment } from "../../lib/environments";
 import { SectionVariablesPanel } from "../variables/SectionVariablesPanel";
 import { suitePlaceholders } from "../../lib/usedVariables";
 
@@ -76,6 +76,11 @@ export function TestingApp({ active, shell, command }: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [latestRun, setLatestRun] = useState<TestRun | null>(null);
   const [environments, setEnvironments] = useState<Environment[]>(loadEnvironments);
+  // The keychain can finish loading (or be retried) after first render: fill in secrets without losing edits.
+  useEffect(() => onSecretsHydrated(() => {
+    const fresh = loadEnvironments();
+    setEnvironments((cur) => mergeHydrated(cur, fresh));
+  }), []);
   const [envId, setEnvId] = useState<string | null>(() => load<string | null>(TEST_ENV_KEY, null, isString));
   const [runs, setRuns] = useState<TestRunSummary[]>([]);
   const [report, setReport] = useState<OpenReport | null>(null);

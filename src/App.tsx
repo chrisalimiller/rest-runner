@@ -53,7 +53,7 @@ import { looksLikeCurl, parseCurl, type CurlCommand, type CurlNote } from "./lib
 import { matchVariables, type VarSwap } from "./lib/curlVariables";
 import { SecretStatusBanner } from "./components/shell/SecretStatusBanner";
 import { hasSecretVars } from "./lib/secretsUi";
-import { environmentVars,guardFor, loadEnvironments, saveEnvironments, type Environment } from "./lib/environments";
+import { environmentVars,guardFor, loadEnvironments, mergeHydrated, onSecretsHydrated, saveEnvironments, type Environment } from "./lib/environments";
 import { loadCertificates, matchCertificate, saveCertificates } from "./lib/certificates";
 import { setRequestStatus } from "./lib/sectionStatus";
 import { resolvedUrl } from "./lib/requestSummary";
@@ -252,6 +252,11 @@ export default function App({ active = true, shell, command }: Props) {
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [environments, setEnvironments] = useState<Environment[]>(loadEnvironments);
+  // The keychain can finish loading (or be retried) after first render: fill in secrets without losing edits.
+  useEffect(() => onSecretsHydrated(() => {
+    const fresh = loadEnvironments();
+    setEnvironments((cur) => mergeHydrated(cur, fresh));
+  }), []);
   const [activeEnvId, setActiveEnvId] = useState<string | null>(() => load<string | null>(ACTIVE_ENV_KEY, null, isString));
   const [showEnvEditor, setShowEnvEditor] = useState(false);
   const [focusVarId, setFocusVarId] = useState<string | undefined>(undefined);
