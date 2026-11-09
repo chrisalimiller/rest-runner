@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import Root from "./Root";
 import { ErrorBoundary } from "./components/shell/ErrorBoundary";
 import { ToastProvider } from "./components/shell/Toast";
+import { initSecretStore } from "./lib/secretStore";
 import { initTheme } from "./lib/theme";
 import { showWindowWhenReady } from "./lib/showWindow";
 import { setupWindowChrome } from "./lib/windowChrome";
@@ -17,12 +18,15 @@ initTheme();
 setupWindowChrome();
 showWindowWhenReady();
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <ToastProvider>
-        <Root />
-      </ToastProvider>
-    </ErrorBoundary>
-  </React.StrictMode>,
-);
+// Load secrets from the keychain first (bounded by an internal timeout) so the first render has them.
+void initSecretStore().then(() => {
+  ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+    <React.StrictMode>
+      <ErrorBoundary>
+        <ToastProvider>
+          <Root />
+        </ToastProvider>
+      </ErrorBoundary>
+    </React.StrictMode>,
+  );
+});
