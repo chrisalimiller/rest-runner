@@ -114,7 +114,7 @@ Differences from a run in the app:
 
 - **Requests are sent one at a time.** The app's concurrency setting is not used. Use the delay setting to space them out.
 - **Pre-request and post-response scripts are not included.** They are JavaScript for the app's `rr` API. Values they set are not filled in, and their checks do not run. The export panel warns you when the request has scripts.
-- **Environment values are copied into the script as plain text**, including tokens and passwords. Check the script before you share it. To change them, edit the settings at the top of the script.
+- **Environment values are copied into the script as plain text**, except secret variables: those are never written into the script. The script reads each from an environment variable named `RR_SECRET_<NAME>` (the name in capitals, other characters as `_`), and the header and the export notes list which to set before running. Check the script before you share it. To change them, edit the settings at the top of the script.
 - Results go to the results CSV and the terminal. They do not appear in the app's run explorer.
 
 ## The run explorer

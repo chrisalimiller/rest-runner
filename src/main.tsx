@@ -22,8 +22,7 @@ initTheme();
 setupWindowChrome();
 showWindowWhenReady();
 
-// Load secrets from the keychain first (bounded by an internal timeout) so the first render has them.
-void initSecretStore().then(() => {
+function render() {
   ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
     <React.StrictMode>
       <ErrorBoundary>
@@ -36,4 +35,10 @@ void initSecretStore().then(() => {
   );
   // After the first render: moves any plain-text secrets from local storage into the keychain (retried next launch on failure).
   void runSecretsMigration();
-});
+}
+
+// Load secrets from the keychain first (bounded by an internal timeout) so the first render has them.
+// If that ever throws, the app still renders (without secrets) instead of showing a blank screen.
+void initSecretStore()
+  .catch(() => undefined)
+  .then(render);

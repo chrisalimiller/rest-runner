@@ -62,7 +62,10 @@ function scrub(done: Target[]): boolean {
 
 async function migrate(): Promise<MigrationResult> {
   const s = status();
-  if (s !== "ready" && s !== "browser-fallback") return finish({ migrated: 0, failed: pending().length > 0 });
+  // Browser (non-Tauri, `npm run dev`) mode has no keychain: migration is a deliberate no-op there. Plain values stay in
+  // local storage untouched, nothing is reported as moved, and the "migrated" flag is not set.
+  if (s === "browser-fallback") return finish({ migrated: 0, failed: false });
+  if (s !== "ready") return finish({ migrated: 0, failed: pending().length > 0 });
   const todo = pending();
   if (todo.length === 0) {
     save(SECRETS_MIGRATED_KEY, true);
@@ -79,14 +82,14 @@ async function migrate(): Promise<MigrationResult> {
   for (const [envId, entries] of toWrite) setSecrets(envId, entries);
   await whenFlushed();
   const after = status();
-  const confirmed = (after === "ready" || after === "browser-fallback") && todo.every((t) => getSecret(t.envId, t.varId) !== "");
+  const confirmed = after === "ready" && todo.every((t) => getSecret(t.envId, t.varId) !== "");
   if (!confirmed) return finish({ migrated: 0, failed: true });
   if (!scrub(todo)) return finish({ migrated: 0, failed: true });
   save(SECRETS_MIGRATED_KEY, true);
   return finish({ migrated: todo.length, failed: false });
 }
 
-/** Moves plain-text secret values from local storage into the keychain. Call after `initSecretStore`. Safe to repeat. */
+/** Moves plain-text secret values from local storage into the keychain (a no-op in browser mode, where there is no keychain). Call after `initSecretStore`. Safe to repeat. */
 export function runSecretsMigration(): Promise<MigrationResult> {
   running ??= migrate()
     .catch(() => finish({ migrated: 0, failed: true }))

@@ -1,5 +1,7 @@
-import { allValues } from "./secretStore";
-import { maskSecrets, redactReport } from "./secrets";
+import { COLLECTIONS_KEY } from "./collections";
+import type { Environment } from "./environments";
+import { status as secretStatus } from "./secretStore";
+import { maskSecrets, redactReport, storedSecrets } from "./secrets";
 import { setSaveTransform } from "./storage";
 
 /**
@@ -24,6 +26,20 @@ export const SECRET_KEY_PATTERN = /token|secret|password|passwd|api[-_]?key|auth
 
 /** Structural strings that logic reads back; never user text. */
 const STRUCTURAL = new Set(["status", "end", "method", "type", "nodeType", "id"]);
+
+/**
+ * Secret variables whose value is too short to be redacted (see MIN_SECRET_LENGTH): their value can still show up
+ * in stored history or saved runs. Empty values are not listed.
+ */
+export function shortSecretVariables(envs: readonly Environment[]): { envId: string; envName: string; varId: string; name: string }[] {
+  const out: { envId: string; envName: string; varId: string; name: string }[] = [];
+  for (const env of envs) {
+    for (const v of env.vars) {
+      if (v.secret && v.value !== "" && v.value.length < MIN_SECRET_LENGTH) out.push({ envId: env.id, envName: env.name, varId: v.id, name: v.key });
+    }
+  }
+  return out;
+}
 
 /** The secrets worth redacting: long enough, de-duplicated, longest first. */
 export function usableSecrets(secrets: readonly string[]): string[] {
@@ -55,14 +71,14 @@ function walk(value: unknown, secrets: readonly string[], field: string): unknow
  * Structure and keys are left as they are, `{{placeholders}}` are untouched (they are not secrets),
  * and the input is never changed. With no usable secrets the input is returned as is.
  */
-export function redactForStorage<T>(value: T, secrets: readonly string[] = allValues()): T {
+export function redactForStorage<T>(value: T, secrets: readonly string[] = storedSecrets()): T {
   const usable = usableSecrets(secrets);
   if (usable.length === 0) return value;
   return walk(value, usable, "") as T;
 }
 
 /** A saved run (batch, test or flow) with secrets masked, using the same rules as exported reports. */
-export function redactRunForStorage<T>(run: T, secrets: readonly string[] = allValues()): T {
+export function redactRunForStorage<T>(run: T, secrets: readonly string[] = storedSecrets()): T {
   const usable = usableSecrets(secrets);
   if (usable.length === 0) return run;
   return redactReport(run, usable);
@@ -72,7 +88,7 @@ export function redactRunForStorage<T>(run: T, secrets: readonly string[] = allV
  * History: everything but the request as typed (`def`, which keeps its `{{placeholders}}`) is
  * redacted: the resolved url, the response, errors and script output.
  */
-export function redactHistoryForStorage(value: unknown, secrets: readonly string[] = allValues()): unknown {
+export function redactHistoryForStorage(value: unknown, secrets: readonly string[] = storedSecrets()): unknown {
   const usable = usableSecrets(secrets);
   if (usable.length === 0 || !Array.isArray(value)) return value;
   return value.map((entry) => {
@@ -87,7 +103,7 @@ export function redactHistoryForStorage(value: unknown, secrets: readonly string
  * Tabs hold only the requests as typed (placeholders kept, nothing resolved, no responses), so they
  * pass through. If a future version stores a response or resolved echo on a tab, it is redacted here.
  */
-export function redactTabsForStorage(value: unknown, secrets: readonly string[] = allValues()): unknown {
+export function redactTabsForStorage(value: unknown, secrets: readonly string[] = storedSecrets()): unknown {
   const usable = usableSecrets(secrets);
   if (usable.length === 0 || !value || typeof value !== "object" || Array.isArray(value)) return value;
   const data = value as { tabs?: unknown };
@@ -101,13 +117,42 @@ export function redactTabsForStorage(value: unknown, secrets: readonly string[] 
   return { ...data, tabs };
 }
 
+/** Applies `fn` to the `response` of every saved example in a collection tree, leaving everything else as it is. */
+function mapExamples(nodes: unknown, fn: (response: unknown) => unknown): unknown {
+  if (!Array.isArray(nodes)) return nodes;
+  return nodes.map((node) => {
+    if (!node || typeof node !== "object" || Array.isArray(node)) return node;
+    const n = node as Record<string, unknown>;
+    if (Array.isArray(n.items)) return { ...n, items: mapExamples(n.items, fn) };
+    if (Array.isArray(n.examples)) {
+      const examples = n.examples.map((ex) => (ex && typeof ex === "object" && !Array.isArray(ex) && "response" in ex ? { ...(ex as object), response: fn((ex as { response: unknown }).response) } : ex));
+      return { ...n, examples };
+    }
+    return node;
+  });
+}
+
+/**
+ * Collections: only the saved example responses (headers and body, which a server may have echoed a secret into)
+ * are redacted. Request definitions, names and `{{placeholders}}` are never touched.
+ */
+export function redactCollectionsForStorage(value: unknown, secrets: readonly string[] = storedSecrets()): unknown {
+  const usable = usableSecrets(secrets);
+  if (usable.length === 0 || !Array.isArray(value)) return value;
+  return value.map((col) => {
+    if (!col || typeof col !== "object" || Array.isArray(col)) return col;
+    const c = col as Record<string, unknown>;
+    return Array.isArray(c.items) ? { ...c, items: mapExamples(c.items, (r) => walk(r, usable, "")) } : col;
+  });
+}
+
 /** True when a script variable name looks like it holds a credential. */
 export function isSecretKey(key: string): boolean {
   return SECRET_KEY_PATTERN.test(key);
 }
 
 /** Script variables: values under credential-like names, and any value containing a known secret, are masked. */
-export function redactScriptVarsForStorage(value: unknown, secrets: readonly string[] = allValues()): unknown {
+export function redactScriptVarsForStorage(value: unknown, secrets: readonly string[] = storedSecrets()): unknown {
   if (!value || typeof value !== "object" || Array.isArray(value)) return value;
   const usable = usableSecrets(secrets);
   const out: Record<string, unknown> = {};
@@ -135,12 +180,13 @@ export function installStorageRedaction(): void {
   setSaveTransform(HISTORY_KEY, (v) => redactHistoryForStorage(v));
   setSaveTransform(TABS_KEY, (v) => redactTabsForStorage(v));
   setSaveTransform(SCRIPT_VARS_KEY, (v) => redactScriptVarsForStorage(v));
+  setSaveTransform(COLLECTIONS_KEY, (v) => redactCollectionsForStorage(v));
 }
 
 /** For tests. */
 export function uninstallStorageRedaction(): void {
   installed = false;
-  for (const key of [HISTORY_KEY, TABS_KEY, SCRIPT_VARS_KEY]) setSaveTransform(key, null);
+  for (const key of [HISTORY_KEY, TABS_KEY, SCRIPT_VARS_KEY, COLLECTIONS_KEY]) setSaveTransform(key, null);
 }
 
 // ---- Scrubbing data stored before redaction existed ----
@@ -166,7 +212,7 @@ function scrubLocal(key: string, redact: (v: unknown) => unknown): number {
  * again (a second run changes nothing), never throws, and leaves anything it cannot parse alone.
  * Returns how many records were changed. Call it after secrets were moved out of environments.
  */
-export async function scrubPersistedStores(secrets: readonly string[] = allValues()): Promise<number> {
+export async function scrubPersistedStores(secrets: readonly string[] = storedSecrets()): Promise<number> {
   const usable = usableSecrets(secrets);
   let changed = 0;
   try {
@@ -174,6 +220,7 @@ export async function scrubPersistedStores(secrets: readonly string[] = allValue
     changed += scrubLocal(HISTORY_KEY, (v) => redactHistoryForStorage(v, usable));
     changed += scrubLocal(TABS_KEY, (v) => redactTabsForStorage(v, usable));
     changed += scrubLocal(SCRIPT_VARS_KEY, (v) => redactScriptVarsForStorage(v, usable));
+    changed += scrubLocal(COLLECTIONS_KEY, (v) => redactCollectionsForStorage(v, usable));
   } catch {
     /* ignore */
   }
@@ -192,6 +239,29 @@ export async function scrubPersistedStores(secrets: readonly string[] = allValue
     /* IndexedDB unavailable */
   }
   return changed;
+}
+
+let scrubbedThisLaunch = false;
+
+/**
+ * Runs `scrubPersistedStores` at most once per launch, and only when the secret store is ready and there is
+ * something to mask. Best-effort and not awaited: never throws. Returns true when it started.
+ */
+export function scrubOncePerLaunch(): boolean {
+  if (scrubbedThisLaunch) return false;
+  try {
+    if (secretStatus() !== "ready" || usableSecrets(storedSecrets()).length === 0) return false;
+    scrubbedThisLaunch = true;
+    void scrubPersistedStores().catch(() => {});
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** For tests. */
+export function resetScrubLaunchForTests(): void {
+  scrubbedThisLaunch = false;
 }
 
 // ---- Literal secrets typed into requests (for a warning, never rewritten) ----

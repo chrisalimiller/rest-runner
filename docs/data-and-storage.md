@@ -66,7 +66,7 @@ Because environments, collections and suites can hold tokens and passwords you t
 
 The banner appears only when some variable is marked secret, and can be dismissed for the session. On macOS you may be asked to allow Keychain access on first launch; choose Allow (or Always Allow) so the app can read its own items.
 
-**Running in a browser (development).** Outside the desktop app, for example `npm run dev` in a browser, there is no keychain. Secret values are kept in the tab's `sessionStorage` (key `rest-runner.dev-secrets`), which is cleared when the tab closes, and the banner says "Dev mode: secret values are kept for this browser tab only."
+**Running in a browser (development).** Outside the desktop app, for example `npm run dev` in a browser, there is no keychain. Nothing is migrated or blanked there: plain secret values already in local storage stay as they are. Secret values are kept in the tab's `sessionStorage` (key `rest-runner.dev-secrets`), which is cleared when the tab closes, and the banner says "Dev mode: secret values are kept for this browser tab only."
 
 **Exporting and importing.** **Export workspace...** leaves secret values out by default: each secret variable stays in the file with an empty value. If you choose to include them, they are written to the file in plain text, so protect that file. On **Import**, a secret variable that arrives blank keeps the value you already have on this computer; a secret that arrives with a value replaces yours and is saved to the keychain.
 
@@ -77,6 +77,8 @@ The banner appears only when some variable is marked secret, and can be dismisse
 **Redaction at write time.** Known secret values are masked in the copies of data the app stores, so they do not leak into other local storage:
 
 - **History and saved runs** (batch, test and flow runs): every stored string, such as the resolved URL, response, errors and script output, has known secret values replaced with the mask. History keeps the request as you typed it (with its `{{placeholders}}`) unchanged. Open tabs hold only requests as typed, so they pass through unchanged.
+- **Saved example responses** in collections (headers and body) are masked the same way when saved and in workspace exports (unless you include secrets); request definitions are never changed.
+- Secret values shorter than 4 characters are not masked, because they would hide ordinary text.
 - **Script variables** (`rest-runner.script-vars`): a variable is not saved at all if its name looks like a credential (it contains `token`, `secret`, `password`, `passwd`, `apikey`, `api-key`, `api_key`, `auth` (but not words like "author"), `bearer`, `cookie` or `session`, in any letter case), or if its value contains a known secret. It is set again the next time the script runs.
 - **Minimum length:** secret values shorter than 4 characters are not masked, because they would mangle ordinary text.
 - **Limits of detection:** only values the app holds as secret variables can be recognised. A value the app never stored as a secret (for example a token a server returned that you did not save as a secret variable), or one that a server or script transformed (base64, hashed, split, re-encoded), cannot be detected and is stored as it appeared.

@@ -1,6 +1,8 @@
 import type { BatchOptions } from "./batch";
 import { certificateForExport, type CertificateEntry, type CertificateExport } from "./certificates";
 import { stripJsonComments } from "./jsonFormat";
+import { loadEnvironments } from "./environments";
+import { storedSecrets } from "./secrets";
 import { withAuthDefaults } from "./request";
 import { applyTemplate, type Vars } from "./template";
 import { isHttpMethod, type KeyValue, type RequestDef } from "./types";
@@ -21,6 +23,60 @@ export interface ScriptExportInput {
   exportedAt?: Date;
   /** The app's imported certificates. The one matching the request's address gets a settings block. */
   certificates?: readonly CertificateEntry[];
+  /** Names (keys of `defaults`) of secret variables. Default: the secret variables of the saved environments. */
+  secretNames?: readonly string[];
+  /** Known secret values; a default holding one of them is treated as secret. Default: every secret on this computer. */
+  secretValues?: readonly string[];
+}
+
+/** The `defaults` keys whose values are secret: they are never written into a script. */
+function secretDefaults(input: ScriptExportInput): Set<string> {
+  const names = new Set<string>(input.secretNames ?? []);
+  if (!input.secretNames) {
+    try {
+      for (const env of loadEnvironments()) {
+        if (input.envName && env.name !== input.envName) continue;
+        for (const v of env.vars) if (v.secret && v.key.trim() !== "") names.add(v.key.trim());
+      }
+    } catch {
+      /* storage unavailable */
+    }
+  }
+  let values: readonly string[] = input.secretValues ?? [];
+  if (!input.secretValues) {
+    try {
+      values = storedSecrets();
+    } catch {
+      values = [];
+    }
+  }
+  const known = new Set(values.filter((v) => v !== ""));
+  const out = new Set<string>();
+  for (const [k, v] of Object.entries(input.defaults)) if (names.has(k) || (v !== "" && known.has(v))) out.add(k);
+  return out;
+}
+
+/** Environment variable for a secret default, e.g. `token` becomes RR_SECRET_TOKEN. Distinct names stay distinct. */
+function secretEnvNames(keys: Iterable<string>): Map<string, string> {
+  const out = new Map<string, string>();
+  const used = new Set<string>();
+  for (const k of keys) {
+    const base = `RR_SECRET_${k.toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "VAR"}`;
+    let name = base;
+    for (let i = 2; used.has(name); i++) name = `${base}_${i}`;
+    used.add(name);
+    out.set(k, name);
+  }
+  return out;
+}
+
+/** Defaults split into plain values (written into the script) and secret ones (read from RR_SECRET_* variables). */
+function splitDefaults(input: ScriptExportInput): { plain: [string, string][]; secret: Map<string, string> } {
+  const secrets = secretDefaults(input);
+  return {
+    plain: Object.entries(input.defaults).filter(([k]) => !secrets.has(k)),
+    secret: secretEnvNames([...secrets]),
+  };
 }
 
 /** The certificate the exported script would need, matched on the request's address with environment values filled in. */
@@ -42,8 +98,12 @@ export function scriptExportNotes(input: ScriptExportInput): string[] {
   if (scripts.length) {
     notes.push(`The request's ${scripts.join(" and ")} ${scripts.length > 1 ? "scripts are JavaScript for the app and are" : "script is JavaScript for the app and is"} not included. Values ${scripts.length > 1 ? "they set" : "it sets"} are not filled in.`);
   }
-  if (Object.keys(input.defaults).length) {
+  const { plain, secret } = splitDefaults(input);
+  if (plain.length) {
     notes.push(`Values from ${input.envName ? `the ${input.envName} environment` : "the environment"} and earlier script runs are copied into the script as plain text. Check it before you share it.`);
+  }
+  if (secret.size) {
+    notes.push(`Secret values are not written into the script. Set ${[...secret.values()].join(", ")} in your terminal before you run it.`);
   }
   const cert = exportedCertificate(input);
   if (cert?.client) {
@@ -155,10 +215,11 @@ function py(value: unknown): string {
   return `{${Object.entries(value as Record<string, unknown>).map(([k, v]) => `${py(k)}: ${py(v)}`).join(", ")}}`;
 }
 
-/** A dict written one key per line. */
-function pyBlock(fields: [string, unknown][]): string {
-  if (fields.length === 0) return "{}";
-  return `{\n${fields.map(([k, v]) => `    ${py(k)}: ${py(v)},`).join("\n")}\n}`;
+/** The VALUES dict: plain defaults as literals, secret ones read from RR_SECRET_* environment variables. */
+function pyValues(input: ScriptExportInput): string {
+  const { plain, secret } = splitDefaults(input);
+  const lines = [...plain.map(([k, v]) => `    ${py(k)}: ${py(v)},`), ...[...secret].map(([k, env]) => `    ${py(k)}: os.environ.get(${py(env)}, ""),`)];
+  return lines.length ? `{\n${lines.join("\n")}\n}` : "{}";
 }
 
 /** A Python expression for text with placeholders filled in from v. */
@@ -241,7 +302,7 @@ export function buildPythonScript(input: ScriptExportInput): string {
     "DRY_RUN = False  # True prints the requests without sending them",
     "",
     "# Values for placeholders that no CSV column fills (a column with the same name wins).",
-    `VALUES = ${pyBlock(Object.entries(input.defaults))}`,
+    `VALUES = ${pyValues(input)}`,
     ...(cert ? pyCertificateSettings(cert) : []),
   ].join("\n");
   return fill(
@@ -414,7 +475,8 @@ export function buildBashScript(input: ScriptExportInput): string {
     "# Values for placeholders that no CSV column fills (a column with the same name wins).",
     "default_value() {",
     '  case "$1" in',
-    ...Object.entries(input.defaults).map(([k, val]) => `    ${sq(k)}) REPLY=${sq(val)} ;;`),
+    ...splitDefaults(input).plain.map(([k, val]) => `    ${sq(k)}) REPLY=${sq(val)} ;;`),
+    ...[...splitDefaults(input).secret].map(([k, env]) => `    ${sq(k)}) REPLY=\${${env}:-} ;;`),
     "    *) return 1 ;;",
     "  esac",
     "}",
