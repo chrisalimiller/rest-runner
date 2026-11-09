@@ -1,0 +1,107 @@
+/* Compare runs, shown inside the run explorer area. Tokens only, so both themes work. */
+.run-compare .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.compare-pick {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.compare-pick select {
+  min-width: 260px;
+  max-width: 100%;
+}
+
+.compare-warnings {
+  margin: 0;
+  padding: 8px 10px 8px 26px;
+  background: var(--bg-soft);
+  border-left: 2px solid var(--warn);
+  border-radius: var(--r-xs);
+}
+
+.compare-stats {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.compare-stats .stat .delta {
+  display: block;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.compare-stats .stat .delta.bad {
+  color: var(--bad);
+}
+
+.compare-stats .stat .delta.ok {
+  color: var(--ok);
+}
+
+.compare-empty {
+  padding: 12px;
+  background: var(--bg-soft);
+  border-radius: var(--r-sm);
+}
+
+.compare-body {
+  grid-template-columns: minmax(380px, 40%) 1fr;
+}
+
+table.compare-table th:nth-child(1) { width: 48px; }
+table.compare-table th:nth-child(2),
+table.compare-table th:nth-child(3) { width: 58px; }
+table.compare-table th:nth-child(4) { width: 110px; }
+table.compare-table th:nth-child(5) { width: auto; }
+
+table.compare-table .pill {
+  display: inline-block;
+  margin-right: 4px;
+  color: var(--text);
+  background: var(--bg-hover);
+  border: 1px solid var(--border);
+}
+
+table.compare-table .pill.ok,
+table.compare-table .pill.bad {
+  color: var(--accent-text);
+  border-color: transparent;
+}
+
+table.compare-table .pill.ok { background: var(--ok); }
+table.compare-table .pill.bad { background: var(--bad); }
+
+.compare-detail {
+  overflow: auto;
+}
+
+.compare-detail-title {
+  margin: 0 0 6px;
+}
+
+.compare-sides {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.compare-sides h4 {
+  margin: 8px 0 4px;
+  color: var(--muted);
+}
+
+.body-diff {
+  margin-bottom: 8px;
+}
+
+.body-diff td {
+  overflow-wrap: anywhere;
+}
