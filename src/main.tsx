@@ -4,6 +4,7 @@ import Root from "./Root";
 import { ErrorBoundary } from "./components/shell/ErrorBoundary";
 import { ToastProvider } from "./components/shell/Toast";
 import { initTheme } from "./lib/theme";
+import { showWindowWhenReady } from "./lib/showWindow";
 import { setupWindowChrome } from "./lib/windowChrome";
 import "./assets/fonts/red-hat-text/red-hat-text.css";
 import "./assets/fonts/red-hat-display/red-hat-display.css";
@@ -14,6 +15,7 @@ import "./layout.css";
 
 initTheme();
 setupWindowChrome();
+showWindowWhenReady();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
