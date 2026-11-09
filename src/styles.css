@@ -2513,3 +2513,200 @@ table.results.row-picker-table tr.rp-filters th {
   padding: 16px;
   text-align: center;
 }
+
+/* A setting with one-click presets and a custom slot */
+.preset-field {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px 8px;
+  align-items: center;
+  color: var(--muted);
+}
+
+.seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--bg-inset);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+}
+
+.seg > button {
+  height: 24px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: var(--r-pill);
+  background: transparent;
+  color: var(--muted);
+}
+
+.seg > button:hover:not(:disabled),
+.seg > button.on {
+  color: var(--text);
+}
+
+.seg > button.on {
+  background: var(--btn-hover);
+}
+
+.seg-custom {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  box-sizing: border-box;
+  padding: 0 2px;
+  border: 1px solid transparent;
+  border-radius: var(--r-pill);
+}
+
+.seg-custom.on {
+  background: var(--btn-hover);
+  border-color: var(--accent-fg);
+}
+
+.seg-custom:focus-within {
+  outline: 2px solid var(--accent-fg);
+  outline-offset: 1px;
+}
+
+.seg-custom input[type="number"],
+.seg-custom input[type="number"]:focus {
+  width: 56px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: var(--fs-sm, 12px);
+  text-align: center;
+  outline: none;
+}
+
+.seg-unit {
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.seg-custom .seg-step {
+  width: 20px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+  line-height: 1;
+}
+
+.seg-custom .seg-step:hover:not(:disabled) {
+  background: var(--border);
+  color: var(--text);
+}
+
+/* No browser spinner chevrons in these fields: they have their own − and + or a slider. */
+.seg-custom input[type="number"],
+.row-picker input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.seg-custom input[type="number"]::-webkit-inner-spin-button,
+.seg-custom input[type="number"]::-webkit-outer-spin-button,
+.row-picker input[type="number"]::-webkit-inner-spin-button,
+.row-picker input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Two-handle range slider for the first and last row */
+.row-picker input.rp-box {
+  width: 64px;
+  font-family: var(--mono);
+}
+
+.rp-dual {
+  position: relative;
+  flex: 1 1 200px;
+  min-width: 160px;
+  max-width: 460px;
+  height: 28px;
+}
+
+.rp-dual.off .rp-fill {
+  background: var(--border);
+}
+
+.rp-track,
+.rp-fill {
+  position: absolute;
+  top: 12px;
+  height: 4px;
+  border-radius: 2px;
+}
+
+.rp-track {
+  left: 8px;
+  right: 8px;
+  background: var(--border);
+}
+
+.rp-fill {
+  background: var(--accent-fg);
+}
+
+.rp-dual input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 28px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  box-shadow: none;
+  background: transparent;
+  pointer-events: none;
+}
+
+.rp-dual input[type="range"]::-webkit-slider-runnable-track {
+  background: transparent;
+  height: 28px;
+}
+
+.rp-dual input[type="range"]::-moz-range-track {
+  background: transparent;
+}
+
+.rp-dual input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  pointer-events: auto;
+  width: 16px;
+  height: 16px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--text);
+  border: 2px solid var(--accent-fg);
+  cursor: grab;
+}
+
+.rp-dual input[type="range"]::-moz-range-thumb {
+  pointer-events: auto;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--text);
+  border: 2px solid var(--accent-fg);
+  cursor: grab;
+}
+
+.rp-dual input[type="range"]:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--accent-fg);
+  outline-offset: 2px;
+}

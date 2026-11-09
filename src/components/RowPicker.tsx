@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import type { CsvData } from "../lib/csv";
-import { dropdownOptions, filterRows, hasFilters, NO_FILTERS, rangeIndices, type LastRunFilter, type RowFilters, type RowStatus } from "../lib/rowSelection";
+import { dropdownOptions, filterRows, hasFilters, isContiguous, NO_FILTERS, rangeIndices, selectionSpan, type LastRunFilter, type RowFilters, type RowStatus } from "../lib/rowSelection";
 
 interface Props {
   csv: CsvData;
@@ -19,8 +19,10 @@ const STATUS_TEXT: Record<RowStatus | "none", string> = { passed: "Passed", fail
 /** The CSV as a table with a checkbox per row, column filters and shortcuts, to choose which rows a bulk run sends. */
 export function RowPicker({ csv, selected, onChange, statuses, hasHistory, disabled }: Props) {
   const [filters, setFilters] = useState<RowFilters>(NO_FILTERS);
-  const [from, setFrom] = useState("1");
-  const [to, setTo] = useState(String(csv.rows.length));
+  /** Text being typed in a range box, so it can be empty or half-typed without the box snapping back. */
+  const [draft, setDraft] = useState<{ field: "lo" | "hi"; text: string } | null>(null);
+  /** Where the slider sits while nothing is selected. */
+  const [lastSpan, setLastSpan] = useState({ lo: 1, hi: csv.rows.length });
 
   const dropdowns = useMemo(() => {
     const map = new Map<string, string[]>();
@@ -54,6 +56,26 @@ export function RowPicker({ csv, selected, onChange, statuses, hasHistory, disab
     onChange(next);
   };
   const pick = (indices: number[]) => onChange(new Set(indices));
+  // The slider is a view of the selection: its ends are the first and last selected rows, so checking boxes moves it.
+  const span = selectionSpan(selected);
+  const lo = span?.lo ?? Math.min(lastSpan.lo, total);
+  const hi = span?.hi ?? Math.min(lastSpan.hi, total);
+  const contiguous = isContiguous(selected);
+  const setSpan = (nextLo: number, nextHi: number) => {
+    const a = Math.min(Math.max(1, nextLo), total);
+    const b = Math.max(Math.min(total, nextHi), a);
+    setLastSpan({ lo: a, hi: b });
+    pick(rangeIndices(String(a), String(b), total));
+  };
+  const frac = (n: number) => (total > 1 ? (n - 1) / (total - 1) : 0);
+  const typed = (field: "lo" | "hi", text: string) => {
+    setDraft({ field, text });
+    const n = Math.round(Number(text));
+    if (text.trim() === "" || !Number.isFinite(n)) return;
+    if (field === "lo") setSpan(n, Math.max(n, hi));
+    else setSpan(Math.min(n, lo), n);
+  };
+  const boxValue = (field: "lo" | "hi") => (draft?.field === field ? draft.text : String(field === "lo" ? lo : hi));
   const notRun = csv.rows.map((_, i) => i).filter((i) => !statuses.has(i));
   const failedRows = csv.rows.map((_, i) => i).filter((i) => statuses.get(i) === "failed");
   const passedCount = [...statuses.values()].filter((s) => s === "passed").length;
@@ -76,18 +98,36 @@ export function RowPicker({ csv, selected, onChange, statuses, hasHistory, disab
 
       <div className="row-picker-tools">
         <span className="muted">Select by row number</span>
-        <label>
-          From
-          <input type="number" min={1} max={total} value={from} disabled={disabled} onChange={(e) => setFrom(e.target.value)} />
-        </label>
-        <label>
-          to
-          <input type="number" min={1} max={total} value={to} disabled={disabled} onChange={(e) => setTo(e.target.value)} />
-        </label>
-        <button className="secondary" disabled={disabled || rangeIndices(from, to, total).length === 0} onClick={() => pick(rangeIndices(from, to, total))}>
-          Select range
-        </button>
+        <input
+          type="number"
+          className="rp-box"
+          min={1}
+          max={total}
+          aria-label="From row"
+          value={boxValue("lo")}
+          disabled={disabled}
+          onChange={(e) => typed("lo", e.target.value)}
+          onBlur={() => setDraft(null)}
+        />
+        <div className={`rp-dual ${span ? "" : "off"}`}>
+          <div className="rp-track" />
+          <div className="rp-fill" style={{ left: `calc(8px + (100% - 16px) * ${frac(lo)})`, right: `calc(8px + (100% - 16px) * ${1 - frac(hi)})` }} />
+          <input type="range" min={1} max={total} value={lo} aria-label="First row" disabled={disabled} onChange={(e) => setSpan(Math.min(Number(e.target.value), hi), hi)} />
+          <input type="range" min={1} max={total} value={hi} aria-label="Last row" disabled={disabled} onChange={(e) => setSpan(lo, Math.max(Number(e.target.value), lo))} />
+        </div>
+        <input
+          type="number"
+          className="rp-box"
+          min={1}
+          max={total}
+          aria-label="To row"
+          value={boxValue("hi")}
+          disabled={disabled}
+          onChange={(e) => typed("hi", e.target.value)}
+          onBlur={() => setDraft(null)}
+        />
         <span className="row-picker-spacer" />
+        {!contiguous && <span className="muted">Rows {lo} to {hi} contain gaps; moving the slider replaces the selection</span>}
         <button className="secondary" disabled={disabled || selected.size === 0} onClick={() => onChange(new Set())}>
           Clear selection
         </button>

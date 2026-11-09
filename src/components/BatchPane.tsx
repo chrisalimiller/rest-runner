@@ -16,6 +16,7 @@ import type { Vars } from "../lib/template";
 import type { RequestDef } from "../lib/types";
 import { useCertificates } from "./CertificatesDialog";
 import { CallDetail } from "./CallDetail";
+import { PresetField } from "./PresetField";
 import { RowPicker } from "./RowPicker";
 import { ScriptExportPanel } from "./ScriptExportPanel";
 
@@ -286,7 +287,6 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
 
   const rerunReason = rerunDisabledReason(failed, running);
 
-  const num = (v: string, min: number, max: number) => Math.min(max, Math.max(min, Math.round(Number(v) || 0)));
 
   return (
     <section className={`batch ${wide ? "wide" : ""}`}>
@@ -378,28 +378,28 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
         )}
 
         <div className="batch-options">
-          <label>
-            Concurrent requests
-            <input
-              type="number"
-              min={1}
-              max={50}
-              value={options.concurrency}
-              disabled={running}
-              onChange={(e) => setOptions({ ...options, concurrency: num(e.target.value, 1, 50) })}
-            />
-          </label>
-          <label>
-            Delay between requests (ms)
-            <input
-              type="number"
-              min={0}
-              step={100}
-              value={options.delayMs}
-              disabled={running}
-              onChange={(e) => setOptions({ ...options, delayMs: num(e.target.value, 0, 600000) })}
-            />
-          </label>
+          <PresetField
+            label="Concurrent requests"
+            value={options.concurrency}
+            presets={[1, 5, 10, 25]}
+            min={1}
+            max={50}
+            step={1}
+            disabled={running}
+            onChange={(v) => setOptions({ ...options, concurrency: v })}
+          />
+          <PresetField
+            label="Delay between requests"
+            value={options.delayMs}
+            presets={[0, 100, 250, 500, 1000]}
+            min={0}
+            max={600000}
+            step={100}
+            unit="ms"
+            format={(v) => (v === 1000 ? "1 s" : `${v} ms`)}
+            disabled={running}
+            onChange={(v) => setOptions({ ...options, delayMs: v })}
+          />
           <label className="check">
             <input
               type="checkbox"

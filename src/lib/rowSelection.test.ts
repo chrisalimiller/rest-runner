@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dropdownOptions, filterRows, fromRanges, matchingRuns, NO_FILTERS, rangeIndices, toRanges, type RowStatus } from "./rowSelection";
+import { dropdownOptions, filterRows, fromRanges, isContiguous, matchingRuns, NO_FILTERS, rangeIndices, selectionSpan, toRanges, type RowStatus } from "./rowSelection";
 
 const rows = [
   { name: "Ada", plan: "Pro" },
@@ -65,5 +65,15 @@ describe("matchingRuns", () => {
   });
   it("falls back to the URL for runs saved without a request id", () => {
     expect(matchingRuns([run("a.csv", undefined, "1", "x"), run("a.csv", undefined, "2", "y")], "a.csv", "r1", "x")).toHaveLength(1);
+  });
+});
+
+describe("selectionSpan", () => {
+  it("is null for nothing selected", () => expect(selectionSpan(new Set())).toBeNull());
+  it("gives 1-based first and last rows", () => expect(selectionSpan(new Set([15, 16, 39]))).toEqual({ lo: 16, hi: 40 }));
+  it("knows whether the rows are one unbroken run", () => {
+    expect(isContiguous(new Set([3, 4, 5]))).toBe(true);
+    expect(isContiguous(new Set([3, 5]))).toBe(false);
+    expect(isContiguous(new Set())).toBe(true);
   });
 });

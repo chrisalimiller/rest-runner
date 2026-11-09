@@ -67,6 +67,24 @@ export function rangeIndices(from: string, to: string, count: number): number[] 
   return out;
 }
 
+/** The first and last selected rows as 1-based numbers, or null for an empty selection. */
+export function selectionSpan(selected: ReadonlySet<number>): { lo: number; hi: number } | null {
+  if (selected.size === 0) return null;
+  let lo = Infinity;
+  let hi = -Infinity;
+  for (const i of selected) {
+    if (i < lo) lo = i;
+    if (i > hi) hi = i;
+  }
+  return { lo: lo + 1, hi: hi + 1 };
+}
+
+/** True when the selected rows form one unbroken run, so the range slider describes them exactly. */
+export function isContiguous(selected: ReadonlySet<number>): boolean {
+  const span = selectionSpan(selected);
+  return span === null || span.hi - span.lo + 1 === selected.size;
+}
+
 /** The latest status of each row across runs of the same CSV, given oldest run first. */
 export function rowStatuses(runs: Run[]): Map<number, RowStatus> {
   const map = new Map<number, RowStatus>();
