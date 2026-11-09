@@ -105,10 +105,33 @@ function parseEnv(json: string | null): Record<string, string> {
   return out;
 }
 
+/** Ids of the environments saved in local storage (read directly: environments.ts imports this module). */
+function knownEnvIds(): string[] {
+  try {
+    const raw = localStorage.getItem("rest-runner.environments");
+    const list: unknown = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(list)) return [];
+    return list.flatMap((e) => (e && typeof e === "object" && typeof (e as { id?: unknown }).id === "string" ? [(e as { id: string }).id] : []));
+  } catch {
+    return [];
+  }
+}
+
 async function load(): Promise<void> {
   try {
     await backend.available();
-    const ids = await backend.listEnvs();
+    // The keychain index can be damaged or miss an environment, and the keychain cannot be enumerated. So also
+    // try the environments the app already knows about: an index failure must not stop secrets from loading.
+    const known = knownEnvIds();
+    let indexed: string[] = [];
+    try {
+      indexed = await backend.listEnvs();
+    } catch (e) {
+      // With no known environment to read there is nothing to prove the keychain works, so treat this as a
+      // failed load (never as an empty one: an empty load would let later writes replace stored secrets).
+      if (known.length === 0) throw e;
+    }
+    const ids = [...new Set([...indexed, ...known])];
     const stored = new Map<string, Record<string, string>>();
     for (const id of ids) stored.set(id, parseEnv(await backend.readEnv(id)));
     // Hydrate: stored values fill in, values edited this session win.

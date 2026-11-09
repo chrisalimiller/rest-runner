@@ -197,6 +197,28 @@ describe("pump regression", () => {
   });
 });
 
+describe("damaged keychain index", () => {
+  it("still loads the secrets of environments known to the app", async () => {
+    putRaw([env("e1", [row("v1", "token", "", true)])]);
+    fake.data.set("e1", JSON.stringify({ v1: "S3CR3T" }));
+    fake.failList = true;
+    await initSecretStore();
+    expect(status()).toBe("ready");
+    expect(isHydrated()).toBe(true);
+    expect(getSecret("e1", "v1")).toBe("S3CR3T");
+  });
+
+  it("finds an environment that is missing from the index", async () => {
+    putRaw([env("e2", [row("v1", "token", "", true)])]);
+    fake.data.set("e2", JSON.stringify({ v1: "X1234" }));
+    const list = fake.listEnvs;
+    fake.listEnvs = async () => [];
+    await initSecretStore();
+    fake.listEnvs = list;
+    expect(getSecret("e2", "v1")).toBe("X1234");
+  });
+});
+
 describe("corrupt stored item", () => {
   it("fails the load visibly and writes nothing", async () => {
     fake.data.set("e1", "{not json");

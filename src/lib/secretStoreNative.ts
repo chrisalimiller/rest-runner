@@ -24,6 +24,8 @@ export interface FakeBackend extends SecretBackend {
   data: Map<string, string>;
   failReads: boolean;
   failWrites: boolean;
+  /** Makes `listEnvs()` reject (a damaged index) while reads still work. */
+  failList: boolean;
   /** Rejects `available()` with this message when set. */
   unavailable: string | null;
   /** Successful write and delete calls, in order. */
@@ -36,6 +38,7 @@ export function createFakeBackend(opts: { failReads?: boolean; failWrites?: bool
     data: new Map(),
     failReads: opts.failReads ?? false,
     failWrites: opts.failWrites ?? false,
+    failList: false,
     unavailable: null,
     writes: [],
     async available() {
@@ -56,7 +59,7 @@ export function createFakeBackend(opts: { failReads?: boolean; failWrites?: bool
       b.writes.push({ op: "delete", envId });
     },
     async listEnvs() {
-      if (b.failReads) throw "list failed";
+      if (b.failReads || b.failList) throw "list failed";
       return [...b.data.keys()];
     },
   };
