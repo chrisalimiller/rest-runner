@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { memo, useDeferredValue, useMemo, useState } from "react";
 import type { CsvData } from "../lib/csv";
 import { dropdownOptions, filterRows, hasFilters, isContiguous, NO_FILTERS, rangeIndices, selectionSpan, type LastRunFilter, type RowFilters, type RowStatus } from "../lib/rowSelection";
 
@@ -14,10 +14,16 @@ interface Props {
   disabled?: boolean;
 }
 
+/** Height of one body row in px (kept in step with `.row-picker-table` in styles.css) and the height of the scroll box. */
+const ROW_H = 30;
+const VIEWPORT_H = 320;
+/** Extra rows drawn above and below the visible ones so scrolling does not show gaps. */
+const OVERSCAN = 12;
+
 const STATUS_TEXT: Record<RowStatus | "none", string> = { passed: "Passed", failed: "Failed", none: "Not run" };
 
 /** The CSV as a table with a checkbox per row, column filters and shortcuts, to choose which rows a bulk run sends. */
-export function RowPicker({ csv, selected, onChange, statuses, hasHistory, disabled }: Props) {
+export const RowPicker = memo(function RowPicker({ csv, selected, onChange, statuses, hasHistory, disabled }: Props) {
   const [filters, setFilters] = useState<RowFilters>(NO_FILTERS);
   /** Text being typed in a range box, so it can be empty or half-typed without the box snapping back. */
   const [draft, setDraft] = useState<{ field: "lo" | "hi"; text: string } | null>(null);
@@ -34,11 +40,19 @@ export function RowPicker({ csv, selected, onChange, statuses, hasHistory, disab
   }, [csv]);
   const exact = useMemo(() => new Set(dropdowns.keys()), [dropdowns]);
 
-  const visible = useMemo(() => filterRows(csv.rows, filters, exact, statuses), [csv.rows, filters, exact, statuses]);
-  const visibleSelected = visible.filter((i) => selected.has(i)).length;
+  // Filtering 15,000 rows on every keystroke would make typing lag, so the table catches up a moment after the box.
+  const deferredFilters = useDeferredValue(filters);
+  const [scrollTop, setScrollTop] = useState(0);
+  const visible = useMemo(() => filterRows(csv.rows, deferredFilters, exact, statuses), [csv.rows, deferredFilters, exact, statuses]);
+  const visibleSelected = useMemo(() => visible.reduce((n, i) => (selected.has(i) ? n + 1 : n), 0), [visible, selected]);
   const allVisible = visible.length > 0 && visibleSelected === visible.length;
   const hiddenSelected = selected.size - visibleSelected;
   const total = csv.rows.length;
+
+  // Only the rows in (or near) the scroll box are drawn; spacer rows stand in for the rest so the scrollbar is the full length.
+  const first = Math.max(0, Math.floor(scrollTop / ROW_H) - OVERSCAN);
+  const last = Math.min(visible.length, Math.ceil((scrollTop + VIEWPORT_H) / ROW_H) + OVERSCAN);
+  const columnCount = csv.headers.length + 2 + (hasHistory ? 1 : 0);
 
   const setColumn = (h: string, v: string) => setFilters((f) => ({ ...f, columns: { ...f.columns, [h]: v } }));
   const toggle = (i: number) => {
@@ -133,8 +147,8 @@ export function RowPicker({ csv, selected, onChange, statuses, hasHistory, disab
         </button>
       </div>
 
-      <div className="row-picker-scroll">
-        <table className="results row-picker-table">
+      <div className="row-picker-scroll" style={{ maxHeight: VIEWPORT_H }} onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}>
+        <table className="results row-picker-table" style={{ minWidth: 84 + csv.headers.length * 150 + (hasHistory ? 110 : 0) }}>
           <thead>
             <tr>
               <th className="rp-check">
@@ -181,7 +195,12 @@ export function RowPicker({ csv, selected, onChange, statuses, hasHistory, disab
             </tr>
           </thead>
           <tbody>
-            {visible.map((i) => {
+            {first > 0 && (
+              <tr aria-hidden="true" className="rp-spacer" style={{ height: first * ROW_H }}>
+                <td colSpan={columnCount} />
+              </tr>
+            )}
+            {visible.slice(first, last).map((i) => {
               const status = statuses.get(i) ?? "none";
               const on = selected.has(i);
               return (
@@ -197,6 +216,11 @@ export function RowPicker({ csv, selected, onChange, statuses, hasHistory, disab
                 </tr>
               );
             })}
+            {last < visible.length && (
+              <tr aria-hidden="true" className="rp-spacer" style={{ height: (visible.length - last) * ROW_H }}>
+                <td colSpan={columnCount} />
+              </tr>
+            )}
           </tbody>
         </table>
         {visible.length === 0 && (
@@ -225,4 +249,4 @@ export function RowPicker({ csv, selected, onChange, statuses, hasHistory, disab
       </div>
     </div>
   );
-}
+});

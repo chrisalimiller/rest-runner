@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildRerunInput, DEFAULT_BATCH_OPTIONS,rerunDisabledReason, rerunLabel, runBatch, type BatchEnd, type BatchItemResult, type BatchOptions } from "../lib/batch";
 import { checkCsvFile, parseCsv, type CsvData } from "../lib/csv";
 import { statusClass } from "../lib/format";
@@ -43,6 +43,7 @@ type Filter = "all" | "failed";
 const OPTIONS_KEY = "rest-runner.batch-options";
 const FLUSH_MS = 150;
 const PAGE_SIZE = 500;
+const RUNS_FOR_STATUS = 5;
 
 function describeEnd(end: BatchEnd): string {
   if (end === "cancelled") return "Stopped";
@@ -92,10 +93,14 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
   const wide = running || results.length > 0;
   useEffect(() => onWideChange?.(wide), [wide, onWideChange]);
 
-  const setSelection = (next: Set<number>) => {
-    setSelectedRows(next);
-    if (file) saveSelection(file.name, file.data.rows.length, next);
-  };
+  // Stable between renders so the row picker, which is expensive for big files, can skip re-rendering.
+  const setSelection = useCallback(
+    (next: Set<number>) => {
+      setSelectedRows(next);
+      if (file) saveSelection(file.name, file.data.rows.length, next);
+    },
+    [file],
+  );
 
   // What earlier saved runs of this request and CSV did with each row, so "not yet run" and "failed" can be picked.
   useEffect(() => {
@@ -106,7 +111,8 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
     let live = true;
     void (async () => {
       try {
-        const mine = matchingRuns(await listRuns(), file.name, def.id, def.url);
+        // Only the newest few runs: loading every saved run of a large CSV would be slow and older ones are rarely needed.
+        const mine = matchingRuns(await listRuns(), file.name, def.id, def.url).slice(-RUNS_FOR_STATUS);
         const runs = (await Promise.all(mine.map((r) => getRun(r.id)))).filter((r) => r !== undefined);
         if (live) setStatuses(rowStatuses(runs));
       } catch {
