@@ -42,7 +42,8 @@ export function RequestSwitcher(props: Props) {
 
   return (
     <div className="switcher" ref={wrapRef}>
-      <div className={`switcher-btn ${open ? "open" : ""}`} onClick={(e) => e.target === e.currentTarget && onOpenChange(!open)}>
+      {/* Pointer-only convenience: clicking the bar's padding toggles the popover. Keyboard and screen-reader users operate the real buttons inside. */}
+      <div className={`switcher-btn ${open ? "open" : ""}`} role="presentation" onClick={(e) => e.target === e.currentTarget && onOpenChange(!open)}>
         <button
           className="switcher-open"
           onClick={() => onOpenChange(!open)}
