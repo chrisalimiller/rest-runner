@@ -17,10 +17,22 @@ export function load<T>(key: string, fallback: T, valid?: (x: unknown) => boolea
   }
 }
 
+const saveTransforms = new Map<string, (value: unknown) => unknown>();
+
+/**
+ * Registers a function that rewrites the value for `key` just before `save` persists it (used to
+ * redact secrets). The caller's object is never changed. A transform that throws stops the write.
+ */
+export function setSaveTransform(key: string, fn: ((value: unknown) => unknown) | null): void {
+  if (fn) saveTransforms.set(key, fn);
+  else saveTransforms.delete(key);
+}
+
 /** Returns false when storage refused the value (for example when it is full). */
 export function save(key: string, value: unknown): boolean {
   try {
-    localStorage.setItem(key, JSON.stringify(value));
+    const transform = saveTransforms.get(key);
+    localStorage.setItem(key, JSON.stringify(transform ? transform(value) : value));
     return true;
   } catch {
     return false;

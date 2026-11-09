@@ -1,4 +1,5 @@
-import { openDatabase } from "./idb";
+import { openDatabase, rewriteStores } from "./idb";
+import { redactRunForStorage } from "./redactStorage";
 import { summaryOf, type Run, type RunSummary } from "./run";
 
 /** Saved runs live in IndexedDB, which has room for large runs. Oldest runs are removed past this count. */
@@ -68,7 +69,9 @@ export async function deleteRun(id: string): Promise<void> {
 }
 
 /** Saves a run, then removes the oldest runs past MAX_SAVED_RUNS. */
-export async function saveRun(run: Run): Promise<void> {
+export async function saveRun(live: Run): Promise<void> {
+  // Only the stored copy is redacted; the caller keeps showing the live run.
+  const run = redactRunForStorage(live);
   const db = await openDb();
   const tx = db.transaction([SUMMARIES, RUNS], "readwrite");
   tx.objectStore(SUMMARIES).put(summaryOf(run));
@@ -76,4 +79,9 @@ export async function saveRun(run: Run): Promise<void> {
   await done(tx);
   const runs = await listRuns();
   for (const old of runs.slice(MAX_SAVED_RUNS)) await deleteRun(old.id);
+}
+
+/** Rewrites every saved batch run (and summary) through `transform`; returns how many changed. */
+export async function rewriteSavedRuns(transform: (record: unknown) => unknown): Promise<number> {
+  return rewriteStores(await openDb(), [SUMMARIES, RUNS], transform);
 }

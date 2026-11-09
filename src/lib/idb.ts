@@ -45,3 +45,40 @@ export function openDatabase(
     req.onerror = () => fail(req.error ?? new Error("the run history could not be opened."));
   });
 }
+
+/**
+ * Runs `transform` over every record in the named stores and writes back the ones that changed
+ * (compared as JSON). Returns how many records changed. A store or record that fails is left as it is.
+ */
+export async function rewriteStores(db: IDBDatabase, names: string[], transform: (record: unknown) => unknown): Promise<number> {
+  let changed = 0;
+  for (const name of names) {
+    try {
+      if (!db.objectStoreNames.contains(name)) continue;
+      const all = await new Promise<unknown[]>((resolve, reject) => {
+        const req = db.transaction(name).objectStore(name).getAll();
+        req.onsuccess = () => resolve(req.result as unknown[]);
+        req.onerror = () => reject(req.error);
+      });
+      for (const record of all) {
+        try {
+          const next = transform(record);
+          if (JSON.stringify(next) === JSON.stringify(record)) continue;
+          await new Promise<void>((resolve, reject) => {
+            const tx = db.transaction(name, "readwrite");
+            tx.objectStore(name).put(next);
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error);
+          });
+          changed++;
+        } catch {
+          /* leave this record as it is */
+        }
+      }
+    } catch {
+      /* leave this store as it is */
+    }
+  }
+  return changed;
+}
