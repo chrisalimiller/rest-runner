@@ -22,6 +22,8 @@ const dirty = new Set<string>();
 const deleted = new Set<string>();
 
 let loaded = false;
+/** True once the first load attempt has finished, whatever its outcome. */
+let attempted = false;
 let browser = false;
 let current: StoreStatus = "unavailable";
 let error: string | null = null;
@@ -133,7 +135,9 @@ export function initSecretStore(): Promise<StoreStatus> {
       browser = true;
       loadSession();
       loaded = true;
+      attempted = true;
       setStatus("browser-fallback", null);
+      notify();
       return current;
     }
     browser = false;
@@ -147,6 +151,8 @@ export function initSecretStore(): Promise<StoreStatus> {
     if (r === "timeout" && !loaded) {
       setStatus("unavailable", "The keychain did not respond in time.");
     }
+    attempted = true;
+    notify();
     return current;
   })();
   return initPromise;
@@ -279,6 +285,14 @@ export function status(): StoreStatus {
   return current;
 }
 
+/**
+ * True once the first load attempt has finished (ready, or failed as unavailable/denied). Secret inputs wait
+ * for this so nobody edits before hydration; after a failed attempt they work in session-only mode.
+ */
+export function isLoaded(): boolean {
+  return attempted;
+}
+
 export function lastError(): string | null {
   return error;
 }
@@ -312,6 +326,7 @@ export function resetSecretStoreForTests(): void {
   dirty.clear();
   deleted.clear();
   loaded = false;
+  attempted = false;
   browser = false;
   current = "unavailable";
   error = null;

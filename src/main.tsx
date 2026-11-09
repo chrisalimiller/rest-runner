@@ -2,6 +2,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import Root from "./Root";
 import { ErrorBoundary } from "./components/shell/ErrorBoundary";
+import { SecretsNotice } from "./components/shell/SecretsNotice";
 import { ToastProvider } from "./components/shell/Toast";
 import { installStorageRedaction } from "./lib/redactStorage";
 import { initSecretStore } from "./lib/secretStore";
@@ -28,6 +29,7 @@ void initSecretStore().then(() => {
       <ErrorBoundary>
         <ToastProvider>
           <Root />
+          <SecretsNotice />
         </ToastProvider>
       </ErrorBoundary>
     </React.StrictMode>,

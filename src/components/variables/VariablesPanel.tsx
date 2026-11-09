@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 import { Collapse } from "../Collapse";
+import { SecretStatusBanner, useSecretInputsDisabled } from "../shell/SecretStatusBanner";
+import { hasSecretVars } from "../../lib/secretsUi";
 import { useSidePanelSlot } from "../shell/SidePanelSlot";
 import { ENV_COLOR_VARS, type Environment } from "../../lib/environments";
 import { maskSecrets, SECRET_MASK, storedSecrets } from "../../lib/secrets";
@@ -73,6 +75,7 @@ function InlineValue({ value, secret, label, onSave }: { value: string; secret: 
   const [draft, setDraft] = useState(value);
   const [reveal, setReveal] = useState(false);
   const secrets = storedSecrets();
+  const waiting = useSecretInputsDisabled() && secret;
   const shown = secret ? (value ? SECRET_MASK : "") : maskSecrets(value, secrets);
   const done = (commit: boolean) => {
     setEditing(false);
@@ -102,7 +105,8 @@ function InlineValue({ value, secret, label, onSave }: { value: string; secret: 
     <span className="variables-value-wrap">
       <button
         className="variables-value mono"
-        title={secret ? "Secret. Click to edit" : "Click to edit"}
+        title={waiting ? "Loading secret values from the keychain" : secret ? "Secret. Click to edit" : "Click to edit"}
+        disabled={waiting}
         onClick={() => {
           setDraft(value);
           setEditing(true);
@@ -125,7 +129,9 @@ function MissingRow({ name, envName, onAdd }: { name: string; envName: string | 
   const [open, setOpen] = useState(false);
   const [value, setValue] = useState("");
   const [secret, setSecret] = useState(false);
+  const waiting = useSecretInputsDisabled() && secret;
   const submit = () => {
+    if (waiting) return;
     onAdd(value, secret);
     setOpen(false);
   };
@@ -146,6 +152,7 @@ function MissingRow({ name, envName, onAdd }: { name: string; envName: string | 
             className="variables-input mono"
             autoFocus
             type={secret ? "password" : "text"}
+            disabled={waiting}
             placeholder={envName ? `Value for ${envName}` : "Value"}
             aria-label={`Value of ${name}`}
             value={value}
@@ -175,8 +182,9 @@ function AddVariable({ envName, onAdd }: { envName: string; onAdd: (name: string
   const [name, setName] = useState("");
   const [value, setValue] = useState("");
   const [secret, setSecret] = useState(false);
+  const waiting = useSecretInputsDisabled() && secret;
   const submit = () => {
-    if (name.trim() === "") return;
+    if (name.trim() === "" || waiting) return;
     onAdd(name.trim(), value, secret);
     setName("");
     setValue("");
@@ -199,7 +207,7 @@ function AddVariable({ envName, onAdd }: { envName: string; onAdd: (name: string
   return (
     <div className="variables-add">
       <input className="variables-input mono" autoFocus placeholder="name" aria-label="Variable name" value={name} onChange={(e) => setName(e.target.value)} onKeyDown={keys} />
-      <input className="variables-input mono" type={secret ? "password" : "text"} placeholder={`value in ${envName}`} aria-label="Variable value" value={value} onChange={(e) => setValue(e.target.value)} onKeyDown={keys} />
+      <input className="variables-input mono" type={secret ? "password" : "text"} disabled={waiting} placeholder={`value in ${envName}`} aria-label="Variable value" value={value} onChange={(e) => setValue(e.target.value)} onKeyDown={keys} />
       <label className="small">
         <input type="checkbox" checked={secret} onChange={(e) => setSecret(e.target.checked)} /> Secret
       </label>
@@ -298,6 +306,7 @@ export function VariablesPanel({ used, scope, showScript = true, api: given, onE
       </div>
 
       <div className="variables-panel-body">
+        <SecretStatusBanner variant="panel" hasSecrets={hasSecretVars(api.environments)} />
         {missing.length > 0 && (
           <section>
             <div className="variables-head">

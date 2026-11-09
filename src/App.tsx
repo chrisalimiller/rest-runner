@@ -51,7 +51,9 @@ import { earlierSendLabel, earlierSends, earlierSendTone, sendTooltip, whenLabel
 import { cleanHistory, fitHistory, historyLabel, historyOutcome, MAX_HISTORY_BODY, responseNotKept } from "./lib/history";
 import { looksLikeCurl, parseCurl, type CurlCommand, type CurlNote } from "./lib/curlImport";
 import { matchVariables, type VarSwap } from "./lib/curlVariables";
-import { environmentVars, guardFor, loadEnvironments, saveEnvironments, type Environment } from "./lib/environments";
+import { SecretStatusBanner } from "./components/shell/SecretStatusBanner";
+import { hasSecretVars } from "./lib/secretsUi";
+import { environmentVars,guardFor, loadEnvironments, saveEnvironments, type Environment } from "./lib/environments";
 import { loadCertificates, matchCertificate, saveCertificates } from "./lib/certificates";
 import { setRequestStatus } from "./lib/sectionStatus";
 import { resolvedUrl } from "./lib/requestSummary";
@@ -1116,6 +1118,7 @@ export default function App({ active = true, shell, command }: Props) {
           setShowEnvEditor(true);
         }}
       />
+      <SecretStatusBanner variant="shell" hasSecrets={hasSecretVars(environments)} />
       {showTabBar(tabs.tabs) && (
         <RequestTabBar
           tabs={tabs.tabs}

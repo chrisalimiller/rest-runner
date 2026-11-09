@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { findLiteralSecrets } from "../../lib/redactStorage";
 import { requestToCurl } from "../../lib/curl";
 import { findJsonProblem, formatJson } from "../../lib/jsonFormat";
 import { readableUrl } from "../../lib/quickOpen";
@@ -177,6 +178,19 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, detail
   const unfilled = unresolvedPlaceholders(urlInputs.def, urlInputs.envVars);
   const unfilledNames = unfilled.map((n) => `{{${n}}}`).join(", ");
 
+  // Warn-only: credentials typed in plain text. Recomputed only when headers or auth change.
+  const literal = useMemo(() => {
+    const found = findLiteralSecrets({ headers: def.headers, auth: def.auth });
+    const headerRows = new Set<number>();
+    let auth: string | undefined;
+    for (const f of found) {
+      const m = /^headers\[(\d+)\]/.exec(f.path);
+      if (m) headerRows.add(Number(m[1]));
+      else auth = f.path;
+    }
+    return { headerRows, auth };
+  }, [def.headers, def.auth]);
+
   const problem = def.bodyMode === "json" ? findJsonProblem(def.body) : null;
   const marks: Record<DetailsTab, string> = {
     params: rowCounts(def.params).on ? String(rowCounts(def.params).on) : "",
@@ -313,8 +327,8 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, detail
         )}
         <RequestDetailsDrawer id={detailsId} open={open} docked={docked} tab={details.tab} onTab={(tab) => setDetails((d) => ({ ...d, tab }))} onClose={closeDetails} marks={marks} warnings={postmanWarning ? { scripts: postmanWarning } : undefined}>
           {details.tab === "params" && <KeyValueEditor rows={def.params} onChange={(rows) => onChange({ params: rows })} placeholderVars={envVars} />}
-          {details.tab === "auth" && <AuthEditor auth={def.auth} onChange={(a) => onChange({ auth: a })} placeholderVars={envVars} />}
-          {details.tab === "headers" && <KeyValueEditor rows={def.headers} onChange={(rows) => onChange({ headers: rows })} placeholderVars={envVars} />}
+          {details.tab === "auth" && <AuthEditor auth={def.auth} onChange={(a) => onChange({ auth: a })} placeholderVars={envVars} literalPath={literal.auth} />}
+          {details.tab === "headers" && <KeyValueEditor rows={def.headers} onChange={(rows) => onChange({ headers: rows })} placeholderVars={envVars} literalRows={literal.headerRows} />}
           {details.tab === "scripts" && <ScriptsPanel def={def} onChange={onChange} scriptVars={scriptVars} onOpenVariables={onOpenVariables} scriptsNote={scriptsNote} />}
         </RequestDetailsDrawer>
       </div>

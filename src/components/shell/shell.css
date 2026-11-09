@@ -466,3 +466,55 @@
   margin: 0;
   flex: none;
 }
+
+/* Keychain status notice and plain-text credential badge */
+.secret-banner {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 10px;
+  font-size: var(--fs-sm);
+  color: var(--text);
+  background: color-mix(in srgb, var(--warn) 12%, var(--bg-soft));
+  border: 1px solid color-mix(in srgb, var(--warn) 35%, var(--border));
+  border-radius: var(--r-md);
+}
+
+.secret-banner.shell {
+  margin: 4px 12px 0;
+}
+
+.secret-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.secret-banner-close {
+  flex: none;
+}
+
+.kv td.kv-literal {
+  position: relative;
+}
+
+.kv td.kv-literal input:not([type="checkbox"]) {
+  padding-right: 84px;
+}
+
+.literal-badge {
+  font-family: var(--sans);
+  font-size: var(--fs-xs);
+  margin: 0 0 0 4px;
+  padding: 0 6px;
+  color: var(--warn);
+  border-color: color-mix(in srgb, var(--warn) 50%, var(--border));
+  background: color-mix(in srgb, var(--warn) 12%, transparent);
+  cursor: help;
+}
+
+.kv td.kv-literal .literal-badge {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+}

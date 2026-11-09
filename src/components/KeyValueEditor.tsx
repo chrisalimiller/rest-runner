@@ -1,4 +1,6 @@
-import { useState } from "react";
+import { useId, useState } from "react";
+import { LiteralSecretBadge } from "./shell/LiteralSecretBadge";
+import { useSecretInputsDisabled } from "./shell/SecretStatusBanner";
 import { emptyRow } from "../lib/defaults";
 import type { Vars } from "../lib/template";
 import type { KeyValue } from "../lib/types";
@@ -14,10 +16,14 @@ interface Props {
   secrets?: boolean;
   /** Highlights {{placeholders}} in the value column: filled when this has a value for them, missing when not. */
   placeholderVars?: Vars;
+  /** Row positions whose value holds a credential typed in plain text. They get a small warning badge. */
+  literalRows?: ReadonlySet<number>;
 }
 
 /** Postman-style table of key/value rows. A blank row is always kept at the end. */
-export function KeyValueEditor({ rows, onChange, keyPlaceholder = "Key", valuePlaceholder = "Value", secrets = false, placeholderVars }: Props) {
+export function KeyValueEditor({ rows, onChange, keyPlaceholder = "Key", valuePlaceholder = "Value", secrets = false, placeholderVars, literalRows }: Props) {
+  const waiting = useSecretInputsDisabled();
+  const uid = useId();
   // Which secret rows are showing their value. Not saved.
   const [revealed, setRevealed] = useState<Set<string>>(new Set());
   const reveal = (id: string) =>
@@ -52,6 +58,8 @@ export function KeyValueEditor({ rows, onChange, keyPlaceholder = "Key", valuePl
       <tbody>
         {rows.map((row, i) => {
           const isTrailing = i === rows.length - 1 && row.key === "" && row.value === "";
+          const literal = literalRows?.has(i) === true;
+          const hintId = `${uid}-literal-${row.id}`;
           return (
             <tr key={row.id} className={row.enabled ? "" : "disabled"}>
               <td className="kv-check">
@@ -72,9 +80,10 @@ export function KeyValueEditor({ rows, onChange, keyPlaceholder = "Key", valuePl
                   spellCheck={false}
                 />
               </td>
-              <td>
+              <td className={literal ? "kv-literal" : undefined}>
                 {placeholderVars && !row.secret ? (
                   <PlaceholderInput
+                    aria-describedby={literal ? hintId : undefined}
                     value={row.value}
                     vars={placeholderVars}
                     placeholder={valuePlaceholder}
@@ -90,10 +99,14 @@ export function KeyValueEditor({ rows, onChange, keyPlaceholder = "Key", valuePl
                     onChange={(e) => update(row.id, { value: e.target.value })}
                     spellCheck={false}
                     type={row.secret && !revealed.has(row.id) ? "password" : "text"}
+                    disabled={row.secret && waiting}
+                    title={row.secret && waiting ? "Loading secret values from the keychain" : undefined}
                     autoComplete={row.secret ? "new-password" : undefined}
                     aria-label={row.secret ? `${row.key || "Variable"} value (secret)` : undefined}
+                    aria-describedby={literal ? hintId : undefined}
                   />
                 )}
+                {literal && <LiteralSecretBadge id={hintId} />}
               </td>
               {secrets && (
                 <td className="kv-secret">

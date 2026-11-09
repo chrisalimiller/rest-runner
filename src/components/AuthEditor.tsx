@@ -1,3 +1,5 @@
+import { useId } from "react";
+import { LiteralSecretBadge } from "./shell/LiteralSecretBadge";
 import type { Vars } from "../lib/template";
 import type { AuthConfig } from "../lib/types";
 import { PlaceholderInput } from "./PlaceholderInput";
@@ -7,6 +9,8 @@ interface Props {
   onChange: (auth: AuthConfig) => void;
   /** Values the placeholders can be filled from. With it, {{placeholders}} are drawn and open the variable card on hover. */
   placeholderVars?: Vars;
+  /** Path from findLiteralSecrets (`auth.token`, `auth.password`, `auth.value`) when that field holds a plain-text credential. */
+  literalPath?: string;
 }
 
 const LABELS: Record<AuthConfig["type"], string> = {
@@ -29,9 +33,13 @@ function defaultsFor(type: AuthConfig["type"]): AuthConfig {
   }
 }
 
-export function AuthEditor({ auth, onChange, placeholderVars }: Props) {
+export function AuthEditor({ auth, onChange, placeholderVars, literalPath }: Props) {
+  const hintId = useId();
+  /** The warn-only badge, beside the label of the field that holds a plain-text credential. */
+  const badge = (path: string) => (literalPath === path ? <LiteralSecretBadge id={hintId} /> : null);
+  const described = (path: string) => (literalPath === path ? { "aria-describedby": hintId } : {});
   /** A text field that draws placeholders when it can. */
-  const text = (value: string, onValue: (v: string) => void, extra: { placeholder?: string } = {}) =>
+  const text = (value: string, onValue: (v: string) => void, extra: { placeholder?: string; "aria-describedby"?: string } = {}) =>
     placeholderVars ? (
       <PlaceholderInput value={value} vars={placeholderVars} onChange={onValue} spellCheck={false} {...extra} />
     ) : (
@@ -55,8 +63,8 @@ export function AuthEditor({ auth, onChange, placeholderVars }: Props) {
 
       {auth.type === "bearer" && (
         <label className="field">
-          <span>Token</span>
-          {text(auth.token, (token) => onChange({ ...auth, token }), { placeholder: "Token or {{variable}}" })}
+          <span>Token {badge("auth.token")}</span>
+          {text(auth.token, (token) => onChange({ ...auth, token }), { placeholder: "Token or {{variable}}", ...described("auth.token") })}
         </label>
       )}
 
@@ -67,8 +75,9 @@ export function AuthEditor({ auth, onChange, placeholderVars }: Props) {
             {text(auth.username, (username) => onChange({ ...auth, username }))}
           </label>
           <label className="field">
-            <span>Password</span>
+            <span>Password {badge("auth.password")}</span>
             <input
+              {...described("auth.password")}
               type="password"
               value={auth.password}
               onChange={(e) => onChange({ ...auth, password: e.target.value })}
@@ -84,8 +93,8 @@ export function AuthEditor({ auth, onChange, placeholderVars }: Props) {
             {text(auth.key, (key) => onChange({ ...auth, key }), { placeholder: "X-API-Key" })}
           </label>
           <label className="field">
-            <span>Value</span>
-            {text(auth.value, (value) => onChange({ ...auth, value }))}
+            <span>Value {badge("auth.value")}</span>
+            {text(auth.value, (value) => onChange({ ...auth, value }), described("auth.value"))}
           </label>
           <label className="field">
             <span>Add to</span>
