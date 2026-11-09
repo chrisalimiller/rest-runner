@@ -28,7 +28,7 @@
 }
 
 .cert-field > span {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 
@@ -51,7 +51,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   white-space: nowrap;
 }
 
@@ -64,7 +64,7 @@
   background: var(--bg-soft);
   border: 1px solid var(--border-muted);
   border-radius: var(--r-sm);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .cert-details dt {
@@ -77,23 +77,23 @@
 }
 
 .cert-fingerprint {
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 
 .cert-error {
   color: var(--danger);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .cert-warn {
   color: var(--warn);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .cert-note {
   margin: 0;
   padding: 8px 12px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .cert-note.warn {
@@ -101,7 +101,7 @@
 }
 
 .cert-badge {
-  font-size: 10px;
+  font-size: var(--fs-xs);
   border-radius: var(--r-pill);
   padding: 0 6px;
   white-space: nowrap;
@@ -134,7 +134,7 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--ok);
   background: rgba(63, 185, 80, 0.12);
   border: 1px solid rgba(63, 185, 80, 0.45);
@@ -200,7 +200,7 @@
 
 .certs-panel-section code {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 
 .certs-this-name {
@@ -218,7 +218,7 @@
   align-items: center;
   gap: 8px;
   margin-top: 8px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .certs-list {

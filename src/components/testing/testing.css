@@ -129,7 +129,7 @@ ol.cases li.disabled .case-pick {
 
 .case-num {
   width: 16px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   text-align: right;
   flex: none;
 }
@@ -146,7 +146,7 @@ ol.cases li.active .case-actions {
 
 .case-actions .icon-btn {
   padding: 0 3px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .case-add {
@@ -243,7 +243,7 @@ ol.cases li.active .case-actions {
 
 .script-snippets .link-btn {
   text-align: left;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .script-log {
@@ -353,7 +353,7 @@ ul.checks li.bad .check-message {
 }
 
 .suite-settings h3 {
-  font-size: 13px;
+  font-size: var(--fs-md);
   margin: 14px 0 8px;
 }
 
@@ -548,7 +548,7 @@ ul.picker-list .method {
 table.results.test-results .url-cell,
 .case-summary td {
   font-family: var(--sans);
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 
 .plan-estimate {
@@ -557,13 +557,13 @@ table.results.test-results .url-cell,
   border: 1px solid var(--border-muted);
   border-radius: var(--r-sm);
   background: var(--bg-soft);
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 
 /* CSV rows by cases */
 .result-grid {
   border-collapse: collapse;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .result-grid th {

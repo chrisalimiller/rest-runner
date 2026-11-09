@@ -7,7 +7,7 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 .curl-banner-head {
   display: flex;
@@ -66,7 +66,7 @@
   background: var(--accent-subtle);
   color: var(--accent-fg);
   padding: 2px 8px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 .curl-body {
   flex: 1;
@@ -93,7 +93,7 @@
 }
 .curl-label {
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -101,7 +101,7 @@
   flex: 1;
   min-height: 160px;
   resize: none;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   line-height: 1.6;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -128,7 +128,7 @@
   border-radius: var(--r-sm);
   background: var(--bg);
   padding: 8px 10px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 .curl-url-text {
   overflow-wrap: anywhere;
@@ -138,7 +138,7 @@
   grid-template-columns: 70px minmax(0, 1fr);
   gap: 6px 12px;
   margin: 0;
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
 }
 .curl-facts dt {
   color: var(--muted);
@@ -160,7 +160,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 .curl-vars {
   border: 1px solid var(--border);
@@ -169,10 +169,10 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 .curl-vars .check-row {
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 .curl-swaps {
   list-style: none;
@@ -200,7 +200,7 @@
   flex-direction: column;
   gap: 6px;
   color: var(--danger);
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 .curl-foot {
   display: flex;
@@ -231,7 +231,7 @@
   border-radius: var(--r-sm);
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
 }
 .curl-table th,
 .curl-table td {
@@ -243,7 +243,7 @@
 .curl-table th {
   color: var(--muted);
   font-weight: 400;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 .curl-table td input:not([type="checkbox"]) {
   width: 100%;
@@ -271,5 +271,5 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
 }

@@ -1,5 +1,11 @@
 /* GitHub dark (Primer) colors */
 :root {
+  --fs-xs: 11px;
+  --fs-sm: 12px;
+  --fs-md: 13px;
+  --fs-lg: 15px;
+  --fs-xl: 18px;
+  --fs-display: 22px;
   --bg: #0d1117;
   --bg-soft: #161b22;
   --bg-inset: #010409;
@@ -102,7 +108,7 @@ body,
 body {
   background: var(--bg);
   color: var(--text);
-  font: 13px/1.5 var(--sans);
+  font: var(--fs-md)/1.5 var(--sans);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -171,7 +177,7 @@ button:disabled {
 }
 
 .small {
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .warning {
@@ -216,7 +222,7 @@ button:disabled {
   align-items: center;
   font-weight: 600;
   text-transform: uppercase;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
   margin-bottom: 6px;
 }
@@ -250,7 +256,7 @@ button:disabled {
 }
 
 .history-status {
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 
 .method,
@@ -259,7 +265,7 @@ button:disabled {
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
 }
 
 .method {
@@ -288,7 +294,7 @@ button:disabled {
 .request-name {
   border-color: transparent;
   background: transparent;
-  font-size: 15px;
+  font-size: var(--fs-lg);
   font-weight: 600;
   padding: 4px 6px;
   align-self: flex-start;
@@ -415,7 +421,7 @@ button:disabled {
 
 .icon-btn {
   color: var(--muted);
-  font-size: 16px;
+  font-size: var(--fs-lg);
   line-height: 1;
 }
 
@@ -425,7 +431,7 @@ button:disabled {
 
 .link-btn {
   color: var(--accent);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 /* Auth and body */
@@ -529,7 +535,7 @@ textarea.code {
 .code-view {
   margin: 0;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   white-space: pre-wrap;
   word-break: break-word;
   background: var(--bg-soft);
@@ -750,7 +756,7 @@ textarea.code {
 }
 
 .batch-tile strong {
-  font-size: 16px;
+  font-size: var(--fs-lg);
 }
 
 .batch-tiles .link-btn {
@@ -849,7 +855,7 @@ table.results tr.selected {
   overflow: hidden;
   text-overflow: ellipsis;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .result-detail {
@@ -890,7 +896,7 @@ table.results tr.selected {
 .run-meta {
   display: flex;
   gap: 8px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 
 /* Run explorer */
@@ -911,7 +917,7 @@ table.results tr.selected {
 
 .explorer-head h2 {
   margin: 4px 0 2px;
-  font-size: 17px;
+  font-size: var(--fs-lg);
 }
 
 .explorer-head p {
@@ -952,12 +958,12 @@ table.results tr.selected {
 
 .stat b {
   display: block;
-  font-size: 17px;
+  font-size: var(--fs-lg);
 }
 
 .stat span {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .explorer-meta {
@@ -1017,7 +1023,7 @@ button.chip.active {
 
 .note-dot {
   color: var(--accent);
-  font-size: 10px;
+  font-size: var(--fs-xs);
 }
 
 .pad {
@@ -1039,7 +1045,7 @@ button.chip.active {
 }
 
 .pill {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 700;
   padding: 1px 8px;
   border-radius: var(--r-pill);
@@ -1062,7 +1068,7 @@ button.chip.active {
 
 .call-detail-body h4 {
   margin: 10px 0 4px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -1127,7 +1133,7 @@ button.chip.active {
 
 .sidebar-actions .link-btn {
   cursor: pointer;
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 
 .saved-item {
@@ -1193,7 +1199,7 @@ button.chip.active {
 .modal-head h3 {
   margin: 0;
   font-family: var(--display);
-  font-size: 15px;
+  font-size: var(--fs-lg);
 }
 
 .env-layout {
@@ -1425,7 +1431,7 @@ textarea {
 }
 
 .url-input {
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 
 .method-select {
@@ -1462,7 +1468,7 @@ textarea {
 /* Key/value tables */
 .kv th {
   border-bottom-color: var(--border);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .kv td {
@@ -1478,7 +1484,7 @@ textarea {
 }
 
 .kv.readonly td {
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 /* Code views and editors */
@@ -1486,7 +1492,7 @@ textarea {
   background: var(--bg-inset);
   border: 1px solid var(--border-muted);
   border-radius: var(--r-sm);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   line-height: 1.55;
   color: var(--text);
 }
@@ -1539,7 +1545,7 @@ textarea {
 }
 
 .json-status {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 500;
 }
 
@@ -1553,7 +1559,7 @@ textarea {
 
 .json-status:not(:empty)::before {
   content: "●";
-  font-size: 9px;
+  font-size: var(--fs-xs);
   margin-right: 5px;
   vertical-align: 1px;
 }
@@ -1565,7 +1571,7 @@ textarea {
 
 /* Response */
 .response-meta {
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .response-meta .status {
@@ -1598,7 +1604,7 @@ textarea {
   background: rgba(110, 118, 129, 0.1);
   border-color: var(--border);
   border-radius: var(--r-pill);
-  font-size: 11.5px;
+  font-size: var(--fs-xs);
   padding: 1px 8px;
 }
 
@@ -1663,7 +1669,7 @@ button.chip.active {
 table.results th {
   background: var(--bg-soft);
   border-bottom: 1px solid var(--border);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 table.results td {
@@ -1703,7 +1709,7 @@ table.results tr.selected {
   border: 1px solid var(--border-muted);
   border-radius: var(--r-sm);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .note-dot {
@@ -1875,7 +1881,7 @@ select {
 }
 
 .tree-count {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
   background: rgba(110, 118, 129, 0.15);
   border-radius: var(--r-pill);
@@ -1885,7 +1891,7 @@ select {
 
 .tree-status {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   flex: none;
 }
 
@@ -1923,7 +1929,7 @@ select {
   flex: 1;
   min-width: 0;
   padding: 1px 6px;
-  font-size: 13px;
+  font-size: var(--fs-md);
 }
 
 /* Popup menu */
@@ -2001,7 +2007,7 @@ select {
   display: flex;
   gap: 8px;
   align-items: flex-start;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 

@@ -48,7 +48,7 @@ const scriptLanguages: Record<ScriptViewLanguage, () => Extension> = {
 
 const editorTheme = EditorView.theme(
   {
-    "&": { height: "100%", backgroundColor: "var(--bg-inset)", color: "var(--text)", fontSize: "12.5px" },
+    "&": { height: "100%", backgroundColor: "var(--bg-inset)", color: "var(--text)", fontSize: "12px" },
     ".cm-scroller": { fontFamily: "var(--mono)", lineHeight: "1.55", overflow: "auto" },
     ".cm-content": { padding: "8px 0", caretColor: "var(--accent-fg)" },
     ".cm-line": { padding: "0 12px" },
