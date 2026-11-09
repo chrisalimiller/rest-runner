@@ -24,6 +24,8 @@ export interface QuickItem {
   payload?: string;
   /** Extra words that find the item, for commands. */
   keywords?: string;
+  /** For commands: keys to show at the right, as in shortcuts.ts ("Mod+Enter"). */
+  shortcut?: string;
   /** Sort key for "most recent first" when there is no query (ISO time), if the item has one. */
   at?: string;
 }
@@ -51,19 +53,31 @@ export const KIND_ORDER: Record<"requests" | "testing" | "flows", QuickKind[]> =
 export const CURL_COMMAND_ID = "import-curl";
 export const UPDATES_COMMAND_ID = "check-for-updates";
 
-/** Commands that show up when the query names them. They are not listed with an empty query. */
-export function commandItems(): QuickItem[] {
-  return [
-    { kind: "command", id: CURL_COMMAND_ID, title: "Import from cURL…", detail: "Command", keywords: "curl paste import command" },
-    { kind: "command", id: UPDATES_COMMAND_ID, title: "Check for updates…", detail: "Command", keywords: "update upgrade version about release" },
-  ];
-}
-
 /** A command matches when the query is inside its title or starts one of its keywords: "cu", "paste", "import" find it, "r" does not. */
 function commandMatches(item: QuickItem, query: string): boolean {
   const q = query.toLowerCase().trim();
   if (q.length < 2) return false;
   return item.title.toLowerCase().includes(q) || (item.keywords ?? "").split(/\s+/).some((w) => w.startsWith(q));
+}
+
+/** Text typed after a leading ">" (commands-only mode, as in VS Code), or null when the query does not start with one. */
+export function commandOnlyQuery(query: string): string | null {
+  const q = query.trimStart();
+  return q.startsWith(">") ? q.slice(1).trim() : null;
+}
+
+/** Commands-only mode: all of them with nothing typed, else fuzzy matches on title and keywords, best first. */
+function filterCommands(commands: QuickItem[], query: string): QuickItem[] {
+  if (query === "") return commands;
+  return commands
+    .map((item, order) => {
+      const t = fuzzyScore(query, item.title);
+      const k = fuzzyScore(query, item.keywords ?? "");
+      return { item, order, score: Math.max(t !== null ? t + 5 : -Infinity, k ?? -Infinity) };
+    })
+    .filter((x) => x.score > -Infinity)
+    .sort((a, b) => b.score - a.score || a.order - b.order)
+    .map((x) => x.item);
 }
 
 function walk(items: TreeNode[], path: string[], out: QuickItem[]) {
@@ -202,16 +216,25 @@ function itemScore(query: string, item: QuickItem): number | null {
   return Math.max(title !== null ? title + 5 : -Infinity, full ?? -Infinity);
 }
 
-/** Matching items grouped by type in `order`, best first, at most `perGroup` each. With no query, recent items first. */
+/**
+ * Matching items grouped by type in `order`, best first, at most `perGroup` each. With no query, recent items first.
+ * Commands come after the other groups, unless the query names no request, example, run and so on
+ * (no title contains it), then they come first. A query starting with ">" shows only commands, all of them.
+ */
 export function searchQuickOpen(items: QuickItem[], query: string, order: QuickKind[], perGroup = 6): QuickGroup[] {
+  const commands = items.filter((i) => i.kind === "command");
+  const onlyCommands = commandOnlyQuery(query);
+  if (onlyCommands !== null) {
+    const picked = filterCommands(commands, onlyCommands);
+    return picked.length ? [{ kind: "command", label: KIND_LABELS.command, items: picked }] : [];
+  }
   const q = query.trim();
   const groups: QuickGroup[] = [];
   for (const kind of order) {
+    if (kind === "command") continue;
     const ofKind = items.filter((i) => i.kind === kind);
     let picked: QuickItem[];
-    if (kind === "command") {
-      picked = ofKind.filter((i) => commandMatches(i, q));
-    } else if (q === "") {
+    if (q === "") {
       picked = [...ofKind].sort((a, b) => (b.at ?? "").localeCompare(a.at ?? "")).slice(0, perGroup);
     } else {
       picked = ofKind
@@ -222,6 +245,14 @@ export function searchQuickOpen(items: QuickItem[], query: string, order: QuickK
         .map((x) => x.item);
     }
     if (picked.length) groups.push({ kind, label: KIND_LABELS[kind], items: picked });
+  }
+  const cmds = q === "" ? commands.slice(0, perGroup) : commands.filter((i) => commandMatches(i, q));
+  if (cmds.length) {
+    const group: QuickGroup = { kind: "command", label: KIND_LABELS.command, items: cmds };
+    const lower = q.toLowerCase();
+    const named = q !== "" && items.some((i) => i.kind !== "command" && i.title.toLowerCase().includes(lower));
+    if (q === "" || named) groups.push(group);
+    else groups.unshift(group);
   }
   return groups;
 }

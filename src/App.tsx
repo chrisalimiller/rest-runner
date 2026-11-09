@@ -885,8 +885,22 @@ export default function App({ active = true, shell, command }: Props) {
       setCollections(loadCollections());
       setEnvironments(loadEnvironments());
       setActiveEnvId(load<string | null>(ACTIVE_ENV_KEY, null, isString));
-    }
-    else openItem(command.item, command.permanent);
+    } else if (command.type === "action") {
+      const a = command.action;
+      if (a.type === "send") {
+        if (def.url.trim() === "") notify("Enter a URL to send.");
+        else void send();
+      } else if (a.type === "open-batch") openBatch();
+      else if (a.type === "new-request") openNewTab();
+      else if (a.type === "new-collection") {
+        setSwitcherOpen(true);
+        addCollection();
+      } else if (a.type === "export-workspace") startExport();
+      else if (a.type === "import-curl") openCurlDialog();
+      else if (a.type === "set-environment") {
+        if (a.id === null || environments.some((e) => e.id === a.id)) setActiveEnvId(a.id);
+      }
+    } else openItem(command.item, command.permanent);
   }, [command]);
 
   useEffect(() => {

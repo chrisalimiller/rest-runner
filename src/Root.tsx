@@ -4,7 +4,13 @@ import { QuickOpen } from "./components/shell/QuickOpen";
 import type { Mode } from "./components/shell/TopBar";
 import { FlowsApp } from "./components/flows/FlowsApp";
 import { TestingApp } from "./components/testing/TestingApp";
-import { UPDATES_COMMAND_ID, type QuickItem } from "./lib/quickOpen";
+import { type QuickItem } from "./lib/quickOpen";
+import { buildCommands, type CommandActions, type CommandCtx, type RequestsAction } from "./lib/commands";
+import { ShortcutsDialog } from "./components/shell/ShortcutsDialog";
+import { loadEnvironments } from "./lib/environments";
+import { getThemePref, setThemePref } from "./lib/theme";
+import { toggleSidePanel, openSidePanel } from "./lib/sidePanels";
+import { isEditableTarget } from "./lib/shortcuts";
 import { CertificatesDialog } from "./components/CertificatesDialog";
 import { UpdateDialog } from "./components/UpdateDialog";
 import {
@@ -22,7 +28,7 @@ import { SideRail } from "./components/shell/SideRail";
 import { FirstRun } from "./components/shell/FirstRun";
 import { modeForShortcut } from "./lib/topBar";
 import { markSectionSeen, useSectionStatus } from "./lib/sectionStatus";
-import { load, save } from "./lib/storage";
+import { isString, load, save } from "./lib/storage";
 import { isFirstRun } from "./lib/workspaceStore";
 
 const SECTION_KEY = "rest-runner.section";
@@ -34,7 +40,9 @@ export type ShellCommand =
   /** Another mode changed saved data this mode keeps in memory: read it again from storage. */
   | { type: "reload"; nonce: number }
   /** Another mode's Variables panel asked for the environment editor, which only Requests has. */
-  | { type: "edit-environments"; nonce: number; varId?: string };
+  | { type: "edit-environments"; nonce: number; varId?: string }
+  /** A palette command for Requests (send, new request, switch environment and so on). */
+  | { type: "action"; nonce: number; action: RequestsAction };
 
 function modeFor(item: QuickItem): Mode {
   if (item.kind === "flow" || item.kind === "flow-run") return "flows";
@@ -53,6 +61,7 @@ export default function Root() {
     return saved === "testing" || saved === "flows" ? saved : "requests";
   });
   const [quickOpen, setQuickOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const certificates = useCertificatesDialog();
   const updateOpen = useUpdateDialog();
   const [firstRun, setFirstRun] = useState(() => isFirstRun());
@@ -88,6 +97,12 @@ export default function Root() {
         setQuickOpen((o) => !o);
         return;
       }
+      // "?" opens the shortcut list, unless a field has focus (it would type one) or another dialog is up.
+      if (e.key === "?" && !e.metaKey && !e.ctrlKey && !e.altKey && !quickOpenRef.current && !isEditableTarget(e.target) && !document.querySelector('[role="dialog"]')) {
+        e.preventDefault();
+        setShortcutsOpen(true);
+        return;
+      }
       // Mod + 1/2/3 switch sections, even from a text field (nothing types with Mod held). Not while Quick open is up.
       const next = quickOpenRef.current ? null : modeForShortcut(e);
       if (next) {
@@ -118,6 +133,19 @@ export default function Root() {
 
   const send = (mode: Mode, cmd: ShellCommand) =>
     setCommands((c) => ({ ...c, [mode]: cmd }));
+  const commandActions: CommandActions = {
+    setSection,
+    requests: (action) => {
+      // Setting the environment works from any section; the rest are Requests work.
+      if (action.type !== "set-environment") setSection("requests");
+      send("requests", { type: "action", nonce: Date.now(), action });
+    },
+    toggleVariables: () => toggleSidePanel("variables"),
+    openCertificates: () => openSidePanel("certificates"),
+    openAbout: openUpdateDialog,
+    openShortcuts: () => setShortcutsOpen(true),
+    setTheme: setThemePref,
+  };
   const shell: ShellProps = {
     section,
     onQuickOpen: () => setQuickOpen(true),
@@ -132,6 +160,17 @@ export default function Root() {
       if (what.includes("suites")) send("testing", { type: "reload", nonce });
       if (what.includes("flows")) send("flows", { type: "reload", nonce });
     },
+  };
+
+  /** The palette's registry and what it runs against, read fresh each time it opens. */
+  const paletteProps = () => {
+    const base = {
+      environments: loadEnvironments().map((e) => ({ id: e.id, name: e.name })),
+      activeEnvId: load<string | null>("rest-runner.active-environment", null, isString),
+      theme: getThemePref(),
+    };
+    const ctx: CommandCtx = { section, ...base, actions: commandActions };
+    return { commands: buildCommands(base), ctx };
   };
 
   return (
@@ -178,17 +217,15 @@ export default function Root() {
             onClose={closeCertificates}
           />
         )}
+        {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
         {updateOpen && <UpdateDialog onClose={closeUpdateDialog} />}
         {quickOpen && (
           <QuickOpen
             mode={section}
+            {...paletteProps()}
             onClose={() => setQuickOpen(false)}
             onPick={(item, permanent) => {
               setQuickOpen(false);
-              if (item.kind === "command" && item.id === UPDATES_COMMAND_ID) {
-                openUpdateDialog();
-                return;
-              }
               const mode = modeFor(item);
               setSection(mode);
               send(mode, { type: "open", item, nonce: Date.now(), permanent });

@@ -3,7 +3,6 @@ import { cleanCollections, migrateSavedRequests, isRequestDef } from "../../lib/
 import {
   batchRunItems,
   collectionItems,
-  commandItems,
   CURL_COMMAND_ID,
   flowItems,
   flowRunItems,
@@ -14,6 +13,8 @@ import {
   testRunItems,
   type QuickItem,
 } from "../../lib/quickOpen";
+import { commandItems, type Command, type CommandCtx } from "../../lib/commands";
+import { formatKeys, isMacPlatform } from "../../lib/shortcuts";
 import { looksLikeCurl } from "../../lib/curlImport";
 import { listRuns } from "../../lib/runStore";
 import { isArray, load } from "../../lib/storage";
@@ -34,6 +35,9 @@ interface Props {
   /** `permanent` (Ctrl/Cmd + Enter) opens a request in a tab of its own instead of the preview tab. */
   onPick: (item: QuickItem, permanent?: boolean) => void;
   onClearHistory: () => void;
+  /** The command registry, and what its `enabled` and `run` get. */
+  commands: Command[];
+  ctx: CommandCtx;
 }
 
 function readStoredItems(): QuickItem[] {
@@ -41,7 +45,6 @@ function readStoredItems(): QuickItem[] {
   const stored = load<unknown>("rest-runner.collections", null);
   const collections = stored !== null ? cleanCollections(stored) : migrateSavedRequests(load<unknown[]>("rest-runner.saved", [], isArray).filter(isRequestDef));
   return [
-    ...commandItems(),
     ...collectionItems(collections),
     ...historyItems(cleanHistory(load<unknown>("rest-runner.history", []))),
     ...suiteItems(cleanSuites(load("rest-runner.test-suites", []))),
@@ -50,9 +53,11 @@ function readStoredItems(): QuickItem[] {
 }
 
 /** Ctrl/Cmd + K: fuzzy search over requests, examples, history, batch runs, suites, cases, test runs, flows and flow runs. */
-export function QuickOpen({ mode, onClose, onPick, onClearHistory }: Props) {
+export function QuickOpen({ mode, onClose, onPick, onClearHistory, commands, ctx }: Props) {
   const [query, setQuery] = useState("");
-  const [items, setItems] = useState<QuickItem[]>(readStoredItems);
+  const [stored, setItems] = useState<QuickItem[]>(readStoredItems);
+  const items = useMemo(() => [...commandItems(commands, ctx), ...stored], [commands, ctx, stored]);
+  const mac = isMacPlatform();
   const [active, setActive] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -85,6 +90,16 @@ export function QuickOpen({ mode, onClose, onPick, onClearHistory }: Props) {
   useEscape(onClose);
   useFocusTrap(box);
 
+  /** Runs a command row; a command that returns a query ("Switch environment…") keeps the palette open on it. */
+  const pick = (item: QuickItem, permanent = false) => {
+    if (item.kind !== "command" || item.payload !== undefined) return onPick(item, permanent);
+    const command = commands.find((c) => c.id === item.id);
+    if (!command) return;
+    const result = command.run(ctx);
+    if (result) setQuery(result.query);
+    else onClose();
+  };
+
   const onKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "ArrowDown" || e.key === "ArrowUp") {
       e.preventDefault();
@@ -95,7 +110,7 @@ export function QuickOpen({ mode, onClose, onPick, onClearHistory }: Props) {
       // reaches the window: without this, Ctrl/Cmd + Enter would also send the request.
       e.stopPropagation();
       const item = flat[active];
-      if (item) onPick(item, e.ctrlKey || e.metaKey);
+      if (item) pick(item, e.ctrlKey || e.metaKey);
     }
   };
 
@@ -118,7 +133,7 @@ export function QuickOpen({ mode, onClose, onPick, onClearHistory }: Props) {
               }
             }}
             placeholder={
-              mode === "testing" ? "Jump to a suite, case or test run…" : mode === "flows" ? "Jump to a flow, flow run, suite or case…" : "Jump to a request, example, run or history…"
+              (mode === "testing" ? "Jump to a suite, case or test run" : mode === "flows" ? "Jump to a flow, flow run, suite or case" : "Jump to a request, example, run or history") + " · type > for commands"
             }
             aria-label="Search"
             aria-controls="quick-open-list"
@@ -157,11 +172,12 @@ export function QuickOpen({ mode, onClose, onPick, onClearHistory }: Props) {
                     aria-selected={i === active}
                     className={`quick-open-item ${i === active ? "active" : ""}`}
                     onMouseMove={() => setActive(i)}
-                    onClick={() => onPick(item)}
+                    onClick={() => pick(item)}
                   >
                     {item.method && <span className={`method m-${item.method.toLowerCase()}`}>{item.method}</span>}
                     <span className="quick-open-title">{item.title}</span>
                     <span className="quick-open-detail">{item.detail}</span>
+                    {item.shortcut && <kbd className="quick-open-keys">{formatKeys(item.shortcut, mac)}</kbd>}
                   </button>
                 );
               })}
@@ -174,6 +190,9 @@ export function QuickOpen({ mode, onClose, onPick, onClearHistory }: Props) {
           </span>
           <span>
             <kbd>Enter</kbd> to open
+          </span>
+          <span>
+            <kbd>&gt;</kbd> for commands
           </span>
         </div>
       </div>
