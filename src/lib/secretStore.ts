@@ -13,6 +13,8 @@ const SESSION_KEY = "rest-runner.dev-secrets";
 let backend: SecretBackend = nativeBackend;
 let timeoutMs = 3000;
 let retryDelaysMs = [200, 800, 2000];
+/** Gaps between background re-attempts while writes are failing (status `unsaved`); the last one repeats. */
+let repumpDelaysMs = [5000, 15000, 60000];
 
 const cache = new Map<string, Map<string, string>>();
 const listeners = new Set<() => void>();
@@ -20,6 +22,15 @@ const listeners = new Set<() => void>();
 const editedBeforeLoad = new Set<string>();
 const dirty = new Set<string>();
 const deleted = new Set<string>();
+/** Deletes and clears made before the first successful load: applied right after it (never written before). */
+const pendingDeletes = new Set<string>();
+const pendingClears = new Map<string, Set<string>>();
+/** What the keychain is known to hold (read at load, or written successfully): envId -> varId -> value. */
+const persisted = new Map<string, Map<string, string>>();
+/** Counts successful keychain loads; environments hydrated at an older epoch must not delete secrets. */
+let epoch = 0;
+let repumpTimer: ReturnType<typeof setTimeout> | null = null;
+let repumpCount = 0;
 
 let loaded = false;
 /** True once the first load attempt has finished, whatever its outcome. */
@@ -84,17 +95,14 @@ function loadSession() {
 
 // ---- loading ----
 
+/** Throws on a damaged item so the load fails visibly instead of the next save overwriting it. */
 function parseEnv(json: string | null): Record<string, string> {
   if (!json) return {};
-  try {
-    const o = JSON.parse(json) as unknown;
-    if (!o || typeof o !== "object" || Array.isArray(o)) return {};
-    const out: Record<string, string> = {};
-    for (const [k, v] of Object.entries(o)) if (typeof v === "string") out[k] = v;
-    return out;
-  } catch {
-    return {};
-  }
+  const o = JSON.parse(json) as unknown;
+  if (!o || typeof o !== "object" || Array.isArray(o)) throw new Error("A stored secrets item is damaged.");
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(o)) if (typeof v === "string") out[k] = v;
+  return out;
 }
 
 async function load(): Promise<void> {
@@ -106,10 +114,28 @@ async function load(): Promise<void> {
     // Hydrate: stored values fill in, values edited this session win.
     for (const [id, vars] of stored) {
       const m = envMap(id);
-      const local = editedBeforeLoad.has(id);
+      const local = editedBeforeLoad.has(id) || dirty.has(id);
       for (const [k, v] of Object.entries(vars)) if (!local || !m.has(k)) m.set(k, v);
+      persisted.set(id, new Map(Object.entries(vars)));
     }
     loaded = true;
+    epoch++;
+    // Edits made while the keychain was unread: apply them now that stored values are known.
+    for (const id of pendingDeletes) {
+      cache.delete(id);
+      dirty.delete(id);
+      editedBeforeLoad.delete(id);
+      if (stored.has(id)) deleted.add(id);
+    }
+    pendingDeletes.clear();
+    for (const [id, keys] of pendingClears) {
+      const m = cache.get(id);
+      if (!m) continue;
+      let changed = false;
+      for (const k of keys) changed = m.delete(k) || changed;
+      if (changed) editedBeforeLoad.add(id);
+    }
+    pendingClears.clear();
     for (const id of editedBeforeLoad) dirty.add(id);
     editedBeforeLoad.clear();
     setStatus("ready", null);
@@ -160,10 +186,14 @@ export function initSecretStore(): Promise<StoreStatus> {
 
 /** Runs the load again (e.g. after the user unlocked the keychain). */
 export function retry(): Promise<StoreStatus> {
+  if (loaded && !browser) {
+    // Already read: never read again over unsaved edits, just try to write them.
+    repumpCount = 0;
+    pump();
+    return Promise.resolve(current);
+  }
   initPromise = null;
-  const p = initSecretStore();
-  if (loaded && !browser) pump(); // flush anything left unsaved
-  return p;
+  return initSecretStore();
 }
 
 // ---- writing ----
@@ -181,10 +211,24 @@ async function writeWithRetry(op: () => Promise<void>): Promise<boolean> {
   }
 }
 
+function scheduleRepump() {
+  if (repumpTimer !== null || !(dirty.size || deleted.size)) return;
+  const delay = repumpDelaysMs[Math.min(repumpCount, repumpDelaysMs.length - 1)] ?? 60000;
+  repumpCount++;
+  repumpTimer = setTimeout(() => {
+    repumpTimer = null;
+    pump();
+  }, delay);
+}
+
 /** One serialized loop over all pending envs; the cache is read at write time, so edits coalesce. */
 function pump() {
   if (pumping || browser || !loaded) return;
-  pumping = (async () => {
+  if (!dirty.size && !deleted.size) return;
+  let p: Promise<void> | undefined;
+  p = (async () => {
+    // Defer the body so `pumping` is assigned before anything can finish it.
+    await Promise.resolve();
     let failed = false;
     const skip = new Set<string>();
     for (;;) {
@@ -195,22 +239,32 @@ function pump() {
       if (del !== undefined) {
         deleted.delete(id);
         ok = await writeWithRetry(() => backend.deleteEnv(id));
-        if (!ok) deleted.add(id);
+        if (ok) persisted.delete(id);
+        else deleted.add(id);
       } else {
         dirty.delete(id);
-        const json = JSON.stringify(Object.fromEntries(cache.get(id) ?? []));
+        const entries = [...(cache.get(id) ?? [])];
+        const json = JSON.stringify(Object.fromEntries(entries));
         ok = await writeWithRetry(() => backend.writeEnv(id, json));
-        if (!ok) dirty.add(id);
+        if (ok) persisted.set(id, new Map(entries));
+        else dirty.add(id);
       }
       if (!ok) {
         failed = true;
         skip.add(id);
       }
     }
-    pumping = null;
-    if (failed) setStatus("unsaved", error);
-    else if (current === "unsaved") setStatus("ready", null);
+    if (pumping === p) pumping = null;
+    if (failed) {
+      setStatus("unsaved", error);
+      scheduleRepump();
+    } else {
+      repumpCount = 0;
+      if (current === "unsaved") setStatus("ready", null);
+    }
+    notify(); // lets callers learn what is now confirmed in the keychain
   })();
+  pumping = p;
 }
 
 function markDirty(envId: string) {
@@ -241,6 +295,8 @@ export function getEnvSecrets(envId: string): Record<string, string> {
 export function setSecrets(envId: string, entries: Record<string, string>): void {
   const m = envMap(envId);
   let changed = false;
+  pendingDeletes.delete(envId);
+  for (const k of Object.keys(entries)) pendingClears.get(envId)?.delete(k);
   for (const [k, v] of Object.entries(entries)) {
     if (m.get(k) !== v) {
       m.set(k, v);
@@ -253,6 +309,12 @@ export function setSecrets(envId: string, entries: Record<string, string>): void
 }
 
 export function removeSecrets(envId: string, varIds?: string[]): void {
+  if (!loaded && !browser && varIds) {
+    // Not read yet: the keychain may hold these, so remember the clear and apply it after the load.
+    let set = pendingClears.get(envId);
+    if (!set) pendingClears.set(envId, (set = new Set()));
+    for (const k of varIds) set.add(k);
+  }
   const m = cache.get(envId);
   if (!m) return;
   let changed = false;
@@ -270,6 +332,9 @@ export function deleteEnv(envId: string): void {
   else if (loaded) {
     deleted.add(envId);
     pump();
+  } else {
+    pendingDeletes.add(envId);
+    pendingClears.delete(envId);
   }
   notify();
 }
@@ -293,6 +358,26 @@ export function isLoaded(): boolean {
   return attempted;
 }
 
+/** True once the keychain was read successfully (or in the dev browser, where there is nothing to read). */
+export function isHydrated(): boolean {
+  return loaded;
+}
+
+/** Number of successful keychain loads so far. */
+export function hydrationEpoch(): number {
+  return epoch;
+}
+
+/** True in the dev browser, where secrets are not kept in the keychain at all. */
+export function isBrowserFallback(): boolean {
+  return !isTauri();
+}
+
+/** True when the keychain is known to hold exactly this value for the variable. */
+export function isPersisted(envId: string, varId: string, value: string): boolean {
+  return !browser && value !== "" && persisted.get(envId)?.get(varId) === value;
+}
+
 export function lastError(): string | null {
   return error;
 }
@@ -313,7 +398,8 @@ export function setBackend(b: SecretBackend): void {
   backend = b;
 }
 
-export function configureSecretStore(opts: { timeoutMs?: number; retryDelaysMs?: number[] }): void {
+export function configureSecretStore(opts: { timeoutMs?: number; retryDelaysMs?: number[]; repumpDelaysMs?: number[] }): void {
+  if (opts.repumpDelaysMs) repumpDelaysMs = opts.repumpDelaysMs;
   if (opts.timeoutMs !== undefined) timeoutMs = opts.timeoutMs;
   if (opts.retryDelaysMs) retryDelaysMs = opts.retryDelaysMs;
 }
@@ -325,6 +411,14 @@ export function resetSecretStoreForTests(): void {
   editedBeforeLoad.clear();
   dirty.clear();
   deleted.clear();
+  pendingDeletes.clear();
+  pendingClears.clear();
+  persisted.clear();
+  epoch = 0;
+  if (repumpTimer !== null) clearTimeout(repumpTimer);
+  repumpTimer = null;
+  repumpCount = 0;
+  repumpDelaysMs = [5000, 15000, 60000];
   loaded = false;
   attempted = false;
   browser = false;

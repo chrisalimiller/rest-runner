@@ -1,5 +1,5 @@
 import { useState, useSyncExternalStore } from "react";
-import { isLoaded, retry, status, subscribe, type StoreStatus } from "../../lib/secretStore";
+import { isHydrated, retry, status, subscribe, type StoreStatus } from "../../lib/secretStore";
 import { secretInputsDisabled, secretStatusMessage, shouldShowBanner, statusOffersRetry } from "../../lib/secretsUi";
 import { useSidePanels } from "../../lib/sidePanels";
 import "./shell.css";
@@ -8,9 +8,9 @@ export function useSecretStatus(): StoreStatus {
   return useSyncExternalStore(subscribe, status);
 }
 
-/** True while secret value inputs should wait for the keychain's first load attempt. */
+/** True while secret value inputs should wait for the keychain to be read. */
 export function useSecretInputsDisabled(): boolean {
-  return secretInputsDisabled(useSyncExternalStore(subscribe, isLoaded));
+  return secretInputsDisabled(useSyncExternalStore(subscribe, isHydrated));
 }
 
 /** Kinds of notice the user dismissed, per place it is shown. Lasts until the app is closed. */

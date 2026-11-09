@@ -72,6 +72,7 @@ describe("environments with the secret store", () => {
 
   it("removes the stored value when a secret is unflagged, emptied or its variable deleted", async () => {
     await initSecretStore();
+    loadEnvironments(); // the state was hydrated after the keychain read
     saveEnvironments([env("e1", [row("a", "a", "A", true), row("b", "b", "B", true), row("c", "c", "C", true)])]);
     await whenFlushed();
     saveEnvironments([env("e1", [row("a", "a", "A", false), row("b", "b", "", true)])]);
