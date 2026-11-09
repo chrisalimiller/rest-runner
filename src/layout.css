@@ -53,7 +53,7 @@
 }
 
 .section-title {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   letter-spacing: 0.6px;
   text-transform: uppercase;
@@ -68,7 +68,7 @@
 }
 
 .var-chip {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--placeholder-fg);
   background: var(--placeholder-bg);
   border-radius: 3px;
@@ -92,7 +92,7 @@
 
 kbd {
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   line-height: 16px;
   padding: 0 5px;
   border: 1px solid var(--border);
@@ -153,7 +153,7 @@ label.link-btn:focus-within {
   padding: 0 12px;
   border-radius: var(--radius);
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -229,7 +229,7 @@ body.dragging-split {
 }
 
 .brand-name {
-  font: 600 14px var(--mono);
+  font: 600 var(--fs-md) var(--mono);
   color: var(--text);
 }
 
@@ -307,7 +307,7 @@ body.dragging-split {
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 13px;
+  font-size: var(--fs-md);
   cursor: pointer;
 }
 
@@ -602,7 +602,7 @@ body.dragging-split {
   flex: 1;
   border: 0;
   background: transparent;
-  font-size: 15px;
+  font-size: var(--fs-lg);
   padding: 0;
   color: var(--text);
 }
@@ -623,7 +623,7 @@ body.dragging-split {
   justify-content: space-between;
   align-items: center;
   padding: 6px 8px 4px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   letter-spacing: 0.6px;
   text-transform: uppercase;
@@ -670,7 +670,7 @@ body.dragging-split {
 
 .quick-open-detail {
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -745,7 +745,7 @@ body.dragging-split {
   text-overflow: ellipsis;
   white-space: nowrap;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 /* Two floating panels. The request panel stays overflow: visible so the open drawer's shadow is not clipped;
@@ -842,7 +842,7 @@ body.dragging-split {
   flex: none;
   border: 0;
   border-radius: var(--r-sm);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   padding: 0 10px;
   background-color: color-mix(in srgb, var(--other) 14%, transparent);
 }
@@ -865,7 +865,7 @@ body.dragging-split {
 .body-mode-select {
   height: 24px;
   padding: 0 10px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   border: 0;
   border-radius: var(--r-pill);
   background-color: var(--bg-soft);
@@ -919,7 +919,7 @@ body.dragging-split {
   height: 24px;
   margin-right: 2px;
   padding: 0 10px 0 8px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--warn);
   background: color-mix(in srgb, var(--warn) 12%, transparent);
@@ -945,7 +945,7 @@ button.unfilled-dot:hover {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 
@@ -960,7 +960,7 @@ button.unfilled-dot:hover {
   background: var(--bg-soft);
   box-shadow: inset 0 0 0 1px var(--border);
   color: var(--text);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .req-details-btn:hover,
@@ -992,7 +992,7 @@ button.unfilled-dot:hover {
   border-radius: var(--r-pill);
   background: color-mix(in srgb, var(--other) 12%, transparent);
   color: var(--text-soft);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   max-width: 260px;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1196,7 +1196,7 @@ button.unfilled-dot:hover {
   padding: 0 12px;
   border: 0;
   border-radius: var(--r-pill);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .req-details-head .tabs button.active {
@@ -1207,7 +1207,7 @@ button.unfilled-dot:hover {
 .req-details-mark {
   margin-left: 6px;
   color: var(--muted);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-feature-settings: "tnum" 1;
 }
 
@@ -1226,7 +1226,7 @@ button.unfilled-dot:hover {
   border-left: 3px solid var(--warn);
   border-radius: 6px;
   background: var(--bg-inset);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
 }
 
 .postman-strip b {
@@ -1241,7 +1241,7 @@ button.unfilled-dot:hover {
   border-radius: 50%;
   background: var(--bg);
   box-shadow: inset 0 0 0 1px var(--border);
-  font-size: 18px;
+  font-size: var(--fs-xl);
   line-height: 1;
 }
 
@@ -1380,20 +1380,20 @@ button.unfilled-dot:hover {
 
 .hero-code {
   font-family: var(--mono);
-  font-size: 22px;
+  font-size: var(--fs-display);
   font-weight: 600;
   line-height: 1.1;
 }
 
 .hero-text {
   font-family: var(--display);
-  font-size: 16px;
+  font-size: var(--fs-lg);
   font-weight: 600;
 }
 
 .hero-meta {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text);
   padding: 3px 10px;
   border-radius: 999px;
@@ -1435,7 +1435,7 @@ button.unfilled-dot:hover {
 .segmented.small button {
   height: 22px;
   padding: 0 10px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 
 /* The response body block, like the request body block. */
@@ -1465,7 +1465,7 @@ button.unfilled-dot:hover {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 
@@ -1512,7 +1512,7 @@ button.unfilled-dot:hover {
 .error-box pre {
   margin: 8px 0;
   color: #ffa198;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .error-box p {
@@ -1547,7 +1547,7 @@ button.unfilled-dot:hover {
 
 .state-title {
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--fs-md);
 }
 
 .indeterminate {
@@ -1600,7 +1600,7 @@ button.unfilled-dot:hover {
   border-radius: 999px;
   background: color-mix(in srgb, var(--other) 12%, transparent);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: var(--fs-xs);
   white-space: nowrap;
 }
 
@@ -1775,16 +1775,16 @@ button.unfilled-dot:hover {
 }
 
 .nav-row-count {
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 
 .run-row {
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .run-row .mono {
-  font-size: 11px;
+  font-size: var(--fs-xs);
 }
 
 /* Suite document */
@@ -1821,7 +1821,7 @@ button.unfilled-dot:hover {
 
 .suite-name {
   font-family: var(--display);
-  font-size: 18px;
+  font-size: var(--fs-xl);
   font-weight: 600;
   border-color: transparent;
   background: transparent;
@@ -1837,7 +1837,7 @@ button.unfilled-dot:hover {
 .suite-title .suite-description {
   margin: 2px 0 0 -5px;
   padding: 0 4px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .suite-head .send,
@@ -1893,7 +1893,7 @@ button.unfilled-dot:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   font-weight: 600;
   margin-top: 6px;
 }
@@ -2050,7 +2050,7 @@ body.dragging-case {
 }
 
 .case-path {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--muted);
   min-width: 0;
   overflow: hidden;
@@ -2061,7 +2061,7 @@ body.dragging-case {
 
 .case-name-input {
   font-weight: 600;
-  font-size: 14px;
+  font-size: var(--fs-md);
   border-color: transparent;
   background: transparent;
   padding: 2px 4px;
@@ -2093,7 +2093,7 @@ body.dragging-case {
 .try-btn {
   height: 28px;
   padding: 0 12px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -2103,7 +2103,7 @@ body.dragging-case {
 .case-failure {
   padding: 8px 14px;
   border-top: 1px solid var(--border-muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: #ffa198;
   overflow-wrap: anywhere;
 }
@@ -2133,13 +2133,13 @@ body.dragging-case {
 }
 
 .case-request .method {
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .case-request-url {
   flex: 1 1 300px;
   min-width: 0;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--text-soft);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -2158,7 +2158,7 @@ body.dragging-case {
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .case-tabs button:hover {
@@ -2205,7 +2205,7 @@ body.dragging-case {
 
 .last-result {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   white-space: nowrap;
   max-width: 120px;
   overflow: hidden;
@@ -2219,7 +2219,7 @@ body.dragging-case {
   padding: 8px 10px;
   border: 1px dashed var(--border);
   border-radius: var(--radius);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 
@@ -2260,7 +2260,7 @@ details.case-try {
 details.case-try summary {
   cursor: pointer;
   color: var(--muted);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 details.case-try[open] summary {
@@ -2335,7 +2335,7 @@ details.case-try .call-detail {
 }
 
 .big-num {
-  font-size: 26px;
+  font-size: var(--fs-display);
   font-weight: 600;
   line-height: 1.1;
 }
@@ -2373,12 +2373,12 @@ details.case-try .call-detail {
 }
 
 .mini-stat span {
-  font-size: 12px;
+  font-size: var(--fs-sm);
   color: var(--muted);
 }
 
 .mini-stat b {
-  font-size: 16px;
+  font-size: var(--fs-lg);
   font-weight: 400;
 }
 
@@ -2402,7 +2402,7 @@ details.case-try .call-detail {
   display: flex;
   gap: 8px;
   padding: 7px 10px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   text-align: left;
   color: var(--text);
   min-width: 0;
@@ -2444,7 +2444,7 @@ details.case-try .call-detail {
 .last-run-exports .secondary {
   flex: 1;
   height: 30px;
-  font-size: 12px;
+  font-size: var(--fs-sm);
   padding: 0 8px;
 }
 
@@ -2765,7 +2765,7 @@ details.case-try .call-detail {
   max-height: 220px;
   overflow: auto;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
   line-height: 1.5;
   color: var(--text);
   white-space: pre;
@@ -2796,7 +2796,7 @@ details.case-try .call-detail {
 
 .batch-export code {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .ph.missing {
@@ -2905,7 +2905,7 @@ select:focus-visible,
   margin-left: 6px;
   padding: 0 6px;
   border-radius: 999px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   font-weight: 600;
 }
 
@@ -2940,7 +2940,7 @@ select:focus-visible,
   margin-left: 4px;
   display: flex;
   gap: 4px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   white-space: nowrap;
 }
 
@@ -2977,7 +2977,7 @@ select:focus-visible,
   overflow: hidden;
   pointer-events: none;
   font-family: var(--mono);
-  font-size: 13px;
+  font-size: var(--fs-md);
   color: var(--text);
 }
 

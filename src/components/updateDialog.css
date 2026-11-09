@@ -7,7 +7,7 @@
 .update-body {
   padding: 14px 16px 4px;
   overflow: auto;
-  font-size: 13.5px;
+  font-size: var(--fs-md);
 }
 
 .update-body p {
@@ -16,7 +16,7 @@
 
 .update-notes {
   font-family: var(--mono, inherit);
-  font-size: 12.5px;
+  font-size: var(--fs-sm);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   max-height: 180px;
