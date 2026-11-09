@@ -20,7 +20,7 @@ export const MAX_REDACT_CHARS = 8 * 1024 * 1024;
 const TRUNCATED = "\n[cut: too large to redact]";
 
 /** Script variable names whose values are masked whatever they hold. */
-export const SECRET_KEY_PATTERN = /token|secret|password|passwd|api[-_]?key|auth|bearer|cookie|session/i;
+export const SECRET_KEY_PATTERN = /token|secret|password|passwd|api[-_]?key|auth(?!or)|bearer|cookie|session/i;
 
 /** Structural strings that logic reads back; never user text. */
 const STRUCTURAL = new Set(["status", "end", "method", "type", "nodeType", "id"]);
@@ -112,9 +112,16 @@ export function redactScriptVarsForStorage(value: unknown, secrets: readonly str
   const usable = usableSecrets(secrets);
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(value)) {
-    if (typeof v !== "string") out[k] = v;
-    else if (v !== "" && isSecretKey(k)) out[k] = SECRET_MASK;
-    else out[k] = usable.length ? maskString(v, usable) : v;
+    if (typeof v !== "string") {
+      out[k] = v;
+      continue;
+    }
+    // A masked value would be reloaded and sent as a literal (for example as a bearer token), which is worse than
+    // having the variable unset. So credential-looking variables, and values containing a known secret, are not
+    // persisted at all; the next run of the script sets them again.
+    if (v !== "" && isSecretKey(k)) continue;
+    if (usable.length && maskString(v, usable) !== v) continue;
+    out[k] = v;
   }
   return out;
 }

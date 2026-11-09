@@ -146,16 +146,12 @@ describe("persistence boundaries", () => {
     expect(t.tabs[0].response.body).toBe(SECRET_MASK);
   });
 
-  it("script vars: masks by key name and by known value, keeps other vars", async () => {
+  it("script vars: leaves out credential-looking names and values containing a known secret, keeps other vars", async () => {
     localStorage.setItem(SCRIPT_VARS_KEY, JSON.stringify({ accessToken: "abc", Session_ID: "x", userId: "42", note: `has ${S} in it`, apikey: "", my_api_key: "k", other: "plain" }));
     await scrubPersistedStores([S]);
     expect(load<Record<string, string>>(SCRIPT_VARS_KEY, {})).toEqual({
-      accessToken: SECRET_MASK,
-      Session_ID: SECRET_MASK,
       userId: "42",
-      note: `has ${SECRET_MASK} in it`,
       apikey: "",
-      my_api_key: SECRET_MASK,
       other: "plain",
     });
   });
@@ -163,7 +159,7 @@ describe("persistence boundaries", () => {
   it("save() of script vars goes through the installed transform", () => {
     installStorageRedaction();
     save(SCRIPT_VARS_KEY, { password: "hunter2", keep: "me" });
-    expect(JSON.parse(localStorage.getItem(SCRIPT_VARS_KEY)!)).toEqual({ password: SECRET_MASK, keep: "me" });
+    expect(JSON.parse(localStorage.getItem(SCRIPT_VARS_KEY)!)).toEqual({ keep: "me" });
   });
 
   it("saved runs use report redaction on the stored copy only", () => {
