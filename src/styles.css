@@ -949,9 +949,11 @@ textarea.code {
 }
 
 .progress-fill {
+  width: 100%;
   height: 100%;
   background: var(--ok);
-  transition: width 0.15s;
+  transform-origin: left center;
+  transition: transform var(--dur-base, 160ms) var(--ease-out, ease-out);
 }
 
 .progress-fill.has-failures {
@@ -1896,7 +1898,7 @@ button.chip.active {
 
 .progress-fill {
   background: var(--ok);
-  border-radius: var(--r-xs);
+  /* No own radius: the track clips (overflow hidden); a scaled radius would distort. */
 }
 
 .progress-fill.has-failures {
