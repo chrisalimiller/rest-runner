@@ -70,6 +70,30 @@ function argsOf(argList: Node, code: string): string[] {
     .map((c) => code.slice(c.from, c.to));
 }
 
+/** Longest generated fix we will offer. Larger input gets the message-only suggestion. */
+const MAX_FIX_LENGTH = 200_000;
+
+/**
+ * The only place generated rr source text is assembled. Pieces are slices of the user's own
+ * script taken by syntax-tree range, and are only ever joined as call arguments or an index.
+ * The result is text for the editor. The app never evaluates it. `safeFix` checks it first.
+ */
+const callText = (callee: string, args: string[]): string => callee + "(" + args.join(", ") + ")";
+const indexText = (obj: string, index: string): string => obj + "[" + index + "]";
+
+/**
+ * Keeps a fix only when it parses cleanly as exactly one expression statement spanning the whole
+ * text, so a crafted piece cannot close the call early, add a statement or leave a syntax error.
+ */
+function safeFix(fix: string | undefined): string | undefined {
+  if (fix === undefined || fix.length > MAX_FIX_LENGTH) return undefined;
+  const tree = parser.parse(fix);
+  if (hasParseError(tree)) return undefined;
+  const stmts = children(tree.topNode);
+  if (stmts.length !== 1 || stmts[0].name !== "ExpressionStatement" || stmts[0].from !== 0) return undefined;
+  return fix.slice(stmts[0].to).trim() === "" ? fix : undefined;
+}
+
 function flatten(node: Node, code: string): Chain | null {
   if (node.name === "VariableName") return { root: code.slice(node.from, node.to), rootTo: node.to, from: node.from, segs: [] };
   if (node.name !== "MemberExpression" && node.name !== "CallExpression") return null;
@@ -89,7 +113,8 @@ function flatten(node: Node, code: string): Chain | null {
   }
   const open = kids.findIndex((k) => k.name === "[");
   const inner = open >= 0 ? kids[open + 1] : undefined;
-  if (!inner) return null;
+  // Only a single-expression index; `a[b, c]` is left alone.
+  if (!inner || inner.name === "]" || inner.name === "SequenceExpression" || kids[open + 2]?.name !== "]") return null;
   head.segs.push({ t: "i", text: code.slice(inner.from, inner.to), to: node.to });
   return head;
 }
@@ -162,17 +187,17 @@ function matchExpect(c: Chain, start: number): Match {
   const value = open.args[0];
   const a = args[0];
   let m: string | undefined;
-  let subject = `rr.expect(${value})`;
+  let subject = callText("rr.expect", [value]);
   const one = args.length === 1;
   switch (matcher) {
     case "equal": case "equals": case "eq":
-      if (one) m = deep ? `toEqual(${a})` : `toBe(${a})`;
+      if (one) m = callText(deep ? "toEqual" : "toBe", [a]);
       break;
     case "eql": case "eqls":
-      if (one) m = `toEqual(${a})`;
+      if (one) m = callText("toEqual", [a]);
       break;
     case "true": case "false": case "undefined":
-      if (!args.length) m = `toBe(${matcher})`;
+      if (!args.length) m = callText("toBe", [matcher]);
       break;
     case "null":
       if (!args.length) m = "toBeNull()";
@@ -184,43 +209,44 @@ function matchExpect(c: Chain, start: number): Match {
       if (!args.length) m = "toBeDefined()";
       break;
     case "include": case "includes": case "contain": case "contains":
-      if (one) m = `toContain(${a})`;
+      if (one) m = callText("toContain", [a]);
       break;
     case "above": case "gt": case "greaterThan":
-      if (one) m = `toBeGreaterThan(${a})`;
+      if (one) m = callText("toBeGreaterThan", [a]);
       break;
     case "least": case "gte":
-      if (one) m = `toBeGreaterThanOrEqual(${a})`;
+      if (one) m = callText("toBeGreaterThanOrEqual", [a]);
       break;
     case "below": case "lt": case "lessThan":
-      if (one) m = `toBeLessThan(${a})`;
+      if (one) m = callText("toBeLessThan", [a]);
       break;
     case "most": case "lte":
-      if (one) m = `toBeLessThanOrEqual(${a})`;
+      if (one) m = callText("toBeLessThanOrEqual", [a]);
       break;
     case "property":
-      if (one) m = `toHaveProperty(${a})`;
+      if (one) m = callText("toHaveProperty", [a]);
       break;
     case "lengthOf": case "length":
-      if (one) m = `toHaveLength(${a})`;
+      if (one) m = callText("toHaveLength", [a]);
       break;
     case "match":
-      if (one) m = `toMatch(${a})`;
+      if (one) m = callText("toMatch", [a]);
       break;
     case "a": case "an": {
       const t = one ? /^(["'])(\w+)\1$/.exec(a)?.[2] : undefined;
       if (t === "array") {
-        subject = `rr.expect(Array.isArray(${value}))`;
+        subject = callText("rr.expect", [callText("Array.isArray", [value])]);
         m = "toBe(true)";
       } else if (t && ["string", "number", "boolean", "object", "undefined"].includes(t)) {
-        subject = `rr.expect(typeof ${/^[\w.$]+$/.test(value) ? value : `(${value})`})`;
-        m = `toBe("${t}")`;
+        subject = callText("rr.expect", [`typeof ${/^[\w.$]+$/.test(value) ? value : `(${value})`}`]);
+        m = callText("toBe", [JSON.stringify(t)]);
       }
       break;
     }
   }
   if (!m) return generic;
-  return { len: c.segs.length, fix: `${subject}${negate ? ".not" : ""}.${m}`, message: use(`${subject}${negate ? ".not" : ""}.${m}`) };
+  const fix = subject + (negate ? ".not" : "") + "." + m;
+  return { len: c.segs.length, fix, message: use(fix) };
 }
 
 /** pm.response.to.... assertions */
@@ -230,11 +256,11 @@ function matchResponseTo(c: Chain): Match | null {
   const name = prop(c, i);
   const args = call(c, i + 1);
   if (name === "status" && args?.args.length === 1) {
-    const f = `rr.expect(rr.response.status).toBe(${args.args[0]})`;
+    const f = "rr.expect(rr.response.status)." + callText("toBe", [args.args[0]]);
     return { len: i + 2, fix: f, message: use(f) };
   }
   if (name === "header" && args?.args.length === 1) {
-    const f = `rr.expect(rr.response.header(${args.args[0]})).toBeDefined()`;
+    const f = callText("rr.expect", [callText("rr.response.header", [args.args[0]])]) + ".toBeDefined()";
     return { len: i + 2, fix: f, message: use(f) };
   }
   if ((name === "ok" || name === "success") && !args) {
@@ -262,10 +288,10 @@ function matchPm(c: Chain): Match {
     const extra = p1 === "variables" ? undefined : SET_NOTE;
     if (!method || !k) return generic(1);
     const [a, b] = k.args;
-    if (method === "get" && k.args.length === 1) return { len: 3, fix: `rr.vars.get(${a})`, message: use(`rr.vars.get(${a})`, "It looks in script variables, then the CSV row, then the environment.") };
-    if (method === "set" && k.args.length === 2) return { len: 3, fix: `rr.vars.set(${a}, ${b})`, message: use(`rr.vars.set(${a}, ${b})`, extra) };
-    if (method === "unset" && k.args.length === 1) return { len: 3, fix: `rr.vars.unset(${a})`, message: use(`rr.vars.unset(${a})`, extra) };
-    if (method === "has" && k.args.length === 1) return { len: 3, fix: `rr.vars.has(${a})`, message: use(`rr.vars.has(${a})`) };
+    if (method === "get" && k.args.length === 1) return { len: 3, fix: callText("rr.vars.get", [a]), message: use(callText("rr.vars.get", [a]), "It looks in script variables, then the CSV row, then the environment.") };
+    if (method === "set" && k.args.length === 2) return { len: 3, fix: callText("rr.vars.set", [a, b]), message: use(callText("rr.vars.set", [a, b]), extra) };
+    if (method === "unset" && k.args.length === 1) return { len: 3, fix: callText("rr.vars.unset", [a]), message: use(callText("rr.vars.unset", [a]), extra) };
+    if (method === "has" && k.args.length === 1) return { len: 3, fix: callText("rr.vars.has", [a]), message: use(callText("rr.vars.has", [a])) };
     if (method === "toObject" && !k.args.length) return { len: 3, fix: "rr.vars.all()", message: use("rr.vars.all()") };
     if (method === "replaceIn") return { len: 3, message: "Use {{name}} in the request instead, or rr.vars.get." };
     if (method === "clear") return { len: 3, message: "There is no equivalent. Use rr.vars.unset(name) for each variable." };
@@ -275,7 +301,7 @@ function matchPm(c: Chain): Match {
   if (p1 === "iterationData") {
     const method = prop(c, 1);
     const k = call(c, 2);
-    if (method === "get" && k?.args.length === 1) return { len: 3, fix: `rr.data[${k.args[0]}]`, message: use(`rr.data[${k.args[0]}]`) };
+    if (method === "get" && k?.args.length === 1) return { len: 3, fix: indexText("rr.data", k.args[0]), message: use(indexText("rr.data", k.args[0])) };
     if (method === "toObject" && k && !k.args.length) return { len: 3, fix: "rr.data", message: use("rr.data") };
     return generic(2);
   }
@@ -296,14 +322,14 @@ function matchPm(c: Chain): Match {
       responseTime: ["rr.response.time"],
     };
     if (p2 && plain[p2] && !k2) return { len: 2, fix: plain[p2][0], message: use(plain[p2][0]) };
-    if ((p2 === "json" || p2 === "text") && k2) return { len: 3, fix: `rr.response.${p2}()`, message: use(`rr.response.${p2}()`, p2 === "json" ? "It throws when the body is not JSON." : undefined) };
+    if ((p2 === "json" || p2 === "text") && k2) return { len: 3, fix: callText("rr.response." + p2, []), message: use(callText("rr.response." + p2, []), p2 === "json" ? "It throws when the body is not JSON." : undefined) };
     if (p2 === "size" && k2) return { len: prop(c, 3) === "body" ? 4 : 3, fix: "rr.response.size", message: use("rr.response.size", "It is the body size in bytes.") };
     if (p2 === "headers") {
       const m = prop(c, 2);
       const k = call(c, 3);
-      if (m === "get" && k?.args.length === 1) return { len: 4, fix: `rr.response.header(${k.args[0]})`, message: use(`rr.response.header(${k.args[0]})`) };
+      if (m === "get" && k?.args.length === 1) return { len: 4, fix: callText("rr.response.header", [k.args[0]]), message: use(callText("rr.response.header", [k.args[0]])) };
       if (m === "has" && k?.args.length === 1) {
-        const f = `(rr.response.header(${k.args[0]}) !== undefined)`;
+        const f = "(" + callText("rr.response.header", [k.args[0]]) + " !== undefined)";
         return { len: 4, fix: f, message: use(f) };
       }
     }
@@ -322,7 +348,7 @@ function matchPm(c: Chain): Match {
     if (p2 === "headers") {
       const m = prop(c, 2);
       const k = call(c, 3);
-      if (m === "get" && k?.args.length === 1) return { len: 4, fix: `rr.request.header(${k.args[0]})`, message: use(`rr.request.header(${k.args[0]})`) };
+      if (m === "get" && k?.args.length === 1) return { len: 4, fix: callText("rr.request.header", [k.args[0]]), message: use(callText("rr.request.header", [k.args[0]])) };
       if (m === "add" || m === "upsert" || m === "remove") return { len: 3, message: TIP_NO_REQUEST_CHANGE };
     }
     if (p2 === "body") {
@@ -353,9 +379,9 @@ function matchPostman(c: Chain): Match {
   const m = prop(c, 0);
   const k = call(c, 1);
   const [a, b] = k?.args ?? [];
-  if ((m === "getEnvironmentVariable" || m === "getGlobalVariable") && k?.args.length === 1) return { len: 2, fix: `rr.vars.get(${a})`, message: use(`rr.vars.get(${a})`) };
-  if ((m === "setEnvironmentVariable" || m === "setGlobalVariable") && k?.args.length === 2) return { len: 2, fix: `rr.vars.set(${a}, ${b})`, message: use(`rr.vars.set(${a}, ${b})`, SET_NOTE) };
-  if (m === "getResponseHeader" && k?.args.length === 1) return { len: 2, fix: `rr.response.header(${a})`, message: use(`rr.response.header(${a})`) };
+  if ((m === "getEnvironmentVariable" || m === "getGlobalVariable") && k?.args.length === 1) return { len: 2, fix: callText("rr.vars.get", [a]), message: use(callText("rr.vars.get", [a])) };
+  if ((m === "setEnvironmentVariable" || m === "setGlobalVariable") && k?.args.length === 2) return { len: 2, fix: callText("rr.vars.set", [a, b]), message: use(callText("rr.vars.set", [a, b]), SET_NOTE) };
+  if (m === "getResponseHeader" && k?.args.length === 1) return { len: 2, fix: callText("rr.response.header", [a]), message: use(callText("rr.response.header", [a])) };
   if (m === "setNextRequest") return { len: 2, message: "Use a Flow to choose which request runs next." };
   return { len: m ? 1 : 0, message: `Postman's postman.${m ?? ""} has no REST Runner equivalent.` };
 }
@@ -369,7 +395,7 @@ function matchLegacy(c: Chain, node: Node, code: string): Match | null {
       const rhs = parent?.name === "AssignmentExpression" && parent.firstChild?.from === node.from && parent.firstChild.to === node.to ? parent.lastChild : null;
       const isPlainAssign = parent && children(parent).some((k) => k.name === "Equals");
       if (!parent || !rhs || !isPlainAssign) return { len: 1, message: "Postman's legacy tests object has no REST Runner equivalent. Use rr.test(name, () => { … })." };
-      const f = `rr.test(${s0.text}, () => rr.expect(${code.slice(rhs.from, rhs.to)}).toBeTruthy())`;
+      const f = callText("rr.test", [s0.text, "() => " + callText("rr.expect", [code.slice(rhs.from, rhs.to)]) + ".toBeTruthy()"]);
       return { len: 1, fix: f, message: use(f), range: [parent.from, parent.to] };
     }
     case "responseBody": return { len: 0, fix: "rr.response.text()", message: use("rr.response.text()") };
@@ -377,12 +403,12 @@ function matchLegacy(c: Chain, node: Node, code: string): Match | null {
       return prop(c, 0) === "code" ? { len: 1, fix: "rr.response.status", message: use("rr.response.status") } : { len: 0, message: "Postman's responseCode has no REST Runner equivalent. Use rr.response.status." };
     case "responseTime": return { len: 0, fix: "rr.response.time", message: use("rr.response.time") };
     case "responseHeaders":
-      return s0?.t === "i" ? { len: 1, fix: `rr.response.header(${s0.text})`, message: use(`rr.response.header(${s0.text})`) } : { len: 0, message: "Use rr.response.header(name)." };
+      return s0?.t === "i" ? { len: 1, fix: callText("rr.response.header", [s0.text]), message: use(callText("rr.response.header", [s0.text])) } : { len: 0, message: "Use rr.response.header(name)." };
     case "environment": case "globals":
-      return s0?.t === "i" ? { len: 1, fix: `rr.vars.get(${s0.text})`, message: use(`rr.vars.get(${s0.text})`) } : { len: 0, message: "Use rr.vars.get(name)." };
+      return s0?.t === "i" ? { len: 1, fix: callText("rr.vars.get", [s0.text]), message: use(callText("rr.vars.get", [s0.text])) } : { len: 0, message: "Use rr.vars.get(name)." };
     case "data":
-      if (s0?.t === "i") return { len: 1, fix: `rr.data[${s0.text}]`, message: use(`rr.data[${s0.text}]`) };
-      if (s0?.t === "p") return { len: 1, fix: `rr.data.${s0.name}`, message: use(`rr.data.${s0.name}`) };
+      if (s0?.t === "i") return { len: 1, fix: indexText("rr.data", s0.text), message: use(indexText("rr.data", s0.text)) };
+      if (s0?.t === "p") return { len: 1, fix: "rr.data." + s0.name, message: use("rr.data." + s0.name) };
       return { len: 0, fix: "rr.data", message: use("rr.data") };
     case "iteration": return { len: 0, fix: "rr.iteration", message: use("rr.iteration") };
     default: return { len: s0 ? 1 : 0, message: TIP_LIBRARY };
@@ -417,11 +443,12 @@ function walk(tree: Tree, code: string): PostmanCall[] {
       const len = Math.min(m.len, chain.segs.length);
       const end = len > 0 ? chain.segs[len - 1].to : chain.rootTo;
       const [from, to] = m.range ?? [chain.from, end];
+      const fix = safeFix(m.fix);
       out.push({
         from,
         to,
         api: describe(chain, len),
-        fix: m.fix === undefined ? undefined : { insert: m.fix },
+        fix: fix === undefined ? undefined : { insert: fix },
         message: m.message,
       });
     },
