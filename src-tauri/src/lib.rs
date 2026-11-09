@@ -1,5 +1,6 @@
 mod certs;
 mod http;
+mod secrets;
 #[cfg(test)]
 mod tls_tests;
 
@@ -68,6 +69,61 @@ fn cert_delete(
 ) {
     certs.delete(&id);
     http.clear_clients();
+}
+
+/// Reads an environment's secret values (a JSON string) from the system keychain.
+#[tauri::command]
+async fn secrets_read_env(
+    secrets: tauri::State<'_, secrets::SharedSecrets>,
+    env_id: String,
+) -> Result<Option<String>, String> {
+    let store = secrets.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || store.read_env(&env_id).map_err(|e| e.0))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// Stores an environment's secret values (a JSON string) in the system keychain.
+#[tauri::command]
+async fn secrets_write_env(
+    secrets: tauri::State<'_, secrets::SharedSecrets>,
+    env_id: String,
+    json: String,
+) -> Result<(), String> {
+    let store = secrets.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || store.write_env(&env_id, &json).map_err(|e| e.0))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// Removes an environment's secret values from the system keychain.
+#[tauri::command]
+async fn secrets_delete_env(
+    secrets: tauri::State<'_, secrets::SharedSecrets>,
+    env_id: String,
+) -> Result<(), String> {
+    let store = secrets.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || store.delete_env(&env_id).map_err(|e| e.0))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// Ids of the environments that have secrets in the system keychain.
+#[tauri::command]
+async fn secrets_list_envs(secrets: tauri::State<'_, secrets::SharedSecrets>) -> Result<Vec<String>, String> {
+    let store = secrets.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || store.list_envs().map_err(|e| e.0))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
+/// Probes the system keychain, so the page can report a locked or denied keychain at startup.
+#[tauri::command]
+async fn secrets_available(secrets: tauri::State<'_, secrets::SharedSecrets>) -> Result<(), String> {
+    let store = secrets.inner().clone();
+    tauri::async_runtime::spawn_blocking(move || store.available().map_err(|e| e.0))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 /// Writes a report file to the path the user picked in the Save dialog.
@@ -155,7 +211,12 @@ pub fn run() {
             cert_import,
             cert_set_passphrase,
             cert_export,
-            cert_delete
+            cert_delete,
+            secrets_read_env,
+            secrets_write_env,
+            secrets_delete_env,
+            secrets_list_envs,
+            secrets_available
         ])
         .on_window_event(|window, event| {
             #[cfg(windows)]
@@ -171,6 +232,7 @@ pub fn run() {
             let dir = app.path().app_data_dir()?.join("certificates");
             let store = Arc::new(certs::CertStore::new(dir, Arc::new(certs::Keychain)));
             app.manage(store.clone());
+            app.manage(secrets::new_shared());
             app.manage(Arc::new(http::HttpState::new(store)));
             #[cfg(windows)]
             if let Some(window) = tauri::Manager::get_webview_window(app, "main") {
