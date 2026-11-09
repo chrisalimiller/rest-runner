@@ -395,3 +395,17 @@
 .rail-dot.tone-warn {
   background: var(--warn);
 }
+
+/* --- Appearance setting (AppearanceControl, shown in the About dialog) --- */
+.appearance-control {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.appearance-label {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}

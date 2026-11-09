@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import Root from "./Root";
 import { ErrorBoundary } from "./components/shell/ErrorBoundary";
 import { ToastProvider } from "./components/shell/Toast";
+import { initTheme } from "./lib/theme";
 import { setupWindowChrome } from "./lib/windowChrome";
 import "./assets/fonts/red-hat-text/red-hat-text.css";
 import "./assets/fonts/red-hat-display/red-hat-display.css";
@@ -11,6 +12,7 @@ import "./styles.css";
 import "./components/testing/testing.css";
 import "./layout.css";
 
+initTheme();
 setupWindowChrome();
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(

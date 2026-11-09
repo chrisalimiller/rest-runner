@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "./shell/Modal";
+import { AppearanceControl } from "./shell/AppearanceControl";
 import { isBusy } from "../lib/busyWork";
 import { canUpdate, checkForUpdate, installedVersion, type FoundUpdate } from "../lib/updater";
 import { downloadPercent, plainNotes, releaseDate, versionLabel, type UpdateInfo, type UpdateState } from "../lib/updates";
@@ -67,6 +68,7 @@ export function UpdateDialog({ onClose }: { onClose: () => void }) {
         <p className="update-version">
           Installed version <strong>{versionLabel(version) || "unknown"}</strong>
         </p>
+        <AppearanceControl />
         <UpdateStatus state={state} supported={supported} />
       </div>
       <div className="update-foot">
