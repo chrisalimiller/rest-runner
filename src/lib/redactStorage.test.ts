@@ -12,6 +12,7 @@ import {
   scrubPersistedStores,
   TABS_KEY,
   uninstallStorageRedaction,
+  isSecretKey,
 } from "./redactStorage";
 import { SECRET_MASK } from "./secrets";
 import { resetSecretStoreForTests, setSecrets } from "./secretStore";
@@ -154,6 +155,12 @@ describe("persistence boundaries", () => {
       apikey: "",
       other: "plain",
     });
+  });
+
+  it("isSecretKey does not match plain words that contain auth", () => {
+    expect(isSecretKey("author")).toBe(false);
+    expect(isSecretKey("authToken")).toBe(true);
+    expect(isSecretKey("Authorization")).toBe(true);
   });
 
   it("save() of script vars goes through the installed transform", () => {

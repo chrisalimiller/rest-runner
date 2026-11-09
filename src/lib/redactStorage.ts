@@ -1,5 +1,5 @@
 import { allValues } from "./secretStore";
-import { maskSecrets, redactReport, SECRET_MASK } from "./secrets";
+import { maskSecrets, redactReport } from "./secrets";
 import { setSaveTransform } from "./storage";
 
 /**
