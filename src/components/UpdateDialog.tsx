@@ -112,7 +112,7 @@ function UpdateStatus({ state, supported }: { state: UpdateState; supported: boo
             <>
               <p>Downloading…{percent !== null ? ` ${percent}%` : ""}</p>
               <div className="progress-bar" aria-hidden>
-                <div className="progress-fill" style={{ width: `${percent ?? 100}%`, opacity: percent === null ? 0.4 : 1 }} />
+                <div className="progress-fill" style={{ transform: `scaleX(${Math.min(1, Math.max(0, (percent ?? 100) / 100))})`, opacity: percent === null ? 0.4 : 1 }} />
               </div>
             </>
           )}

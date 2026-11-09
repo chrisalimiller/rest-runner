@@ -414,7 +414,7 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
       {(running || end || results.length > 0) && (
         <div className="batch-progress">
           <div className="progress-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
-            <div className={`progress-fill ${failed ? "has-failures" : ""}`} style={{ width: `${pct}%` }} />
+            <div className={`progress-fill ${failed ? "has-failures" : ""}`} style={{ transform: `scaleX(${Math.min(1, Math.max(0, pct / 100))})` }} />
           </div>
           <div className="batch-tiles">
             <div className="batch-tile">
