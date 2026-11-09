@@ -10,8 +10,10 @@ use std::{fmt, sync::Arc, sync::Mutex};
 
 const SERVICE: &str = "rest-runner";
 const INDEX_ACCOUNT: &str = "secrets:index";
-/// Max UTF-8 bytes per chunk. Windows stores 2 bytes per UTF-16 unit, so this stays well under 2560.
-const CHUNK_BYTES: usize = 1800;
+/// Max UTF-8 bytes per chunk. Windows Credential Manager limits a credential blob to 2560 bytes and the
+/// keyring crate stores the value as UTF-16 (2 bytes per unit). A UTF-8 byte never costs more than one UTF-16
+/// unit, so 1200 bytes is at most 1200 units = 2400 bytes, under the limit. (1800 would be up to 3600 bytes.)
+const CHUNK_BYTES: usize = 1200;
 const MAX_ID_LEN: usize = 200;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -293,11 +295,11 @@ mod tests {
 
     #[test]
     fn chunk_boundaries() {
-        for len in [1799, 1800, 1801, 3600, 3601] {
+        for len in [1199, 1200, 1201, 2400, 2401] {
             let s = store();
             let v = "a".repeat(len);
             s.write_env("e", &v).unwrap();
-            let expect = len.div_ceil(1800);
+            let expect = len.div_ceil(1200);
             assert_eq!(s.backend.get("secrets:env:e").unwrap().unwrap(), expect.to_string());
             assert_eq!(s.read_env("e").unwrap().unwrap(), v);
         }
@@ -307,15 +309,15 @@ mod tests {
     fn multibyte_straddling_boundary() {
         for ch in ["€", "😀"] {
             let s = store();
-            let v = format!("{}{}{}", "a".repeat(1799), ch, "b".repeat(10));
+            let v = format!("{}{}{}", "a".repeat(1199), ch, "b".repeat(10));
             s.write_env("e", &v).unwrap();
             assert_eq!(s.read_env("e").unwrap().unwrap(), v);
             let c0 = s.backend.get("secrets:env:e:0").unwrap().unwrap();
-            assert!(c0.len() <= 1800);
+            assert!(c0.len() <= 1200);
         }
         let all = "€".repeat(2000);
-        for c in split_chunks(&all, 1800) {
-            assert!(c.len() <= 1800);
+        for c in split_chunks(&all, 1200) {
+            assert!(c.len() <= 1200);
         }
         let s = store();
         s.write_env("e", &all).unwrap();
