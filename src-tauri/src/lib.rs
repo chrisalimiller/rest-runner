@@ -157,6 +157,16 @@ pub fn run() {
             cert_export,
             cert_delete
         ])
+        .on_window_event(|window, event| {
+            #[cfg(windows)]
+            if let tauri::WindowEvent::ThemeChanged(theme) = event {
+                if window.label() == "main" {
+                    title_bar::paint(window.hwnd().map(|h| h.0 as isize), *theme);
+                }
+            }
+            #[cfg(not(windows))]
+            let _ = (window, event);
+        })
         .setup(|app| {
             let dir = app.path().app_data_dir()?.join("certificates");
             let store = Arc::new(certs::CertStore::new(dir, Arc::new(certs::Keychain)));
@@ -164,7 +174,9 @@ pub fn run() {
             app.manage(Arc::new(http::HttpState::new(store)));
             #[cfg(windows)]
             if let Some(window) = tauri::Manager::get_webview_window(app, "main") {
-                title_bar::paint(&window);
+                if let Ok(theme) = window.theme() {
+                    title_bar::paint(window.hwnd().map(|h| h.0 as isize), theme);
+                }
             }
             Ok(())
         })
@@ -172,8 +184,9 @@ pub fn run() {
         .expect("error while running REST Runner");
 }
 
-/// Colors the native Windows title bar like the app's top bar (GitHub dark).
-/// Needs Windows 11; on Windows 10 the calls fail quietly and the dark theme's title bar stays.
+/// Colors the native Windows title bar like the app's top bar, in the window's resolved theme
+/// (set from the in-app Dark/Light/System choice via setTheme, or the OS). Repainted on ThemeChanged.
+/// Needs Windows 11; on Windows 10 the calls fail quietly and the default title bar stays.
 #[cfg(windows)]
 mod title_bar {
     use windows_sys::Win32::Graphics::Dwm::{
@@ -185,20 +198,21 @@ mod title_bar {
         ((rgb & 0xff) << 16) | (rgb & 0xff00) | ((rgb >> 16) & 0xff)
     }
 
-    const CAPTION: u32 = colorref(0x010409); // --bg-inset, the top bar background
-    const TEXT: u32 = colorref(0xe6edf3); // --text
-    const BORDER: u32 = colorref(0x21262d); // --border-muted, the top bar's bottom border
+    // (caption, text, border) = (--bg-inset, --text, --border-muted) of each theme in src/styles.css.
+    const DARK: [u32; 3] = [colorref(0x010409), colorref(0xe6edf3), colorref(0x21262d)];
+    const LIGHT: [u32; 3] = [colorref(0xdde3ea), colorref(0x18212b), colorref(0xd7dde5)];
 
-    pub fn paint(window: &tauri::WebviewWindow) {
-        let Ok(hwnd) = window.hwnd() else { return };
+    pub fn paint(hwnd: tauri::Result<isize>, theme: tauri::Theme) {
+        let Ok(hwnd) = hwnd else { return };
+        let [caption, text, border] = if theme == tauri::Theme::Light { LIGHT } else { DARK };
         for (attribute, color) in [
-            (DWMWA_CAPTION_COLOR, CAPTION),
-            (DWMWA_TEXT_COLOR, TEXT),
-            (DWMWA_BORDER_COLOR, BORDER),
+            (DWMWA_CAPTION_COLOR, caption),
+            (DWMWA_TEXT_COLOR, text),
+            (DWMWA_BORDER_COLOR, border),
         ] {
             unsafe {
                 DwmSetWindowAttribute(
-                    hwnd.0 as _,
+                    hwnd as _,
                     attribute as _,
                     &color as *const u32 as *const _,
                     std::mem::size_of::<u32>() as u32,

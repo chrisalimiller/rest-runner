@@ -35,12 +35,13 @@ const systemPrefersDark = () => query()?.matches ?? true;
 const isTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
 
 /** Asks the native window (title bar, menus) to follow the choice; null means follow the system. No-op outside Tauri. */
-function syncNativeTheme(pref: ThemePref) {
+function syncNativeTheme(pref: ThemePref, resolved: ResolvedTheme) {
   if (!isTauri) return;
   try {
-    void getCurrentWindow()
-      .setTheme(pref === "system" ? null : pref)
-      .catch(() => {});
+    const win = getCurrentWindow();
+    void win.setTheme(pref === "system" ? null : pref).catch(() => {});
+    // The window behind the page (seen while resizing); keep it the same as --bg.
+    void win.setBackgroundColor(resolved === "light" ? "#e9edf2" : "#0d1117").catch(() => {});
   } catch {
     // Best effort only.
   }
@@ -50,7 +51,7 @@ function syncNativeTheme(pref: ThemePref) {
 export function applyTheme(pref: ThemePref = getThemePref()): ResolvedTheme {
   const resolved = resolveTheme(pref, systemPrefersDark());
   if (typeof document !== "undefined") document.documentElement.dataset.theme = resolved;
-  syncNativeTheme(pref);
+  syncNativeTheme(pref, resolved);
   return resolved;
 }
 
