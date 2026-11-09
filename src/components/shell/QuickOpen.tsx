@@ -23,6 +23,7 @@ import { listTestRuns } from "../../lib/testing/testRunStore";
 import { listFlowRuns } from "../../lib/flows/flowRunStore";
 import { loadFlows } from "../../lib/flows/flows";
 import { useEscape } from "../useEscape";
+import { useExitTransition } from "../useExitTransition";
 import { useFocusTrap } from "../useFocusTrap";
 import { SearchIcon } from "./Icons";
 import type { Mode } from "./TopBar";
@@ -79,6 +80,8 @@ export function QuickOpen({ mode, onClose, onPick, onClearHistory }: Props) {
   }, [active]);
 
   const box = useRef<HTMLDivElement>(null);
+  const backdrop = useRef<HTMLDivElement>(null);
+  useExitTransition(backdrop);
   useEscape(onClose);
   useFocusTrap(box);
 
@@ -98,7 +101,7 @@ export function QuickOpen({ mode, onClose, onPick, onClearHistory }: Props) {
 
   let index = -1;
   return (
-    <div className="modal-backdrop quick-open-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+    <div ref={backdrop} data-state="open" className="modal-backdrop quick-open-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div ref={box} className="quick-open" role="dialog" aria-modal="true" aria-label="Quick open" onKeyDown={onKeyDown}>
         <label className="quick-open-input">
           <SearchIcon />

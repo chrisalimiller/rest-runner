@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ExitDiv } from "../ExitDiv";
 import { useEscape } from "../useEscape";
 import { ChevronDownIcon } from "./Icons";
 
@@ -47,7 +48,7 @@ export function TitleSwitcher({ noun, title, items, activeId, onOpen, onNew, onI
         </button>
       </div>
       {open && (
-        <div className="switcher-popover list-popover" role="dialog" aria-label={noun}>
+        <ExitDiv className="switcher-popover list-popover" role="dialog" aria-label={noun}>
           <div className="popover-head">
             <span className="section-title">{noun}</span>
             <span className="sidebar-actions">
@@ -107,7 +108,7 @@ export function TitleSwitcher({ noun, title, items, activeId, onOpen, onNew, onI
               </button>
             ))}
           </div>
-        </div>
+        </ExitDiv>
       )}
     </div>
   );

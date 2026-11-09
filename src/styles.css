@@ -2333,3 +2333,19 @@ select {
     transition: none;
   }
 }
+
+/* Overlay motion: modal enter/exit (transform + opacity only). Exit plays on an inert copy left by useExitTransition. */
+@keyframes overlay-fade-in { from { opacity: 0; } }
+@keyframes overlay-fade-out { to { opacity: 0; } }
+@keyframes modal-rise-in { from { opacity: 0; transform: translateY(6px); } }
+@keyframes modal-rise-out { to { opacity: 0; transform: translateY(6px); } }
+.modal-backdrop { animation: overlay-fade-in var(--dur-base, 160ms) var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) both; }
+.modal-backdrop .modal { animation: modal-rise-in var(--dur-base, 160ms) var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) both; }
+.modal-backdrop[data-state="closing"] { pointer-events: none; animation: overlay-fade-out var(--dur-fast, 100ms) var(--ease-in, cubic-bezier(0.4, 0, 1, 1)) both; }
+.modal-backdrop[data-state="closing"] .modal { animation: modal-rise-out var(--dur-fast, 100ms) var(--ease-in, cubic-bezier(0.4, 0, 1, 1)) both; }
+@media (prefers-reduced-motion: reduce) {
+  .modal-backdrop,
+  .modal-backdrop .modal { animation: overlay-fade-in var(--dur-fast, 100ms) linear both; }
+  .modal-backdrop[data-state="closing"],
+  .modal-backdrop[data-state="closing"] .modal { animation: overlay-fade-out var(--dur-fast, 100ms) linear both; }
+}

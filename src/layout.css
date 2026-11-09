@@ -3117,3 +3117,25 @@ select:focus-visible,
   position: absolute;
   inset: -3px;
 }
+
+/* Overlay motion: side sheet, switcher popovers, quick open (transform + opacity only). */
+@keyframes sheet-slide-in { from { transform: translateX(32px); opacity: 0; } }
+@keyframes sheet-slide-out { to { transform: translateX(32px); opacity: 0; } }
+@keyframes pop-drop-in { from { opacity: 0; transform: translateY(-4px); } }
+@keyframes pop-drop-out { to { opacity: 0; transform: translateY(-4px); } }
+.sheet-backdrop { animation: overlay-fade-in var(--dur-base, 160ms) var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) both; }
+.sheet-backdrop .sheet { animation: sheet-slide-in var(--dur-base, 160ms) var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) both; }
+.sheet-backdrop[data-state="closing"] { pointer-events: none; animation: overlay-fade-out var(--dur-fast, 100ms) var(--ease-in, cubic-bezier(0.4, 0, 1, 1)) both; }
+.sheet-backdrop[data-state="closing"] .sheet { animation: sheet-slide-out var(--dur-fast, 100ms) var(--ease-in, cubic-bezier(0.4, 0, 1, 1)) both; }
+.switcher-popover { animation: pop-drop-in var(--dur-fast, 100ms) var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) both; }
+.switcher-popover[data-state="closing"] { pointer-events: none; animation: pop-drop-out var(--dur-fast, 100ms) var(--ease-in, cubic-bezier(0.4, 0, 1, 1)) both; }
+.quick-open-backdrop .quick-open { animation: pop-drop-in var(--dur-base, 160ms) var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) both; }
+.quick-open-backdrop[data-state="closing"] .quick-open { animation: pop-drop-out var(--dur-fast, 100ms) var(--ease-in, cubic-bezier(0.4, 0, 1, 1)) both; }
+@media (prefers-reduced-motion: reduce) {
+  .sheet-backdrop .sheet,
+  .switcher-popover,
+  .quick-open-backdrop .quick-open { animation: overlay-fade-in var(--dur-fast, 100ms) linear both; }
+  .sheet-backdrop[data-state="closing"] .sheet,
+  .switcher-popover[data-state="closing"],
+  .quick-open-backdrop[data-state="closing"] .quick-open { animation: overlay-fade-out var(--dur-fast, 100ms) linear both; }
+}
