@@ -76,6 +76,12 @@ In Testing and Flows the list on the left (suites and runs, flows and runs) can 
 
 The request you are editing is remembered between launches, even if you never save it.
 
+## Updating REST Runner
+
+REST Runner never checks for updates by itself. To update an installed copy, click the **info button** in the top bar (or **REST Runner › Check for Updates…** on macOS, or **Check for updates** in Quick open), then **Check for updates**. If there is a newer release you see its notes; **Download and install** installs it and restarts the app. If a batch, test run or flow is running, it asks before stopping it. Your saved data stays.
+
+Updates only work in installed builds, not in `npm run tauri dev`. Versions before v0.3.0 have no updater: install v0.3.0 by hand once. Maintainers: see [releasing.md](releasing.md).
+
 ## Where to go next
 
 - Batch the request over a spreadsheet: [CSV batch runs](batch-runs.md).

@@ -1,156 +1,68 @@
-# REST Runner
+<p align="center"><img src="brand/app-icon.png" alt="" width="88"></p>
+<h1 align="center">REST Runner</h1>
+<p align="center">Send a request. Send it for every row of a CSV. Test it. Chain it.<br>A lightweight, local desktop app for macOS and Windows.</p>
 
-**Documentation:** the [user guide](docs/README.md) covers every feature, including the [`rr` scripting reference](docs/scripting.md) for pre-request and post-response scripts.
+<p align="center">
+  <a href="#get-it">Get it</a> ·
+  <a href="docs/README.md">User guide</a> ·
+  <a href="docs/getting-started.md">Getting started</a> ·
+  <a href="docs/shortcuts.md">Shortcuts</a>
+</p>
 
-A lightweight desktop app for running REST requests, and (soon) batches of them driven by CSV files. The Requests screen puts the request on the left and the response on the right, with one top bar for switching requests and environments, and a slim bar on the right edge for the sections and tools.
+<!-- TODO: screenshot of the Requests screen (request left, response right)
+     <p align="center"><img src="docs/images/requests.png" alt="The Requests screen: request on the left, response on the right" width="860"></p> -->
 
-Runs on macOS and Windows from one codebase, built with [Tauri 2](https://tauri.app), React and TypeScript.
+## One app, four jobs
 
-## Status
+### Requests
+Build a request with params, headers, auth and a JSON body, with `{{placeholders}}`, and read the response next to it, including the exact request that was sent. Keep requests in collections and folders, open several as tabs, import a cURL command or a Postman collection.
 
-| Step | What | State |
-| --- | --- | --- |
-| 1 | App shell, single request editor, Mac/Windows builds | Done |
-| 2 | CSV batches with `{{column}}` placeholders, live progress | Done |
-| 3a | Run explorer, HTML and CSV reports | Done |
-| 3b | Saved requests and environments | Done |
-| 4 | Extras: Postman import (done), retries, OAuth, chaining values between requests | Optional |
+### Batch runs from a CSV
+Write the request once with `{{column}}` placeholders, pick a CSV, choose how many run at once and how long to pause, and results stream in as they arrive. Export an HTML or CSV report, or a Python/Bash script to run it without the app.
 
-## Features so far
+<!-- TODO: screenshot of a batch run in progress
+     <p align="center"><img src="docs/images/batch.png" alt="A batch run with results arriving" width="760"></p> -->
 
-- Methods: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS
-- Query params, headers and form fields as tables with on/off checkboxes
-- Body: raw JSON, raw text, or x-www-form-urlencoded
-- JSON editor with GitHub-style syntax highlighting, `{{placeholders}}` highlighted, errors underlined with line and column, and **format on paste** (pasting that leaves valid JSON re-indents the whole body; Ctrl/Cmd + Z undoes it). Format button or Shift + Alt + F formats any time, keeping placeholders as written
-- GitHub dark theme. Red Hat Text and Red Hat Display (UI) and JetBrains Mono (code) are bundled in `src/assets/fonts`, so the app works offline.
-- Auth: bearer token, basic auth, or API key (header or query)
-- Response viewer: status, time, size, pretty or raw body, headers, and the exact request that was sent
-- Collections with nested folders, opened from the request switcher in the top bar (Save button or Ctrl/Cmd + S), with an unsaved-changes dot. Right-click or use the ⋯ button to add, rename, duplicate, move or delete. Click the request name in the switcher, or press F2, to rename it. Requests saved before collections existed are moved into a "My requests" collection automatically
-- Examples: each saved request can keep any number of named sample payloads (Save as example), optionally with the response they got
-- Environments: named sets of variables such as `baseUrl` and `token`, picked from the switch in the top bar. Hover the URL box to see the final URL with environment values and query params filled in
-- The request column is the URL row, one summary line and the body. Params, Auth, Headers and Scripts are in Request details, opened from the summary line under the URL. Save, Save as example, Run with CSV and cURL are in the ⋯ menu next to Send. Whether the drawer is open, its tab, and the width of the two columns (drag the divider) are remembered
-- Tabs: keep several requests open at once in a bar under the top bar. Single-click a request for a preview tab (italic, replaced by the next single click), double-click to keep it, and pin the ones you always use. Tabs are grouped by the folder they are saved in, show an amber dot for unsaved changes and a spinner while sending, and sends and batch runs in different tabs run side by side. See [docs/requests.md](docs/requests.md#working-with-tabs)
-- Quick open (Ctrl/Cmd + K): fuzzy search over requests, examples, history, batch runs, suites, test cases, test runs, flows and flow runs
-- Export and import a whole workspace (collections with folders and examples, environments, test suites with their CSV data, and flows) as one JSON file (older export files still import), to back up or hand to a teammate. A fresh install opens a first-run screen: import a shared workspace, open a sample workspace, or start empty
-- History of the last 50 requests, in quick open and in the **Earlier sends of this request** strip under the response (click one to see that response again); your open tabs are kept between launches
-- Scripts: each request can have a pre-request and a post-response JavaScript script (`rr` API) for setting variables and checking responses. See [docs/scripting.md](docs/scripting.md)
-- Send with the button, Enter in the URL box, or Ctrl/Cmd + Enter
-- Requests are sent from the Rust side, so browser CORS rules do not apply
+### Test suites
+Ordered test cases with no-code assertions (status, time, headers, JSON paths) and optional JavaScript scripts using the `rr` API. A suite can run once per CSV row.
 
-## Environments
+### Flows
+Chain cases, suites and saved requests on a canvas with branches, loops, retries and schedules.
 
-The side bar on the right edge holds the section buttons (Requests, Testing, Flows), Variables (Requests only) and Certificates, with badges for a failed or running suite or flow, unfilled variables and a certificate in use or about to expire. The **lock** opens a Certificates panel with the certificate the open request uses and every imported certificate. The top bar adapts to narrow windows (a search icon, an environment drop-down), the suite and flow names switch between items, and the lists on the left of Testing and Flows can be hidden. In Testing, a case's **Try up to here** runs the cases before it first, a run shows its progress and per-case counts, and the report has a grid of CSV rows by cases. In Flows, a schedule chip in the header shows when the flow runs next and can switch it off, and warnings are counted on the Run button.
+<!-- TODO: screenshot of the Flows canvas
+     <p align="center"><img src="docs/images/flows.png" alt="A flow on the canvas" width="760"></p> -->
 
-Click the pencil next to the environment switch in the top bar to add sets of variables, for example Dev and Prod, each with its own `baseUrl` and `token`. Pick one on the switch, and `{{baseUrl}}` or `{{token}}` anywhere in a request is filled from it. This works for single requests and batch runs. In a batch run, a CSV column with the same name takes priority over the environment.
+## Local by design
 
-Each environment can have a colour (a dot on the switch). A coloured environment outlines **Send**, **Run suite** and **Run** and names it in the label, for example **Send to Prod**; environments named Prod start red.
+- No account, no sync, no telemetry banners. Your data lives on your computer.
+- Requests are sent from the Rust side, so browser CORS rules do not apply.
+- Secret variables are kept in the macOS Keychain or Windows Credential Manager and masked on screen and in reports.
+- Works offline; fonts are bundled.
+- Environments can be coloured; Prod-style ones turn Send red.
 
-Environment values are stored on this computer only, in the app's local storage. A variable can be marked **secret** (lock button): its value is kept in the macOS Keychain or Windows Credential Manager instead of local storage, and it is masked on screen, in the cURL panel, and always in exported reports, and Export workspace leaves it out unless you choose to include it. The **{x}** button in the side bar on the right edge (Requests) lists the placeholders the open request uses and where each value comes from; an amber dot inside the URL box warns about placeholders with no value before you send.
+## Get it
 
-## Batch runs from a CSV
+Every push builds installers in GitHub Actions. Open the latest run on the **Actions** tab and download `rest-runner-macos-universal` (a `.dmg`) or `rest-runner-windows-x64` (an `.msi` and a setup `.exe`).
 
-1. Write the request with `{{column name}}` placeholders anywhere: URL, params, headers, body, form fields or auth.
-2. Choose **Run with CSV…** in the ⋯ menu next to Send (the response column turns into the batch view; switch back with **Response**) and choose a CSV file. The first line must be the column names. Comma, semicolon, tab and pipe separators are detected automatically.
-3. Check the placeholder list: green ones are filled from the CSV, blue ones from the selected environment, and red ones have no value and are sent as written.
-4. Click **Preview** to see the first three requests exactly as they will be sent, then **Run**.
+Builds are not signed with a paid certificate yet:
 
-Each row becomes one request. Options:
-
-- **Concurrent requests:** how many run at the same time (1 to 50).
-- **Delay between requests:** a pause before each request, useful for rate-limited APIs. Use it with 1 concurrent request for a steady pace.
-- **Count 4xx/5xx as failures:** connection errors always count as failures.
-- **Stop on first failure:** no new requests start after a failure.
-
-**Export script…** shows the batch as a Python or Bash script to copy, or saves it to a file, so you can run it in a terminal on macOS or Windows, without the app. See [Exporting a batch as a script](docs/batch-runs.md#exporting-a-batch-as-a-script).
-
-In a raw JSON body, a placeholder inside quotes (`"name": "{{name}}"`) is escaped, so quotes or line breaks in the CSV keep the JSON valid. Outside quotes (`"age": {{age}}`) the value is inserted as is, so numbers, `true`/`false`, and `null` work.
-
-Results appear as they come in. Click a row to see its full request and response, or filter to failures only.
-
-## Run explorer and reports
-
-Every batch run is saved when it finishes (the last 30 runs are kept) and can be opened from quick open or from the **Earlier sends** strip of its request. Opening one shows:
-
-- Totals: sent, passed, failed, total time, average and 95th percentile response time
-- Status code counts; click one to filter the list to that code
-- The run log: start, settings, missing placeholders, first failure, why it stopped, and the final count
-- Every call, searchable by row, URL, CSV value or note, with its notes, CSV values, full request, response body and response headers. Use the arrow keys to move through calls.
-
-Each call gets plain-language notes when something is worth knowing, such as a placeholder with no value, an HTTP error and whether it counted as a failure, no response, or a JSON response that does not parse.
-
-**Export HTML report** saves one self-contained file with the summary, run log and every call (expandable, with filters and search). It opens in any browser and prints cleanly.
-
-**Export CSV report** saves one line per call with the result, status, timing, full request and response headers and bodies, error, notes, and each CSV value in its own `var:` column. It opens in Excel with UTF-8 intact.
-
-Response bodies over 1 MB are cut to 1 MB when a run is saved, and the call's notes say so.
-
-## Testing
-
-Switch to **Testing** with the side bar on the right edge (or press Ctrl/⌘ + 2). Suites and test runs are listed on the left, the open suite reads as a runbook in the middle (one step per case, with a pass/fail disc), and the latest run is summarized on the right. A **test suite** is an ordered list of **test cases**; a case is a request plus checks.
-
-- **Add cases** from your saved requests (each case gets its own copy, and **Update from saved request** pulls in later changes) or start a blank one. Reorder with the arrows, untick a case to skip it, or duplicate it.
-- **Assertions** are a no-code table: status code (exact, or a class like `2xx`), response time, response size, a header, the body text, or a JSON path such as `$.data[0].id` or `$.items.length`. Conditions include equals, contains, less/greater than, exists, matches regex and is of type. Expected values can use `{{variables}}`.
-- **Scripts** are JavaScript run before the request (**Pre-request**) or after the response (**Post-response**). They get an `rr` object:
-  - `rr.test("name", () => rr.expect(value).toBe(...))` adds a check. `expect` also has `toEqual`, `toContain`, `toBeLessThan`, `toBeGreaterThan`, `toBeDefined`, `toMatch`, `toHaveProperty`, `toHaveLength`, and `.not`.
-  - `rr.vars.set("token", rr.response.json().token)` passes a value to later cases, which use it as `{{token}}`. `rr.vars.get(name)` reads run variables, then the CSV row, then the environment.
-  - `rr.response` has `status`, `time`, `size`, `body`, `json()`, `header(name)`; `rr.data` is the CSV row; `console.log` output is kept with the result.
-  - Scripts run in a background worker and are stopped after the suite's time limit (5 s by default), so a bad loop cannot freeze the app. Snippets next to the editor insert common checks.
-- **Try case** sends one case on its own and shows its checks, without running the whole suite. The assertions table's **Last result** column shows each check's outcome and the value seen, from the last Try case or else the latest run.
-- **Passes on:** when a post-response script calls `rr.vars.set("name", …)`, the case shows which variables it hands to later cases, with the last value set.
-- **Edit request** opens the case's request in the same editor as the Requests screen.
-
-**Run settings & data** sets how the suite runs:
-
-- **Sequential:** one case at a time, in order. Variables set by a case carry to the next case in the same iteration.
-- **Iterations in parallel:** several CSV rows (or repeats) at once, each running its cases in order.
-- **Cases in parallel:** all cases of an iteration start together (they cannot pass variables to each other).
-- Concurrency, a delay between cases, **Repeat** (go through the data N times), stop on first failed case, and whether a 4xx/5xx fails a case that has no status assertion of its own.
-- **CSV data:** the whole suite runs once per row, with `{{column}}` filled from that row. The file is saved with the suite (up to 2 MB). Each iteration starts with fresh run variables.
-
-A case passes when every check passes: its enabled assertions, every `rr.test`, both scripts finishing without an error, and a response arriving.
-
-Finished runs are saved (the last 50) under **Test runs**. The report shows cases and checks passed, timing, a per-case table (click a case to filter), the run log, and every result with its checks, notes, variables, request, response and script output. **Export HTML report** and **Export CSV report** work like the batch reports, with one line or section per case per iteration. Suites can be exported and imported as a JSON file from the Suites list.
-
-## Flows
-
-Switch to **Flows** with the side bar on the right edge (or press Ctrl/⌘ + 3) to chain test cases, suites and saved requests into one run on a canvas. Wire steps by their **passed** and **failed** outputs, branch with **If**, run branches side by side with **Parallel** and **Join**, repeat steps per CSV row with **Loop over CSV**, and add **Wait**, **Set variable**, retries and sticky notes. A **Schedule** step runs the flow every N minutes, daily, or on chosen weekdays while the app is open.
-
-A Run request step fails on a 4xx/5xx unless you turn off its **4xx/5xx counts as failed** checkbox. A flow that only got to its end because a failed step had a failed wire ends **Passed with handled failures** (amber). Deleting things never asks: an **Undo** toast appears, and Ctrl/Cmd + Z undoes canvas edits. A readable opening view and **Tidy layout** keep big flows usable.
-
-Each run is saved with a combined report: every step, and each Run step's full test report, exportable as one HTML or CSV file. Flows can be exported and imported together with the suites and saved requests they use. See [docs/flows.md](docs/flows.md).
-
-## Getting the app
-
-Every push builds installers in GitHub Actions. Open the latest run on the **Actions** tab and download:
-
-- `rest-runner-macos-universal` → a `.dmg` that runs on both Apple Silicon and Intel Macs
-- `rest-runner-windows-x64` → an `.msi` and a setup `.exe`
-
-The builds are not signed with a paid certificate yet, so the first launch needs one extra step:
-
-- **macOS:** right-click the app and choose **Open**. If macOS says the app is damaged, run `xattr -cr "/Applications/REST Runner.app"` once.
+- **macOS:** right-click the app and choose **Open**. If macOS says it is damaged, run `xattr -cr "/Applications/REST Runner.app"` once.
 - **Windows:** on the SmartScreen prompt, click **More info**, then **Run anyway**.
 
-## Updating REST Runner
+Updating is manual and never automatic; see [Updating](docs/getting-started.md#updating-rest-runner).
 
-REST Runner never checks for updates by itself. To update an installed copy, click the **info button** in the top bar (or **REST Runner › Check for Updates…** on macOS, or **Check for updates** in Quick open), then **Check for updates**. If there is a newer release you see its notes; **Download and install** installs it and restarts the app. If a batch, test run or flow is running, it asks before stopping it. Your saved data stays.
-
-Updates only work in installed builds, not in `npm run tauri dev`. Versions before v0.3.0 have no updater: install v0.3.0 by hand once. Maintainers: see [docs/releasing.md](docs/releasing.md).
-
-## Developing
-
-You need Node 22+ and Rust (stable). On Windows also install the WebView2 runtime (already on Windows 11) and the Visual Studio C++ build tools. See [Tauri prerequisites](https://tauri.app/start/prerequisites/).
+## Build from source
 
 ```sh
 npm install
-npm run tauri dev     # run the desktop app with hot reload
+npm run tauri dev     # run with hot reload
 npm test              # unit tests
-npm run tauri build   # build an installer for the current OS
+npm run tauri build   # installer for the current OS
 ```
 
-`npm run dev` runs the UI alone in a browser. That is handy for layout work, but requests there go through the browser, so CORS rules apply.
+Needs Node 22+ and Rust (stable). On Windows also install the WebView2 runtime (already on Windows 11) and the Visual Studio C++ build tools; see the [Tauri prerequisites](https://tauri.app/start/prerequisites/). `npm run dev` runs the UI alone in a browser, which is handy for layout work, but requests there go through the browser, so CORS rules apply. Built with Tauri 2, React and TypeScript. Maintainers: [docs/releasing.md](docs/releasing.md).
 
-## Layout
+### Project layout
 
 ```
 src/                 React UI
