@@ -130,3 +130,42 @@ it("rejects tampered serialization and preserves special variable keys", async (
   const out = await executeScript(`rr.log(rr.vars.get("__proto__"))`, special);
   expect(out.logs).toEqual(["value"]);
 });
+
+describe("executeScript treats script source as data", () => {
+  const run = (code: string, c: ScriptContext = ctx) => executeScript(code, c);
+
+  it("runs sources containing quotes, backslashes, comment terminators, backticks, template markers and script tags", async () => {
+    const out = await run(
+      "const a = \"\\\"'\\\\\"; /* */ const b = `${1 + 1}`; const c = '</script>'; const d = '*/'; rr.log(a, b, c, d); // \"); throw 1; (\"",
+    );
+    expect(out.error).toBeUndefined();
+    expect(out.logs).toEqual(["\"'\\ 2 </script> */"]);
+  });
+
+  it("runs sources containing raw U+2028 and U+2029", async () => {
+    const out = await run("const s = '  '.length; rr.log(s);\nrr.log(' '.charCodeAt(0), ' '.charCodeAt(0));");
+    expect(out.error).toBeUndefined();
+    expect(out.logs).toEqual(["2", "8232 8233"]);
+  });
+
+  it("does not let an injection-shaped script break out of its own evaluation", async () => {
+    const out = await run("'); globalThis.pwned = 1; ('");
+    expect(out.error).toBeUndefined();
+    const check = await run("rr.log(typeof globalThis.pwned)");
+    expect(check.logs).toEqual(["undefined"]);
+  });
+
+  it("passes hostile context values through as data", async () => {
+    const hostile = "\"); throw new Error('x'); (\"` ${1} \\     </script> */";
+    const out = await run("rr.log(rr.vars.get('v'))", { ...ctx, vars: { v: hostile } });
+    expect(out.error).toBeUndefined();
+    expect(out.logs).toEqual([hostile]);
+  });
+
+  it("handles very long script and context strings", async () => {
+    const big = "x".repeat(500_000);
+    const out = await run(`const s = "${"a".repeat(200_000)}"; rr.log(s.length, rr.vars.get('big').length);`, { ...ctx, vars: { big } });
+    expect(out.error).toBeUndefined();
+    expect(out.logs).toEqual(["200000 500000"]);
+  });
+});

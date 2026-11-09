@@ -33,7 +33,24 @@ export async function executeScript(code: string, ctx: ScriptContext, timeoutMs 
       runtime.setInterruptHandler(() => Date.now() - start >= timeoutMs);
       const vm = runtime.newContext();
       try {
-        const result = vm.evalCode(`${guestSource}\n((stringify, parse) => stringify(executeScript(${JSON.stringify(code)}, parse(${JSON.stringify(JSON.stringify(ctx))}))))(JSON.stringify, JSON.parse)`);
+        // Script and context cross into the VM as string handles (data), never spliced into source.
+        const loaded = vm.evalCode(guestSource);
+        if (loaded.error) {
+          const e = vm.dump(loaded.error);
+          loaded.error.dispose();
+          return failure(`Script execution failed: ${String(e?.message ?? e)}`);
+        }
+        loaded.value.dispose();
+        const codeHandle = vm.newString(code);
+        const ctxHandle = vm.newString(JSON.stringify(ctx));
+        try {
+          vm.setProp(vm.global, "__rrCode", codeHandle);
+          vm.setProp(vm.global, "__rrCtx", ctxHandle);
+        } finally {
+          codeHandle.dispose();
+          ctxHandle.dispose();
+        }
+        const result = vm.evalCode("JSON.stringify(executeScript(__rrCode, JSON.parse(__rrCtx)))");
         if (result.error) {
           const e = vm.dump(result.error);
           result.error.dispose();
