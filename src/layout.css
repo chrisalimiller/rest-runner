@@ -513,7 +513,7 @@ body.dragging-split {
   background: var(--bg-overlay);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
-  box-shadow: 0 16px 32px rgba(1, 4, 9, 0.85);
+  box-shadow: 0 16px 32px var(--shadow-lg);
   z-index: 30;
   display: flex;
   flex-direction: column;
@@ -584,7 +584,7 @@ body.dragging-split {
   background: var(--bg-overlay);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
-  box-shadow: 0 16px 32px rgba(1, 4, 9, 0.85);
+  box-shadow: 0 16px 32px var(--shadow-lg);
   overflow: hidden;
 }
 
@@ -1138,7 +1138,7 @@ button.unfilled-dot:hover {
   flex-direction: column;
   border-radius: var(--r-lg);
   background: var(--bg-soft);
-  box-shadow: 0 0 0 1px var(--border), 0 18px 40px rgba(1, 4, 9, 0.65);
+  box-shadow: 0 0 0 1px var(--border), 0 18px 40px var(--shadow-pop);
   transform: translateY(calc(100% + 24px));
   visibility: hidden;
   transition: transform 150ms ease, visibility 0s linear 150ms;
@@ -1501,8 +1501,8 @@ button.unfilled-dot:hover {
 .error-box {
   margin: 12px;
   padding: 12px 14px;
-  border: 1px solid rgba(248, 81, 73, 0.4);
-  background: rgba(248, 81, 73, 0.08);
+  border: 1px solid color-mix(in srgb, var(--bad) 40%, transparent);
+  background: color-mix(in srgb, var(--bad) 8%, transparent);
   border-radius: var(--r-lg);
   color: var(--text);
 }
@@ -1993,7 +1993,7 @@ button.unfilled-dot:hover {
 
 .step.lifted .case-card {
   border-color: var(--accent-fg);
-  box-shadow: 0 0 0 1px var(--accent-fg), 0 6px 18px rgba(1, 4, 9, 0.5);
+  box-shadow: 0 0 0 1px var(--accent-fg), 0 6px 18px var(--shadow-sm);
 }
 
 .step.lifted .step-handle {
@@ -2006,7 +2006,7 @@ body.dragging-case {
 }
 
 .case-card.failed {
-  border-color: rgba(248, 81, 73, 0.4);
+  border-color: color-mix(in srgb, var(--bad) 40%, transparent);
 }
 
 .case-card.skipped {
@@ -2020,7 +2020,7 @@ body.dragging-case {
 }
 
 .case-card.open.failed {
-  border-color: rgba(248, 81, 73, 0.4);
+  border-color: color-mix(in srgb, var(--bad) 40%, transparent);
 }
 
 .case-card-head {
@@ -2489,7 +2489,7 @@ details.case-try .call-detail {
 .sheet-backdrop {
   position: fixed;
   inset: 0;
-  background: rgb(0 0 0 / 35%);
+  background: var(--scrim-soft);
   z-index: 20;
   display: flex;
   justify-content: flex-end;
@@ -2500,7 +2500,7 @@ details.case-try .call-detail {
   height: 100%;
   background: var(--bg-overlay);
   border-left: 1px solid var(--border);
-  box-shadow: -16px 0 32px rgba(1, 4, 9, 0.6);
+  box-shadow: -16px 0 32px var(--shadow-md);
   display: flex;
   flex-direction: column;
 }
@@ -2970,7 +2970,7 @@ select:focus-visible,
 
 .url-field .url-input::selection {
   color: transparent;
-  background: rgba(56, 139, 253, 0.4);
+  background: rgba(var(--accent-rgb), 0.4);
 }
 
 .url-mirror {

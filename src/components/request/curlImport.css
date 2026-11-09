@@ -1,7 +1,7 @@
 .curl-banner {
   margin-top: 8px;
-  border: 1px solid rgba(56, 139, 253, 0.4);
-  background: rgba(56, 139, 253, 0.08);
+  border: 1px solid rgba(var(--accent-rgb), 0.4);
+  background: rgba(var(--accent-rgb), 0.08);
   border-radius: var(--r-sm);
   padding: 8px 12px;
   display: flex;
@@ -48,7 +48,7 @@
 .curl-var {
   font-family: var(--mono);
   color: var(--placeholder-fg);
-  background: rgba(255, 166, 87, 0.12);
+  background: var(--placeholder-bg);
   border-radius: var(--r-xs);
   padding: 0 2px;
 }
