@@ -20,7 +20,7 @@ export const MAX_REDACT_CHARS = 8 * 1024 * 1024;
 const TRUNCATED = "\n[cut: too large to redact]";
 
 /** Script variable names whose values are masked whatever they hold. */
-export const SECRET_KEY_PATTERN = /token|secret|password|passwd|api[-_]?key|auth(?!or)|bearer|cookie|session/i;
+export const SECRET_KEY_PATTERN = /token|secret|password|passwd|api[-_]?key|auth(?!or(?!ization))|bearer|cookie|session/i;
 
 /** Structural strings that logic reads back; never user text. */
 const STRUCTURAL = new Set(["status", "end", "method", "type", "nodeType", "id"]);
