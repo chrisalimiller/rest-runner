@@ -1376,6 +1376,34 @@ button.unfilled-dot:hover {
   padding: 4px 14px 4px 12px;
   border-radius: var(--r-lg);
   background: color-mix(in srgb, var(--other) 10%, transparent);
+  transition: background-color var(--dur-base, 160ms) ease, color var(--dur-base, 160ms) ease, border-color var(--dur-base, 160ms) ease;
+}
+
+.hero-code {
+  transition: color var(--dur-base, 160ms) ease;
+}
+
+/* One-shot cue per new response. The element alternates between two identical keyframes (data-arrive a/b)
+   so the animation restarts without remounting; tab switches and re-renders keep the same value and do not replay. */
+.status-tile[data-arrive] {
+  animation-duration: var(--dur-base, 160ms);
+  animation-timing-function: var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+}
+.status-tile[data-arrive="a"] { animation-name: response-arrive-a; }
+.status-tile[data-arrive="b"] { animation-name: response-arrive-b; }
+.response-body[data-arrive] { animation-duration: 110ms; animation-timing-function: ease-out; }
+.response-body[data-arrive="a"] { animation-name: response-fade-a; }
+.response-body[data-arrive="b"] { animation-name: response-fade-b; }
+
+@keyframes response-arrive-a { from { opacity: 0.5; transform: translateY(2px); } to { opacity: 1; transform: none; } }
+@keyframes response-arrive-b { from { opacity: 0.5; transform: translateY(2px); } to { opacity: 1; transform: none; } }
+@keyframes response-fade-a { from { opacity: 0; } to { opacity: 1; } }
+@keyframes response-fade-b { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .status-tile[data-arrive] { animation-name: response-arrive-reduced; }
+  .response-body[data-arrive] { animation: none; }
+  @keyframes response-arrive-reduced { from { opacity: 0.7; } to { opacity: 1; } }
 }
 
 .status-tile.tint-ok { background: color-mix(in srgb, var(--ok) 10%, transparent); }
