@@ -69,6 +69,7 @@ export const VIEW_STATE_KEYS = [
   "rest-runner.curl-open",
   "rest-runner.flows-nav-collapsed",
   "rest-runner.testing-nav-collapsed",
+  "rest-runner.batch-selection",
 ];
 
 export function clearViewState(): void {
