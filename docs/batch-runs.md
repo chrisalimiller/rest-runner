@@ -54,6 +54,14 @@ The result table shows Row, Status, Time and the full URL. It can be filtered to
 
 When a run ends (finished, stopped, or stopped after a failure) it is saved automatically, and a link **Open in run explorer and export reports →** appears.
 
+### Re-running failed rows
+
+When a run has ended, **Re-run N failed** (next to the All / Failed filter) sends only the rows that failed, including rows with no response and rows whose pre-request script failed. It uses the request and options (concurrency, delay, count 4xx/5xx, stop on first failure) of the run on screen, and the environment values selected now. It is disabled, with the reason as its tooltip, while a run is going or when nothing failed.
+
+The re-run is saved as a **new run**; the original is not changed. Row numbers stay the CSV row numbers (a re-run of rows 3 and 7 shows rows 3 and 7), and `rr.iteration` is the original 0-based row number. The new run records `rerunOf`, the id of the run it re-ran, and its run explorer header links back to it. You can re-run the failures of a re-run again. The rows come from the saved results, so the CSV file does not need to be on disk.
+
+Rows that were never sent because a run was stopped are not re-run by this button.
+
 ### Scripts in a batch
 
 If the request has scripts they run for every row. See [Scripting](scripting.md#csv-batch-runs-in-requests-mode). In short: `rr.data` is the row, `rr.iteration` is the 0-based row number, each row starts with its own copy of the script variables, and a row fails if its script errors or one of its `rr.test` checks fails. If the pre-request script fails the row is shown as not sent.
@@ -124,10 +132,27 @@ Buttons at the top of the explorer:
 
 - **← Back to request**
 - **Load this request**: opens the request as it was when the run started, on the Batch run tab.
+- **Compare with…**: see [Comparing two runs](#comparing-two-runs).
 - **Export HTML report**, **Export CSV report**
 - **Delete**: removes the run (exported reports are not affected).
 
 The last 30 runs are kept. Response bodies over 1 MB are cut to 1 MB when a run is saved, and the call's notes say so.
+
+## Comparing two runs
+
+**Compare with…** (in the run explorer) shows what changed between this run and another saved run, for example before and after a deploy.
+
+1. Pick the baseline in **Compare this run with**. The list holds other saved runs of the same request first (matched by request, or by method, URL and name for older runs), then runs of a different request that used the same CSV file name. With no other candidate you see a message instead; run the batch again and come back.
+2. Rows are matched by **row number**. If the runs have different row counts, different CSV files or columns, a different URL, or did not finish, a note above the results says so. Rows that exist in only one run are listed as **New row** or **Not in this run**.
+3. The summary shows passed, failed, average, median and 95th percentile time in this run, each with the change from the baseline (green is better, red is worse).
+4. The table lists only rows that changed, with the filters **All changes**, **Regressions**, **Fixes** and **Slower**:
+   - **Regression**: passed before and fails now, or the status class got worse (for example 4xx to 5xx).
+   - **Fix**: failed before and passes now, or the status class got better.
+   - **Slower**: at least 50% and at least 100 ms longer than the baseline. Both conditions must hold, so a 10 ms call becoming 90 ms is not flagged.
+   - Status classes are compared, not exact codes, so 200 to 201 is not a change.
+5. Click a row (or use the up and down arrow keys) to see the two calls side by side, with a field-by-field table of changed JSON response fields above them. The field table is skipped when a body is not JSON or when either saved response was cut short (the 1 MB limit); the full bodies are still in each side's Response tab.
+
+If nothing changed you see **No differences** together with the summary. Comparisons are computed only after you pick a run, and the table shows 500 rows at a time. Comparing is not included in the exported HTML or CSV reports.
 
 ## Reports
 

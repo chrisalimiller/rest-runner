@@ -7,6 +7,7 @@ import { getRun } from "../lib/runStore";
 import { saveTextFile } from "../lib/saveFile";
 import { keepSelected } from "../lib/selection";
 import { CallDetail } from "./CallDetail";
+import { RunCompare } from "./RunCompare";
 
 interface Props {
   runId: string;
@@ -14,6 +15,8 @@ interface Props {
   onDelete: (id: string) => void;
   /** Loads the request this run was made from into the editor. */
   onLoadRequest?: (run: Run) => void;
+  /** Opens another saved run, for the link from a re-run to the run it re-ran. */
+  onOpenRun?: (id: string) => void;
 }
 
 type ResultFilter = "all" | "passed" | "failed";
@@ -25,7 +28,7 @@ function formatDuration(ms: number): string {
   return s < 60 ? `${s.toFixed(1)} s` : `${Math.floor(s / 60)} m ${Math.round(s % 60)} s`;
 }
 
-export function RunExplorer({ runId, onBack, onDelete, onLoadRequest }: Props) {
+export function RunExplorer({ runId, onBack, onDelete, onLoadRequest, onOpenRun }: Props) {
   const mask = currentMasker();
   const [run, setRun] = useState<Run | null | undefined>(undefined);
   const [filter, setFilter] = useState<ResultFilter>("all");
@@ -35,8 +38,10 @@ export function RunExplorer({ runId, onBack, onDelete, onLoadRequest }: Props) {
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [showLog, setShowLog] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [comparing, setComparing] = useState(false);
 
   useEffect(() => {
+    setComparing(false);
     let live = true;
     setRun(undefined);
     setMessage(null);
@@ -86,6 +91,8 @@ export function RunExplorer({ runId, onBack, onDelete, onLoadRequest }: Props) {
       </section>
     );
 
+  if (comparing) return <RunCompare run={run} onClose={() => setComparing(false)} />;
+
   const visible = filtered.slice(0, limit);
   const entry = run.entries.find((e) => e.index === selected) ?? null;
 
@@ -122,6 +129,14 @@ export function RunExplorer({ runId, onBack, onDelete, onLoadRequest }: Props) {
           <p className="muted small">
             {new Date(run.startedAt).toLocaleString()} · {run.method} <span className="mono">{run.urlTemplate}</span> · {run.csvName}
             {run.environmentName ? ` · ${run.environmentName}` : ""} · {endLabel}
+            {run.rerunOf && (
+              <>
+                {" · "}
+                <button className="link-btn" onClick={() => onOpenRun?.(run.rerunOf!)}>
+                  Re-run of failed rows
+                </button>
+              </>
+            )}
           </p>
         </div>
         <div className="explorer-actions">
@@ -130,6 +145,9 @@ export function RunExplorer({ runId, onBack, onDelete, onLoadRequest }: Props) {
               Load this request
             </button>
           )}
+          <button className="secondary" onClick={() => setComparing(true)} title="Compare this run with another saved run of the same request">
+            Compare with…
+          </button>
           <button className="secondary" onClick={() => void exportReport("html")}>
             Export HTML report
           </button>

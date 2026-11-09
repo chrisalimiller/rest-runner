@@ -73,6 +73,14 @@ describe("buildRun and runStats", () => {
     expect(text).toMatch(/3 of 5 sent, 2 passed, 1 failed/);
   });
 
+  it("labels a re-run and leaves ordinary runs without rerunOf", () => {
+    expect("rerunOf" in run).toBe(false);
+    const re = buildRun({ ...run, missingPlaceholders: [], id: "r2", totalRows: 1, results: [item(1, ok(200, 5), false)], end: "completed", rerunOf: "r1" });
+    expect(re.rerunOf).toBe("r1");
+    expect(re.entries.map((e) => e.index)).toEqual([1]);
+    expect(re.log[0].message).toMatch(/Re-run of the 1 failed row/);
+  });
+
   it("computes stats", () => {
     const st = runStats(run);
     expect(st).toMatchObject({ completed: 3, passed: 2, failed: 1, connectionErrors: 1, notRun: 2, minMs: 10, avgMs: 20, maxMs: 30, p50Ms: 20, wallMs: 2500 });

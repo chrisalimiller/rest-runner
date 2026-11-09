@@ -32,6 +32,8 @@ export interface RunSummary {
   id: string;
   /** Id of the request the run was made from. Runs saved before this field existed don't have it. */
   requestId?: string;
+  /** Id of the earlier run whose failed rows this run sent again. Row numbers match the original CSV. Missing on ordinary runs and old runs. */
+  rerunOf?: string;
   requestName: string;
   method: string;
   urlTemplate: string;
@@ -176,6 +178,8 @@ export interface RunInput {
   /** Placeholders the request uses that neither the CSV nor the environment fills. */
   missingPlaceholders: string[];
   environmentName?: string;
+  /** Id of the run whose failed rows were sent again, if this is a re-run. */
+  rerunOf?: string;
 }
 
 function describeOptions(o: BatchOptions): string {
@@ -196,7 +200,12 @@ export function buildRun(input: RunInput): Run {
   const failed = entries.length - passed;
 
   const log: RunLogLine[] = [
-    { at: input.startedAt, message: `Started ${input.request.method} ${input.request.url} with ${input.totalRows} rows from ${input.csvName}.` },
+    {
+      at: input.startedAt,
+      message: input.rerunOf
+        ? `Re-run of the ${input.totalRows} failed ${input.totalRows === 1 ? "row" : "rows"} of an earlier run: ${input.request.method} ${input.request.url}, rows from ${input.csvName}. Row numbers match the CSV.`
+        : `Started ${input.request.method} ${input.request.url} with ${input.totalRows} rows from ${input.csvName}.`,
+    },
     { at: input.startedAt, message: `Settings: ${describeOptions(input.options)}.` },
     {
       at: input.startedAt,
@@ -236,6 +245,7 @@ export function buildRun(input: RunInput): Run {
   return {
     id: input.id,
     requestId: input.request.id,
+    ...(input.rerunOf ? { rerunOf: input.rerunOf } : {}),
     requestName: input.request.name,
     method: input.request.method,
     urlTemplate: input.request.url,
