@@ -1,0 +1,6 @@
+name: rest-runner CodeQL config
+# Tests deliberately write fake secrets to localStorage to prove they get scrubbed;
+# scanning them only produces false positives.
+paths-ignore:
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
