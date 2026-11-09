@@ -89,6 +89,8 @@ export async function runBatch(
   baseVars: Vars = {},
   /** How to run the request's pre/post scripts. */
   scripts: BatchScripts = { runner: defaultScriptRunner },
+  /** CSV row index of each entry in `rows`, for a re-run of some rows. Results keep these indices. Defaults to 0, 1, 2… */
+  indices?: number[],
 ): Promise<BatchEnd> {
   let next = 0;
   let stoppedOnFailure = false;
@@ -102,8 +104,9 @@ export async function runBatch(
         if (signal.aborted || stoppedOnFailure || next >= rows.length) break;
       }
       first = false;
-      const index = next++;
-      const vars = rows[index];
+      const pos = next++;
+      const index = indices?.[pos] ?? pos;
+      const vars = rows[pos];
       const r = await sendWithScripts({
         def,
         env: baseVars,
@@ -129,4 +132,36 @@ export async function runBatch(
   if (signal.aborted) return "cancelled";
   if (stoppedOnFailure) return "stopped-on-failure";
   return "completed";
+}
+
+/** CSV row indices (0-based, ascending) of the results that failed, including connection errors and rows not sent. */
+export function failedIndices(results: Pick<BatchItemResult, "index" | "failed">[]): number[] {
+  return results
+    .filter((r) => r.failed)
+    .map((r) => r.index)
+    .sort((a, b) => a - b);
+}
+
+export interface RerunInput {
+  /** The CSV rows to send, in row order. Taken from the results, so the original file is not needed. */
+  rows: Vars[];
+  /** Original 0-based CSV row index of each entry in `rows`. */
+  indices: number[];
+}
+
+/** The rows to send again: only the failed ones, each keeping its original row index. */
+export function buildRerunInput(results: Pick<BatchItemResult, "index" | "failed" | "vars">[]): RerunInput {
+  const failed = results.filter((r) => r.failed).sort((a, b) => a.index - b.index);
+  return { rows: failed.map((r) => r.vars), indices: failed.map((r) => r.index) };
+}
+
+export function rerunLabel(count: number): string {
+  return `Re-run ${count} failed`;
+}
+
+/** Why the re-run action is unavailable, or null when it can be used. */
+export function rerunDisabledReason(count: number, running: boolean): string | null {
+  if (running) return "Wait for the run to end";
+  if (count === 0) return "No failed rows to re-run";
+  return null;
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { runBatch, type BatchItemResult, type SendFn } from "./batch";
+import { buildRerunInput, failedIndices, rerunDisabledReason, rerunLabel, runBatch, type BatchItemResult, type SendFn } from "./batch";
 import { newRequest } from "./defaults";
 import type { PreparedRequest, SendOutcome } from "./types";
 
@@ -91,5 +91,41 @@ describe("runBatch", () => {
   it("handles zero rows", async () => {
     const f = fakeSend(() => 200);
     expect(await runBatch(def, [], opts, f.send, () => {}, new AbortController().signal)).toBe("completed");
+  });
+});
+
+describe("re-running failed rows", () => {
+  const item = (index: number, failed: boolean): BatchItemResult => ({
+    index,
+    vars: { id: String(index + 1) },
+    failed,
+    outcome: { request: { method: "GET", url: "", headers: [] }, sentAt: "", ok: false, error: "x", durationMs: 1 },
+  });
+  const results = [item(4, true), item(0, false), item(2, true), item(1, false)];
+
+  it("lists failed row indices in row order", () => {
+    expect(failedIndices(results)).toEqual([2, 4]);
+    expect(failedIndices([item(0, false)])).toEqual([]);
+  });
+
+  it("builds the input from the failed results only, keeping row indices", () => {
+    expect(buildRerunInput(results)).toEqual({ rows: [{ id: "3" }, { id: "5" }], indices: [2, 4] });
+  });
+
+  it("labels the action and explains when it is unavailable", () => {
+    expect(rerunLabel(3)).toBe("Re-run 3 failed");
+    expect(rerunDisabledReason(0, false)).toMatch(/no failed/i);
+    expect(rerunDisabledReason(2, true)).toMatch(/wait/i);
+    expect(rerunDisabledReason(2, false)).toBeNull();
+  });
+
+  it("sends only the given rows and reports results under their original indices", async () => {
+    const f = fakeSend(() => 200);
+    const out: BatchItemResult[] = [];
+    const input = buildRerunInput(results);
+    const end = await runBatch(def, input.rows, opts, f.send, (r) => out.push(r), new AbortController().signal, {}, undefined, input.indices);
+    expect(end).toBe("completed");
+    expect(out.map((r) => r.index).sort()).toEqual([2, 4]);
+    expect(out.map((r) => r.outcome.request.url).sort()).toEqual(["https://api.test/items/3", "https://api.test/items/5"]);
   });
 });

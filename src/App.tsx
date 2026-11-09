@@ -1131,6 +1131,7 @@ export default function App({ active = true, shell, command }: Props) {
           <RunExplorer
             runId={openRun}
             onBack={() => setOpenRun(null)}
+            onOpenRun={setOpenRun}
             onLoadRequest={(run) => openRunRequest(run.request, run.csvName)}
             onDelete={(id) => {
               const name = runs.find((r) => r.id === id)?.csvName;

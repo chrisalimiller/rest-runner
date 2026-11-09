@@ -54,6 +54,14 @@ The result table shows Row, Status, Time and the full URL. It can be filtered to
 
 When a run ends (finished, stopped, or stopped after a failure) it is saved automatically, and a link **Open in run explorer and export reports →** appears.
 
+### Re-running failed rows
+
+When a run has ended, **Re-run N failed** (next to the All / Failed filter) sends only the rows that failed, including rows with no response and rows whose pre-request script failed. It uses the request and options (concurrency, delay, count 4xx/5xx, stop on first failure) of the run on screen, and the environment values selected now. It is disabled, with the reason as its tooltip, while a run is going or when nothing failed.
+
+The re-run is saved as a **new run**; the original is not changed. Row numbers stay the CSV row numbers (a re-run of rows 3 and 7 shows rows 3 and 7), and `rr.iteration` is the original 0-based row number. The new run records `rerunOf`, the id of the run it re-ran, and its run explorer header links back to it. You can re-run the failures of a re-run again. The rows come from the saved results, so the CSV file does not need to be on disk.
+
+Rows that were never sent because a run was stopped are not re-run by this button.
+
 ### Scripts in a batch
 
 If the request has scripts they run for every row. See [Scripting](scripting.md#csv-batch-runs-in-requests-mode). In short: `rr.data` is the row, `rr.iteration` is the 0-based row number, each row starts with its own copy of the script variables, and a row fails if its script errors or one of its `rr.test` checks fails. If the pre-request script fails the row is shown as not sent.

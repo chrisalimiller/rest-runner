@@ -14,6 +14,8 @@ interface Props {
   onDelete: (id: string) => void;
   /** Loads the request this run was made from into the editor. */
   onLoadRequest?: (run: Run) => void;
+  /** Opens another saved run, for the link from a re-run to the run it re-ran. */
+  onOpenRun?: (id: string) => void;
 }
 
 type ResultFilter = "all" | "passed" | "failed";
@@ -25,7 +27,7 @@ function formatDuration(ms: number): string {
   return s < 60 ? `${s.toFixed(1)} s` : `${Math.floor(s / 60)} m ${Math.round(s % 60)} s`;
 }
 
-export function RunExplorer({ runId, onBack, onDelete, onLoadRequest }: Props) {
+export function RunExplorer({ runId, onBack, onDelete, onLoadRequest, onOpenRun }: Props) {
   const mask = currentMasker();
   const [run, setRun] = useState<Run | null | undefined>(undefined);
   const [filter, setFilter] = useState<ResultFilter>("all");
@@ -122,6 +124,14 @@ export function RunExplorer({ runId, onBack, onDelete, onLoadRequest }: Props) {
           <p className="muted small">
             {new Date(run.startedAt).toLocaleString()} · {run.method} <span className="mono">{run.urlTemplate}</span> · {run.csvName}
             {run.environmentName ? ` · ${run.environmentName}` : ""} · {endLabel}
+            {run.rerunOf && (
+              <>
+                {" · "}
+                <button className="link-btn" onClick={() => onOpenRun?.(run.rerunOf!)}>
+                  Re-run of failed rows
+                </button>
+              </>
+            )}
           </p>
         </div>
         <div className="explorer-actions">

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { DEFAULT_BATCH_OPTIONS, runBatch, type BatchEnd, type BatchItemResult, type BatchOptions } from "../lib/batch";
+import { buildRerunInput, DEFAULT_BATCH_OPTIONS,rerunDisabledReason, rerunLabel, runBatch, type BatchEnd, type BatchItemResult, type BatchOptions } from "../lib/batch";
 import { checkCsvFile, parseCsv, type CsvData } from "../lib/csv";
 import { statusClass } from "../lib/format";
 import { sendRequest } from "../lib/http";
@@ -71,6 +71,8 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [savedRunId, setSavedRunId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
+  /** Rows sent by the current run: all CSV rows, or just the failed ones in a re-run. */
+  const [total, setTotal] = useState(0);
   /** The request and options a run started with, to write notes for the call detail. */
   const snapshotRef = useRef<{ def: RequestDef; options: BatchOptions } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
@@ -132,8 +134,22 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
     }
   };
 
-  const start = async () => {
+  const start = () => {
     if (!file || rows.length === 0 || running) return;
+    return execute(def, options, rows);
+  };
+
+  /** Sends only the failed rows again with the request and options of the run on screen. */
+  const rerunFailed = () => {
+    const snap = snapshotRef.current;
+    if (!snap || running) return;
+    const input = buildRerunInput(results);
+    if (input.rows.length === 0) return;
+    return execute(snap.def, snap.options, input.rows, input.indices, savedRunId ?? undefined);
+  };
+
+  const execute = async (runDef: RequestDef, runOpts: BatchOptions, runRows: Vars[], indices?: number[], rerunOf?: string) => {
+    if (!file) return;
     const controller = new AbortController();
     abortRef.current = controller;
     bufferRef.current = [];
@@ -148,14 +164,15 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
     setStartedAt(t0);
     setElapsed(0);
     setRunning(true);
-    const snapshot = structuredClone(def);
-    const runOptions = { ...options };
+    setTotal(runRows.length);
+    const snapshot = structuredClone(runDef);
+    const runOptions = { ...runOpts };
     snapshotRef.current = { def: snapshot, options: runOptions };
     const startVars = { ...scriptVars };
     const all: BatchItemResult[] = [];
     const result = await runBatch(
       snapshot,
-      rows,
+      runRows,
       runOptions,
       sendRequest,
       (r) => {
@@ -165,6 +182,7 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
       controller.signal,
       envVars,
       { runner: requestScriptRunner(), vars: startVars },
+      indices,
     );
     const rest = bufferRef.current;
     bufferRef.current = [];
@@ -180,7 +198,7 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
         request: snapshot,
         csvName: file.name,
         columns,
-        totalRows: rows.length,
+        totalRows: runRows.length,
         options: runOptions,
         startedAt: new Date(t0).toISOString(),
         finishedAt: new Date().toISOString(),
@@ -188,6 +206,7 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
         results: all,
         missingPlaceholders: missing,
         environmentName: envName,
+        rerunOf,
       });
       try {
         await saveRun(run);
@@ -218,7 +237,7 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
   const passed = results.filter((r) => !r.failed).length;
   const failed = results.length - passed;
   const done = results.length;
-  const pct = rows.length ? Math.round((done / rows.length) * 100) : 0;
+  const pct = total ? Math.round((done / total) * 100) : 0;
   const avgMs = done
     ? Math.round(results.reduce((s, r) => s + (r.outcome.ok ? r.outcome.response.durationMs : r.outcome.durationMs), 0) / done)
     : 0;
@@ -230,6 +249,8 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
   const selectedEntry: RunEntry | null = selectedResult
     ? { ...selectedResult, notes: entryNotes(selectedResult, snapshotRef.current?.options ?? options, snapshotRef.current?.def ?? def) }
     : null;
+
+  const rerunReason = rerunDisabledReason(failed, running);
 
   const num = (v: string, min: number, max: number) => Math.min(max, Math.max(min, Math.round(Number(v) || 0)));
 
@@ -420,7 +441,7 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
             <div className="batch-tile">
               <span className="muted small">{running ? "Running" : end ? describeEnd(end) : ""}</span>
               <strong>
-                {done} / {rows.length}
+                {done} / {total}
               </strong>
             </div>
             <div className="batch-tile">
@@ -459,6 +480,15 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
               <label className="radio">
                 <input type="radio" checked={filter === "failed"} onChange={() => { setFilter("failed"); setLimit(PAGE_SIZE); }} /> Failed ({failed})
               </label>
+              <button
+                className="link-btn"
+                onClick={() => void rerunFailed()}
+                disabled={rerunReason !== null || !snapshotRef.current}
+                title={rerunReason ?? "Send only the failed rows again with the same request and options. Saved as a new run; row numbers stay the same."}
+                aria-label={rerunReason ? `${rerunLabel(failed)} (unavailable: ${rerunReason})` : `${rerunLabel(failed)} rows again as a new run`}
+              >
+                {rerunLabel(failed)}
+              </button>
             </div>
             <div className="results-scroll">
               <table className="results">
