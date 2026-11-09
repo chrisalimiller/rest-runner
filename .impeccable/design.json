@@ -1,0 +1,506 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-09T02:59:11.435Z",
+  "title": "Design System: REST Runner",
+  "extensions": {
+    "colorMeta": {
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Primer Night",
+        "canonical": "oklch(17.6% 0.014 258)",
+        "tonalRamp": [
+          "#141619",
+          "#2a2e35",
+          "#43484f",
+          "#5e646b",
+          "#81878f",
+          "#a5abb4",
+          "#cbd1da",
+          "#eceff3"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Slate Surface",
+        "canonical": "oklch(22.0% 0.016 257)",
+        "tonalRamp": [
+          "#14161a",
+          "#292e36",
+          "#424850",
+          "#5e646c",
+          "#808790",
+          "#a5abb5",
+          "#cbd2db",
+          "#ebeff4"
+        ]
+      },
+      "surface-inset": {
+        "role": "neutral",
+        "displayName": "Inkwell Inset",
+        "canonical": "oklch(10.4% 0.019 248)",
+        "tonalRamp": [
+          "#13161a",
+          "#262f37",
+          "#404952",
+          "#5b646e",
+          "#7d8792",
+          "#a2acb7",
+          "#c7d2dd",
+          "#eaeff5"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Cool Daylight Ink",
+        "canonical": "oklch(94.3% 0.011 244)",
+        "tonalRamp": [
+          "#141618",
+          "#292f33",
+          "#43484d",
+          "#5e6469",
+          "#81878c",
+          "#a5acb1",
+          "#cbd2d8",
+          "#ebeff2"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Quiet Steel",
+        "canonical": "oklch(66.9% 0.018 251)",
+        "tonalRamp": [
+          "#13161a",
+          "#272f37",
+          "#414951",
+          "#5c646d",
+          "#7e8791",
+          "#a3acb6",
+          "#c9d2dd",
+          "#eaeff4"
+        ]
+      },
+      "accent": {
+        "role": "primary",
+        "displayName": "Focus Blue",
+        "canonical": "oklch(61.8% 0.193 258)",
+        "tonalRamp": [
+          "#001140",
+          "#00168b",
+          "#003bac",
+          "#005bce",
+          "#3082f8",
+          "#57a8ff",
+          "#7dd0ff",
+          "#c7f1ff"
+        ]
+      },
+      "send-green": {
+        "role": "secondary",
+        "displayName": "Send Green",
+        "canonical": "oklch(54.6% 0.147 146)",
+        "tonalRamp": [
+          "#001e00",
+          "#003e00",
+          "#005a02",
+          "#0b7828",
+          "#3e9d4c",
+          "#66c370",
+          "#8deb96",
+          "#cffdd2"
+        ]
+      },
+      "brand": {
+        "role": "tertiary",
+        "displayName": "Brand Lilac",
+        "canonical": "oklch(73.2% 0.167 302)",
+        "tonalRamp": [
+          "#1e0735",
+          "#3f0071",
+          "#5a2490",
+          "#7644b1",
+          "#9969d9",
+          "#be8eff",
+          "#e5b5ff",
+          "#f8e2ff"
+        ]
+      },
+      "brand-strong": {
+        "role": "tertiary",
+        "displayName": "Brand Violet",
+        "canonical": "oklch(58.4% 0.205 296)",
+        "tonalRamp": [
+          "#1c023e",
+          "#3e0086",
+          "#5612a6",
+          "#713bc8",
+          "#9363f1",
+          "#b889ff",
+          "#deb1ff",
+          "#f4e1ff"
+        ]
+      },
+      "danger": {
+        "role": "secondary",
+        "displayName": "Signal Red",
+        "canonical": "oklch(66.5% 0.205 27)",
+        "tonalRamp": [
+          "#380000",
+          "#750000",
+          "#990000",
+          "#bc0012",
+          "#e8413b",
+          "#ff6b60",
+          "#ff9385",
+          "#ffd4ca"
+        ]
+      },
+      "warn": {
+        "role": "secondary",
+        "displayName": "Amber Flag",
+        "canonical": "oklch(72.0% 0.140 80)",
+        "tonalRamp": [
+          "#261000",
+          "#501d00",
+          "#6e3a00",
+          "#8c5600",
+          "#b27a00",
+          "#d99f2c",
+          "#ffc65a",
+          "#ffeaba"
+        ]
+      },
+      "canvas-light": {
+        "role": "neutral",
+        "displayName": "Mist Slate",
+        "canonical": "oklch(94.4% 0.008 254)",
+        "tonalRamp": [
+          "#151618",
+          "#2b2e32",
+          "#45484c",
+          "#606468",
+          "#83868b",
+          "#a7abb0",
+          "#cdd1d6",
+          "#edeff1"
+        ]
+      },
+      "accent-light": {
+        "role": "primary",
+        "displayName": "Mist Blue",
+        "canonical": "oklch(51.5% 0.187 261)",
+        "tonalRamp": [
+          "#00103f",
+          "#001688",
+          "#003aa9",
+          "#1a5acb",
+          "#3f80f4",
+          "#64a7ff",
+          "#89cfff",
+          "#cbf0ff"
+        ]
+      },
+      "brand-light": {
+        "role": "tertiary",
+        "displayName": "Mist Violet",
+        "canonical": "oklch(50.4% 0.201 294)",
+        "tonalRamp": [
+          "#1b043e",
+          "#3b0085",
+          "#5417a6",
+          "#6e3ec8",
+          "#9065f1",
+          "#b48cff",
+          "#dab3ff",
+          "#f1e2ff"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "First-run heading (22px) and the mono status code in the response tile."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Request name, modal headings, quick-open input and status text (15px, Red Hat Display)."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Default 13px text, menus, toasts."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "11px uppercase section titles, method labels, chips, kbd and badges."
+      },
+      "code": {
+        "displayName": "Code",
+        "purpose": "JetBrains Mono for URLs, status codes, timings, variables, editors and the wordmark."
+      }
+    },
+    "shadows": [
+      {
+        "name": "panel-ring",
+        "value": "0 0 0 1px var(--border-muted)",
+        "purpose": "Request and response panels (ring, not a shadow)."
+      },
+      {
+        "name": "selected-stripe",
+        "value": "inset 2px 0 0 var(--accent)",
+        "purpose": "Active row in trees and lists."
+      },
+      {
+        "name": "focus-ring",
+        "value": "0 0 0 2px var(--accent-fg)",
+        "purpose": "Keyboard focus on inputs and controls (--focus-ring)."
+      },
+      {
+        "name": "focus-ring-inset",
+        "value": "inset 0 0 0 2px var(--accent-fg)",
+        "purpose": "Focus inside menus and splitter (--focus-ring-inset)."
+      },
+      {
+        "name": "flow-node",
+        "value": "0 1px 0 var(--shadow-xs)",
+        "purpose": "Resting flow node."
+      },
+      {
+        "name": "popover",
+        "value": "0 8px 24px var(--shadow-md)",
+        "purpose": "Menus, toasts, overflow popover, palette ghost."
+      },
+      {
+        "name": "details-sheet",
+        "value": "0 0 0 1px var(--border), 0 18px 40px var(--shadow-pop)",
+        "purpose": "Request details drawer."
+      },
+      {
+        "name": "dialog",
+        "value": "0 0 0 1px var(--border), 0 16px 32px var(--shadow-lg)",
+        "purpose": "Modals, switcher popover, quick open."
+      },
+      {
+        "name": "side-sheet",
+        "value": "-16px 0 32px var(--shadow-md)",
+        "purpose": "Right-hand run settings sheet."
+      },
+      {
+        "name": "scrim",
+        "value": "dark rgba(1,4,9,0.7) / light rgba(24,33,43,0.4)",
+        "purpose": "Modal backdrop (--scrim)."
+      },
+      {
+        "name": "scrim-soft",
+        "value": "dark rgb(0 0 0 / 35%) / light rgba(24,33,43,0.3)",
+        "purpose": "Sheet and quick-open backdrop (--scrim-soft)."
+      }
+    ],
+    "motion": [
+      {
+        "name": "dur-fast",
+        "value": "100ms",
+        "purpose": "Exits, hover colour changes, popover enter."
+      },
+      {
+        "name": "dur-base",
+        "value": "160ms",
+        "purpose": "Routine state changes, modal, toast and sheet enter, Collapse."
+      },
+      {
+        "name": "dur-slow",
+        "value": "280ms",
+        "purpose": "Ceiling for layout and overlay motion. Defined; no current rule uses it."
+      },
+      {
+        "name": "ease-out",
+        "value": "cubic-bezier(0.16, 1, 0.3, 1)",
+        "purpose": "Entering motion. No bounce or elastic easing."
+      },
+      {
+        "name": "ease-in",
+        "value": "cubic-bezier(0.4, 0, 1, 1)",
+        "purpose": "Exiting motion."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "@media (prefers-reduced-motion: reduce)",
+        "purpose": "Fewer and gentler, not none: transitions and pulses stop, spinners slow to 2.4s, overlays become 100ms linear fades, colour feedback stays."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "requests-main container",
+        "value": "max-width: 1000px (container query; request and response stack)"
+      },
+      {
+        "name": "wide",
+        "value": "max-width: 1200px (runbook and flows drop a column)"
+      },
+      {
+        "name": "narrow",
+        "value": "max-width: 800px (runbook nav becomes a select); flows also at 1000px; first-run at 760px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Send Button",
+      "kind": "button",
+      "refersTo": "send-button",
+      "description": "The one green control; fixed 108px wide so its label can change without a layout shift.",
+      "html": "<button class=\"ds-send\">Send</button>",
+      "css": ".ds-send{height:40px;width:108px;padding:0 8px;border:0;border-radius:12px;background:var(--primary, #238636);color:#fff;font:600 13px var(--sans, sans-serif);box-shadow:inset 0 0 0 1px var(--btn-border, rgba(240,246,252,.1));transition:background-color 100ms cubic-bezier(.16,1,.3,1);cursor:pointer}.ds-send:hover{background:var(--primary-hover, #2ea043)}.ds-send:focus-visible{outline:2px solid var(--accent-fg, #4493f8);outline-offset:-3px}"
+    },
+    {
+      "name": "Secondary Button",
+      "kind": "button",
+      "refersTo": "secondary-button",
+      "description": "Neutral action button; 6px radius, lifts on hover.",
+      "html": "<button class=\"ds-secondary\">Import</button>",
+      "css": ".ds-secondary{height:30px;padding:0 12px;border:1px solid var(--btn-border, rgba(240,246,252,.1));border-radius:6px;background:var(--btn-bg, #21262d);color:var(--text, #e6edf3);font:500 13px var(--sans, sans-serif);transition:background-color 100ms cubic-bezier(.16,1,.3,1),border-color 100ms cubic-bezier(.16,1,.3,1);cursor:pointer}.ds-secondary:hover{background:var(--btn-hover, #30363d);border-color:var(--border-hover, #8b949e)}.ds-secondary:focus-visible{outline:none;box-shadow:0 0 0 2px var(--accent-fg, #4493f8)}"
+    },
+    {
+      "name": "URL Bar",
+      "kind": "input",
+      "refersTo": "url-bar",
+      "description": "40px inset field with a tinted method pill; ring turns blue on focus-within.",
+      "html": "<div class=\"ds-url\"><span class=\"ds-url-method\">GET</span><input class=\"ds-url-input\" value=\"https://api.example.com/users/{{id}}\" aria-label=\"URL\"></div>",
+      "css": ".ds-url{display:flex;align-items:center;height:40px;padding:5px;border-radius:12px;background:var(--bg-inset, #010409);box-shadow:inset 0 0 0 1px var(--border, #30363d);min-width:360px}.ds-url:focus-within{box-shadow:inset 0 0 0 1px var(--accent, #2f81f7)}.ds-url-method{display:inline-flex;align-items:center;width:92px;height:30px;padding:0 10px;border-radius:8px;background:color-mix(in srgb,var(--get, #3fb950) 14%,transparent);color:var(--get, #3fb950);font:700 12px var(--sans, sans-serif);letter-spacing:.04em}.ds-url-input{flex:1;min-width:0;border:0;outline:0;background:transparent;padding:0 12px;color:var(--text, #e6edf3);font:13px var(--mono, monospace)}"
+    },
+    {
+      "name": "Request Tab",
+      "kind": "nav",
+      "refersTo": "request-tab",
+      "description": "28px tab with method label; the active tab gets surface fill and a 1px ring.",
+      "html": "<div class=\"ds-tabs\"><div class=\"ds-tab on\"><span class=\"ds-tab-m\">GET</span><span>List users</span></div><div class=\"ds-tab\"><span class=\"ds-tab-m\" style=\"color:var(--post,#d29922)\">POST</span><span>Create user</span></div></div>",
+      "css": ".ds-tabs{display:flex;gap:4px;padding:8px;background:var(--bg-inset, #010409)}.ds-tab{display:flex;align-items:center;gap:6px;height:28px;padding:0 10px;border-radius:8px;color:var(--muted, #8d96a0);font:12px var(--sans, sans-serif);transition:background-color 100ms cubic-bezier(.16,1,.3,1)}.ds-tab:hover{background:var(--bg-soft, #161b22)}.ds-tab.on{background:var(--bg-soft, #161b22);box-shadow:0 0 0 1px var(--border, #30363d);color:var(--text, #e6edf3);font-weight:600}.ds-tab-m{font:700 11px var(--sans, sans-serif);letter-spacing:.04em;color:var(--get, #3fb950)}"
+    },
+    {
+      "name": "Collection Tree Row",
+      "kind": "nav",
+      "refersTo": "tree-row",
+      "description": "28px row; active rows get hover fill and a 2px blue inset stripe.",
+      "html": "<div class=\"ds-tree\"><div class=\"ds-row\">List users</div><div class=\"ds-row active\">Create user</div></div>",
+      "css": ".ds-tree{width:220px;padding:8px;background:var(--bg-inset, #010409)}.ds-row{display:flex;align-items:center;min-height:28px;padding:4px 8px;border-radius:6px;color:var(--text, #e6edf3);font:13px var(--sans, sans-serif)}.ds-row:hover{background:var(--bg-hover, #1c2128)}.ds-row.active{background:var(--bg-hover, #1c2128);box-shadow:inset 2px 0 0 var(--accent, #2f81f7)}"
+    },
+    {
+      "name": "Status Tile",
+      "kind": "custom",
+      "refersTo": "chip",
+      "description": "Response status: mono code and display-face reason in a 12px tile tinted 10% by status.",
+      "html": "<div class=\"ds-status\"><span class=\"ds-code\">200</span><span class=\"ds-text\">OK</span></div>",
+      "css": ".ds-status{display:inline-flex;align-items:baseline;gap:10px;padding:4px 14px 4px 12px;border-radius:12px;background:color-mix(in srgb,var(--ok, #3fb950) 10%,transparent)}.ds-code{font:600 22px/1.1 var(--mono, monospace);color:var(--ok, #3fb950)}.ds-text{font:600 15px var(--display, sans-serif);color:var(--ok, #3fb950)}"
+    },
+    {
+      "name": "Chip",
+      "kind": "chip",
+      "refersTo": "chip",
+      "description": "Pill, 11px, 1px border; ok, bad and env variants are tints of their colours.",
+      "html": "<span class=\"ds-chip\">3 headers</span> <span class=\"ds-chip env\">Dev</span> <span class=\"ds-chip bad\">Prod</span>",
+      "css": ".ds-chip{display:inline-flex;align-items:center;padding:1px 8px;border:1px solid var(--border, #30363d);border-radius:999px;background:color-mix(in srgb,var(--edge-muted, #6e7681) 10%,transparent);color:var(--muted, #8d96a0);font:11px var(--sans, sans-serif)}.ds-chip.env{background:rgba(var(--accent-rgb, 56,139,253),.1);border-color:rgba(var(--accent-rgb, 56,139,253),.4);color:var(--accent-fg, #4493f8)}.ds-chip.bad{background:color-mix(in srgb,var(--bad, #f85149) 10%,transparent);border-color:color-mix(in srgb,var(--bad, #f85149) 40%,transparent);color:var(--danger, #f85149)}"
+    },
+    {
+      "name": "Segmented Control",
+      "kind": "custom",
+      "refersTo": "segmented",
+      "description": "Pill switch used in panels and for the Appearance setting.",
+      "html": "<div class=\"ds-seg\" role=\"radiogroup\" aria-label=\"Appearance\"><button role=\"radio\" aria-checked=\"false\">System</button><button role=\"radio\" aria-checked=\"true\" class=\"on\">Light</button><button role=\"radio\" aria-checked=\"false\">Dark</button></div>",
+      "css": ".ds-seg{display:inline-flex;padding:2px;border-radius:999px;background:var(--bg-inset, #010409);box-shadow:inset 0 0 0 1px var(--border, #30363d)}.ds-seg button{height:26px;padding:0 12px;border:0;border-radius:999px;background:none;color:var(--muted, #8d96a0);font:12px var(--sans, sans-serif);cursor:pointer}.ds-seg button:hover:not(.on){color:var(--text, #e6edf3)}.ds-seg button.on{background:var(--btn-bg, #21262d);color:var(--text, #e6edf3);font-weight:600}.ds-seg button:focus-visible{outline:none;box-shadow:0 0 0 2px var(--accent-fg, #4493f8)}"
+    },
+    {
+      "name": "Toast",
+      "kind": "custom",
+      "refersTo": "chip",
+      "description": "Bottom-left floating message with an undo link; one of the few shadowed surfaces.",
+      "html": "<div class=\"ds-toast\"><span>Request deleted</span><button class=\"ds-undo\">Undo</button></div>",
+      "css": ".ds-toast{display:inline-flex;align-items:center;gap:12px;padding:8px 8px 8px 14px;border:1px solid var(--border, #30363d);border-radius:8px;background:var(--bg-overlay, #161b22);box-shadow:0 8px 24px var(--shadow-md, rgba(1,4,9,.6));color:var(--text, #e6edf3);font:13px var(--sans, sans-serif)}.ds-undo{border:0;background:none;color:var(--accent-fg, #4493f8);font-weight:600;padding:2px 6px;cursor:pointer}.ds-undo:hover{text-decoration:underline}"
+    },
+    {
+      "name": "Flow Node",
+      "kind": "card",
+      "refersTo": "flow-node",
+      "description": "220px canvas node; the dot and kind label take the node-type colour.",
+      "html": "<div class=\"ds-node\"><div class=\"ds-node-kind\">Run request</div><div class=\"ds-node-label\">List users</div></div>",
+      "css": ".ds-node{width:220px;padding:8px 10px 6px 12px;border:1px solid var(--border, #30363d);border-radius:8px;background:var(--bg-soft, #161b22);color:var(--text, #e6edf3);font:12px var(--sans, sans-serif);box-shadow:0 1px 0 var(--shadow-xs, rgba(1,4,9,.4));--c:var(--post, #d29922)}.ds-node-kind{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--c)}.ds-node-kind::before{content:\"\";width:8px;height:8px;border-radius:50%;background:var(--c)}.ds-node-label{margin-top:4px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Bench",
+    "overview": "A workbench you sit at for hours: tools laid out within reach, nothing shouting. The surfaces are layered tonal greys with hairline borders, the type is small and even, and colour is spent only on meaning: HTTP method, response status, pass/fail, a single blue for focus and selection, and one green for Send. The default look is GitHub's Primer dark; the light theme (\"Mist\") is a deliberately cool slate rather than bright white.",
+    "keyCharacteristics": [
+      "Tonal layering plus 1px rings; shadows only on things that float over other content.",
+      "Two themes from one token set; a theme switch is only `data-theme` on `<html>`.",
+      "Colour is semantic. Nothing is decorative except the brand mark.",
+      "Pill shapes for state; 6 to 8px for controls; 12px for panels and dialogs.",
+      "Tabular numerals on counts and summaries."
+    ],
+    "rules": [
+      {
+        "name": "The Two Purples Rule",
+        "body": "Brand purple (`--brand` `#bc8cff`) and PATCH (`--patch` `#a371f7`) must stay visibly different and never swap roles.",
+        "section": "colors"
+      },
+      {
+        "name": "The Meaning-Only Colour Rule",
+        "body": "Hue means something: method, status, brand, or the single blue for focus. A new colour needs a new meaning.",
+        "section": "colors"
+      },
+      {
+        "name": "The Mist Rule",
+        "body": "Light is cool slate, not white. Scrims and shadows in light are slate, not black.",
+        "section": "colors"
+      },
+      {
+        "name": "The Scale-Only Rule",
+        "body": "Font sizes come from `--fs-xs/sm/md/lg/xl/display` (11/12/13/15/18/22).",
+        "section": "typography"
+      },
+      {
+        "name": "The Data Is Mono Rule",
+        "body": "URLs, status codes, timings, variable names, counts on the rail and code are mono. Names and prose are Red Hat.",
+        "section": "typography"
+      },
+      {
+        "name": "The Tabular Numerals Rule",
+        "body": "Counts, tab badges, request summaries and tab groups use tabular numerals.",
+        "section": "typography"
+      },
+      {
+        "name": "The Float-Only Shadow Rule",
+        "body": "A drop shadow means the element overlays other content. Panels and rows get rings, not shadows.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Ring-Not-Border Rule",
+        "body": "Rings are `box-shadow`, so hover, focus and selection never change the box size.",
+        "section": "elevation"
+      },
+      {
+        "name": "The Role-Radius Rule",
+        "body": "Pick the radius by role from the scale. Do not invent 3, 5, 10 or 14px.",
+        "section": "shapes"
+      }
+    ],
+    "dos": [
+      "Do use the tokens in `src/styles.css`; add new values to both the dark `:root` and the Mist block, and to the `prefers-color-scheme: light` twin.",
+      "Do use `--r-*` for every radius and `--fs-*` for every font size.",
+      "Do draw state rings with `box-shadow` (`--focus-ring`, `--focus-ring-inset`, `--panel-ring`).",
+      "Do give every interactive element a visible keyboard focus state. The focus ring is a 2px `--accent-fg` ring.",
+      "Do enlarge small controls to a 24 by 24 px hit area with an `::after` overlay.",
+      "Do use `--dur-fast` (100ms) for exits and hover colour, `--dur-base` (160ms) for routine state change and enter, `--dur-slow` (280ms) at most, with `--ease-out` for enter and `--ease-in` for exit; animate only `transform` and `opacity` for overlays.",
+      "Do provide a reduced-motion rule beside any new animation: stop transitions and pulses, slow spinners to 2.4s, keep colour feedback, and turn overlay motion into a 100ms linear fade.",
+      "Do play exits for overlays with `useExitTransition` (a closing `data-state` on an inert copy) and use `Collapse` for small always-mounted content.",
+      "Do keep the brand mark at least 20px tall and the runner `--text` coloured.",
+      "Do use mono for data and tabular numerals for counts."
+    ],
+    "donts": [
+      "Don't use `--brand` for HTTP PATCH, or `--patch` for brand elements.",
+      "Don't use bright white in the light theme; it is Mist slate, and its shadows and scrims are slate, not black.",
+      "Don't use bounce or elastic easing (the motion tokens forbid it).",
+      "Don't put a shadow on a resting panel or row; use a ring.",
+      "Don't use red for tab group labels; red means errors and Prod.",
+      "Don't hard-code hex in components. The only literals outside the token blocks are the select caret SVG (`#7d8590`) and the native window background in `theme.ts`.",
+      "Don't change a button's width when its label changes; Send stays 108px.",
+      "Don't use `Collapse` for long lists; its children stay mounted."
+    ]
+  }
+}
