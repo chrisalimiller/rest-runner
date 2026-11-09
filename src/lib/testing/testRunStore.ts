@@ -1,4 +1,5 @@
-import { openDatabase } from "../idb";
+import { openDatabase, rewriteStores } from "../idb";
+import { redactRunForStorage } from "../redactStorage";
 import { testRunSummary, type TestRun, type TestRunSummary } from "./testRun";
 
 /** Test runs live in their own IndexedDB database, next to batch runs. Oldest are removed past this count. */
@@ -69,7 +70,9 @@ export async function deleteTestRun(id: string): Promise<void> {
   await done(tx);
 }
 
-export async function saveTestRun(run: TestRun): Promise<void> {
+export async function saveTestRun(live: TestRun): Promise<void> {
+  // Only the stored copy is redacted; the caller keeps showing the live run.
+  const run = redactRunForStorage(live);
   const db = await openDb();
   const tx = db.transaction([SUMMARIES, RUNS], "readwrite");
   tx.objectStore(SUMMARIES).put(testRunSummary(run));
@@ -77,4 +80,9 @@ export async function saveTestRun(run: TestRun): Promise<void> {
   await done(tx);
   const runs = await listTestRuns();
   for (const old of runs.slice(MAX_SAVED_TEST_RUNS)) await deleteTestRun(old.id);
+}
+
+/** Rewrites every saved test run and flow run (and summary) through `transform`; returns how many changed. */
+export async function rewriteSavedTestAndFlowRuns(transform: (record: unknown) => unknown): Promise<number> {
+  return rewriteStores(await openDb(), STORES, transform);
 }

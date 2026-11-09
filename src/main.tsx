@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import Root from "./Root";
 import { ErrorBoundary } from "./components/shell/ErrorBoundary";
 import { ToastProvider } from "./components/shell/Toast";
+import { installStorageRedaction } from "./lib/redactStorage";
 import { initSecretStore } from "./lib/secretStore";
 import { initTheme } from "./lib/theme";
 import { showWindowWhenReady } from "./lib/showWindow";
@@ -14,6 +15,7 @@ import "./styles.css";
 import "./components/testing/testing.css";
 import "./layout.css";
 
+installStorageRedaction();
 initTheme();
 setupWindowChrome();
 showWindowWhenReady();

@@ -1,4 +1,5 @@
 import { done, FLOW_RUNS, FLOW_SUMMARIES, openDb, result } from "../testing/testRunStore";
+import { redactRunForStorage } from "../redactStorage";
 import type { FlowRun, FlowRunSummary } from "./types";
 
 /** Flow runs live next to test runs in IndexedDB. Oldest are removed past this count. */
@@ -29,7 +30,9 @@ export async function deleteFlowRun(id: string): Promise<void> {
   await done(tx);
 }
 
-export async function saveFlowRun(run: FlowRun): Promise<void> {
+export async function saveFlowRun(live: FlowRun): Promise<void> {
+  // Only the stored copy is redacted; the caller keeps showing the live run.
+  const run = redactRunForStorage(live);
   const db = await openDb();
   const tx = db.transaction([FLOW_SUMMARIES, FLOW_RUNS], "readwrite");
   tx.objectStore(FLOW_SUMMARIES).put(flowRunSummary(run));
