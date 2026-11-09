@@ -32,6 +32,19 @@
   --patch: #a371f7;
   --delete: #f85149;
   --other: #7d8590;
+  --faint: #7d8590;
+  --border-strong: #484f58;
+  --border-focus: #1f6feb;
+  --border-hover: #8b949e;
+  --scroll-thumb: #30363d;
+  --text-on-accent: #ffffff;
+  --danger-fg: #ffa198;
+  --danger-hover: #f85149;
+  --node-loop: #db61a2;
+  --node-note: #e3b341;
+  --node-note-fg: #f2cc60;
+  --edge-muted: #6e7681;
+  --canvas-dot: #262c36;
   --placeholder-fg: #ffa657;
   --placeholder-bg: rgba(255, 166, 87, 0.12);
   /* Brand: braces, hyphen and accents; solid fills. Keep apart from --patch. */
@@ -1210,7 +1223,7 @@ button.chip.active {
 /* Scrollbars */
 * {
   scrollbar-width: thin;
-  scrollbar-color: #30363d transparent;
+  scrollbar-color: var(--scroll-thumb) transparent;
 }
 
 ::-webkit-scrollbar {
@@ -1219,14 +1232,14 @@ button.chip.active {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #30363d;
+  background: var(--scroll-thumb);
   border-radius: 10px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background-color: #484f58;
+  background-color: var(--border-strong);
 }
 
 ::-webkit-scrollbar-track,
@@ -1245,14 +1258,14 @@ textarea {
 
 input::placeholder,
 textarea::placeholder {
-  color: #6e7681;
+  color: var(--faint);
 }
 
 input:focus,
 select:focus,
 textarea:focus {
-  border-color: #1f6feb;
-  box-shadow: inset 0 0 0 1px #1f6feb;
+  border-color: var(--border-focus);
+  box-shadow: inset 0 0 0 1px var(--border-focus);
 }
 
 input[type="checkbox"],
@@ -1278,7 +1291,7 @@ select {
 .secondary:hover:not(:disabled),
 .primary-outline:hover {
   background: var(--btn-hover);
-  border-color: #8b949e;
+  border-color: var(--border-hover);
 }
 
 .primary-outline {
@@ -1292,14 +1305,14 @@ select {
 .secondary.danger:hover:not(:disabled) {
   background: var(--danger-bg);
   border-color: var(--danger-bg);
-  color: #ffffff;
+  color: var(--text-on-accent);
 }
 
 .send {
   background: var(--primary);
   border: 1px solid var(--btn-border);
   border-radius: var(--radius);
-  color: #ffffff;
+  color: var(--text-on-accent);
   transition: background-color 0.12s;
 }
 
@@ -1312,7 +1325,7 @@ select {
 }
 
 .send.cancel:hover {
-  background: #f85149;
+  background: var(--danger-hover);
 }
 
 .link-btn {
@@ -1468,8 +1481,8 @@ textarea {
 }
 
 .code-editor-frame:focus-within {
-  border-color: #1f6feb;
-  box-shadow: inset 0 0 0 1px #1f6feb;
+  border-color: var(--border-focus);
+  box-shadow: inset 0 0 0 1px var(--border-focus);
 }
 
 /* In the soft body block the block itself shows the focus ring. */
@@ -1577,13 +1590,13 @@ textarea {
 }
 
 button.chip:hover {
-  border-color: #8b949e;
+  border-color: var(--border-hover);
 }
 
 button.chip.active {
   background: var(--accent);
   border-color: var(--accent);
-  color: #ffffff;
+  color: var(--text-on-accent);
 }
 
 .pill.ok {
@@ -1636,7 +1649,7 @@ table.results tr.selected {
 }
 
 .url-cell {
-  color: #c9d1d9;
+  color: var(--text-soft);
 }
 
 .batch-preview .code-view {
@@ -1817,7 +1830,7 @@ select {
 }
 
 .folder-icon {
-  color: #7d8590;
+  color: var(--faint);
 }
 
 .tree-row.example .tree-main {
@@ -1905,7 +1918,7 @@ select {
 
 .menu button:hover {
   background: var(--accent);
-  color: #fff;
+  color: var(--text-on-accent);
 }
 
 .menu button.danger {
@@ -1914,7 +1927,7 @@ select {
 
 .menu button.danger:hover {
   background: var(--danger-bg);
-  color: #fff;
+  color: var(--text-on-accent);
 }
 
 /* Small dialogs */
@@ -1996,7 +2009,7 @@ select {
 }
 
 .cm-json-comment {
-  color: #8b949e;
+  color: var(--muted);
   font-style: italic;
 }
 

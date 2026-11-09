@@ -47,7 +47,7 @@
 }
 .curl-var {
   font-family: var(--mono);
-  color: #ffa657;
+  color: var(--placeholder-fg);
   background: rgba(255, 166, 87, 0.12);
   border-radius: 3px;
   padding: 0 2px;
@@ -64,7 +64,7 @@
 .curl-count {
   border-radius: 10px;
   background: var(--accent-subtle);
-  color: var(--accent-fg, #79b8ff);
+  color: var(--accent-fg);
   padding: 2px 8px;
   font-size: 12px;
 }

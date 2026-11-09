@@ -29,7 +29,7 @@
 }
 
 .update-error {
-  color: var(--danger, #f85149);
+  color: var(--danger);
 }
 
 .update-warn {

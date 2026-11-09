@@ -262,7 +262,7 @@ body.dragging-split {
 }
 
 .quick-open-field:hover {
-  border-color: #484f58;
+  border-color: var(--border-strong);
 }
 
 .quick-open-placeholder {
@@ -412,7 +412,7 @@ body.dragging-split {
 
 .switcher-btn:hover,
 .switcher-btn.open {
-  border-color: #484f58;
+  border-color: var(--border-strong);
 }
 
 .switcher-open {
@@ -436,7 +436,7 @@ body.dragging-split {
 }
 
 .crumb-sep {
-  color: #484f58;
+  color: var(--faint);
 }
 
 .switcher-name {
@@ -1122,7 +1122,7 @@ button.unfilled-dot:hover {
 .code-editor.with-lines .cm-gutters {
   background: transparent;
   border: 0;
-  color: #484f58;
+  color: var(--faint);
 }
 
 .code-editor.with-lines .cm-lineNumbers .cm-gutterElement {
@@ -1511,7 +1511,7 @@ button.unfilled-dot:hover {
 
 .error-box pre {
   margin: 8px 0;
-  color: #ffa198;
+  color: var(--danger-fg);
   font-size: 12px;
 }
 
@@ -1915,7 +1915,7 @@ button.unfilled-dot:hover {
 
 .disc.skipped {
   border: 1px solid var(--border-muted);
-  color: #6e7681;
+  color: var(--faint);
 }
 
 .disc.running {
@@ -2104,7 +2104,7 @@ body.dragging-case {
   padding: 8px 14px;
   border-top: 1px solid var(--border-muted);
   font-size: 12px;
-  color: #ffa198;
+  color: var(--danger-fg);
   overflow-wrap: anywhere;
 }
 

@@ -187,10 +187,10 @@
 .type-if { --node-color: var(--patch); }
 .type-parallel,
 .type-join { --node-color: var(--redirect); }
-.type-loop { --node-color: #db61a2; }
+.type-loop { --node-color: var(--node-loop); }
 .type-wait,
 .type-set-var { --node-color: var(--other); }
-.type-note { --node-color: #e3b341; }
+.type-note { --node-color: var(--node-note); }
 
 .flow-canvas {
   position: relative;
@@ -210,8 +210,8 @@
 /* React Flow, in the app's colors. */
 .flow-canvas .react-flow {
   --xy-background-color: var(--bg);
-  --xy-background-pattern-color: #262c36;
-  --xy-edge-stroke: #6e7681;
+  --xy-background-pattern-color: var(--canvas-dot);
+  --xy-edge-stroke: var(--edge-muted);
   --xy-edge-stroke-selected: var(--accent-fg);
   --xy-connectionline-stroke: var(--accent-fg);
   --xy-controls-button-background-color: var(--btn-bg);
@@ -220,7 +220,7 @@
   --xy-controls-button-border-color: var(--border);
   --xy-minimap-background-color: var(--bg-inset);
   --xy-minimap-mask-background-color: rgba(1, 4, 9, 0.6);
-  --xy-minimap-node-background-color: #30363d;
+  --xy-minimap-node-background-color: var(--border);
   --xy-attribution-background-color: transparent;
   --xy-selection-background-color: var(--accent-subtle);
   --xy-selection-border: 1px dotted var(--accent-fg);
@@ -234,9 +234,9 @@
 .flow-canvas .react-flow__edge.e-passed path { stroke: var(--ok); }
 .flow-canvas .react-flow__edge.e-failed path { stroke: var(--bad); }
 .flow-canvas .react-flow__edge.e-true path { stroke: var(--patch); }
-.flow-canvas .react-flow__edge.e-false path { stroke: #6e7681; stroke-dasharray: 5 4; }
+.flow-canvas .react-flow__edge.e-false path { stroke: var(--edge-muted); stroke-dasharray: 5 4; }
 .flow-canvas .react-flow__edge.e-branches path { stroke: var(--redirect); }
-.flow-canvas .react-flow__edge.e-row path { stroke: #db61a2; }
+.flow-canvas .react-flow__edge.e-row path { stroke: var(--node-loop); }
 .flow-canvas .react-flow__edge.selected path { stroke-width: 2.5; }
 .flow-canvas .react-flow__edge.e-passed .react-flow__arrowhead polyline { stroke: var(--ok); fill: var(--ok); }
 
@@ -245,7 +245,6 @@
   width: 220px;
   padding: 8px 10px 6px 12px;
   border: 1px solid var(--border);
-  border-left: 3px solid var(--node-color, var(--other));
   border-radius: var(--radius-lg);
   background: var(--bg-soft);
   color: var(--text);
@@ -255,7 +254,6 @@
 
 .flow-node.selected {
   border-color: var(--accent-fg);
-  border-left-color: var(--node-color, var(--other));
   box-shadow: 0 0 0 1px var(--accent-fg);
 }
 
@@ -280,6 +278,16 @@
   align-items: center;
   gap: 6px;
   min-height: 16px;
+}
+
+.flow-node-kind::before {
+  content: "";
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--node-color, var(--other));
 }
 
 .flow-node-kind {
@@ -380,7 +388,7 @@
   width: 10px;
   height: 10px;
   border: 2px solid var(--bg-soft);
-  background: #6e7681;
+  background: var(--edge-muted);
 }
 
 .flow-node .flow-handle.in {
@@ -397,8 +405,8 @@
 .flow-node .flow-handle.out-next,
 .flow-node .flow-handle.out-done { background: var(--accent-fg); }
 .flow-node .flow-handle.out-branches { background: var(--redirect); }
-.flow-node .flow-handle.out-row { background: #db61a2; }
-.flow-node-output.out-row span { color: #db61a2; }
+.flow-node .flow-handle.out-row { background: var(--node-loop); }
+.flow-node-output.out-row span { color: var(--node-loop); }
 .flow-node-output.out-branches span { color: var(--redirect); }
 
 /* Sticky note */
@@ -413,7 +421,7 @@
 }
 
 .flow-note.selected {
-  border-color: #e3b341;
+  border-color: var(--node-note);
 }
 
 .flow-note-grip {
@@ -430,7 +438,7 @@
   resize: none;
   border: 0;
   background: transparent;
-  color: #f2cc60;
+  color: var(--node-note-fg);
   font: 12px/1.45 var(--sans);
   padding: 6px 8px;
 }
@@ -440,13 +448,13 @@
 }
 
 .flow-canvas .flow-note-resize-line {
-  border-color: #e3b341;
+  border-color: var(--node-note);
 }
 
 .flow-canvas .flow-note-resize-handle {
   width: 8px;
   height: 8px;
-  background: #e3b341;
+  background: var(--node-note);
   border: 0;
 }
 
