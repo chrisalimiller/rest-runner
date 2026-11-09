@@ -5,7 +5,8 @@ import { statusClass } from "../lib/format";
 import { sendRequest } from "../lib/http";
 import { newId } from "../lib/ids";
 import { buildRun, entryNotes, type RunEntry } from "../lib/run";
-import { saveRun } from "../lib/runStore";
+import { getRun, listRuns, saveRun } from "../lib/runStore";
+import { loadSelection, matchingRuns, rowStatuses, saveSelection, type RowStatus } from "../lib/rowSelection";
 import { prepareRequest, requestPlaceholders } from "../lib/request";
 import { requestScriptRunner } from "../lib/requestScripts";
 import type { ScriptExportInput } from "../lib/scriptExport";
@@ -15,7 +16,7 @@ import type { Vars } from "../lib/template";
 import type { RequestDef } from "../lib/types";
 import { useCertificates } from "./CertificatesDialog";
 import { CallDetail } from "./CallDetail";
-import { CsvPreview } from "./CsvPreview";
+import { RowPicker } from "./RowPicker";
 import { ScriptExportPanel } from "./ScriptExportPanel";
 
 interface Props {
@@ -57,6 +58,10 @@ const NO_VARS: Vars = {};
 
 export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunningChange, onWideChange, onRunSaved, onOpenRun }: Props) {
   const [file, setFile] = useState<LoadedFile | null>(null);
+  /** 0-based CSV rows the next run will send. Remembered per file. */
+  const [selected, setSelectedRows] = useState<Set<number>>(new Set());
+  /** What the latest saved runs of this request and CSV did with each row. */
+  const [statuses, setStatuses] = useState<ReadonlyMap<number, RowStatus>>(new Map());
   const [fileError, setFileError] = useState<string | null>(null);
   const [options, setOptions] = useState<BatchOptions>(() => ({ ...DEFAULT_BATCH_OPTIONS, ...load(OPTIONS_KEY, {}, isPlainObject) }));
   const [results, setResults] = useState<BatchItemResult[]>([]);
@@ -67,7 +72,7 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
   const [showPreview, setShowPreview] = useState(false);
   const [showExport, setShowExport] = useState(false);
   const [filter, setFilter] = useState<Filter>("all");
-  const [selected, setSelected] = useState<number | null>(null);
+  const [selectedCall, setSelected] = useState<number | null>(null);
   const [limit, setLimit] = useState(PAGE_SIZE);
   const [savedRunId, setSavedRunId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
@@ -85,6 +90,32 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
   useEffect(() => onRunningChange(running), [running, onRunningChange]);
   const wide = running || results.length > 0;
   useEffect(() => onWideChange?.(wide), [wide, onWideChange]);
+
+  const setSelection = (next: Set<number>) => {
+    setSelectedRows(next);
+    if (file) saveSelection(file.name, file.data.rows.length, next);
+  };
+
+  // What earlier saved runs of this request and CSV did with each row, so "not yet run" and "failed" can be picked.
+  useEffect(() => {
+    if (!file) {
+      setStatuses(new Map());
+      return;
+    }
+    let live = true;
+    void (async () => {
+      try {
+        const mine = matchingRuns(await listRuns(), file.name, def.id, def.url);
+        const runs = (await Promise.all(mine.map((r) => getRun(r.id)))).filter((r) => r !== undefined);
+        if (live) setStatuses(rowStatuses(runs));
+      } catch {
+        if (live) setStatuses(new Map());
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [file, def.id, def.url, savedRunId]);
 
   // While running, move buffered results into state a few times a second instead of on every response.
   useEffect(() => {
@@ -111,6 +142,8 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
   const matched = placeholders.filter((p) => columns.includes(p));
   const unused = columns.filter((c) => !placeholders.includes(c));
   const rows = file?.data.rows ?? [];
+  /** The selected rows in file order, dropping any that no longer exist. */
+  const chosen = useMemo(() => [...selected].filter((i) => i < rows.length).sort((a, b) => a - b), [selected, rows.length]);
 
   const onPick = async (f: File | undefined) => {
     if (!f) return;
@@ -123,6 +156,7 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
       }
       const data = parseCsv(text);
       setFile({ name: f.name, data });
+      setSelectedRows(loadSelection(f.name, data.rows.length));
       setFileError(data.rows.length === 0 ? "No data rows found. The first line must be the column names." : null);
       setResults([]);
       setEnd(null);
@@ -135,8 +169,8 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
   };
 
   const start = () => {
-    if (!file || rows.length === 0 || running) return;
-    return execute(def, options, rows);
+    if (!file || chosen.length === 0 || running) return;
+    return execute(def, options, chosen.map((i) => rows[i]), chosen);
   };
 
   /** Sends only the failed rows again with the request and options of the run on screen. */
@@ -245,7 +279,7 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
   const sorted = useMemo(() => [...results].sort((a, b) => a.index - b.index), [results]);
   const filtered = filter === "failed" ? sorted.filter((r) => r.failed) : sorted;
   const visible = filtered.slice(0, limit);
-  const selectedResult = selected === null ? null : results.find((r) => r.index === selected) ?? null;
+  const selectedResult = selectedCall === null ? null : results.find((r) => r.index === selectedCall) ?? null;
   const selectedEntry: RunEntry | null = selectedResult
     ? { ...selectedResult, notes: entryNotes(selectedResult, snapshotRef.current?.options ?? options, snapshotRef.current?.def ?? def) }
     : null;
@@ -275,7 +309,7 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
         </div>
 
         {fileError && <p className="warning small">{fileError}</p>}
-        {file && !wide && <CsvPreview csv={file.data} />}
+        {file && !wide && <RowPicker key={file.name} csv={file.data} selected={selected} onChange={setSelection} statuses={statuses} hasHistory={statuses.size > 0} disabled={running} />}
         {file?.data.warnings.map((w) => (
           <p key={w} className="warning small">
             {w}
@@ -393,7 +427,7 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
           >
             {showExport ? "Hide export" : "Export script…"}
           </button>
-          <button className="secondary" onClick={() => setShowPreview((s) => !s)} disabled={!file || rows.length === 0 || running}>
+          <button className="secondary" onClick={() => setShowPreview((s) => !s)} disabled={!file || chosen.length === 0 || running}>
             {showPreview ? "Hide preview" : "Preview"}
           </button>
           {running ? (
@@ -401,8 +435,8 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
               Stop
             </button>
           ) : (
-            <button className="send" onClick={() => void start()} disabled={!file || rows.length === 0 || def.url.trim() === ""}>
-              Run {rows.length || ""} {rows.length === 1 ? "request" : "requests"}
+            <button className="send" onClick={() => void start()} disabled={!file || chosen.length === 0 || def.url.trim() === ""}>
+              {chosen.length === 0 ? "Select rows to run" : `Run ${chosen.length} ${chosen.length === 1 ? "request" : "requests"}`}
             </button>
           )}
           </div>
@@ -414,11 +448,11 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
       {showPreview && file && (
         <div className="batch-preview">
           <p className="muted small">
-            The first {Math.min(3, rows.length)} requests as they will be sent
+            The first {Math.min(3, chosen.length)} selected requests as they will be sent
             {(def.preScript ?? "").trim() ? " (before the pre-request script runs, so values it sets are not filled in yet)" : ""}:
           </p>
-          {rows.slice(0, 3).map((vars, i) => {
-            const p = prepareRequest(def, { ...envVars, ...scriptVars, ...vars });
+          {chosen.slice(0, 3).map((i) => {
+            const p = prepareRequest(def, { ...envVars, ...scriptVars, ...rows[i] });
             return (
               <pre key={i} className="code-view">
                 <span className="muted">Row {i + 1}</span>
@@ -504,7 +538,7 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
                   {visible.map((r) => (
                     <tr
                       key={r.index}
-                      className={`${selected === r.index ? "selected" : ""} ${r.failed ? "failed" : ""}`}
+                      className={`${selectedCall === r.index ? "selected" : ""} ${r.failed ? "failed" : ""}`}
                       onClick={() => setSelected(r.index)}
                     >
                       <td>{r.index + 1}</td>
