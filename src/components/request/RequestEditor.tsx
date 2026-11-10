@@ -7,7 +7,8 @@ import { unresolvedPlaceholders } from "../../lib/request";
 import { BODY_LABELS, loadDetailsState, requestDetailsSummary, resolvedUrl, rowCounts, splitPlaceholders, type DetailsState, type DetailsTab } from "../../lib/requestSummary";
 import { load, save } from "../../lib/storage";
 import type { Vars } from "../../lib/template";
-import { HTTP_METHODS, type BodyMode, type HttpMethod, type RequestDef } from "../../lib/types";
+import { MethodSelect } from "../MethodSelect";
+import { HTTP_METHODS, type BodyMode, type RequestDef } from "../../lib/types";
 import { AuthEditor } from "../AuthEditor";
 import { BodyEditor } from "../BodyEditor";
 import { KeyValueEditor } from "../KeyValueEditor";
@@ -225,16 +226,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, detail
       <div className="url-block">
         <div className="url-row">
           <div className="url-bar">
-            <select
-              className={`method-select m-${def.method.toLowerCase()}`}
-              value={def.method}
-              onChange={(e) => onChange({ method: e.target.value as HttpMethod })}
-              aria-label="Method"
-            >
-              {HTTP_METHODS.map((m) => (
-                <option key={m}>{m}</option>
-              ))}
-            </select>
+            <MethodSelect value={def.method} options={HTTP_METHODS} onChange={(method) => onChange({ method })} aria-label="Method" />
             <UrlInput
               value={def.url}
               onChange={(e) => onChange({ url: e.target.value })}
