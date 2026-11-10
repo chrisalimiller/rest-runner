@@ -31,6 +31,7 @@ Quick open is also a command palette. Type `>` first (as in VS Code) to see only
 | **Run with CSV…** | Open the batch pane of the open request, where you pick the file |
 | **New request** | Open a new Untitled tab (Requests only) |
 | **New collection** | Add a collection and start renaming it |
+| **Import…** | Open the Import dialog (Postman, Insomnia, Bruno, .env, REST Runner files) |
 | **Import from cURL…** | Open the cURL import dialog |
 | **Export workspace…** | Export collections, environments, suites and flows to one file |
 | **Switch environment…** | Types `>Environment: ` so the choices (None and each environment) are listed; Enter on one makes it active. **Current** marks the active one. You can also type `>env staging` |

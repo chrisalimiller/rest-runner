@@ -12,6 +12,8 @@ import { getThemePref, setThemePref } from "./lib/theme";
 import { toggleSidePanel, openSidePanel } from "./lib/sidePanels";
 import { isEditableTarget, matchesShortcut } from "./lib/shortcuts";
 import { CertificatesDialog } from "./components/CertificatesDialog";
+import { ImportDialog } from "./components/ImportDialog";
+import { closeImportDialog, openImportDialog, useImportDialog } from "./lib/importDialog";
 import { UpdateDialog } from "./components/UpdateDialog";
 import {
   closeUpdateDialog,
@@ -64,6 +66,7 @@ export default function Root() {
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const certificates = useCertificatesDialog();
   const updateOpen = useUpdateDialog();
+  const importOpen = useImportDialog();
   const [firstRun, setFirstRun] = useState(() => isFirstRun());
   const [commands, setCommands] = useState<Record<Mode, ShellCommand | null>>({
     requests: null,
@@ -138,6 +141,7 @@ export default function Root() {
     toggleVariables: () => toggleSidePanel("variables"),
     openCertificates: () => openSidePanel("certificates"),
     openAbout: openUpdateDialog,
+    openImport: openImportDialog,
     openShortcuts: () => setShortcutsOpen(true),
     setTheme: setThemePref,
   };
@@ -214,6 +218,7 @@ export default function Root() {
         )}
         {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
         {updateOpen && <UpdateDialog onClose={closeUpdateDialog} />}
+        {importOpen && <ImportDialog onClose={closeImportDialog} onChanged={() => shell.onDataChanged(["collections", "suites", "flows"])} />}
         {quickOpen && (
           <QuickOpen
             mode={section}

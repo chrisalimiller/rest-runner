@@ -9,6 +9,7 @@ function makeCtx(over: Partial<CommandCtx> = {}) {
     toggleVariables: vi.fn(),
     openCertificates: vi.fn(),
     openAbout: vi.fn(),
+    openImport: vi.fn(),
     openShortcuts: vi.fn(),
     setTheme: vi.fn(),
   };
@@ -63,6 +64,8 @@ describe("command registry", () => {
     expect(actions.toggleVariables).toHaveBeenCalled();
     by("keyboard-shortcuts").run(ctx);
     expect(actions.openShortcuts).toHaveBeenCalled();
+    by("import").run(ctx);
+    expect(actions.openImport).toHaveBeenCalled();
   });
 });
 
