@@ -5,12 +5,15 @@ import { AppearanceControl } from "./shell/AppearanceControl";
 import { isBusy } from "../lib/busyWork";
 import { canUpdate, checkForUpdate, installedVersion, type FoundUpdate } from "../lib/updater";
 import { downloadPercent, plainNotes, releaseDate, versionLabel, type UpdateInfo, type UpdateState } from "../lib/updates";
+import { ShortcutsList } from "./shell/ShortcutsList";
+import { loadConfirmProduction, saveConfirmProduction } from "../lib/productionGuard";
 import "./updateDialog.css";
 
 /** About REST Runner: the installed version and a Check for updates button. Nothing is checked until it is clicked. */
 export function UpdateDialog({ onClose }: { onClose: () => void }) {
   const [version, setVersion] = useState("");
   const [state, setState] = useState<UpdateState>({ kind: "idle" });
+  const [confirmProd, setConfirmProd] = useState(loadConfirmProduction);
   const found = useRef<FoundUpdate | null>(null);
   const supported = canUpdate();
   const working = state.kind === "checking" || state.kind === "downloading" || state.kind === "installing";
@@ -70,6 +73,23 @@ export function UpdateDialog({ onClose }: { onClose: () => void }) {
           Installed version <strong>{versionLabel(version) || "unknown"}</strong>
         </p>
         <AppearanceControl />
+        <h4 className="update-section">Settings</h4>
+        <label className="update-setting">
+          <input
+            type="checkbox"
+            checked={confirmProd}
+            onChange={(e) => {
+              setConfirmProd(e.target.checked);
+              saveConfirmProduction(e.target.checked);
+            }}
+          />
+          Confirm before sending requests to a production environment
+        </label>
+        <p className="muted small">Applies to environments marked Production in the environment editor. Covers single sends and batch runs.</p>
+        <details className="update-hotkeys">
+          <summary>Hotkeys</summary>
+          <ShortcutsList />
+        </details>
         <p className="muted small">{keychainNote(typeof navigator === "undefined" ? "" : navigator.platform)}</p>
         <UpdateStatus state={state} supported={supported} />
       </div>

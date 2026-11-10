@@ -728,6 +728,12 @@ body.dragging-split {
   display: none;
 }
 
+/* The tab bar already leaves 8px under its tabs (44px bar, 28px tabs), which matches the 8px above them.
+   Drop the inspector's own top padding there so the gap to the request panel is the same 8px. */
+.rtab-bar ~ .requests-body .inspector {
+  padding-top: 0;
+}
+
 /* A batch run is on screen: the request folds into a bar and the results take the full width. */
 .inspector.request-folded {
   grid-template-columns: minmax(0, 1fr);
@@ -815,10 +821,6 @@ body.dragging-split {
   white-space: nowrap;
 }
 
-.url-row .send.guarded {
-  outline-offset: -3px;
-}
-
 .url-row .send.cancel {
   background: transparent;
   box-shadow: inset 0 0 0 1px var(--danger);
@@ -873,6 +875,57 @@ body.dragging-split {
 .url-bar .method-select.m-put { background-color: color-mix(in srgb, var(--put) 14%, transparent); }
 .url-bar .method-select.m-patch { background-color: color-mix(in srgb, var(--patch) 14%, transparent); }
 .url-bar .method-select.m-delete { background-color: color-mix(in srgb, var(--delete) 14%, transparent); }
+
+/* Custom method dropdown */
+.method-dropdown {
+  position: relative;
+  flex: none;
+}
+.url-bar .method-dropdown .method-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  cursor: pointer;
+  text-align: left;
+}
+.url-bar .method-dropdown .method-trigger:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: -2px;
+}
+.method-caret {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  opacity: 0.7;
+}
+.method-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 50;
+  min-width: 100%;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: var(--bg-soft);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  box-shadow: 0 8px 24px rgba(1, 4, 9, 0.5);
+}
+.method-option {
+  padding: 5px 10px;
+  border-radius: var(--r-xs);
+  font-family: var(--method-font);
+  font-size: var(--fs-sm);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+.method-option.active { background: color-mix(in srgb, currentColor 16%, transparent); }
+.method-option[aria-selected="true"]::after { content: "\2713"; float: right; margin-left: 10px; }
 
 .url-bar .url-input {
   flex: 1;
@@ -2894,6 +2947,29 @@ details.case-try .call-detail {
   color: var(--warn);
 }
 
+.password-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.password-input input {
+  width: 100%;
+  padding-right: 30px;
+}
+
+.password-input .password-toggle {
+  position: absolute;
+  right: 6px;
+  display: inline-flex;
+}
+
+.password-input .password-toggle:hover,
+.password-input .password-toggle[aria-pressed="true"] {
+  color: var(--text);
+}
+
 button:focus-visible,
 a:focus-visible,
 select:focus-visible,
@@ -2914,9 +2990,21 @@ select:focus-visible,
   margin-bottom: 4px;
 }
 
-.guarded {
-  outline: 2px solid var(--guard);
-  outline-offset: 2px;
+/* The environment colour fills the whole button; text flips light/dark for contrast. */
+.send.guarded,
+.url-row .send.guarded,
+.action-footer .send.guarded {
+  background: var(--guard);
+  border-color: var(--guard);
+  color: light-dark(var(--guard-fg-light), var(--guard-fg-dark));
+}
+
+.send.guarded:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--guard) 85%, light-dark(#000, #fff));
+}
+
+.send.guarded:active:not(:disabled) {
+  background: color-mix(in srgb, var(--guard) 75%, light-dark(#000, #fff));
 }
 
 .env-color-row {
@@ -3147,4 +3235,127 @@ select:focus-visible,
   .sheet-backdrop[data-state="closing"] .sheet,
   .switcher-popover[data-state="closing"],
   .quick-open-backdrop[data-state="closing"] .quick-open { animation: overlay-fade-out var(--dur-fast, 100ms) linear both; }
+}
+
+/* Environment picker: fixed-width trigger, searchable popover. */
+.env-picker {
+  position: relative;
+}
+
+.env-picker-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 168px;
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-md);
+  cursor: pointer;
+}
+
+.env-picker-btn .env-dropdown-name {
+  flex: 1;
+  text-align: left;
+}
+
+.env-picker-btn:hover,
+.env-picker-btn[aria-expanded="true"] {
+  background: var(--bg-hover);
+}
+
+.env-dot {
+  flex: none;
+}
+
+.env-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  width: 280px;
+  max-width: calc(100vw - 24px);
+  background: var(--bg-raised, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.env-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.env-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+}
+
+.env-list {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.env-group {
+  padding: 6px 8px 2px;
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.env-empty {
+  padding: 10px 8px;
+  color: var(--muted);
+}
+
+.env-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.env-option.active {
+  background: var(--bg-hover);
+}
+
+.env-option.on .env-option-name {
+  font-weight: 600;
+}
+
+.env-option-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.env-prod-badge {
+  flex: none;
+  padding: 0 5px;
+  border-radius: 3px;
+  border: 1px solid var(--error, #f85149);
+  color: var(--error, #f85149);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
 }

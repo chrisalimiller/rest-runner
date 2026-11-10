@@ -1,5 +1,6 @@
 import { open } from "@tauri-apps/plugin-dialog";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { PasswordInput } from "./PasswordInput";
 import {
   expiryState,
   findDuplicatePatterns,
@@ -185,7 +186,7 @@ function ImportForm({ onImported, disabled, firstOne, hasWaiting }: { onImported
       {certPath && (
         <label className="cert-field">
           <span>Passphrase</span>
-          <input type="password" value={passphrase} onChange={(e) => setPassphrase(e.target.value)} placeholder={isPfx ? ".pfx/.p12 passphrase" : "only if the key is encrypted"} autoComplete="off" />
+          <PasswordInput value={passphrase} onChange={(e) => setPassphrase(e.target.value)} placeholder={isPfx ? ".pfx/.p12 passphrase" : "only if the key is encrypted"} autoComplete="off" />
           <small className="muted">Kept in your system keychain, not in the app's files.</small>
         </label>
       )}
@@ -327,7 +328,7 @@ function EntryEditor({ entry, duplicates, entries, desktop }: { entry: Certifica
             <div className="cert-field">
               <span>Change passphrase</span>
               <div className="cert-file">
-                <input type="password" value={passphrase} onChange={(e) => setPassphrase(e.target.value)} placeholder="New passphrase" autoComplete="off" />
+                <PasswordInput value={passphrase} onChange={(e) => setPassphrase(e.target.value)} placeholder="New passphrase" autoComplete="off" />
                 <button className="secondary" onClick={() => void changePassphrase()} disabled={!passphrase}>
                   Save
                 </button>

@@ -14,7 +14,7 @@
 ## One app, four jobs
 
 ### Requests
-Build a request with params, headers, auth and a JSON body, with `{{placeholders}}`, and read the response next to it, including the exact request that was sent. Keep requests in collections and folders, open several as tabs, import a cURL command or a Postman collection.
+Build a request with params, headers, auth and a JSON body, with `{{placeholders}}`, and read the response next to it, including the exact request that was sent. Keep requests in collections and folders, open several as tabs, import a cURL command, or collections and environments from Postman, Insomnia, Bruno or a .env file.
 
 ### Batch runs from a CSV
 Write the request once with `{{column}}` placeholders, pick a CSV, choose how many run at once and how long to pause, and results stream in as they arrive. Export an HTML or CSV report, or a Python/Bash script to run it without the app.
