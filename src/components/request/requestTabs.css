@@ -116,8 +116,9 @@
 }
 
 .rtab {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
+  overflow: hidden;
   height: 100%;
   display: flex;
   align-items: center;
@@ -138,8 +139,9 @@
 }
 
 .rtab-name {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
+  padding-right: 2px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -165,7 +167,7 @@
   flex: none;
   width: 18px;
   height: 18px;
-  margin-left: 4px;
+  margin-left: 6px;
 }
 
 .rtab-dot {
