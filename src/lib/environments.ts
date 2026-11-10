@@ -10,7 +10,7 @@ export interface Environment {
   id: string;
   name: string;
   vars: KeyValue[];
-  /** Shown as a dot on the switch and as an outline on Send, Run suite and Run. Missing on older data: see `cleanEnvironments`. */
+  /** Shown as a dot on the switch and as the fill of Send, Run suite and Run. Missing on older data: see `cleanEnvironments`. */
   color?: EnvColor;
 }
 
@@ -36,6 +36,36 @@ export const ENV_COLOR_VARS: Record<Exclude<EnvColor, "none">, string> = {
   amber: "var(--warn)",
   red: "var(--danger)",
 };
+
+/** The hex behind each token per theme (mirrors styles.css), to pick readable text on a filled button. */
+const ENV_COLOR_HEX: Record<"dark" | "light", Record<Exclude<EnvColor, "none">, string>> = {
+  dark: { green: "#3fb950", blue: "#58a6ff", amber: "#d29922", red: "#f85149" },
+  light: { green: "#176a30", blue: "#0b5cc4", amber: "#7a5200", red: "#bf1f2a" },
+};
+
+/** Near-black or white, whichever has the higher contrast on the given #rrggbb / #rgb colour. */
+export function readableTextOn(hex: string): "#ffffff" | "#0d1117" {
+  let h = hex.trim().replace(/^#/, "");
+  if (h.length === 3) h = h.replace(/./g, (c) => c + c);
+  if (!/^[0-9a-f]{6}$/i.test(h)) return "#ffffff";
+  const lin = (i: number) => {
+    const c = parseInt(h.slice(i, i + 2), 16) / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  const lum = 0.2126 * lin(0) + 0.7152 * lin(2) + 0.0722 * lin(4);
+  // Contrast against white is 1.05 / (lum + 0.05); against near-black (lum ~0.005) it is (lum + 0.05) / 0.055.
+  return (lum + 0.05) / 0.055 > 1.05 / (lum + 0.05) ? "#0d1117" : "#ffffff";
+}
+
+/** Inline CSS variables for a guarded button: its fill and the text colour for each theme. */
+export function guardStyle(guard: { color: Exclude<EnvColor, "none">; cssColor: string } | null | undefined): Record<string, string> | undefined {
+  if (!guard) return undefined;
+  return {
+    "--guard": guard.cssColor,
+    "--guard-fg-dark": readableTextOn(ENV_COLOR_HEX.dark[guard.color]),
+    "--guard-fg-light": readableTextOn(ENV_COLOR_HEX.light[guard.color]),
+  };
+}
 
 /** Prod, Production and PRD (any case) are red unless told otherwise. */
 export function defaultEnvColor(name: string): EnvColor {

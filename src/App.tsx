@@ -53,7 +53,7 @@ import { looksLikeCurl, parseCurl, type CurlCommand, type CurlNote } from "./lib
 import { matchVariables, type VarSwap } from "./lib/curlVariables";
 import { SecretStatusBanner } from "./components/shell/SecretStatusBanner";
 import { hasSecretVars } from "./lib/secretsUi";
-import { environmentVars,guardFor, loadEnvironments, mergeHydrated, onSecretsHydrated, saveEnvironments, type Environment } from "./lib/environments";
+import { environmentVars, guardFor, guardStyle, loadEnvironments, mergeHydrated, onSecretsHydrated, saveEnvironments, type Environment } from "./lib/environments";
 import { loadCertificates, matchCertificate, saveCertificates } from "./lib/certificates";
 import { setRequestStatus } from "./lib/sectionStatus";
 import { resolvedUrl } from "./lib/requestSummary";
@@ -1206,7 +1206,7 @@ export default function App({ active = true, shell, command }: Props) {
               ) : (
                 <button
                   className={`send ${guard ? "guarded" : ""}`}
-                  style={guard ? ({ "--guard": guard.cssColor } as React.CSSProperties) : undefined}
+                  style={guardStyle(guard) as React.CSSProperties | undefined}
                   onClick={() => void send()}
                   disabled={def.url.trim() === ""}
                   title={unfilled.length > 0 ? `Sends with ${unfilled.map((n) => `{{${n}}}`).join(", ")} as written` : "Send (Ctrl/Cmd + Enter)"}
