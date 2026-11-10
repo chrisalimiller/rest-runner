@@ -120,13 +120,13 @@ export function EnvPicker({ environments, activeId, onChange }: Props) {
         data-idx={idx}
         role="option"
         aria-selected={selected}
-        className={`env-option${idx === active ? " active" : ""}${selected ? " on" : ""}`}
+        className={`env-picker-option${idx === active ? " active" : ""}${selected ? " on" : ""}`}
         title={row.name}
         onMouseEnter={() => setActive(idx)}
         onClick={() => choose(row)}
       >
         <span className="env-dot" style={row.color ? { background: row.color } : { visibility: "hidden" }} aria-hidden />
-        <span className="env-option-name">{row.name}</span>
+        <span className="env-picker-option-name">{row.name}</span>
         {row.prod && <span className="env-prod-badge">PROD</span>}
       </div>
     );
@@ -154,8 +154,8 @@ export function EnvPicker({ environments, activeId, onChange }: Props) {
         <ChevronDownIcon />
       </button>
       {open && (
-        <div className="env-popover" onKeyDown={onKeyDown}>
-          <div className="env-search">
+        <div className="env-picker-popover" onKeyDown={onKeyDown}>
+          <div className="env-picker-search">
             <SearchIcon />
             <input
               ref={input}
@@ -170,11 +170,11 @@ export function EnvPicker({ environments, activeId, onChange }: Props) {
               onChange={(e) => setQuery(e.target.value)}
             />
           </div>
-          <div className="env-list" id={`${uid}-list`} role="listbox" aria-label="Environments" ref={list}>
-            {rows.length === 0 && <div className="env-empty">No matching environments</div>}
-            {recentRows.length > 0 && <div className="env-group">Recent</div>}
+          <div className="env-picker-list" id={`${uid}-list`} role="listbox" aria-label="Environments" ref={list}>
+            {rows.length === 0 && <div className="env-picker-empty">No matching environments</div>}
+            {recentRows.length > 0 && <div className="env-picker-group">Recent</div>}
             {recentRows.map((r, i) => renderRow(r, i))}
-            {allRows.length > 0 && <div className="env-group">{searching ? `Matches (${allRows.length})` : `All (${environments.length})`}</div>}
+            {allRows.length > 0 && <div className="env-picker-group">{searching ? `Matches (${allRows.length})` : `All (${environments.length})`}</div>}
             {allRows.map((r, i) => renderRow(r, recentRows.length + i))}
           </div>
         </div>

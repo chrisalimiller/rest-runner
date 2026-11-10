@@ -1,0 +1,186 @@
+/* Environments dialog. Shared pieces (layout, pills, banners, table, segmented, reveal) live in dlg.css. */
+
+.envdlg-search {
+  flex: none;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.envdlg-search svg {
+  position: absolute;
+  left: 8px;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.envdlg-search .dlg-search {
+  padding-left: 28px;
+}
+
+.envdlg-none {
+  padding: 6px 8px;
+  margin: 0;
+}
+
+.envdlg-colour {
+  flex-wrap: wrap;
+}
+
+.envdlg-swatches {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.envdlg-swatches .env-swatch:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.envdlg-name-cell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.envdlg-name-cell input[type="checkbox"] {
+  flex: none;
+}
+
+.envdlg-name-cell input:not([type="checkbox"]) {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--mono);
+}
+
+.envdlg-vars tr.disabled input:not([type="checkbox"]) {
+  opacity: 0.55;
+}
+
+.envdlg-vars input.envdlg-dup {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg));
+  color: var(--danger);
+  outline: 1px solid var(--danger);
+}
+
+.envdlg-dup-row td {
+  padding: 4px 10px;
+  background: color-mix(in srgb, var(--danger) 10%, var(--bg));
+  color: var(--danger);
+  font-size: var(--fs-sm);
+}
+
+.envdlg-dup-row .link-btn {
+  color: var(--danger);
+  text-decoration: underline;
+  padding: 0;
+}
+
+.envdlg-reveal-gap {
+  display: inline-block;
+  width: 26px;
+  flex: none;
+}
+
+/* Compare matrix */
+.envdlg-matrix {
+  table-layout: fixed;
+}
+
+.envdlg-matrix .envdlg-matrix-name {
+  position: sticky;
+  left: 0;
+  width: 150px;
+  background: var(--bg);
+  border-right: 1px solid var(--border-muted);
+}
+
+.envdlg-matrix th.envdlg-matrix-name {
+  z-index: 3;
+  background: var(--bg-inset);
+}
+
+.envdlg-matrix th.sel,
+.envdlg-matrix td.sel {
+  background: var(--accent-subtle);
+}
+
+.envdlg-matrix th.sel {
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+.dlg-th-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+  padding: 2px 4px;
+  border: 0;
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+  cursor: pointer;
+}
+
+.dlg-th-btn:hover {
+  background: var(--bg-hover);
+}
+
+.envdlg-cell {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.envdlg-cell input {
+  flex: 1;
+  min-width: 0;
+}
+
+.envdlg-missing {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-height: 28px;
+  padding: 2px 8px;
+  border: 1.5px dashed var(--warn);
+  border-radius: var(--r-xs);
+  background: color-mix(in srgb, var(--warn) 12%, var(--bg));
+  color: var(--warn);
+}
+
+.envdlg-missing-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-sm);
+}
+
+.envdlg-add {
+  padding: 0 8px;
+  border: 1px solid var(--warn);
+  border-radius: var(--r-xs);
+  background: var(--bg);
+  color: var(--warn);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.envdlg-add:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}

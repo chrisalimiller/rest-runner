@@ -365,6 +365,7 @@ body.dragging-split {
 }
 
 .env-dot {
+  flex: none;
   width: 6px;
   height: 6px;
   border-radius: 50%;
@@ -3007,14 +3008,8 @@ select:focus-visible,
   background: color-mix(in srgb, var(--guard) 75%, light-dark(#000, #fff));
 }
 
-.env-color-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 8px 0;
-}
-
 .env-swatch {
+  position: relative;
   width: 18px;
   height: 18px;
   padding: 0;
@@ -3184,8 +3179,7 @@ select:focus-visible,
 .tree-toggle,
 .tree-menu-btn,
 .segmented.small button,
-.nav-group-head .sidebar-actions .icon-btn,
-.env-swatch {
+.nav-group-head .sidebar-actions .icon-btn {
   position: relative;
 }
 
@@ -3268,11 +3262,7 @@ select:focus-visible,
   background: var(--bg-hover);
 }
 
-.env-dot {
-  flex: none;
-}
-
-.env-popover {
+.env-picker-popover {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
@@ -3286,7 +3276,7 @@ select:focus-visible,
   overflow: hidden;
 }
 
-.env-search {
+.env-picker-search {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -3295,7 +3285,7 @@ select:focus-visible,
   color: var(--muted);
 }
 
-.env-search input {
+.env-picker-search input {
   flex: 1;
   min-width: 0;
   border: 0;
@@ -3305,13 +3295,13 @@ select:focus-visible,
   font: inherit;
 }
 
-.env-list {
+.env-picker-list {
   max-height: 320px;
   overflow-y: auto;
   padding: 4px;
 }
 
-.env-group {
+.env-picker-group {
   padding: 6px 8px 2px;
   font-size: 11px;
   color: var(--muted);
@@ -3319,12 +3309,12 @@ select:focus-visible,
   letter-spacing: 0.04em;
 }
 
-.env-empty {
+.env-picker-empty {
   padding: 10px 8px;
   color: var(--muted);
 }
 
-.env-option {
+.env-picker-option {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -3333,15 +3323,15 @@ select:focus-visible,
   cursor: pointer;
 }
 
-.env-option.active {
+.env-picker-option.active {
   background: var(--bg-hover);
 }
 
-.env-option.on .env-option-name {
+.env-picker-option.on .env-picker-option-name {
   font-weight: 600;
 }
 
-.env-option-name {
+.env-picker-option-name {
   flex: 1;
   min-width: 0;
   overflow: hidden;
