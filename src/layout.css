@@ -815,10 +815,6 @@ body.dragging-split {
   white-space: nowrap;
 }
 
-.url-row .send.guarded {
-  outline-offset: -3px;
-}
-
 .url-row .send.cancel {
   background: transparent;
   box-shadow: inset 0 0 0 1px var(--danger);
@@ -2988,9 +2984,21 @@ select:focus-visible,
   margin-bottom: 4px;
 }
 
-.guarded {
-  outline: 2px solid var(--guard);
-  outline-offset: 2px;
+/* The environment colour fills the whole button; text flips light/dark for contrast. */
+.send.guarded,
+.url-row .send.guarded,
+.action-footer .send.guarded {
+  background: var(--guard);
+  border-color: var(--guard);
+  color: light-dark(var(--guard-fg-light), var(--guard-fg-dark));
+}
+
+.send.guarded:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--guard) 85%, light-dark(#000, #fff));
+}
+
+.send.guarded:active:not(:disabled) {
+  background: color-mix(in srgb, var(--guard) 75%, light-dark(#000, #fff));
 }
 
 .env-color-row {
