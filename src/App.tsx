@@ -55,6 +55,7 @@ import { SecretStatusBanner } from "./components/shell/SecretStatusBanner";
 import { hasSecretVars } from "./lib/secretsUi";
 import { environmentVars,guardFor, loadEnvironments, mergeHydrated, onSecretsHydrated, saveEnvironments, type Environment } from "./lib/environments";
 import { loadCertificates, matchCertificate, saveCertificates } from "./lib/certificates";
+import { convertLiteralToVariable, isAuthSecretPath } from "./lib/literalToVariable";
 import { setRequestStatus } from "./lib/sectionStatus";
 import { resolvedUrl } from "./lib/requestSummary";
 import { certificatesForExport, describeCertificateImport, importCertificates } from "./lib/certificatesFile";
@@ -572,6 +573,15 @@ export default function App({ active = true, shell, command }: Props) {
   }, [history]);
 
   const patch = (p: Partial<RequestDef>) => applyTabs((s) => updateActiveDef(s, p));
+
+  /** Banner button on a plain-text auth credential: save it as a secret variable in the active environment. */
+  const convertLiteral = (path: string) => {
+    if (!isAuthSecretPath(path)) return;
+    const result = convertLiteralToVariable(activeEnv, def.auth, path);
+    if (!result.ok) return;
+    setEnvironments((cur) => cur.map((e) => (e.id === result.env.id ? result.env : e)));
+    patch({ auth: result.auth });
+  };
 
   const send = useCallback(async () => {
     // Everything below belongs to the tab the send started in, even if the user switches tabs meanwhile.
@@ -1207,6 +1217,7 @@ export default function App({ active = true, shell, command }: Props) {
             onChange={patch}
             envVars={sendVars}
             envName={activeEnv?.name}
+            onConvertLiteral={convertLiteral}
             onEnter={() => void requestSend()}
             detailsKey={DETAILS_KEY}
             scriptVars={scriptVars}
