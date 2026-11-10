@@ -10,7 +10,7 @@ import { ShortcutsDialog } from "./components/shell/ShortcutsDialog";
 import { loadEnvironments } from "./lib/environments";
 import { getThemePref, setThemePref } from "./lib/theme";
 import { toggleSidePanel, openSidePanel } from "./lib/sidePanels";
-import { isEditableTarget } from "./lib/shortcuts";
+import { isEditableTarget, matchesShortcut } from "./lib/shortcuts";
 import { CertificatesDialog } from "./components/CertificatesDialog";
 import { UpdateDialog } from "./components/UpdateDialog";
 import {
@@ -87,18 +87,13 @@ export default function Root() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (
-        e.key.toLowerCase() === "k" &&
-        (e.metaKey || e.ctrlKey) &&
-        !e.shiftKey &&
-        !e.altKey
-      ) {
+      if (matchesShortcut("quick-open", e)) {
         e.preventDefault();
         setQuickOpen((o) => !o);
         return;
       }
       // "?" opens the shortcut list, unless a field has focus (it would type one) or another dialog is up.
-      if (e.key === "?" && !e.metaKey && !e.ctrlKey && !e.altKey && !quickOpenRef.current && !isEditableTarget(e.target) && !document.querySelector('[role="dialog"]')) {
+      if (matchesShortcut("keyboard-shortcuts", e) && !quickOpenRef.current && !isEditableTarget(e.target) && !document.querySelector('[role="dialog"]')) {
         e.preventDefault();
         setShortcutsOpen(true);
         return;

@@ -103,6 +103,11 @@ export function EnvironmentEditor({ environments, activeId, onChange, onClose, f
                 ))}
                 <span className="muted small">A coloured environment outlines Send, Run suite and Run, and puts its name on them.</span>
               </div>
+              <label className="env-production-row">
+                <input type="checkbox" checked={selected.isProduction === true} onChange={(e) => update({ ...selected, isProduction: e.target.checked })} />
+                Production environment
+                <span className="muted small">Asks before a send or batch run goes here (About, Settings). You set this yourself; the name is not checked.</span>
+              </label>
               <p className="muted small">
                 Use these anywhere in a request as {"{{name}}"}. In a batch run, a CSV column with the same name wins. Lock a value to mask it on screen and leave it out of exports.
               </p>

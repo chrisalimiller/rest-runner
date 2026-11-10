@@ -38,7 +38,7 @@ Quick open is also a command palette. Type `>` first (as in VS Code) to see only
 | **Open Certificates** | Open the Certificates side panel |
 | **Appearance: System / Light / Dark** | Set the appearance (also in the About dialog) |
 | **Keyboard shortcuts** | Open the list of shortcuts (also `?`) |
-| **About and updates…** | Open the About dialog, with Check for updates |
+| **About and updates…** | Open the About dialog, with Settings, a Hotkeys list and Check for updates |
 
 - The search is fuzzy: the letters you type must appear in order (`gtu` finds "Get users"), and runs of letters, word starts and matches in the title score higher. It also looks at the method, folder path or URL, and the detail text.
 - With nothing typed, you see the most recent items of each group. Each group shows its best six matches.

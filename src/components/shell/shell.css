@@ -518,3 +518,11 @@
   top: 50%;
   transform: translateY(-50%);
 }
+
+.env-production-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0;
+}

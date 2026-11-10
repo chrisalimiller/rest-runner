@@ -102,6 +102,9 @@ import {
   type TabsState,
 } from "./lib/requestTabs";
 import { isArray, isString, isStringArray, isStringRecord, load, save } from "./lib/storage";
+import { loadConfirmProduction, productionToConfirm } from "./lib/productionGuard";
+import { matchesShortcut } from "./lib/shortcuts";
+import { ConfirmProductionDialog } from "./components/shell/ConfirmProductionDialog";
 import type { HistoryEntry, RequestDef, SendOutcome } from "./lib/types";
 
 type LowerPane = "response" | "batch";
@@ -217,6 +220,7 @@ function TabBatch({
   envVars,
   scriptVars,
   envName,
+  confirmProduction,
   patchRuntime,
   onRunSaved,
   onOpenRun,
@@ -225,6 +229,7 @@ function TabBatch({
   envVars: Vars;
   scriptVars: Vars;
   envName?: string;
+  confirmProduction: () => string | null;
   patchRuntime: (id: string, p: Partial<TabRuntime>) => void;
   onRunSaved: () => void;
   onOpenRun: (id: string) => void;
@@ -232,7 +237,7 @@ function TabBatch({
   const id = tab.id;
   const onRunningChange = useCallback((batchRunning: boolean) => patchRuntime(id, { batchRunning }), [id, patchRuntime]);
   const onWideChange = useCallback((batchWide: boolean) => patchRuntime(id, { batchWide }), [id, patchRuntime]);
-  return <BatchPane def={tab.def} envVars={envVars} scriptVars={scriptVars} envName={envName} onRunningChange={onRunningChange} onWideChange={onWideChange} onRunSaved={onRunSaved} onOpenRun={onOpenRun} />;
+  return <BatchPane def={tab.def} envVars={envVars} scriptVars={scriptVars} envName={envName} confirmProduction={confirmProduction} onRunningChange={onRunningChange} onWideChange={onWideChange} onRunSaved={onRunSaved} onOpenRun={onOpenRun} />;
 }
 
 export default function App({ active = true, shell, command }: Props) {
@@ -628,6 +633,17 @@ export default function App({ active = true, shell, command }: Props) {
     );
   }, [def, activeId, rt.sending, envVars, scriptVars, sendVars, activeEnv, applyTabs, patchRuntime]);
 
+  /** The environment name to confirm before sending, or null. Read at click time so the About setting applies at once. */
+  const productionName = useCallback(() => productionToConfirm(activeEnv, loadConfirmProduction()), [activeEnv]);
+  const [prodConfirm, setProdConfirm] = useState<{ envName: string; what: string; run: () => void } | null>(null);
+  /** Send, after asking first when the active environment is flagged production (and the setting is on). */
+  const requestSend = useCallback(async () => {
+    if (rt.sending || def.url.trim() === "") return;
+    const envName = productionName();
+    if (envName) setProdConfirm({ envName, what: "Send", run: () => void send() });
+    else await send();
+  }, [rt.sending, def.url, productionName, send]);
+
   /** Cancels the send in the tab on screen; other tabs keep going. */
   const cancel = () => aborts.current.get(activeId)?.abort();
 
@@ -895,7 +911,7 @@ export default function App({ active = true, shell, command }: Props) {
       const a = command.action;
       if (a.type === "send") {
         if (def.url.trim() === "") notify("Enter a URL to send.");
-        else void send();
+        else void requestSend();
       } else if (a.type === "open-batch") openBatch();
       else if (a.type === "new-request") openNewTab();
       else if (a.type === "new-collection") {
@@ -915,22 +931,22 @@ export default function App({ active = true, shell, command }: Props) {
       // Tab commands work from anywhere in Requests, including a text field and the batch run view.
       if (handleTabKey.current(e)) return;
       if (openRun !== null) return;
-      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      if (matchesShortcut("send", e)) {
         e.preventDefault();
-        void send();
+        void requestSend();
       }
-      if (e.key.toLowerCase() === "s" && (e.metaKey || e.ctrlKey)) {
+      if (matchesShortcut("save", e)) {
         e.preventDefault();
         saveCurrent();
       }
-      if (e.key === "F2" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      if (matchesShortcut("rename", e)) {
         e.preventDefault();
         setRenamingName(true);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [send, saveCurrent, openRun, showEnvEditor, dialog, active]);
+  }, [requestSend, send, saveCurrent, openRun, showEnvEditor, dialog, active]);
 
   const startSplitDrag = (e: React.PointerEvent) => {
     const el = inspectorRef.current;
@@ -1191,7 +1207,7 @@ export default function App({ active = true, shell, command }: Props) {
             onChange={patch}
             envVars={sendVars}
             envName={activeEnv?.name}
-            onEnter={() => void send()}
+            onEnter={() => void requestSend()}
             detailsKey={DETAILS_KEY}
             scriptVars={scriptVars}
             onOpenVariables={openVariables}
@@ -1207,7 +1223,7 @@ export default function App({ active = true, shell, command }: Props) {
                 <button
                   className={`send ${guard ? "guarded" : ""}`}
                   style={guard ? ({ "--guard": guard.cssColor } as React.CSSProperties) : undefined}
-                  onClick={() => void send()}
+                  onClick={() => void requestSend()}
                   disabled={def.url.trim() === ""}
                   title={unfilled.length > 0 ? `Sends with ${unfilled.map((n) => `{{${n}}}`).join(", ")} as written` : "Send (Ctrl/Cmd + Enter)"}
                 >
@@ -1317,6 +1333,7 @@ export default function App({ active = true, shell, command }: Props) {
                   envVars={envVars}
                   scriptVars={scriptVars}
                   envName={activeEnv?.name}
+                  confirmProduction={productionName}
                   patchRuntime={patchRuntime}
                   onRunSaved={refreshRuns}
                   onOpenRun={setOpenRun}
@@ -1398,6 +1415,18 @@ export default function App({ active = true, shell, command }: Props) {
             if (includeResponse && dialog.response) patchRuntime(id, { outcome: sampleOutcome(r.example, dialog.response, envVars), outcomeIsSample: true });
             setDialog(null);
             notify(`Saved example "${name}".`);
+          }}
+        />
+      )}
+      {prodConfirm && (
+        <ConfirmProductionDialog
+          envName={prodConfirm.envName}
+          what={prodConfirm.what}
+          onCancel={() => setProdConfirm(null)}
+          onConfirm={() => {
+            const run = prodConfirm.run;
+            setProdConfirm(null);
+            run();
           }}
         />
       )}

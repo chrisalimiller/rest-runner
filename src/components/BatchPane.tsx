@@ -17,6 +17,7 @@ import type { RequestDef } from "../lib/types";
 import { useCertificates } from "./CertificatesDialog";
 import { CallDetail } from "./CallDetail";
 import { PresetField } from "./PresetField";
+import { ConfirmProductionDialog } from "./shell/ConfirmProductionDialog";
 import { RowPicker } from "./RowPicker";
 import { ScriptExportPanel } from "./ScriptExportPanel";
 
@@ -26,6 +27,8 @@ interface Props {
   /** Variables set by request scripts on earlier sends. Each row's scripts start with a copy. */
   scriptVars?: Vars;
   envName?: string;
+  /** Called when a run is about to start: the name of a production environment to confirm, or null to go ahead. */
+  confirmProduction?: () => string | null;
   onRunningChange: (running: boolean) => void;
   /** True while a run is going or its results are on screen: the request column gives way to them. */
   onWideChange?: (wide: boolean) => void;
@@ -58,7 +61,7 @@ function formatElapsed(ms: number): string {
 
 const NO_VARS: Vars = {};
 
-export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunningChange, onWideChange, onRunSaved, onOpenRun }: Props) {
+export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, confirmProduction, onRunningChange, onWideChange, onRunSaved, onOpenRun }: Props) {
   const [file, setFile] = useState<LoadedFile | null>(null);
   /** 0-based CSV rows the next run will send. Remembered per file. */
   const [selected, setSelectedRows] = useState<Set<number>>(new Set());
@@ -175,9 +178,18 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
     }
   };
 
+  const [prodAsk, setProdAsk] = useState<{ envName: string; what: string; run: () => void } | null>(null);
+  /** Runs now, or after the production confirmation when the active environment is flagged. */
+  const guarded = (what: string, run: () => void) => {
+    const envName = confirmProduction?.() ?? null;
+    if (envName) setProdAsk({ envName, what, run });
+    else run();
+  };
+
   const start = () => {
     if (!file || chosen.length === 0 || running) return;
-    return execute(def, options, chosen.map((i) => rows[i]), chosen);
+    const runRows = chosen.map((i) => rows[i]);
+    guarded(`Run ${chosen.length} ${chosen.length === 1 ? "request" : "requests"}`, () => void execute(def, options, runRows, chosen));
   };
 
   /** Sends only the failed rows again with the request and options of the run on screen. */
@@ -186,7 +198,7 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
     if (!snap || running) return;
     const input = buildRerunInput(results);
     if (input.rows.length === 0) return;
-    return execute(snap.def, snap.options, input.rows, input.indices, savedRunId ?? undefined);
+    guarded(`Run ${input.rows.length} failed ${input.rows.length === 1 ? "request" : "requests"} again`, () => void execute(snap.def, snap.options, input.rows, input.indices, savedRunId ?? undefined));
   };
 
   const execute = async (runDef: RequestDef, runOpts: BatchOptions, runRows: Vars[], indices?: number[], rerunOf?: string) => {
@@ -580,6 +592,18 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, onRunni
             )}
           </div>
         </div>
+      )}
+      {prodAsk && (
+        <ConfirmProductionDialog
+          envName={prodAsk.envName}
+          what={prodAsk.what}
+          onCancel={() => setProdAsk(null)}
+          onConfirm={() => {
+            const run = prodAsk.run;
+            setProdAsk(null);
+            run();
+          }}
+        />
       )}
     </section>
   );

@@ -12,10 +12,15 @@ export interface Environment {
   vars: KeyValue[];
   /** Shown as a dot on the switch and as an outline on Send, Run suite and Run. Missing on older data: see `cleanEnvironments`. */
   color?: EnvColor;
+  /**
+   * Explicit "this is production" flag (never inferred from the name). Drives the confirm-before-send prompt.
+   * Missing on older data and in older files: treated as false (see `cleanEnvironments`).
+   */
+  isProduction?: boolean;
 }
 
 export function newEnvironment(name: string): Environment {
-  return { id: newId(), name, vars: [emptyRow()], color: defaultEnvColor(name) };
+  return { id: newId(), name, vars: [emptyRow()], color: defaultEnvColor(name), isProduction: false };
 }
 
 /** The enabled variables of an environment as name → value. */
@@ -88,7 +93,7 @@ export function cleanEnvironments(input: unknown): Environment[] {
     .map((e) => {
       const name = typeof e.name === "string" ? e.name : "";
       const env = e as unknown as Environment;
-      return { ...env, name, vars: normaliseVarIds(env.id, env.vars), color: isColor(e.color) ? e.color : defaultEnvColor(name) };
+      return { ...env, name, vars: normaliseVarIds(env.id, env.vars), color: isColor(e.color) ? e.color : defaultEnvColor(name), isProduction: e.isProduction === true };
     });
 }
 
