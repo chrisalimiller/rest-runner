@@ -3,6 +3,7 @@ import { LiteralSecretBadge } from "./shell/LiteralSecretBadge";
 import type { Vars } from "../lib/template";
 import type { AuthConfig } from "../lib/types";
 import { PlaceholderInput } from "./PlaceholderInput";
+import { PasswordInput } from "./PasswordInput";
 
 interface Props {
   auth: AuthConfig;
@@ -76,9 +77,8 @@ export function AuthEditor({ auth, onChange, placeholderVars, literalPath }: Pro
           </label>
           <label className="field">
             <span>Password {badge("auth.password")}</span>
-            <input
+            <PasswordInput
               {...described("auth.password")}
-              type="password"
               value={auth.password}
               onChange={(e) => onChange({ ...auth, password: e.target.value })}
             />
