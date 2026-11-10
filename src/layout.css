@@ -728,6 +728,12 @@ body.dragging-split {
   display: none;
 }
 
+/* The tab bar already leaves 8px under its tabs (44px bar, 28px tabs), which matches the 8px above them.
+   Drop the inspector's own top padding there so the gap to the request panel is the same 8px. */
+.rtab-bar ~ .requests-body .inspector {
+  padding-top: 0;
+}
+
 /* A batch run is on screen: the request folds into a bar and the results take the full width. */
 .inspector.request-folded {
   grid-template-columns: minmax(0, 1fr);
