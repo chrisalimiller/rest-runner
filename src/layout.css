@@ -3199,3 +3199,126 @@ select:focus-visible,
   .switcher-popover[data-state="closing"],
   .quick-open-backdrop[data-state="closing"] .quick-open { animation: overlay-fade-out var(--dur-fast, 100ms) linear both; }
 }
+
+/* Environment picker: fixed-width trigger, searchable popover. */
+.env-picker {
+  position: relative;
+}
+
+.env-picker-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 168px;
+  height: 26px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: var(--fs-md);
+  cursor: pointer;
+}
+
+.env-picker-btn .env-dropdown-name {
+  flex: 1;
+  text-align: left;
+}
+
+.env-picker-btn:hover,
+.env-picker-btn[aria-expanded="true"] {
+  background: var(--bg-hover);
+}
+
+.env-dot {
+  flex: none;
+}
+
+.env-popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  width: 280px;
+  max-width: calc(100vw - 24px);
+  background: var(--bg-raised, var(--bg));
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+}
+
+.env-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.env-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+}
+
+.env-list {
+  max-height: 320px;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.env-group {
+  padding: 6px 8px 2px;
+  font-size: 11px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.env-empty {
+  padding: 10px 8px;
+  color: var(--muted);
+}
+
+.env-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.env-option.active {
+  background: var(--bg-hover);
+}
+
+.env-option.on .env-option-name {
+  font-weight: 600;
+}
+
+.env-option-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.env-prod-badge {
+  flex: none;
+  padding: 0 5px;
+  border-radius: 3px;
+  border: 1px solid var(--error, #f85149);
+  color: var(--error, #f85149);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
