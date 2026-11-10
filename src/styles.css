@@ -1578,14 +1578,14 @@ input[type="checkbox"]:hover:not(:disabled) {
 input[type="checkbox"]::after {
   content: "";
   position: absolute;
-  left: 4px;
-  top: 0;
+  left: 50%;
+  top: 45%;
   width: 4px;
   height: 8px;
   box-sizing: border-box;
   border: solid var(--accent-fg);
   border-width: 0 2px 2px 0;
-  transform: rotate(45deg) scale(0);
+  transform: translate(-50%, -50%) rotate(45deg) scale(0);
   transition: transform 0.12s ease-out;
 }
 
@@ -1596,16 +1596,16 @@ input[type="checkbox"]:indeterminate {
 }
 
 input[type="checkbox"]:checked::after {
-  transform: rotate(45deg) scale(1);
+  transform: translate(-50%, -50%) rotate(45deg) scale(1);
 }
 
 input[type="checkbox"]:indeterminate::after {
-  left: 2px;
-  top: 5.5px;
+  left: 50%;
+  top: 50%;
   width: 8px;
   height: 0;
   border-width: 0 0 2px 0;
-  transform: none;
+  transform: translate(-50%, -50%);
 }
 
 input[type="checkbox"]:focus,
