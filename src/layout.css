@@ -2945,6 +2945,29 @@ details.case-try .call-detail {
   color: var(--warn);
 }
 
+.password-input {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.password-input input {
+  width: 100%;
+  padding-right: 30px;
+}
+
+.password-input .password-toggle {
+  position: absolute;
+  right: 6px;
+  display: inline-flex;
+}
+
+.password-input .password-toggle:hover,
+.password-input .password-toggle[aria-pressed="true"] {
+  color: var(--text);
+}
+
 button:focus-visible,
 a:focus-visible,
 select:focus-visible,
