@@ -1,0 +1,431 @@
+/* Shared look for the Environments and Import dialogs: pinned header and footer, sidebar + detail body,
+   pills, banners, sticky-header tables, segmented control and the reveal button. Theme variables only. */
+
+.dlg-modal {
+  width: min(1040px, 94vw);
+  height: min(700px, 90vh);
+  min-width: 0;
+  overflow: hidden;
+}
+
+.dlg-head {
+  flex: none;
+  gap: 10px;
+}
+
+.dlg-head h3 {
+  margin-right: auto;
+}
+
+.dlg-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dlg-body {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+}
+
+.dlg-side {
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border-right: 1px solid var(--border-muted);
+  background: var(--bg-soft);
+  overflow: hidden;
+}
+
+.dlg-side-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dlg-side-foot {
+  flex: none;
+}
+
+.dlg-search {
+  width: 100%;
+}
+
+.dlg-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 0;
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dlg-item:hover {
+  background: var(--bg-hover);
+}
+
+.dlg-item.active {
+  background: var(--bg-hover);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.dlg-item:focus-visible,
+.dlg-seg button:focus-visible,
+.reveal-btn:focus-visible,
+.dlg-th-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.dlg-item-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dlg-item-count {
+  flex: none;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.dlg-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--border-strong);
+}
+
+.dlg-dot.none {
+  background: transparent;
+  border: 1px dashed var(--muted);
+  box-sizing: border-box;
+}
+
+.dlg-main {
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px;
+  overflow: auto;
+}
+
+.dlg-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border-muted);
+}
+
+.dlg-foot .spacer {
+  flex: 1;
+}
+
+.dlg-section {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--bg);
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.dlg-section.grow {
+  flex: 1;
+  min-height: 220px;
+}
+
+.dlg-section-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dlg-label {
+  flex: 1;
+  min-width: 0;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dlg-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.dlg-field > .dlg-field-label {
+  flex: none;
+  width: 72px;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dlg-field > input[type="text"],
+.dlg-field > input:not([type]) {
+  flex: 1;
+  min-width: 0;
+}
+
+.dlg-check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dlg-check input {
+  margin-top: 3px;
+}
+
+.dlg-hint {
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+/* Pills */
+.dlg-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: var(--bg-inset);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.dlg-pill.warn {
+  border-color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 14%, var(--bg));
+  color: var(--warn);
+}
+
+.dlg-pill.danger {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 14%, var(--bg));
+  color: var(--danger);
+}
+
+.dlg-pill svg {
+  flex: none;
+}
+
+/* Banners */
+.dlg-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid var(--warn);
+  border-radius: var(--r-sm);
+  background: color-mix(in srgb, var(--warn) 12%, var(--bg));
+  color: var(--warn);
+  min-width: 0;
+}
+
+.dlg-banner.danger {
+  border-color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 12%, var(--bg));
+  color: var(--danger);
+}
+
+.dlg-banner svg {
+  flex: none;
+}
+
+.dlg-banner .dlg-banner-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.dlg-banner .dlg-banner-text code {
+  font-family: var(--mono);
+}
+
+/* Segmented radio group */
+.dlg-seg {
+  display: inline-flex;
+  flex: none;
+  border: 1px solid var(--border);
+  border-radius: var(--r-xs);
+  overflow: hidden;
+}
+
+.dlg-seg button {
+  border: 0;
+  border-radius: 0;
+  background: var(--bg);
+  color: var(--text);
+  padding: 3px 10px;
+  font: inherit;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+
+.dlg-seg button + button {
+  border-left: 1px solid var(--border);
+}
+
+.dlg-seg button:hover:not(.on) {
+  background: var(--bg-hover);
+}
+
+.dlg-seg button.on {
+  background: var(--accent);
+  color: var(--text-on-accent);
+}
+
+.dlg-seg button:focus-visible {
+  box-shadow: var(--focus-ring-inset);
+}
+
+/* Tables with a sticky header: only the rows scroll */
+.dlg-scroll {
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--r-xs);
+  background: var(--bg);
+}
+
+.dlg-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  table-layout: fixed;
+}
+
+.dlg-table th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  padding: 5px 8px;
+  background: var(--bg-inset);
+  border-bottom: 1px solid var(--border);
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-align: left;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.dlg-table td {
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--border-muted);
+  vertical-align: middle;
+  min-width: 0;
+}
+
+.dlg-table td input[type="text"],
+.dlg-table td input[type="password"],
+.dlg-table td input:not([type]) {
+  width: 100%;
+  min-width: 0;
+}
+
+.dlg-table .col-secret {
+  width: 64px;
+  text-align: center;
+}
+
+.dlg-table .col-show {
+  width: 84px;
+}
+
+.dlg-cell-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  justify-content: flex-start;
+}
+
+.dlg-static {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 2px;
+}
+
+.dlg-static.mono {
+  font-family: var(--mono);
+}
+
+/* Reveal button: 26x24 bordered hit area, 16px glyph, blue border while the value shows */
+.reveal-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--r-xs);
+  background: var(--bg);
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.reveal-btn svg {
+  width: 16px;
+  height: 16px;
+  stroke-width: 1.8;
+}
+
+.reveal-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.reveal-btn.on {
+  border-color: var(--accent-fg);
+  color: var(--accent-fg);
+}
+
+/* Unclaimed width is hidden on narrow dialogs */
+@media (max-width: 760px) {
+  .dlg-body {
+    grid-template-columns: 170px minmax(0, 1fr);
+  }
+}
