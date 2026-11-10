@@ -281,3 +281,13 @@
 .field .ph-input input {
   width: 100%;
 }
+
+/* "Secret" checkbox + text: center the box on the text line (an inline checkbox otherwise sits on the baseline, which looks off on Windows) */
+.variables-add > label,
+.variable-card-add > label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  line-height: 1.2;
+  cursor: pointer;
+}
