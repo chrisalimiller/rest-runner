@@ -69,7 +69,7 @@ export function TopBar(props: Props) {
         title={props.envTitle}
         dropdown={layout.envDropdown}
       />
-      <button className="icon-btn topbar-about" onClick={openUpdateDialog} aria-label="About REST Runner" title="About and updates">
+      <button className="icon-btn topbar-about" onClick={openUpdateDialog} aria-label="Settings and about" title="Settings and about">
         <InfoIcon />
       </button>
     </header>

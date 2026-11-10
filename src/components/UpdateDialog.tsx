@@ -9,8 +9,11 @@ import { ShortcutsList } from "./shell/ShortcutsList";
 import { loadConfirmProduction, saveConfirmProduction } from "../lib/productionGuard";
 import "./updateDialog.css";
 
-/** About REST Runner: the installed version and a Check for updates button. Nothing is checked until it is clicked. */
+type SettingsPage = "general" | "shortcuts" | "about";
+
+/** Settings and About: updates are checked only when requested. */
 export function UpdateDialog({ onClose }: { onClose: () => void }) {
+  const [page, setPage] = useState<SettingsPage>("general");
   const [version, setVersion] = useState("");
   const [state, setState] = useState<UpdateState>({ kind: "idle" });
   const [confirmProd, setConfirmProd] = useState(loadConfirmProduction);
@@ -61,40 +64,41 @@ export function UpdateDialog({ onClose }: { onClose: () => void }) {
   };
 
   return (
-    <Modal label="About REST Runner" onClose={() => !working && onClose()} className="update-modal">
+    <Modal label="Settings" onClose={() => !working && onClose()} className="update-modal">
       <div className="modal-head">
-        <h3>About REST Runner</h3>
+        <div><h3>Settings</h3><p className="settings-subtitle">Manage your REST Runner preferences</p></div>
         <button className="icon-btn" onClick={onClose} aria-label="Close" disabled={working}>
           ×
         </button>
       </div>
-      <div className="update-body">
-        <p className="update-version">
-          Installed version <strong>{versionLabel(version) || "unknown"}</strong>
-        </p>
-        <AppearanceControl />
-        <h4 className="update-section">Settings</h4>
-        <label className="update-setting">
-          <input
-            type="checkbox"
-            checked={confirmProd}
-            onChange={(e) => {
-              setConfirmProd(e.target.checked);
-              saveConfirmProduction(e.target.checked);
-            }}
-          />
-          Confirm before sending requests to a production environment
-        </label>
-        <p className="muted small">Applies to environments marked Production in the environment editor. Covers single sends and batch runs.</p>
-        <details className="update-hotkeys">
-          <summary>Hotkeys</summary>
-          <ShortcutsList />
-        </details>
-        <p className="muted small">{keychainNote(typeof navigator === "undefined" ? "" : navigator.platform)}</p>
-        <UpdateStatus state={state} supported={supported} />
+      <div className="settings-layout">
+        <nav className="settings-nav" aria-label="Settings sections">
+          {([ ["general", "General"], ["shortcuts", "Keyboard shortcuts"], ["about", "About & updates"] ] as const).map(([id, label]) => (
+            <button key={id} type="button" className={page === id ? "selected" : ""} aria-current={page === id ? "page" : undefined} disabled={working} onClick={() => setPage(id)}>{label}</button>
+          ))}
+        </nav>
+        <div className="update-body">
+          {page === "general" && <>
+            <h4>General</h4><p className="settings-intro">Choose how the app looks and behaves.</p>
+            <section className="settings-block"><AppearanceControl /></section>
+            <section className="settings-block">
+              <label className="update-setting">
+                <span>Confirm production requests</span>
+                <input type="checkbox" checked={confirmProd} onChange={(e) => { setConfirmProd(e.target.checked); saveConfirmProduction(e.target.checked); }} />
+              </label>
+              <p className="muted small">Ask before single sends and batch runs to environments marked Production.</p>
+            </section>
+            <section className="settings-block"><strong>Secret storage</strong><p className="muted small">{keychainNote(typeof navigator === "undefined" ? "" : navigator.platform)}</p></section>
+          </>}
+          {page === "shortcuts" && <><h4>Keyboard shortcuts</h4><p className="settings-intro">Quick access to common actions.</p><ShortcutsList /></>}
+          {page === "about" && <>
+            <h4>About REST Runner</h4><p className="settings-intro">Version and update information.</p>
+            <div className="settings-version"><p>Installed version <strong>{versionLabel(version) || "unknown"}</strong></p><UpdateStatus state={state} supported={supported} /></div>
+          </>}
+        </div>
       </div>
       <div className="update-foot">
-        <Actions state={state} supported={supported} onClose={onClose} onCheck={() => void check()} onInstall={onInstallClick} onConfirm={(info) => void install(info)} onBack={(info) => setState({ kind: "available", info })} />
+        {page === "about" ? <Actions state={state} supported={supported} onClose={onClose} onCheck={() => void check()} onInstall={onInstallClick} onConfirm={(info) => void install(info)} onBack={(info) => setState({ kind: "available", info })} /> : <button className="secondary" onClick={onClose}>Close</button>}
       </div>
     </Modal>
   );
@@ -186,7 +190,7 @@ function Actions({ state, supported, onClose, onCheck, onInstall, onConfirm, onB
       <button className="secondary" onClick={onClose}>
         Close
       </button>
-      <button className="primary" onClick={onCheck} disabled={!supported || state.kind === "checking"} autoFocus={supported}>
+      <button className="primary" onClick={onCheck} disabled={!supported || state.kind === "checking"}>
         {state.kind === "error" ? "Try again" : "Check for updates"}
       </button>
     </>

@@ -14,7 +14,7 @@ export function ConfirmProductionDialog({ envName, what, onConfirm, onCancel }: 
         <p>
           The active environment, <strong>{envName}</strong>, is marked as production. {what} will go to it for real.
         </p>
-        <p className="muted small">You can turn this prompt off in About, under Settings.</p>
+        <p className="muted small">You can turn this prompt off in Settings, under General.</p>
       </div>
       <div className="update-foot">
         <button className="secondary" onClick={onCancel} autoFocus>

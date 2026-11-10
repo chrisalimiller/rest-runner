@@ -219,7 +219,7 @@ export function EnvironmentEditor({ environments, activeId, onChange, onClose, f
                   <label className="dlg-check">
                     <input type="checkbox" checked={selected.isProduction === true} onChange={(e) => update({ ...selected, isProduction: e.target.checked })} />
                     <span>
-                      Production environment <span className="dlg-hint">Asks before a send or batch run goes here (About, Settings). You set this yourself; the name is not checked.</span>
+                      Production environment <span className="dlg-hint">Asks before a send or batch run goes here (Settings, General). You set this yourself; the name is not checked.</span>
                     </span>
                   </label>
                 </div>
