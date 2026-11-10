@@ -3,6 +3,7 @@ import { ENV_COLORS, ENV_COLOR_VARS, newEnvironment, type Environment, type EnvC
 import { KeyValueEditor } from "./KeyValueEditor";
 import { useToast } from "./shell/Toast";
 import { Modal } from "./shell/Modal";
+import { openImportDialog } from "../lib/importDialog";
 
 interface Props {
   environments: Environment[];
@@ -73,6 +74,16 @@ export function EnvironmentEditor({ environments, activeId, onChange, onClose, f
           ))}
           <button className="link-btn" onClick={add}>
             + Add environment
+          </button>
+          <button
+            className="link-btn"
+            onClick={() => {
+              // The Import dialog is the same one everywhere. It sits above the other dialogs, so close this one first.
+              onClose();
+              openImportDialog();
+            }}
+          >
+            Import…
           </button>
         </div>
         <div className="env-edit">

@@ -54,10 +54,10 @@ import { matchVariables, type VarSwap } from "./lib/curlVariables";
 import { SecretStatusBanner } from "./components/shell/SecretStatusBanner";
 import { hasSecretVars } from "./lib/secretsUi";
 import { environmentVars,guardFor, loadEnvironments, mergeHydrated, onSecretsHydrated, saveEnvironments, type Environment } from "./lib/environments";
-import { loadCertificates, matchCertificate, saveCertificates } from "./lib/certificates";
+import { loadCertificates, matchCertificate } from "./lib/certificates";
 import { setRequestStatus } from "./lib/sectionStatus";
 import { resolvedUrl } from "./lib/requestSummary";
-import { certificatesForExport, describeCertificateImport, importCertificates } from "./lib/certificatesFile";
+import { certificatesForExport } from "./lib/certificatesFile";
 import { isTauri, sendRequest } from "./lib/http";
 import { newId } from "./lib/ids";
 import { prepareRequest, requestPlaceholders, unresolvedPlaceholders } from "./lib/request";
@@ -69,8 +69,9 @@ import type { RunSummary } from "./lib/run";
 import { readableUrl, type QuickItem } from "./lib/quickOpen";
 import { deleteRun, listRuns } from "./lib/runStore";
 import { saveTextFile } from "./lib/saveFile";
-import { describeWorkspaceImport, importWorkspace as mergeWorkspace, toWorkspaceFile } from "./lib/workspace";
-import { readWorkspace, writeWorkspace } from "./lib/workspaceStore";
+import { toWorkspaceFile } from "./lib/workspace";
+import { openImportDialog } from "./lib/importDialog";
+import { readWorkspace } from "./lib/workspaceStore";
 import {
   activate,
   applyCurl,
@@ -827,39 +828,6 @@ export default function App({ active = true, shell, command }: Props) {
     openSidePanel("variables");
   }, []);
 
-  /** Certificate rules in a workspace file, merged into the Certificates list. Returns text for the notice, or null when the file has none. */
-  const importCertificatesFrom = async (text: string): Promise<string | null> => {
-    let data: unknown;
-    try {
-      data = (JSON.parse(text) as { certificates?: unknown }).certificates;
-    } catch {
-      return null;
-    }
-    if (!Array.isArray(data) || data.length === 0) return null;
-    const r = await importCertificates(data, loadCertificates());
-    if (r.added + r.updated > 0) saveCertificates(r.entries);
-    return describeCertificateImport(r);
-  };
-
-  const importWorkspace = async (file: File) => {
-    try {
-      const stored = readWorkspace();
-      const text = await file.text();
-      const result = mergeWorkspace(text, { ...stored, collections, environments });
-      const changed = result.counts.suites[0] + result.counts.suites[1] + result.counts.flows[0] + result.counts.flows[1] > 0;
-      if (changed && !writeWorkspace(result)) throw new Error("local storage is full");
-      setCollections(result.collections);
-      expand(...result.collections.filter((c) => !collections.some((x) => x.id === c.id)).map((c) => c.id));
-      setEnvironments(result.environments);
-      if (changed) shell.onDataChanged(["suites", "flows"]);
-      const certificates = await importCertificatesFrom(text);
-      const warned = result.warnings?.length ? ` ${result.warnings.length} warning${result.warnings.length === 1 ? "" : "s"}: ${result.warnings.join(" ")}` : "";
-      notify(`${describeWorkspaceImport(file.name, result.counts)}${certificates ? ` ${certificates}` : ""}${warned}`);
-    } catch (e) {
-      notify(`Could not import ${file.name}: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  };
-
   /** Opens what quick open picked. */
   const openItem = (item: QuickItem, permanent = false) => {
     switch (item.kind) {
@@ -1052,19 +1020,9 @@ export default function App({ active = true, shell, command }: Props) {
           <button className="link-btn" onClick={addCollection} title="Add a collection">
             New
           </button>
-          <label className="link-btn" title="Import a workspace file: collections, environments, test suites and flows">
-            Import
-            <input
-              type="file"
-              accept=".json,application/json"
-              hidden
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) void importWorkspace(f);
-                e.target.value = "";
-              }}
-            />
-          </label>
+          <button className="link-btn" onClick={openImportDialog} title="Import collections and environments from Postman, Insomnia, Bruno, .env or REST Runner files">
+            Import…
+          </button>
           <button className="link-btn" onClick={startExport} title="Export collections, environments, test suites and flows to one file">
             Export workspace…
           </button>

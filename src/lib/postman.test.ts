@@ -198,19 +198,21 @@ describe("importPostmanEnvironment", () => {
     expect(environment.name).toBe("Dev");
     expect(environment.vars.map((v) => [v.key, v.value, v.enabled])).toEqual([["a", "1", true], ["b", "2", false], ["s", "", true]]);
     expect(warnings).toHaveLength(1);
+    expect(environment.vars.find((v) => v.key === "s")?.secret).toBe(true);
+    expect(environment.vars.find((v) => v.key === "a")?.secret).toBeUndefined();
   });
 });
 
 describe("importWorkspaceFile with Postman files", () => {
-  it("adds a collection and its variables, and replaces them on re-import", () => {
+  it("adds a collection without creating an environment, and replaces it on re-import", () => {
     const text = JSON.stringify(collection);
     const first = importWorkspaceFile(text, [], []);
     expect(first.collections).toHaveLength(1);
-    expect(first.environments.map((e) => e.name)).toEqual(["Shop variables"]);
-    expect([first.added, first.replaced]).toEqual([2, 0]);
+    expect(first.environments).toEqual([]);
+    expect([first.added, first.replaced]).toEqual([1, 0]);
     const again = importWorkspaceFile(text, first.collections, first.environments);
     expect(again.collections).toHaveLength(1);
-    expect([again.added, again.replaced]).toEqual([0, 2]);
+    expect([again.added, again.replaced]).toEqual([0, 1]);
   });
 
   it("imports an environment file", () => {

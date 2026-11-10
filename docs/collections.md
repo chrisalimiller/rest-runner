@@ -8,7 +8,7 @@ Saved requests live in **collections**. A collection holds requests and **folder
 
 Open the tree by clicking the folder area of the **request switcher** in the top bar. The popover has:
 
-- **New**: adds a collection. **Import** and **Export**: see below.
+- **New**: adds a collection. **Import…** opens the [Import dialog](#the-import-dialog); **Export workspace…**: see below.
 - **+ New request**: opens a blank request in the editor (it is not saved until you save it).
 - **From cURL…**: makes a request from a pasted curl command, and can save it straight into a folder. See [Paste a cURL command](curl-import.md).
 - The tree itself. Click a request to open it.
@@ -42,28 +42,47 @@ An example is a named copy of a request's payload (URL, params, headers, body, a
 
 ## Export and import
 
-**Export workspace…** (in the switcher popover) writes one JSON file, the *workspace file*, with all collections (with folders and examples), all environments, all test suites (with their CSV data) and all flows. It is the file to hand to a teammate or to back up with. If any environment variable is marked [secret](requests.md#secret-values), a dialog asks **Include secret values?** and leaves them out by default (the variables stay in the file with empty values). **Import** reads a workspace file and merges it, and the notice afterwards says how many collections, environments, suites and flows were added or updated:
+**Export workspace…** (in the switcher popover) writes one JSON file, the *workspace file*, with all collections (with folders and examples), all environments, all test suites (with their CSV data) and all flows. It is the file to hand to a teammate or to back up with. If any environment variable is marked [secret](requests.md#secret-values), a dialog asks **Include secret values?** and leaves them out by default (the variables stay in the file with empty values).
 
-- A collection, environment, suite or flow with the same id replaces the one you have. Others are added. A secret variable that comes in empty keeps the value you already have.
-- Files from the first version of the app (a flat list of saved requests) still import. Requests whose id you already have are updated where they sit, and new ones go into a collection called **Imported requests**.
-- **Postman files** also import with the same button: a collection export (v2.0 or v2.1) or an environment or globals export. See below.
-- Malformed entries are skipped, and a file that is not a REST Runner export is rejected with a message.
+Everything comes back in through one **Import** dialog, described next.
 
-### Importing from Postman
+### The Import dialog
 
-Export from Postman (**Export** on a collection, or on an environment), then use **Import** here.
+The same dialog opens from **Import…** in the collections sidebar (the switcher popover), from **Import…** in the environment manager, and from **Import…** in Quick open (Ctrl/Cmd + K). There is no format picker: each file is recognised on its own.
+
+1. **Add files.** Drop several files at once, choose them with **Choose files…**, or use **Paste text…** for JSON or the contents of a `.env` file. Supported:
+   - Postman collections (v2.0 and v2.1), environments and globals
+   - Insomnia exports (export as *Insomnia v4 (JSON)*; the newer YAML format is not read)
+   - Bruno collections (the JSON file from *Export collection*) and Bruno environment files (`.bru`)
+   - `.env` files (`KEY=VALUE`, `export`, quotes and comments are understood; a file called `.env.staging` suggests the name "staging")
+   - REST Runner workspace files (all versions), and the separate test suites and flows files
+2. **Review.** The dialog lists what it found, with a checkbox on each item. **Nothing is created unless it is checked.** Collections and environments from a file of their own start checked. Variables found *inside* a collection (offered as an environment) and Postman globals are listed but start unchecked. Test suites, flows and certificate rules from a REST Runner file are listed too.
+3. **Per item:** you can rename it. An environment can be flagged **Production environment** (you decide; it is never guessed from the name) and has **Mark secret-looking values**, on by default: variables named like `token`, `key`, `secret` or `password` become [secret values](requests.md#secret-values). Postman variables of type *secret* are always secret.
+4. **Name clashes.** If an item's name (ignoring case) matches one you already have, or another item in the same import, the dialog asks what to do, with nothing preselected: **Merge** (add what is new and update what matches: variables of an environment by name, folders and requests of a collection), **Replace** (swap the existing one for the imported one; the existing one keeps its id, and a production flag you already set stays on) or **Keep both** (the imported one is added under a new name such as "Dev (2)"). Test suites and flows offer Replace and Keep both. **Import stays disabled until every clash is answered**; **Apply to all** sets one answer for all of them.
+5. **Result.** A summary lists what was added, merged and replaced, with warnings (skipped scripts, unsupported auth and so on). **Undo import** puts the collections, environments, suites, flows and certificate rules back as they were before the import.
+
+The import is worked out on a copy first and written only when it is complete, so a problem leaves your data untouched. Imported flow schedules are off. A secret variable that arrives blank keeps the value you already have when you Merge or Replace.
+
+### Format notes
+
+**Postman**
 
 - **Collections (v2.0 and v2.1):** folders keep their nesting. Each request keeps its method, URL, query parameters, headers and body, and rows that are unticked in Postman come in disabled. Saved responses become **examples** with a sample response. `{{variable}}` placeholders work as they are.
 - **Auth:** Bearer, Basic and API key carry over. Auth set on a collection or folder is copied to every request below it that does not set its own, and "No Auth" is respected. Other types (OAuth 2, Digest and so on) come in as no auth, with a warning.
 - **Bodies:** raw JSON becomes a JSON body, other raw text a text body, x-www-form-urlencoded stays as is, and GraphQL becomes a JSON body with `query` and `variables`. Form-data is sent as an url-encoded form (file fields are dropped), and file bodies are dropped, each with a warning.
-- **Variables:** collection and folder variables become an environment called "Collection name variables". `:id` path variables are filled in with the value stored in Postman.
-- **Environments and globals:** each file becomes one environment. Disabled variables stay disabled. Secret variables are imported as plain values, which Postman may have exported empty.
-- **Not imported:** Postman scripts (`pm.*`), which do not run here, and requests with a method other than GET, POST, PUT, PATCH, DELETE, HEAD or OPTIONS.
-- Importing the same file again replaces what it added earlier instead of duplicating it. The message after the import lists any warnings.
+- **Variables:** collection and folder variables are offered as an environment called "Collection name variables", unchecked. Importing a collection never creates an environment by itself. `:id` path variables are filled in with the value stored in Postman.
+- **Environments and globals:** each file is one environment. Disabled variables stay disabled. Secret variables are marked secret; Postman may have exported their values empty.
+- **Scripts and methods:** Postman scripts (`pm.*`) are copied but do not run here until converted, and requests with a method other than GET, POST, PUT, PATCH, DELETE, HEAD or OPTIONS are skipped, each with a warning.
+
+**Insomnia:** each workspace becomes a collection (folders and order kept) and each non-empty environment an environment, with nested values flattened to `a.b`. `{{ _.name }}` becomes `{{name}}`. JSON, text and url-encoded bodies and Bearer, Basic and API key auth carry over. Other auth, multipart files, gRPC and WebSocket requests, and template tags such as `now` or `uuid` are reported as warnings.
+
+**Bruno:** folders, requests, headers, query params, JSON, text, XML, GraphQL and url-encoded bodies, Bearer, Basic and API key auth, and the collection's environments come across. Scripts and tests are skipped with a warning (Bruno's `bru` API differs from the [`rr` API](scripting.md)). Bruno does not store secret values in environment files, so secret variables arrive empty.
+
+**REST Runner files:** a workspace file of any version, a test suites file or a flows file. A flat list of saved requests from the first version of the app imports as a collection.
 
 The export file contains environment values. Secret values are left out unless you chose to include them; other values, such as non-secret tokens, are always included. Keep the file safe.
 
-Older files still import: workspace files from before suites and flows were included (version 2), the first version's flat list of saved requests, and the separate test suites and flows files. Test suites and flows also keep their own **Export** and **Import** in the [Testing sidebar](testing.md#exporting-suites) and the Flows sidebar.
+Test suites and flows also keep their own **Export** and **Import** in the [Testing sidebar](testing.md#exporting-suites) and the Flows sidebar.
 
 ### First run
 
