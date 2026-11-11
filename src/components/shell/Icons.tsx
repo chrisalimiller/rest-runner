@@ -40,6 +40,15 @@ export function ChevronDownIcon({ size = 12 }: IconProps) {
   );
 }
 
+/** Collapse (points left) or expand (points right) a side list. A drawn icon, so it centers on the row; the « and » characters sit off the text baseline. */
+export function CollapseIcon({ size = 14, expand = false }: IconProps & { expand?: boolean }) {
+  return (
+    <svg {...base(size)} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <path d={expand ? "M6 6l6 6-6 6M13 6l6 6-6 6" : "M18 6l-6 6 6 6M11 6l-6 6 6 6"} />
+    </svg>
+  );
+}
+
 export function PencilIcon({ size = 14 }: IconProps) {
   return (
     <svg {...base(size)} strokeWidth={2}>

@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import type { RequestLookup } from "../../lib/flows/flows";
 import { blockLabel, filterBlockTypes, groupRows, moveBlock, rowHasRoom, stepBlock, type BlockStep, type DropTarget } from "../../lib/tools/builder";
 import type { SessionState } from "../../lib/tools/session";
@@ -271,15 +272,40 @@ function AddBlockBar({ onAdd }: { onAdd: (type: BlockType) => void }) {
   const [active, setActive] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const wrap = useRef<HTMLDivElement>(null);
+  const listEl = useRef<HTMLUListElement>(null);
+  const [place, setPlace] = useState<React.CSSProperties | null>(null);
   const slash = text.startsWith("/");
   const list = filterBlockTypes(slash ? text : "");
   const shown = open || slash;
 
   useEffect(() => setActive(0), [text]);
+  // The list sits in a fixed layer on the page, so no scrolling pane clips it. It opens upward when there is room
+  // above the bar (the bar is usually at the bottom of the page), and downward otherwise, and never taller than the space.
+  useLayoutEffect(() => {
+    if (!shown) return;
+    const measure = () => {
+      const r = wrap.current?.getBoundingClientRect();
+      if (!r) return;
+      const gap = 6;
+      const above = r.top - 8 - gap;
+      const below = window.innerHeight - r.bottom - 8 - gap;
+      const up = above >= 220 || above >= below;
+      const width = Math.min(380, r.width);
+      setPlace(up ? { left: r.left, width, bottom: window.innerHeight - r.top + gap, maxHeight: Math.max(96, above) } : { left: r.left, width, top: r.bottom + gap, maxHeight: Math.max(96, below) });
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, true);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure, true);
+    };
+  }, [shown, list.length]);
   useEffect(() => {
     if (!open) return;
     const away = (e: MouseEvent) => {
-      if (!wrap.current?.contains(e.target as Node)) setOpen(false);
+      const t = e.target as Node;
+      if (!wrap.current?.contains(t) && !listEl.current?.contains(t)) setOpen(false);
     };
     document.addEventListener("mousedown", away);
     return () => document.removeEventListener("mousedown", away);
@@ -333,19 +359,21 @@ function AddBlockBar({ onAdd }: { onAdd: (type: BlockType) => void }) {
           Add block
         </button>
       </div>
-      {shown && (
-        <ul id="add-block-list" className="add-block-list" role="listbox" aria-label="Blocks">
-          {list.map((b, i) => (
-            <li key={b.type} role="option" aria-selected={i === active}>
-              <button type="button" className={i === active ? "on" : ""} onMouseEnter={() => setActive(i)} onClick={() => choose(b.type)}>
-                <span className="add-block-name">{b.label}</span>
-                <span className="muted small">{b.hint}</span>
-              </button>
-            </li>
-          ))}
-          {list.length === 0 && <li className="muted small add-block-none">No block called “{text.replace(/^\//, "")}”.</li>}
-        </ul>
-      )}
+      {shown &&
+        createPortal(
+          <ul id="add-block-list" ref={listEl} className="add-block-list" role="listbox" aria-label="Blocks" style={place ?? { visibility: "hidden" }}>
+            {list.map((b, i) => (
+              <li key={b.type} role="option" aria-selected={i === active}>
+                <button type="button" className={i === active ? "on" : ""} onMouseEnter={() => setActive(i)} onClick={() => choose(b.type)}>
+                  <span className="add-block-name">{b.label}</span>
+                  <span className="muted small">{b.hint}</span>
+                </button>
+              </li>
+            ))}
+            {list.length === 0 && <li className="muted small add-block-none">No block called “{text.replace(/^\//, "")}”.</li>}
+          </ul>,
+          document.body,
+        )}
     </div>
   );
 }

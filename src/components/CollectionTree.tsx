@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { MoreIcon } from "./shell/Icons";
 import { useEscape } from "./useEscape";
 import { TreeChildren } from "./TreeChildren";
 import { countVisibleRows } from "../lib/treeMotion";
@@ -45,7 +46,21 @@ export function CollectionTree(props: Props) {
   const { collections, expanded, onToggle, onAction, renamingId, onRenamingChange } = props;
   const [menu, setMenu] = useState<{ id: string; x: number; y: number; items: MenuItem[] } | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const [shift, setShift] = useState({ x: 0, y: 0 });
   useEscape(() => setMenu(null), menu !== null);
+
+  const menuLeft = menu ? Math.min(menu.x, window.innerWidth - 170) : 0;
+  const menuTop = menu ? Math.min(menu.y, window.innerHeight - 40 * menu.items.length) : 0;
+  // The menu is positioned against the window, but inside an animated popover "fixed" is measured from the popover
+  // instead, which sends the menu off to the side. Measure where it landed and nudge it onto the click.
+  useLayoutEffect(() => {
+    const el = menuRef.current;
+    if (!menu || !el) return;
+    const r = el.getBoundingClientRect();
+    const dx = menuLeft - r.left;
+    const dy = menuTop - r.top;
+    if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) setShift((s) => ({ x: s.x + dx, y: s.y + dy }));
+  }, [menu]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!menu) return;
@@ -252,7 +267,7 @@ export function CollectionTree(props: Props) {
         })}
       </ul>
       {menu && (
-        <div ref={menuRef} className="menu" style={{ left: Math.min(menu.x, window.innerWidth - 170), top: Math.min(menu.y, window.innerHeight - 40 * menu.items.length) }} role="menu">
+        <div ref={menuRef} className="menu" style={{ left: menuLeft + shift.x, top: menuTop + shift.y }} role="menu">
           {menu.items.map((m) => (
             <button key={m.label} className={m.danger ? "danger" : ""} onClick={m.run} role="menuitem">
               {m.label}
@@ -271,7 +286,7 @@ function indent(depth: number): React.CSSProperties {
 function MenuButton({ label, onClick }: { label: string; onClick: (e: React.MouseEvent) => void }) {
   return (
     <button className="icon-btn tree-menu-btn" aria-label={`Actions for ${label}`} title="More actions" onClick={onClick}>
-      ⋯
+      <MoreIcon size={16} />
     </button>
   );
 }

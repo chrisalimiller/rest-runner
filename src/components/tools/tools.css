@@ -146,6 +146,8 @@
   flex: 1;
   min-height: 0;
   overflow: auto;
+  /* Keep the width steady when the first results make the page tall enough to scroll. */
+  scrollbar-gutter: stable;
   padding: 16px 20px 24px;
 }
 
@@ -224,6 +226,11 @@
 
 .tool-block-body {
   min-width: 0;
+}
+
+/* "Look up to fill this in", the loading bars and the answer take about the same room, so the page below does not jump while calls run. */
+.tool-data .tool-block-body {
+  min-height: 48px;
 }
 
 .tool-block-body p {

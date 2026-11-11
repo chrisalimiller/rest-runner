@@ -1,6 +1,7 @@
 import { whenLabel } from "../../lib/earlierSends";
 import type { LookupRecord, Tool } from "../../lib/tools/types";
 import { inputsSummary } from "../../lib/tools/view";
+import { CollapseIcon } from "../shell/Icons";
 
 interface Props {
   /** The list is folded to a thin rail; the choice is remembered. */
@@ -42,7 +43,7 @@ export function ToolsSidebar({ collapsed, onToggleCollapsed, tools, activeToolId
       {collapsed && (
         <nav className="runbook-nav collapsed" aria-label="Tools and recent lookups">
           <button className="icon-btn" onClick={onToggleCollapsed} aria-label="Show tools and recent lookups" title="Show the list" aria-expanded={false}>
-            »
+            <CollapseIcon expand />
           </button>
         </nav>
       )}
@@ -55,7 +56,7 @@ export function ToolsSidebar({ collapsed, onToggleCollapsed, tools, activeToolId
                 New
               </button>
               <button className="icon-btn" onClick={onToggleCollapsed} aria-label="Hide the list" title="Hide the list" aria-expanded>
-                «
+                <CollapseIcon />
               </button>
             </span>
           </div>

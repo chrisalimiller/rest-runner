@@ -547,17 +547,15 @@ button.call-request:hover {
 
 .add-block-list {
   list-style: none;
-  margin: 6px 0 0;
+  margin: 0;
   padding: 4px;
-  position: absolute;
-  bottom: 40px;
-  left: 0;
-  width: min(380px, 100%);
+  position: fixed;
+  overflow-y: auto;
   background: var(--bg-overlay);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   box-shadow: 0 8px 24px var(--shadow-lg);
-  z-index: 5;
+  z-index: 60;
 }
 
 .add-block-list button {
