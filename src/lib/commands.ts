@@ -126,7 +126,7 @@ export function buildCommands(ctx: Pick<CommandCtx, "environments" | "activeEnvI
       }),
     ),
     { id: SHORTCUTS_COMMAND_ID, title: "Keyboard shortcuts", keywords: "keys hotkeys help cheat sheet shortcuts", shortcut: shortcutKeys("keyboard-shortcuts"), group: "App", enabled: always, run: (c) => c.actions.openShortcuts() },
-    { id: UPDATES_COMMAND_ID, title: "About and updates…", keywords: "about update upgrade version release check for updates", group: "App", enabled: always, run: (c) => c.actions.openAbout() },
+    { id: UPDATES_COMMAND_ID, title: "Settings and about…", keywords: "settings preferences about update upgrade version release check for updates", group: "App", enabled: always, run: (c) => c.actions.openAbout() },
   ];
 }
 

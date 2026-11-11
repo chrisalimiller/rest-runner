@@ -1,14 +1,31 @@
 .update-modal {
-  width: min(460px, 94vw);
+  width: min(720px, 94vw);
   height: auto;
   max-height: 86vh;
 }
 
 .update-body {
-  padding: 14px 16px 4px;
+  padding: 24px 28px;
   overflow: auto;
   font-size: var(--fs-md);
+  min-width: 0;
 }
+
+.settings-subtitle { margin: 4px 0 0; color: var(--muted); font-size: var(--fs-sm); }
+.settings-layout { display: flex; min-height: 0; flex: 1 1 360px; overflow: hidden; }
+.settings-nav { flex: 0 0 190px; padding: 16px 10px; background: var(--bg-inset); border-right: 1px solid var(--border); }
+.settings-nav button { display: block; width: 100%; padding: 9px 10px; text-align: left; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--muted); }
+.settings-nav button:hover, .settings-nav button.selected { background: var(--bg); color: var(--text); }
+.settings-nav button.selected { color: var(--brand); }
+.update-body { flex: 1; }
+.update-body h4 { margin: 0 0 5px; font-size: var(--fs-lg); }
+.update-body .settings-intro { margin: 0 0 24px; color: var(--muted); }
+.settings-block { border-top: 1px solid var(--border); padding: 18px 0; }
+.settings-block .appearance-control { margin: 0; }
+.settings-block .appearance-label { color: var(--text); font-size: var(--fs-md); font-weight: 600; }
+.settings-block p { margin: 5px 0 0; }
+.settings-version { border: 1px solid var(--border); border-radius: var(--r-sm); padding: 16px; background: var(--bg-inset); }
+.settings-version p:last-child { margin-bottom: 0; }
 
 .update-body p {
   margin: 0 0 10px;
@@ -45,25 +62,18 @@
   margin-top: 8px;
 }
 
-.update-section {
-  margin: 14px 0 6px;
-  font-size: var(--fs-sm);
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
 .update-setting {
   display: flex;
-  gap: 8px;
+  gap: 16px;
   align-items: center;
-  margin-bottom: 4px;
+  justify-content: space-between;
+  font-weight: 600;
 }
 
-.update-hotkeys {
-  margin: 0 0 10px;
-}
-
-.update-hotkeys summary {
-  cursor: pointer;
-  margin-bottom: 6px;
+@media (max-width: 560px) {
+  .settings-layout { flex-direction: column; }
+  .settings-nav { flex: none; display: flex; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--border); padding: 8px; }
+  .settings-nav button { width: auto; flex: none; white-space: nowrap; }
+  .update-body { padding: 18px; }
+  .settings-block .appearance-control { flex-wrap: wrap; }
 }

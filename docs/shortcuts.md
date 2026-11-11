@@ -37,9 +37,9 @@ Quick open is also a command palette. Type `>` first (as in VS Code) to see only
 | **Switch environment…** | Types `>Environment: ` so the choices (None and each environment) are listed; Enter on one makes it active. **Current** marks the active one. You can also type `>env staging` |
 | **Toggle Variables panel** | Open or close the Variables side panel |
 | **Open Certificates** | Open the Certificates side panel |
-| **Appearance: System / Light / Dark** | Set the appearance (also in the About dialog) |
+| **Appearance: System / Light / Dark** | Set the appearance (also in Settings, under General) |
 | **Keyboard shortcuts** | Open the list of shortcuts (also `?`) |
-| **About and updates…** | Open the About dialog, with Settings, a Hotkeys list and Check for updates |
+| **Settings and about…** | Open settings, keyboard shortcuts and update information |
 
 - The search is fuzzy: the letters you type must appear in order (`gtu` finds "Get users"), and runs of letters, word starts and matches in the title score higher. It also looks at the method, folder path or URL, and the detail text.
 - With nothing typed, you see the most recent items of each group. Each group shows its best six matches.
