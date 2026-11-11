@@ -316,7 +316,7 @@ function cloneRequest(def: RequestDef, id: string): RequestDef {
 }
 
 /** Deep copy of a node with new ids throughout. */
-function cloneWithNewIds(node: TreeNode): TreeNode {
+export function cloneWithNewIds(node: TreeNode): TreeNode {
   if (node.kind === "folder") return { ...node, id: newId(), items: node.items.map(cloneWithNewIds) };
   const id = newId();
   return {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanEnvironments, defaultEnvColor, guardFor, newEnvironment } from "./environments";
+import { cleanEnvironments, defaultEnvColor, guardFor, guardStyle, newEnvironment, readableTextOn } from "./environments";
 import { importWorkspaceFile } from "./workspace";
 
 describe("environment colours", () => {
@@ -42,5 +42,21 @@ describe("environment colours", () => {
     expect(guardFor(newEnvironment("Dev"))).toBeNull();
     expect(guardFor(null)).toBeNull();
     expect(guardFor({ ...newEnvironment("SIT"), color: "blue" })?.send).toBe("Send to SIT");
+  });
+});
+
+describe("readableTextOn", () => {
+  it("picks dark text on light colours and white on dark ones", () => {
+    expect(readableTextOn("#ffffff")).toBe("#0d1117");
+    expect(readableTextOn("#3fb950")).toBe("#0d1117");
+    expect(readableTextOn("#000000")).toBe("#ffffff");
+    expect(readableTextOn("#176a30")).toBe("#ffffff");
+    expect(readableTextOn("#fff")).toBe("#0d1117");
+    expect(readableTextOn("nonsense")).toBe("#ffffff");
+  });
+
+  it("guardStyle gives the fill and per-theme text, and nothing without a colour", () => {
+    expect(guardStyle(null)).toBeUndefined();
+    expect(guardStyle(guardFor({ ...newEnvironment("Prod") }))).toEqual({ "--guard": "var(--danger)", "--guard-fg-dark": "#0d1117", "--guard-fg-light": "#ffffff" });
   });
 });

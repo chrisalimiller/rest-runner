@@ -143,11 +143,20 @@ describe("command items", () => {
   const kinds = (q: string) => searchQuickOpen(items, q, KIND_ORDER.requests).map((g) => g.kind);
 
   it("are found by curl, paste or import, and come first when no request is named that", () => {
-    for (const q of ["curl", "cu", "paste", "import", "Import from"]) {
+    for (const q of ["curl", "cu", "paste", "Import from"]) {
       const groups = searchQuickOpen(items, q, KIND_ORDER.requests);
       expect(groups[0]).toMatchObject({ kind: "command", label: "Commands" });
       expect(groups[0].items[0].title).toBe("Import from cURL…");
     }
+  });
+
+  it("finds the unified Import command by import or postman", () => {
+    for (const q of ["import", "postman", "insomnia", "env"]) {
+      const groups = searchQuickOpen(items, q, KIND_ORDER.requests);
+      expect(groups[0].kind).toBe("command");
+      expect(groups[0].items.map((i) => i.title)).toContain("Import…");
+    }
+    expect(searchQuickOpen(items, "import", KIND_ORDER.requests)[0].items[0].title).toBe("Import…");
   });
 
   it("come after the other groups with no query, and after a request whose title contains the query", () => {

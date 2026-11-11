@@ -31,14 +31,15 @@ Quick open is also a command palette. Type `>` first (as in VS Code) to see only
 | **Run with CSV…** | Open the batch pane of the open request, where you pick the file |
 | **New request** | Open a new Untitled tab (Requests only) |
 | **New collection** | Add a collection and start renaming it |
+| **Import…** | Open the Import dialog (Postman, Insomnia, Bruno, .env, REST Runner files) |
 | **Import from cURL…** | Open the cURL import dialog |
 | **Export workspace…** | Export collections, environments, suites and flows to one file |
 | **Switch environment…** | Types `>Environment: ` so the choices (None and each environment) are listed; Enter on one makes it active. **Current** marks the active one. You can also type `>env staging` |
 | **Toggle Variables panel** | Open or close the Variables side panel |
 | **Open Certificates** | Open the Certificates side panel |
-| **Appearance: System / Light / Dark** | Set the appearance (also in the About dialog) |
+| **Appearance: System / Light / Dark** | Set the appearance (also in Settings, under General) |
 | **Keyboard shortcuts** | Open the list of shortcuts (also `?`) |
-| **About and updates…** | Open the About dialog, with Check for updates |
+| **Settings and about…** | Open settings, keyboard shortcuts and update information |
 
 - The search is fuzzy: the letters you type must appear in order (`gtu` finds "Get users"), and runs of letters, word starts and matches in the title score higher. It also looks at the method, folder path or URL, and the detail text.
 - With nothing typed, you see the most recent items of each group. Each group shows its best six matches.

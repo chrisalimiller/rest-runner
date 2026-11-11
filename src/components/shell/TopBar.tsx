@@ -1,13 +1,13 @@
 import { useRef } from "react";
-import { ENV_COLOR_VARS, type Environment } from "../../lib/environments";
+import { type Environment } from "../../lib/environments";
 import { BrandLockup } from "../BrandMark";
 import { overlayTitleBar } from "../../lib/windowChrome";
 import { topBarLayout } from "../../lib/topBar";
 import { useViewportWidth } from "../useViewportWidth";
 import { openUpdateDialog } from "../../lib/updateDialog";
-import { ChevronDownIcon, InfoIcon, PencilIcon, SearchIcon } from "./Icons";
+import { InfoIcon, PencilIcon, SearchIcon } from "./Icons";
 import { useTopBarFit } from "./useTopBarFit";
-import { OverflowMenu } from "./OverflowMenu";
+import { EnvPicker } from "./EnvPicker";
 
 export type Mode = "requests" | "testing" | "flows" | "tools";
 
@@ -69,7 +69,7 @@ export function TopBar(props: Props) {
         title={props.envTitle}
         dropdown={layout.envDropdown}
       />
-      <button className="icon-btn topbar-about" onClick={openUpdateDialog} aria-label="About REST Runner" title="About and updates">
+      <button className="icon-btn topbar-about" onClick={openUpdateDialog} aria-label="Settings and about" title="Settings and about">
         <InfoIcon />
       </button>
     </header>
@@ -82,79 +82,21 @@ interface EnvProps {
   onChange: (id: string | null) => void;
   onEdit?: () => void;
   title?: string;
-  /** Show the choices in a dropdown (with colour dots) instead of one button each. */
+  /** Unused: the picker is always a popover. */
   dropdown?: boolean;
 }
 
-/** One button per environment plus None; a select when there are more than four. Arrow keys move between options. */
-export function EnvSwitch({ environments, activeId, onChange, onEdit, title, dropdown }: EnvProps) {
-  const groupRef = useRef<HTMLDivElement>(null);
-  const options: { id: string | null; name: string; color?: string }[] = [
-    { id: null, name: "None" },
-    ...environments.map((e) => ({ id: e.id, name: e.name || "(unnamed)", color: e.color && e.color !== "none" ? ENV_COLOR_VARS[e.color] : undefined })),
-  ];
+/** The environment picker: a fixed-width trigger with a searchable popover, plus the edit pencil. */
+export function EnvSwitch({ environments, activeId, onChange, onEdit, title }: EnvProps) {
   const current = environments.some((e) => e.id === activeId) ? activeId : null;
-
-  const edit = onEdit && (
-    <button className="env-edit-btn" onClick={onEdit} aria-label="Edit environments" title="Add or edit environments">
-      <PencilIcon />
-    </button>
-  );
-
-  if (dropdown) {
-    const shown = options.find((o) => o.id === current) ?? options[0];
-    return (
-      <div className="env-switch" title={title}>
-        <OverflowMenu
-          label="Environment"
-          triggerTitle={`Environment: ${shown.name}`}
-          triggerClass="env-dropdown-btn"
-          trigger={
-            <>
-              {shown.color ? <span className="env-dot" style={{ background: shown.color }} aria-hidden /> : null}
-              <span className="env-dropdown-name">{shown.name}</span>
-              <ChevronDownIcon />
-            </>
-          }
-          items={options.map((o) => ({
-            label: o.name,
-            icon: o.color ? <span className="env-dot" style={{ background: o.color }} /> : undefined,
-            checked: o.id === current,
-            onSelect: () => onChange(o.id),
-          }))}
-        />
-        {edit}
-      </div>
-    );
-  }
-
-  const onKeyDown = (e: React.KeyboardEvent) => {
-    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(e.key)) return;
-    e.preventDefault();
-    const i = options.findIndex((o) => o.id === current);
-    let next = i;
-    if (e.key === "Home") next = 0;
-    else if (e.key === "End") next = options.length - 1;
-    else next = (i + (e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 1) + options.length) % options.length;
-    onChange(options[next].id);
-    const buttons = groupRef.current?.querySelectorAll<HTMLButtonElement>("[role=radio]");
-    buttons?.[next]?.focus();
-  };
-
   return (
     <div className="env-switch" title={title}>
-      <div className="segmented" role="radiogroup" aria-label="Environment" ref={groupRef} onKeyDown={onKeyDown}>
-        {options.map((o) => {
-          const on = o.id === current;
-          return (
-            <button key={o.id ?? ""} role="radio" aria-checked={on} tabIndex={on ? 0 : -1} className={on ? "on" : ""} onClick={() => onChange(o.id)}>
-              {o.color ? <span className="env-dot" style={{ background: o.color }} aria-hidden /> : on && o.id !== null && <span className="env-dot" aria-hidden />}
-              {o.name}
-            </button>
-          );
-        })}
-      </div>
-      {edit}
+      <EnvPicker environments={environments} activeId={current} onChange={onChange} />
+      {onEdit && (
+        <button className="env-edit-btn" onClick={onEdit} aria-label="Edit environments" title="Add or edit environments">
+          <PencilIcon />
+        </button>
+      )}
     </div>
   );
 }

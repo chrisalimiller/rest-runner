@@ -3,7 +3,7 @@ import { setSectionStatus } from "../../lib/sectionStatus";
 import { scheduleChip } from "../../lib/flows/scheduleChip";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cleanCollections } from "../../lib/collections";
-import { environmentVars, guardFor, loadEnvironments, mergeHydrated, onSecretsHydrated, saveEnvironments, type Environment } from "../../lib/environments";
+import { environmentVars, guardFor, guardStyle, loadEnvironments, mergeHydrated, onSecretsHydrated, saveEnvironments, type Environment } from "../../lib/environments";
 import { SectionVariablesPanel } from "../variables/SectionVariablesPanel";
 import { flowPlaceholders } from "../../lib/usedVariables";
 
@@ -634,7 +634,7 @@ export function FlowsApp({ active, shell, command }: Props) {
                     ) : (
                       <button
                         className={`send ${guard ? "guarded" : ""}`}
-                        style={guard ? ({ "--guard": guard.cssColor } as React.CSSProperties) : undefined}
+                        style={guardStyle(guard) as React.CSSProperties | undefined}
                         onClick={() => void run(flow, onlySchedule?.length === 1 ? onlySchedule[0].id : undefined)}
                         disabled={hasErrors(problems)}
                         title={hasErrors(problems) ? "Fix the problems listed on the right first" : hasStart ? "Run the flow from its Start step" : "Run the flow from its Schedule step now"}

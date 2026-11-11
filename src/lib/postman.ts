@@ -28,6 +28,11 @@ export interface PostmanEnvironmentImport {
 
 export type PostmanFileKind = "collection" | "environment" | null;
 
+/** True for a Postman globals export (an environment-shaped file with the globals scope). */
+export function isPostmanGlobals(data: unknown): boolean {
+  return isObj(data) && data._postman_variable_scope === "globals";
+}
+
 function isObj(x: unknown): x is Json {
   return typeof x === "object" && x !== null && !Array.isArray(x);
 }
@@ -353,8 +358,14 @@ export function importPostmanEnvironment(data: unknown): PostmanEnvironmentImpor
   const warnings: string[] = [];
   const name = typeof data.name === "string" && data.name.trim() !== "" ? data.name : "Postman environment";
   const id = typeof data.id === "string" && data.id !== "" ? `postman-${data.id}` : newId();
-  const vars = rows(data.values).filter((v) => v.key.trim() !== "");
-  const secrets = data.values.filter((v) => isObj(v) && v.type === "secret").length;
-  if (secrets > 0) warnings.push(`${secrets} secret variable${secrets === 1 ? "" : "s"} imported as plain values; Postman may have exported them empty.`);
+  const vars: KeyValue[] = [];
+  let secrets = 0;
+  for (const r of data.values) {
+    if (!isObj(r) || str(r.key).trim() === "") continue;
+    const secret = r.type === "secret";
+    if (secret) secrets += 1;
+    vars.push({ ...row(str(r.key), str(r.value), r.enabled !== false && r.disabled !== true), ...(secret ? { secret: true } : {}) });
+  }
+  if (secrets > 0) warnings.push(`${secrets} secret variable${secrets === 1 ? "" : "s"} marked secret; Postman may have exported their values empty.`);
   return { environment: { id, name, vars: vars.length > 0 ? vars : [emptyRow()] }, warnings };
 }
