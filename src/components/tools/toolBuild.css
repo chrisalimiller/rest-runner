@@ -278,49 +278,197 @@ button.call-request:hover {
   margin: 14px 4px;
 }
 
-.add-request {
-  margin: 0 12px 6px;
-  padding: 8px;
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  background: var(--bg);
+/* The saved-request picker: a fixed layer to the right of the Calls column, over the block page. */
+.add-request-flyout {
+  position: fixed;
+  z-index: 60;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  box-sizing: border-box;
+  max-width: calc(100vw - 16px);
+  background: var(--bg-overlay);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: 0 10px 28px var(--shadow-lg);
+  animation: add-request-in 160ms var(--ease-out);
+}
+
+@keyframes add-request-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .add-request-flyout,
+  .add-request-pill.ok {
+    animation: none;
+  }
+}
+
+.add-request-caret {
+  position: absolute;
+  left: -6px;
+  width: 10px;
+  height: 10px;
+  background: var(--bg-overlay);
+  border-left: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  transform: rotate(45deg);
+}
+
+.add-request-field {
+  position: relative;
+  flex: none;
+  padding: 8px 8px 4px;
+}
+
+.add-request-field svg {
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  margin-top: 2px;
+  transform: translateY(-50%);
+  color: var(--faint);
+  pointer-events: none;
+}
+
+.add-request-field input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 30px;
+  padding-left: 28px;
 }
 
 .add-request-list {
   list-style: none;
   margin: 0;
-  padding: 0;
-  max-height: 220px;
-  overflow: auto;
+  padding: 4px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
 }
 
-.add-request-row {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 5px 6px;
-  text-align: left;
-  background: none;
-  border: 0;
-  border-radius: var(--r-sm);
-  color: var(--text);
-  cursor: pointer;
+.add-request-none {
+  padding: 10px 8px;
 }
 
-.add-request-row:hover,
-.add-request-row:focus-visible {
-  background: var(--bg-hover);
-}
-
-.add-request-name {
-  min-width: 0;
+.add-request-group {
+  padding: 9px 8px 3px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.add-request-list > li:first-child .add-request-group {
+  padding-top: 3px;
+}
+
+.add-request-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+  padding: 5px 8px 6px 2px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  user-select: none;
+}
+
+.add-request-row:hover {
+  background: var(--bg-hover);
+}
+
+.add-request-row.on {
+  background: var(--accent-subtle);
+}
+
+.add-request-row .method {
+  margin-top: 1px;
+}
+
+.add-request-grip {
+  flex: none;
+  width: 12px;
+  margin-top: 1px;
+  display: grid;
+  place-items: center;
+  color: var(--faint);
+  opacity: 0;
+  cursor: grab;
+}
+
+.add-request-row:hover .add-request-grip,
+.add-request-row.on .add-request-grip {
+  opacity: 1;
+}
+
+.add-request-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.add-request-name,
+.add-request-url {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.add-request-url {
+  font-size: 10.5px;
+  color: var(--muted);
+}
+
+.add-request-pill {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 0 7px;
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  line-height: 18px;
+  border-radius: 999px;
+  background: var(--bg-hover);
+  color: var(--muted);
+}
+
+.add-request-pill.ok {
+  background: var(--ok-subtle);
+  color: var(--ok);
+  animation: add-request-in 160ms var(--ease-out);
+}
+
+.add-request-foot {
+  flex: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 7px 10px;
+  border-top: 1px solid var(--border-muted);
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.add-request-foot span {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.add-request-foot .push {
+  margin-left: auto;
 }
 
 /* ---- block page ---- */
@@ -547,17 +695,15 @@ button.call-request:hover {
 
 .add-block-list {
   list-style: none;
-  margin: 6px 0 0;
+  margin: 0;
   padding: 4px;
-  position: absolute;
-  bottom: 40px;
-  left: 0;
-  width: min(380px, 100%);
+  position: fixed;
+  overflow-y: auto;
   background: var(--bg-overlay);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   box-shadow: 0 8px 24px var(--shadow-lg);
-  z-index: 5;
+  z-index: 60;
 }
 
 .add-block-list button {

@@ -1,6 +1,7 @@
 import { whenLabel } from "../../lib/earlierSends";
 import type { TestRunSummary } from "../../lib/testing/testRun";
 import type { TestSuite } from "../../lib/testing/types";
+import { CollapseIcon } from "../shell/Icons";
 
 interface Props {
   /** The list is folded to a thin rail; the choice is remembered. */
@@ -75,7 +76,7 @@ export function TestingSidebar({ collapsed, onToggleCollapsed, suites, activeSui
       {collapsed && (
         <nav className="runbook-nav collapsed" aria-label="Suites and test runs">
           <button className="icon-btn" onClick={onToggleCollapsed} aria-label="Show suites and test runs" title="Show the list" aria-expanded={false}>
-            »
+            <CollapseIcon expand />
           </button>
         </nav>
       )}
@@ -92,7 +93,7 @@ export function TestingSidebar({ collapsed, onToggleCollapsed, suites, activeSui
                 Export
               </button>
               <button className="icon-btn" onClick={onToggleCollapsed} aria-label="Hide the list" title="Hide the list" aria-expanded>
-                «
+                <CollapseIcon />
               </button>
             </span>
           </div>

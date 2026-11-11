@@ -55,6 +55,7 @@ export const KIND_ORDER: Record<"requests" | "testing" | "flows" | "tools", Quic
 
 export const CURL_COMMAND_ID = "import-curl";
 export const UPDATES_COMMAND_ID = "check-for-updates";
+export const IMPORT_COMMAND_ID = "import";
 
 /** A command matches when the query is inside its title or starts one of its keywords: "cu", "paste", "import" find it, "r" does not. */
 function commandMatches(item: QuickItem, query: string): boolean {

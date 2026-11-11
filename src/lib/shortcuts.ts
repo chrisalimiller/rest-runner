@@ -1,9 +1,11 @@
 /**
  * Keyboard shortcuts as data, for the command palette's right-hand keys and the Keyboard shortcuts dialog.
  *
- * This is display only. The keys are still handled where they always were (Root.tsx for Mod + K,
- * Mod + 1/2/3 and "?", App.tsx for send/save/rename, requestTabs.ts for tabs), so changing a binding
- * there means changing it here too, and in docs/shortcuts.md.
+ * The handlers for quick-open, "?", send, save and rename call `matchesShortcut(id, event)`, so those keys
+ * come from this registry. The rest (Mod + 1/2/3 in Root.tsx via modeForShortcut, tabs in requestTabs.ts,
+ * editor keys in CodeMirror) are still matched where they live, so changing one means changing it here
+ * too, and in docs/shortcuts.md. shortcuts.test.ts checks the registry is well formed and that the
+ * matcher agrees with every simple entry.
  */
 
 export type ShortcutGroup = "General" | "Requests" | "Tabs" | "Editors";
@@ -61,4 +63,29 @@ export function isEditableTarget(target: EventTarget | null): boolean {
   const el = target as HTMLElement | null;
   if (!el || typeof el.tagName !== "string") return false;
   return el.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName);
+}
+
+/** Pieces of a Shortcut.keys string: the key and which modifiers it asks for. */
+function parseKeys(keys: string) {
+  const parts = keys.split("+");
+  const key = parts[parts.length - 1];
+  const mods = new Set(parts.slice(0, -1));
+  return { key, mod: mods.has("Mod"), ctrl: mods.has("Ctrl"), alt: mods.has("Alt"), shift: mods.has("Shift") };
+}
+
+type KeyEventLike = Pick<KeyboardEvent, "key" | "ctrlKey" | "metaKey" | "altKey" | "shiftKey">;
+
+/**
+ * True when the key event is the shortcut with this id. Mod is Ctrl or Cmd; Alt and Shift must match exactly
+ * (Shift is ignored for "?", which needs it to type). Letters compare case-insensitively; "Esc" is "Escape".
+ */
+export function matchesShortcut(id: string, e: KeyEventLike): boolean {
+  const keys = shortcutKeys(id);
+  if (!keys) return false;
+  const want = parseKeys(keys);
+  const name = want.key === "Esc" ? "Escape" : want.key;
+  if (e.key.length === 1 ? e.key.toLowerCase() !== name.toLowerCase() : e.key !== name) return false;
+  if (want.mod ? !(e.metaKey || e.ctrlKey) : want.ctrl ? !e.ctrlKey || e.metaKey : e.metaKey || e.ctrlKey) return false;
+  if (e.altKey !== want.alt) return false;
+  return name === "?" || e.shiftKey === want.shift;
 }

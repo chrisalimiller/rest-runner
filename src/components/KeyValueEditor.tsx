@@ -5,7 +5,8 @@ import { emptyRow } from "../lib/defaults";
 import type { Vars } from "../lib/template";
 import type { KeyValue } from "../lib/types";
 import { PlaceholderInput } from "./PlaceholderInput";
-import { EyeIcon, EyeOffIcon, LockIcon } from "./shell/Icons";
+import { LockIcon } from "./shell/Icons";
+import { RevealButton } from "./shell/RevealButton";
 
 interface Props {
   rows: KeyValue[];
@@ -122,9 +123,7 @@ export function KeyValueEditor({ rows, onChange, keyPlaceholder = "Key", valuePl
                         <LockIcon />
                       </button>
                       {row.secret && (
-                        <button className="icon-btn" onClick={() => reveal(row.id)} aria-label={revealed.has(row.id) ? "Hide value" : "Show value"} title={revealed.has(row.id) ? "Hide value" : "Show value"}>
-                          {revealed.has(row.id) ? <EyeOffIcon /> : <EyeIcon />}
-                        </button>
+                        <RevealButton shown={revealed.has(row.id)} onToggle={() => reveal(row.id)} subject={row.key || undefined} />
                       )}
                     </>
                   )}

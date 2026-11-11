@@ -1,3 +1,4 @@
+import { guardStyle } from "../../lib/environments";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { parseCsv } from "../../lib/csv";
 import type { Vars } from "../../lib/template";
@@ -46,7 +47,7 @@ interface Props {
   envVars: Vars;
   envName?: string;
   /** The selected environment has a colour: Run suite is outlined and says where it runs. */
-  guard?: { cssColor: string; runSuite: string } | null;
+  guard?: { color: "green" | "blue" | "amber" | "red"; cssColor: string; runSuite: string } | null;
   notice: string | null;
 }
 
@@ -209,7 +210,7 @@ export function SuiteEditor(props: Props) {
         ) : (
           <button
             className={`send icon-label ${props.guard ? "guarded" : ""}`}
-            style={props.guard ? ({ "--guard": props.guard.cssColor } as React.CSSProperties) : undefined}
+            style={guardStyle(props.guard) as React.CSSProperties | undefined}
             onClick={props.onRun}
             disabled={enabledCount === 0 || props.anyRunning}
             title={props.anyRunning ? "Another suite is running" : enabledCount === 0 ? "Add or enable a test case first" : "Run every enabled case"}

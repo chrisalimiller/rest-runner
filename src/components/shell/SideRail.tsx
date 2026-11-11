@@ -1,6 +1,4 @@
-import { useRef, useState } from "react";
-import { getResponseLimit, setResponseLimit } from "../../lib/http";
-import { Modal } from "./Modal";
+import { useRef } from "react";
 import { useCertificates } from "../CertificatesDialog";
 import { MODES, nextModeIndex } from "../../lib/topBar";
 import { overlayTitleBar } from "../../lib/windowChrome";
@@ -40,9 +38,6 @@ function soonestExpiryDays(notAfter: readonly number[], now: number): number | n
 
 /** The slim bar on the window's right edge: the four sections, then the Variables and Certificates side panels. */
 export function SideRail({ section, onMode }: Props) {
-  const [limitOpen, setLimitOpen] = useState(false);
-  const [limit, setLimit] = useState(() => String(getResponseLimit()));
-  const [limitError, setLimitError] = useState("");
   const status = useSectionStatus();
   const panels = useSidePanels();
   const certs = useCertificates();
@@ -116,9 +111,6 @@ export function SideRail({ section, onMode }: Props) {
       </nav>
       <div className="rail-group rail-tools" role="group" aria-label="Tools">
         <div className="rail-spacer" data-tauri-drag-region={overlayTitleBar ? "" : undefined} />
-        <button type="button" className="rail-btn" aria-label="Response size limit" title="Response size limit" onClick={() => { setLimit(String(getResponseLimit())); setLimitError(""); setLimitOpen(true); }}>
-          <span className="rail-glyph" aria-hidden>...</span>
-        </button>
         <button
           type="button"
           className={`rail-btn ${panels.variables ? "on" : ""}`}
@@ -148,18 +140,6 @@ export function SideRail({ section, onMode }: Props) {
           <Badge badge={badge("certificates")} />
         </button>
       </div>
-      {limitOpen && <Modal label="Response size limit" onClose={() => setLimitOpen(false)}>
-        <h2>Response size limit</h2>
-        <p>Maximum decoded response body, in bytes (1 to 16,777,216). Default: 4,194,304 bytes.</p>
-        <label>Maximum bytes <input type="number" min={1} max={16777216} step={1} value={limit} onChange={(e) => setLimit(e.target.value)} /></label>
-        {limitError && <p role="alert">{limitError}</p>}
-        <p><button type="button" onClick={() => {
-          const value = Number(limit);
-          if (!Number.isSafeInteger(value) || value < 1 || value > 16777216) { setLimitError("Enter a whole number from 1 to 16,777,216."); return; }
-          if (!setResponseLimit(value)) { setLimitError("Could not save the limit."); return; }
-          setLimitOpen(false);
-        }}>Save</button> <button type="button" onClick={() => setLimitOpen(false)}>Cancel</button></p>
-      </Modal>}
     </aside>
   );
 }

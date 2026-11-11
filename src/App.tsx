@@ -53,11 +53,12 @@ import { looksLikeCurl, parseCurl, type CurlCommand, type CurlNote } from "./lib
 import { matchVariables, type VarSwap } from "./lib/curlVariables";
 import { SecretStatusBanner } from "./components/shell/SecretStatusBanner";
 import { hasSecretVars } from "./lib/secretsUi";
-import { environmentVars,guardFor, loadEnvironments, mergeHydrated, onSecretsHydrated, saveEnvironments, type Environment } from "./lib/environments";
-import { loadCertificates, matchCertificate, saveCertificates } from "./lib/certificates";
+import { environmentVars, guardFor, guardStyle, loadEnvironments, mergeHydrated, onSecretsHydrated, saveEnvironments, type Environment } from "./lib/environments";
+import { loadCertificates, matchCertificate } from "./lib/certificates";
+import { convertLiteralToVariable, isAuthSecretPath } from "./lib/literalToVariable";
 import { setRequestStatus } from "./lib/sectionStatus";
 import { resolvedUrl } from "./lib/requestSummary";
-import { certificatesForExport, describeCertificateImport, importCertificates } from "./lib/certificatesFile";
+import { certificatesForExport } from "./lib/certificatesFile";
 import { isTauri, sendRequest } from "./lib/http";
 import { newId } from "./lib/ids";
 import { prepareRequest, requestPlaceholders, unresolvedPlaceholders } from "./lib/request";
@@ -69,11 +70,12 @@ import type { RunSummary } from "./lib/run";
 import { readableUrl, type QuickItem } from "./lib/quickOpen";
 import { deleteRun, listRuns } from "./lib/runStore";
 import { saveTextFile } from "./lib/saveFile";
-import { describeWorkspaceImport, importWorkspace as mergeWorkspace, toWorkspaceFile } from "./lib/workspace";
+import { toWorkspaceFile } from "./lib/workspace";
+import { openImportDialog } from "./lib/importDialog";
+import { readWorkspace } from "./lib/workspaceStore";
 import { loadTools } from "./lib/tools/tools";
 import { deleteWarning, idsRemovedBy, toolsUsingRequests } from "./lib/tools/usage";
 import { Modal } from "./components/shell/Modal";
-import { readWorkspace, writeWorkspace } from "./lib/workspaceStore";
 import {
   activate,
   applyCurl,
@@ -105,6 +107,9 @@ import {
   type TabsState,
 } from "./lib/requestTabs";
 import { isArray, isString, isStringArray, isStringRecord, load, save } from "./lib/storage";
+import { loadConfirmProduction, productionToConfirm } from "./lib/productionGuard";
+import { matchesShortcut } from "./lib/shortcuts";
+import { ConfirmProductionDialog } from "./components/shell/ConfirmProductionDialog";
 import type { HistoryEntry, RequestDef, SendOutcome } from "./lib/types";
 
 type LowerPane = "response" | "batch";
@@ -222,6 +227,7 @@ function TabBatch({
   envVars,
   scriptVars,
   envName,
+  confirmProduction,
   patchRuntime,
   onRunSaved,
   onOpenRun,
@@ -230,6 +236,7 @@ function TabBatch({
   envVars: Vars;
   scriptVars: Vars;
   envName?: string;
+  confirmProduction: () => string | null;
   patchRuntime: (id: string, p: Partial<TabRuntime>) => void;
   onRunSaved: () => void;
   onOpenRun: (id: string) => void;
@@ -237,7 +244,7 @@ function TabBatch({
   const id = tab.id;
   const onRunningChange = useCallback((batchRunning: boolean) => patchRuntime(id, { batchRunning }), [id, patchRuntime]);
   const onWideChange = useCallback((batchWide: boolean) => patchRuntime(id, { batchWide }), [id, patchRuntime]);
-  return <BatchPane def={tab.def} envVars={envVars} scriptVars={scriptVars} envName={envName} onRunningChange={onRunningChange} onWideChange={onWideChange} onRunSaved={onRunSaved} onOpenRun={onOpenRun} />;
+  return <BatchPane def={tab.def} envVars={envVars} scriptVars={scriptVars} envName={envName} confirmProduction={confirmProduction} onRunningChange={onRunningChange} onWideChange={onWideChange} onRunSaved={onRunSaved} onOpenRun={onOpenRun} />;
 }
 
 export default function App({ active = true, shell, command }: Props) {
@@ -573,6 +580,15 @@ export default function App({ active = true, shell, command }: Props) {
 
   const patch = (p: Partial<RequestDef>) => applyTabs((s) => updateActiveDef(s, p));
 
+  /** Banner button on a plain-text auth credential: save it as a secret variable in the active environment. */
+  const convertLiteral = (path: string) => {
+    if (!isAuthSecretPath(path)) return;
+    const result = convertLiteralToVariable(activeEnv, def.auth, path);
+    if (!result.ok) return;
+    setEnvironments((cur) => cur.map((e) => (e.id === result.env.id ? result.env : e)));
+    patch({ auth: result.auth });
+  };
+
   const send = useCallback(async () => {
     // Everything below belongs to the tab the send started in, even if the user switches tabs meanwhile.
     const tabId = activeId;
@@ -632,6 +648,17 @@ export default function App({ active = true, shell, command }: Props) {
       ].slice(0, MAX_HISTORY),
     );
   }, [def, activeId, rt.sending, envVars, scriptVars, sendVars, activeEnv, applyTabs, patchRuntime]);
+
+  /** The environment name to confirm before sending, or null. Read at click time so the About setting applies at once. */
+  const productionName = useCallback(() => productionToConfirm(activeEnv, loadConfirmProduction()), [activeEnv]);
+  const [prodConfirm, setProdConfirm] = useState<{ envName: string; what: string; run: () => void } | null>(null);
+  /** Send, after asking first when the active environment is flagged production (and the setting is on). */
+  const requestSend = useCallback(async () => {
+    if (rt.sending || def.url.trim() === "") return;
+    const envName = productionName();
+    if (envName) setProdConfirm({ envName, what: "Send", run: () => void send() });
+    else await send();
+  }, [rt.sending, def.url, productionName, send]);
 
   /** Cancels the send in the tab on screen; other tabs keep going. */
   const cancel = () => aborts.current.get(activeId)?.abort();
@@ -825,39 +852,6 @@ export default function App({ active = true, shell, command }: Props) {
     openSidePanel("variables");
   }, []);
 
-  /** Certificate rules in a workspace file, merged into the Certificates list. Returns text for the notice, or null when the file has none. */
-  const importCertificatesFrom = async (text: string): Promise<string | null> => {
-    let data: unknown;
-    try {
-      data = (JSON.parse(text) as { certificates?: unknown }).certificates;
-    } catch {
-      return null;
-    }
-    if (!Array.isArray(data) || data.length === 0) return null;
-    const r = await importCertificates(data, loadCertificates());
-    if (r.added + r.updated > 0) saveCertificates(r.entries);
-    return describeCertificateImport(r);
-  };
-
-  const importWorkspace = async (file: File) => {
-    try {
-      const stored = readWorkspace();
-      const text = await file.text();
-      const result = mergeWorkspace(text, { ...stored, collections, environments });
-      const changed = result.counts.suites[0] + result.counts.suites[1] + result.counts.flows[0] + result.counts.flows[1] + result.counts.tools[0] + result.counts.tools[1] > 0;
-      if (changed && !writeWorkspace(result)) throw new Error("local storage is full");
-      setCollections(result.collections);
-      expand(...result.collections.filter((c) => !collections.some((x) => x.id === c.id)).map((c) => c.id));
-      setEnvironments(result.environments);
-      if (changed) shell.onDataChanged(["suites", "flows", "tools"]);
-      const certificates = await importCertificatesFrom(text);
-      const warned = result.warnings?.length ? ` ${result.warnings.length} warning${result.warnings.length === 1 ? "" : "s"}: ${result.warnings.join(" ")}` : "";
-      notify(`${describeWorkspaceImport(file.name, result.counts)}${certificates ? ` ${certificates}` : ""}${warned}`);
-    } catch (e) {
-      notify(`Could not import ${file.name}: ${e instanceof Error ? e.message : String(e)}`);
-    }
-  };
-
   /** Opens what quick open picked. */
   const openItem = (item: QuickItem, permanent = false) => {
     switch (item.kind) {
@@ -909,7 +903,7 @@ export default function App({ active = true, shell, command }: Props) {
       const a = command.action;
       if (a.type === "send") {
         if (def.url.trim() === "") notify("Enter a URL to send.");
-        else void send();
+        else void requestSend();
       } else if (a.type === "open-batch") openBatch();
       else if (a.type === "new-request") openNewTab();
       else if (a.type === "new-collection") {
@@ -929,22 +923,22 @@ export default function App({ active = true, shell, command }: Props) {
       // Tab commands work from anywhere in Requests, including a text field and the batch run view.
       if (handleTabKey.current(e)) return;
       if (openRun !== null) return;
-      if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+      if (matchesShortcut("send", e)) {
         e.preventDefault();
-        void send();
+        void requestSend();
       }
-      if (e.key.toLowerCase() === "s" && (e.metaKey || e.ctrlKey)) {
+      if (matchesShortcut("save", e)) {
         e.preventDefault();
         saveCurrent();
       }
-      if (e.key === "F2" && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      if (matchesShortcut("rename", e)) {
         e.preventDefault();
         setRenamingName(true);
       }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [send, saveCurrent, openRun, showEnvEditor, dialog, active]);
+  }, [requestSend, send, saveCurrent, openRun, showEnvEditor, dialog, active]);
 
   const startSplitDrag = (e: React.PointerEvent) => {
     const el = inspectorRef.current;
@@ -1050,19 +1044,9 @@ export default function App({ active = true, shell, command }: Props) {
           <button className="link-btn" onClick={addCollection} title="Add a collection">
             New
           </button>
-          <label className="link-btn" title="Import a workspace file: collections, environments, test suites, flows and tools">
-            Import
-            <input
-              type="file"
-              accept=".json,application/json"
-              hidden
-              onChange={(e) => {
-                const f = e.target.files?.[0];
-                if (f) void importWorkspace(f);
-                e.target.value = "";
-              }}
-            />
-          </label>
+          <button className="link-btn" onClick={openImportDialog} title="Import collections and environments from Postman, Insomnia, Bruno, .env or REST Runner files">
+            Import…
+          </button>
           <button className="link-btn" onClick={startExport} title="Export collections, environments, test suites, flows and tools to one file">
             Export workspace…
           </button>
@@ -1206,7 +1190,8 @@ export default function App({ active = true, shell, command }: Props) {
             onChange={patch}
             envVars={sendVars}
             envName={activeEnv?.name}
-            onEnter={() => void send()}
+            onConvertLiteral={convertLiteral}
+            onEnter={() => void requestSend()}
             detailsKey={DETAILS_KEY}
             scriptVars={scriptVars}
             onOpenVariables={openVariables}
@@ -1221,8 +1206,8 @@ export default function App({ active = true, shell, command }: Props) {
               ) : (
                 <button
                   className={`send ${guard ? "guarded" : ""}`}
-                  style={guard ? ({ "--guard": guard.cssColor } as React.CSSProperties) : undefined}
-                  onClick={() => void send()}
+                  style={guardStyle(guard) as React.CSSProperties | undefined}
+                  onClick={() => void requestSend()}
                   disabled={def.url.trim() === ""}
                   title={unfilled.length > 0 ? `Sends with ${unfilled.map((n) => `{{${n}}}`).join(", ")} as written` : "Send (Ctrl/Cmd + Enter)"}
                 >
@@ -1332,6 +1317,7 @@ export default function App({ active = true, shell, command }: Props) {
                   envVars={envVars}
                   scriptVars={scriptVars}
                   envName={activeEnv?.name}
+                  confirmProduction={productionName}
                   patchRuntime={patchRuntime}
                   onRunSaved={refreshRuns}
                   onOpenRun={setOpenRun}
@@ -1444,6 +1430,18 @@ export default function App({ active = true, shell, command }: Props) {
             if (includeResponse && dialog.response) patchRuntime(id, { outcome: sampleOutcome(r.example, dialog.response, envVars), outcomeIsSample: true });
             setDialog(null);
             notify(`Saved example "${name}".`);
+          }}
+        />
+      )}
+      {prodConfirm && (
+        <ConfirmProductionDialog
+          envName={prodConfirm.envName}
+          what={prodConfirm.what}
+          onCancel={() => setProdConfirm(null)}
+          onConfirm={() => {
+            const run = prodConfirm.run;
+            setProdConfirm(null);
+            run();
           }}
         />
       )}

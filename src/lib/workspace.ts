@@ -183,26 +183,27 @@ function detectPostman(text: string): { kind: "collection" | "environment"; data
   return kind ? { kind, data } : null;
 }
 
-/** A Postman collection (with its variables as an environment) or environment file, merged by id so importing it again replaces it. */
+/**
+ * A Postman collection or environment file, merged by id so importing it again replaces it.
+ * A collection's own variables are not turned into an environment here; the Import dialog offers them as an opt-in.
+ */
 function importPostman(kind: "collection" | "environment", data: unknown, current: Workspace, counts: WorkspaceImport["counts"]): WorkspaceImport {
   if (kind === "environment") {
     const { environment, warnings } = importPostmanEnvironment(data);
     const e = mergeById(current.environments, [environment]);
     return { ...current, environments: e.list, warnings, counts: { ...counts, environments: [e.added, e.replaced] } };
   }
-  const { collection, variables, warnings } = importPostmanCollection(data);
+  const { collection, warnings } = importPostmanCollection(data);
   const previous = current.collections.find((x) => x.id === collection.id);
   const c = mergeById(current.collections, [collection]);
-  const e = mergeById(current.environments, variables ? [variables] : []);
   if (previous && [previous, collection].every((col) => listRequests([col]).some((x) => (x.request.preScript ?? "") + (x.request.postScript ?? "") !== ""))) {
     warnings.push("Re-importing replaced any scripts you converted.");
   }
   return {
     ...current,
     collections: c.list,
-    environments: e.list,
     warnings,
-    counts: { ...counts, collections: [c.added, c.replaced], environments: [e.added, e.replaced] },
+    counts: { ...counts, collections: [c.added, c.replaced] },
   };
 }
 

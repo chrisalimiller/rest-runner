@@ -1,6 +1,6 @@
 import type { Mode } from "../components/shell/TopBar";
 import type { ThemePref } from "./theme";
-import { CURL_COMMAND_ID, UPDATES_COMMAND_ID, type QuickItem } from "./quickOpen";
+import { CURL_COMMAND_ID, IMPORT_COMMAND_ID, UPDATES_COMMAND_ID, type QuickItem } from "./quickOpen";
 import { shortcutKeys } from "./shortcuts";
 
 /**
@@ -24,6 +24,7 @@ export interface CommandActions {
   toggleVariables: () => void;
   openCertificates: () => void;
   openAbout: () => void;
+  openImport: () => void;
   openShortcuts: () => void;
   setTheme: (pref: ThemePref) => void;
 }
@@ -62,7 +63,7 @@ export interface Command {
   run: (ctx: CommandCtx) => CommandResult;
 }
 
-export { CURL_COMMAND_ID, UPDATES_COMMAND_ID };
+export { CURL_COMMAND_ID, IMPORT_COMMAND_ID, UPDATES_COMMAND_ID };
 export const SHORTCUTS_COMMAND_ID = "keyboard-shortcuts";
 /** Typed into the palette by "Switch environment…" so the environments are listed. */
 export const ENV_MENU_QUERY = ">Environment: ";
@@ -97,6 +98,7 @@ export function buildCommands(ctx: Pick<CommandCtx, "environments" | "activeEnvI
     { id: "run-csv", title: "Run with CSV…", keywords: "batch csv rows data run", group: "Request", enabled: inRequests, run: (c) => c.actions.requests({ type: "open-batch" }) },
     { id: "new-request", title: "New request", keywords: "new tab untitled create request", shortcut: shortcutKeys("new-request"), group: "Request", enabled: inRequests, run: (c) => c.actions.requests({ type: "new-request" }) },
     { id: "new-collection", title: "New collection", keywords: "new create collection folder", group: "Request", enabled: always, run: (c) => c.actions.requests({ type: "new-collection" }) },
+    { id: IMPORT_COMMAND_ID, title: "Import…", keywords: "import postman insomnia bruno env dotenv file collection environment open drop", group: "Request", enabled: always, run: (c) => c.actions.openImport() },
     { id: "new-tool", title: "New tool", keywords: "new create tool lookup page", group: "Request", enabled: always, run: (c) => c.actions.newTool() },
     { id: CURL_COMMAND_ID, title: "Import from cURL…", keywords: "curl paste import command", group: "Request", enabled: always, run: (c) => c.actions.requests({ type: "import-curl" }) },
     { id: "export-workspace", title: "Export workspace…", keywords: "export save backup download file", group: "Request", enabled: always, run: (c) => c.actions.requests({ type: "export-workspace" }) },
@@ -128,7 +130,7 @@ export function buildCommands(ctx: Pick<CommandCtx, "environments" | "activeEnvI
       }),
     ),
     { id: SHORTCUTS_COMMAND_ID, title: "Keyboard shortcuts", keywords: "keys hotkeys help cheat sheet shortcuts", shortcut: shortcutKeys("keyboard-shortcuts"), group: "App", enabled: always, run: (c) => c.actions.openShortcuts() },
-    { id: UPDATES_COMMAND_ID, title: "About and updates…", keywords: "about update upgrade version release check for updates", group: "App", enabled: always, run: (c) => c.actions.openAbout() },
+    { id: UPDATES_COMMAND_ID, title: "Settings and about…", keywords: "settings preferences about update upgrade version release check for updates", group: "App", enabled: always, run: (c) => c.actions.openAbout() },
   ];
 }
 

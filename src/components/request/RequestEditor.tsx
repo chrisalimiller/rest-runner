@@ -7,7 +7,8 @@ import { unresolvedPlaceholders } from "../../lib/request";
 import { BODY_LABELS, loadDetailsState, requestDetailsSummary, resolvedUrl, rowCounts, splitPlaceholders, type DetailsState, type DetailsTab } from "../../lib/requestSummary";
 import { load, save } from "../../lib/storage";
 import type { Vars } from "../../lib/template";
-import { HTTP_METHODS, type BodyMode, type HttpMethod, type RequestDef } from "../../lib/types";
+import { MethodSelect } from "../MethodSelect";
+import { HTTP_METHODS, type BodyMode, type RequestDef } from "../../lib/types";
 import { AuthEditor } from "../AuthEditor";
 import { BodyEditor } from "../BodyEditor";
 import { KeyValueEditor } from "../KeyValueEditor";
@@ -28,6 +29,8 @@ interface Props {
   envVars: Vars;
   /** Name of the environment the values come from, or undefined for none. */
   envName?: string;
+  /** Moves a plain-text auth credential into a secret variable of the active environment (path from findLiteralSecrets). */
+  onConvertLiteral?: (path: string) => void;
   /** Enter in the URL box. */
   onEnter?: () => void;
   /** Where the Request details drawer's open state and tab are remembered. */
@@ -133,7 +136,7 @@ const CURL_OPEN_KEY = "rest-runner.curl-open";
  * Params, Auth, Headers and Scripts live in a Request details drawer that slides over the body. Requests mode
  * and the Testing "Edit request" dialog both use it.
  */
-export function RequestEditor({ def, onChange, envVars, envName, onEnter, detailsKey, urlPlaceholder, scriptVars, scriptsNote, onOpenVariables, sendSlot, menuItems, onPasteCurl, banner, onReplaceFromCurl }: Props) {
+export function RequestEditor({ def, onChange, envVars, envName, onConvertLiteral, onEnter, detailsKey, urlPlaceholder, scriptVars, scriptsNote, onOpenVariables, sendSlot, menuItems, onPasteCurl, banner, onReplaceFromCurl }: Props) {
   const [details, setDetails] = useState<DetailsState>(() => loadDetailsState(load<unknown>(detailsKey, null)));
   useEffect(() => {
     save(detailsKey, details);
@@ -225,16 +228,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, detail
       <div className="url-block">
         <div className="url-row">
           <div className="url-bar">
-            <select
-              className={`method-select m-${def.method.toLowerCase()}`}
-              value={def.method}
-              onChange={(e) => onChange({ method: e.target.value as HttpMethod })}
-              aria-label="Method"
-            >
-              {HTTP_METHODS.map((m) => (
-                <option key={m}>{m}</option>
-              ))}
-            </select>
+            <MethodSelect value={def.method} options={HTTP_METHODS} onChange={(method) => onChange({ method })} aria-label="Method" />
             <UrlInput
               value={def.url}
               onChange={(e) => onChange({ url: e.target.value })}
@@ -327,7 +321,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onEnter, detail
         )}
         <RequestDetailsDrawer id={detailsId} open={open} docked={docked} tab={details.tab} onTab={(tab) => setDetails((d) => ({ ...d, tab }))} onClose={closeDetails} marks={marks} warnings={postmanWarning ? { scripts: postmanWarning } : undefined}>
           {details.tab === "params" && <KeyValueEditor rows={def.params} onChange={(rows) => onChange({ params: rows })} placeholderVars={envVars} />}
-          {details.tab === "auth" && <AuthEditor auth={def.auth} onChange={(a) => onChange({ auth: a })} placeholderVars={envVars} literalPath={literal.auth} />}
+          {details.tab === "auth" && <AuthEditor auth={def.auth} onChange={(a) => onChange({ auth: a })} placeholderVars={envVars} literalPath={literal.auth} envName={envName} onConvertLiteral={onConvertLiteral && literal.auth ? () => onConvertLiteral(literal.auth!) : undefined} />}
           {details.tab === "headers" && <KeyValueEditor rows={def.headers} onChange={(rows) => onChange({ headers: rows })} placeholderVars={envVars} literalRows={literal.headerRows} />}
           {details.tab === "scripts" && <ScriptsPanel def={def} onChange={onChange} scriptVars={scriptVars} onOpenVariables={onOpenVariables} scriptsNote={scriptsNote} />}
         </RequestDetailsDrawer>

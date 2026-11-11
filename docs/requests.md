@@ -101,17 +101,28 @@ Click a value to edit it; Enter or clicking away saves it (with an **Undo** noti
 
 An environment is a named set of variables, such as Dev and Prod, each with its own `baseUrl` and `token`.
 
-- Click the **pencil** next to the environment switch in the top bar to open the environment editor. **+ Add environment** creates one. You can rename, **Duplicate** or **Delete** the selected one, and edit its variables in a key/value table (with on/off checkboxes).
+- Click the **pencil** next to the environment switch in the top bar to open the environment editor (see [The Environments dialog](#the-environments-dialog)).
 - Pick the active environment on the switch. With up to four environments you get one button each plus **None** (arrow keys move between them). With more than four it becomes a drop-down.
 - A request that uses `{{baseUrl}}` and `{{token}}` now works against whichever environment is selected.
-- Each environment has a **colour** (none, green, blue, amber or red), picked with the swatches at the top of the editor. It shows as a dot on the switch. Environments named Prod, Production or PRD start red. An environment with a colour also marks the buttons that act on it: **Send**, **Run suite** and **Run** (in Flows) get an outline in that colour and say where they will go, for example **Send to Prod**. There is no confirmation dialog; the colour and the label are the guard.
+- Each environment has a **colour** (none, green, blue, amber or red), picked with the swatches at the top of the editor. It shows as a dot on the switch. Environments named Prod, Production or PRD start red. An environment with a colour also marks the buttons that act on it: **Send**, **Run suite** and **Run** (in Flows) take that colour as their fill and say where they will go, for example **Send to Prod**. The colour and the label are one guard. The other is the **Production environment** checkbox in the editor (off by default, never set from the name): while it is ticked, and **Confirm production requests** is on in Settings under General (also the default), **Send** and **Run N requests** (single sends and CSV batch runs, including re-running failures) ask before going ahead. Test suites and flows do not ask yet. The flag is kept in exports and imports.
 - Only enabled variables with a non-empty name are used.
 - Environments are edited in Requests mode. Testing mode has its own environment switch (its choice is remembered separately from Requests), and it picks up edits when you switch over.
 - Environment values are stored on this computer only, in the app's local storage, except [secret values](#secret-values), which are kept in the system keychain. Workspace exports leave [secret values](#secret-values) out unless you ask for them.
 
+### The Environments dialog
+
+The dialog has a pinned title bar, a scrolling body and a pinned footer (**Changes save automatically**, with a **Done** button). Every change is saved as you make it.
+
+- **Left column:** a search box, the list of environments (colour dot, name, a **PROD** badge when flagged), **+ New environment** at the bottom, and **Import…** in the title bar (it opens the [Import dialog](collections.md#the-import-dialog)).
+- **Details:** the name, **Duplicate** and **Delete** (Delete has an Undo notice), the colour swatches (the chosen one is outlined) and the **Production environment** checkbox.
+- **Variables:** a table with **Variable**, **Value**, **Secret** and **Show** columns. The header row stays in view and only the rows scroll. The eye on a secret value shows or hides that value in that environment.
+- **Duplicate names.** A variable name should be used once per environment (names are case-sensitive; disabled rows are ignored). A repeated name gets a red outline, the message "Same name as row N" with **Rename** and **Remove this row**, a red banner above the table with **Go to row**, and a red "duplicate name" count in the title bar and footer. It is a warning only: **Done** is never blocked, and when a request is sent only the last row with that name is used.
+- **Compare.** Switch **This environment** to **Compare** above the table to see every variable (rows) against every environment (columns). Click a column header to select that environment. Cells are editable; secret cells are masked with their own eye. A variable an environment does not have shows as a dashed amber **Missing** cell with **+ Add**, which creates it there with an empty value (secret too, if it is secret elsewhere). The title bar and footer count the missing values. The matrix scrolls sideways inside its own box. When the dialog is narrower than about 640 px, Compare is hidden and only **This environment** is offered.
+- **Keyboard.** The view switch is a radio group (arrow keys move and choose), the colour swatches are a radio group, and Esc closes the dialog.
+
 ### Secret values
 
-Each variable row has a **lock** button. A locked (secret) value shows as dots with an **eye** button to reveal it while you edit (the reveal is not saved). Secret values are:
+Each variable row has a **lock** button. A locked (secret) value shows as dots with an **eye** button to reveal that one value while you edit. The reveal is per variable and per environment, starts hidden every time the dialog opens, and is never saved or exported. Secret values are:
 
 - hidden as `••••••` in the cURL panel (the **Copy** button still copies the real command), the **Sent request** view, batch call details, and the test and flow reports;
 - always masked in the HTML and CSV report exports;
@@ -169,7 +180,7 @@ The tabs bar is part of the Requests screen only. The Testing case editor and Fl
 
 ### Response size limits
 
-Responses are limited to 4 MiB of decoded body bytes per request, including each redirect hop in the desktop app. A response exceeding the limit fails rather than displaying or saving a partial success. Up to four responses are read at once. Use **Response size limit** in the right-hand toolbar to set a limit from 1 byte to 16 MiB. Memory use can be higher than the limit because decoded text and desktop IPC create copies. Batch and test results may retain multiple responses; use smaller batches when responses are large.
+Responses are limited to 4 MiB of decoded body bytes per request, including each redirect hop in the desktop app. A response exceeding the limit fails rather than displaying or saving a partial success. Up to four responses are read at once. Use **Response size limit** on the **General** page of Settings (the info button in the top bar) to set a limit from 1 byte to 16 MiB. Memory use can be higher than the limit because decoded text and desktop IPC create copies. Batch and test results may retain multiple responses; use smaller batches when responses are large.
 
 ### Redirects and credentials
 

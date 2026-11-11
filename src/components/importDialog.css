@@ -1,0 +1,232 @@
+/* Import dialog. Shared pieces (layout, pills, banners, table, segmented, reveal) live in dlg.css. */
+
+.import-modal .sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Stepper */
+.imp-stepper {
+  flex: none;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.imp-step {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: var(--r-xs);
+  color: var(--muted);
+}
+
+.imp-step.on {
+  background: var(--bg-hover);
+  color: var(--text);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.imp-step-mark {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  font-size: var(--fs-xs);
+  box-sizing: border-box;
+}
+
+.imp-step.done .imp-step-mark {
+  background: var(--ok);
+  border-color: var(--ok);
+  color: var(--bg);
+}
+
+.imp-found-label {
+  flex: none;
+  padding: 8px 8px 0;
+}
+
+/* Found list */
+.imp-item {
+  padding: 0 8px;
+  cursor: default;
+}
+
+.imp-item input[type="checkbox"] {
+  flex: none;
+}
+
+.imp-item-btn {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.imp-item-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: var(--r-xs);
+}
+
+/* Step 1 */
+.import-drop {
+  border: 1.5px dashed var(--border);
+  border-radius: var(--r-md);
+  padding: 26px 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.import-drop.over {
+  border-color: var(--accent);
+  background: var(--bg-inset);
+}
+
+.import-drop p {
+  margin: 0;
+}
+
+.import-drop-title {
+  font-weight: 600;
+}
+
+.import-drop-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.import-paste {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.import-paste textarea {
+  width: 100%;
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+}
+
+.imp-files {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.imp-files li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.imp-file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.imp-file-count {
+  flex: none;
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
+.imp-file-err {
+  flex: 1;
+  color: var(--danger);
+}
+
+.imp-files li.bad .imp-file-name {
+  flex: none;
+  max-width: 40%;
+  font-weight: 600;
+}
+
+/* Review */
+.imp-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.imp-source {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.imp-needed {
+  color: var(--danger);
+  font-size: var(--fs-sm);
+}
+
+.imp-apply-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.imp-warn-list {
+  margin: 0;
+  padding-left: 18px;
+}
+
+/* Done */
+.imp-result {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.imp-result li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.imp-tick {
+  flex: none;
+  display: inline-flex;
+  margin-top: 2px;
+  color: var(--ok);
+}
+
+.import-error {
+  margin: 0;
+  color: var(--danger);
+}

@@ -97,7 +97,7 @@ Each tool keeps its **last 20 lookups**, listed under **Recent lookups** on the 
 
 - **Export** (in the Tools sidebar for all tools, or **Export tool** in the tool's ⋯ menu) writes a `.json` file with the saved tools **and the saved requests they use**, together with the collection and folder they sat in. Unsaved Build changes are not in the file.
 - **Import** reads such a file. A tool or saved request with the same id **replaces** the one you have; everything else is added, and requests go back into a collection and folder with the same names (made if missing). The notice says how many tools and requests were added or updated. Unsaved Build edits of a tool that was replaced are discarded, since they were made against the old version. Imports are checked, and anything that cannot be read as a tool is skipped.
-- **Export workspace…** includes tools, and importing a workspace file restores them. Older workspace files without tools leave your tools alone.
+- **Export workspace…** includes tools, and importing a workspace file in the Import dialog lists its tools, and you choose which to bring in and what to do when a name already exists. Older workspace files without tools leave your tools alone.
 
 ## Used by tools
 
