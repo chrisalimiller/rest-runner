@@ -27,7 +27,7 @@ interface Props {
   onDiscard: () => void;
   onRunSample: (tool: Tool) => void;
   onStop: () => void;
-  actions: Omit<BoardActions, "onRunKey" | "onRetry">;
+  actions: Omit<BoardActions, "onRunKey">;
 }
 
 /**
@@ -46,7 +46,7 @@ export function ToolBuild({ tool, dirty, findRequest, environments, state, onCha
   const shownInInputBlocks = new Set(tool.blocks.filter((b) => b.type === "input").map((b) => b.inputName));
   const barInputs = tool.inputs.filter((i) => !shownInInputBlocks.has(i.name));
   const run = () => onRunSample(tool);
-  const boardActions: BoardActions = { ...actions, onRunKey: run, onRetry: run };
+  const boardActions: BoardActions = { ...actions, onRunKey: run };
   const noCalls = tool.calls.filter((c) => !c.write).length === 0;
 
   const setBlocks = (blocks: ToolBlock[]) => onChange({ ...tool, blocks });

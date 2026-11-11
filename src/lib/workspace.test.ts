@@ -5,6 +5,8 @@ import { environmentVars, newEnvironment, type Environment } from "./environment
 import sample from "../assets/sample-workspace.json";
 import { toFlowsFile } from "./flows/flowFile";
 import { newFlow } from "./flows/flows";
+import { newCall, newTool } from "./tools/tools";
+import { toToolsFile } from "./tools/toolsFile";
 import { toSuitesFile } from "./testing/suiteFile";
 import { newSuite, newTestCase } from "./testing/suites";
 import { IMPORTED_COLLECTION_NAME, describeWorkspaceImport, importWorkspace, importWorkspaceFile, toWorkspaceFile } from "./workspace";
@@ -107,7 +109,7 @@ describe("secrets in a workspace file", () => {
 });
 
 describe("combined workspace file", () => {
-  const empty = { collections: [], environments: [], suites: [], flows: [] };
+  const empty = { collections: [], environments: [], suites: [], flows: [], tools: [] };
 
   it("round-trips collections, environments, suites and flows", () => {
     const col = { ...newCollection("API"), items: [requestNode({ ...newRequest(), name: "A" })] };
@@ -126,6 +128,37 @@ describe("combined workspace file", () => {
     expect(again.flows).toHaveLength(1);
   });
 
+  it("carries tools, restores them on import, replaces by id, and leaves old files without tools alone", () => {
+    const req = { ...newRequest(), id: "r1", name: "A" };
+    const col = { ...newCollection("API"), items: [requestNode(req)] };
+    const tool = { ...newTool("Lookup"), calls: [newCall("r1", "A")] };
+    const text = toWorkspaceFile([col], [], { tools: [tool] });
+    expect(JSON.parse(text).tools).toHaveLength(1);
+    const r = importWorkspace(text, empty);
+    expect(r.tools.map((t) => t.name)).toEqual(["Lookup"]);
+    expect(r.counts.tools).toEqual([1, 0]);
+    expect(describeWorkspaceImport("a.json", r.counts)).toContain("tools: 1 added");
+    const again = importWorkspace(text, r);
+    expect(again.counts.tools).toEqual([0, 1]);
+    expect(again.tools).toHaveLength(1);
+    // A workspace without tools keeps the tools already here.
+    const old = importWorkspace(toWorkspaceFile([col], []), r);
+    expect(old.tools).toHaveLength(1);
+    // Malformed tools are cleaned, not trusted.
+    const bad = importWorkspace(JSON.stringify({ app: "rest-runner", kind: "workspace", collections: [], tools: [{ id: "x", calls: 3 }, 7] }), empty);
+    expect(bad.tools[0]).toMatchObject({ id: "x", calls: [], blocks: [] });
+  });
+
+  it("imports a tools file through the workspace importer, with its saved requests", () => {
+    const req = { ...newRequest(), id: "r1", name: "A" };
+    const col = { ...newCollection("API"), items: [requestNode(req)] };
+    const text = toToolsFile([{ ...newTool("Lookup"), calls: [newCall("r1", "A")] }], [col]);
+    const r = importWorkspace(text, empty);
+    expect(r.tools).toHaveLength(1);
+    expect(r.counts.requests).toEqual([1, 0]);
+    expect(r.collections[0].name).toBe("API");
+  });
+
   it("still imports version 2 files, and suites and flows files", () => {
     const col = { ...newCollection("Old"), items: [requestNode(newRequest())] };
     const v2 = JSON.stringify({ app: "rest-runner", version: 2, collections: [col], environments: [] });
@@ -140,10 +173,10 @@ describe("combined workspace file", () => {
   });
 
   it("describes what changed", () => {
-    expect(describeWorkspaceImport("a.json", { collections: [1, 0], environments: [0, 0], suites: [0, 2], flows: [0, 0], requests: [0, 0] })).toBe(
+    expect(describeWorkspaceImport("a.json", { collections: [1, 0], environments: [0, 0], suites: [0, 2], flows: [0, 0], tools: [0, 0], requests: [0, 0] })).toBe(
       "Imported a.json: collections: 1 added; suites: 2 updated.",
     );
-    expect(describeWorkspaceImport("a.json", { collections: [0, 0], environments: [0, 0], suites: [0, 0], flows: [0, 0], requests: [0, 0] })).toBe("Imported a.json: nothing new.");
+    expect(describeWorkspaceImport("a.json", { collections: [0, 0], environments: [0, 0], suites: [0, 0], flows: [0, 0], tools: [0, 0], requests: [0, 0] })).toBe("Imported a.json: nothing new.");
   });
 
   it("ships a sample workspace that imports cleanly and keeps its flow wired", () => {

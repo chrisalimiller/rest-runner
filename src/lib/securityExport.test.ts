@@ -24,7 +24,7 @@ describe("security of generated commands", () => {
     expect(() => importSuitesFile(text, [])).toThrow(/method/i);
     const node = { kind: "request", id: "r", request: { ...newRequest(), method }, examples: [] };
     expect(() => importFlowsFile(JSON.stringify({ app: "rest-runner", kind: "flows", requests: [{ node }] }), { flows: [], suites: [], collections: [] })).toThrow(/method/i);
-    expect(() => importWorkspace(JSON.stringify({ app: "rest-runner", collections: [{ id: "c", items: [node] }] }), { flows: [], suites: [], collections: [], environments: [] })).toThrow(/method/i);
+    expect(() => importWorkspace(JSON.stringify({ app: "rest-runner", collections: [{ id: "c", items: [node] }] }), { flows: [], suites: [], collections: [], environments: [], tools: [] })).toThrow(/method/i);
     for (const lang of ["python", "bash"] as const) expect(() => buildScript(lang, { def: { ...newRequest(), method }, options: DEFAULT_BATCH_OPTIONS, defaults: {} })).toThrow(/method/i);
   });
   it("refuses cmd arguments with line breaks", () => {

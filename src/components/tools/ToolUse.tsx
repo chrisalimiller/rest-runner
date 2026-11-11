@@ -16,11 +16,12 @@ interface Props {
   onLookup: () => void;
   onStop: () => void;
   onCopyAll: () => void;
+  onSaveHtml: () => void;
   actions: Omit<BoardActions, "onRunKey">;
 }
 
 /** Use mode: the inputs, a Look up button, and the blocks. Nothing is sent until Look up (or Enter) is pressed. */
-export function ToolUse({ tool, state, findRequest, environment, problems, onLookup, onStop, onCopyAll, actions }: Props) {
+export function ToolUse({ tool, state, findRequest, environment, problems, onLookup, onStop, onCopyAll, onSaveHtml, actions }: Props) {
   const shownInInputBlocks = new Set(tool.blocks.filter((b) => b.type === "input").map((b) => b.inputName));
   const barInputs = tool.inputs.filter((i) => !shownInInputBlocks.has(i.name));
   const errors = problems.filter((p) => p.level === "error");
@@ -96,6 +97,9 @@ export function ToolUse({ tool, state, findRequest, environment, problems, onLoo
         )}
         <button type="button" className="secondary" onClick={onCopyAll} disabled={!hasAny || state.running}>
           Copy all
+        </button>
+        <button type="button" className="secondary" onClick={onSaveHtml} disabled={!hasAny || state.running} title="Save these answers as a web page to send to someone. Secret values are masked.">
+          Save as HTML
         </button>
       </div>
       <div className="tool-scroll">

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useEscape } from "./useEscape";
+import { usedByLabel } from "../lib/tools/usage";
 import { TreeChildren } from "./TreeChildren";
 import { countVisibleRows } from "../lib/treeMotion";
 import {
@@ -32,11 +33,15 @@ interface Props {
   onOpenRequest: (node: RequestNode, permanent?: boolean) => void;
   onOpenExample: (node: RequestNode, example: RequestExample, permanent?: boolean) => void;
   onAction: (action: TreeAction) => void;
+  /** Names of the tools that use any of these saved request or example ids. Requests used by tools say so in their menu. */
+  toolsUsing?: (requestIds: string[]) => string[];
 }
 
 interface MenuItem {
   label: string;
   danger?: boolean;
+  /** A line of information, not a command. */
+  note?: string;
   run: () => void;
 }
 
@@ -135,7 +140,9 @@ export function CollectionTree(props: Props) {
     const r = node.request;
     const open = expanded.has(node.id);
     const hasExamples = node.examples.length > 0;
+    const usedBy = props.toolsUsing?.([node.id, ...node.examples.map((e) => e.id)]) ?? [];
     const menuItems: MenuItem[] = [
+      ...(usedBy.length > 0 ? [{ label: usedByLabel(usedBy.length), note: usedBy.join(", "), run: () => {} }] : []),
       { label: "Open in new tab", run: run(() => props.onOpenRequest(node, true)) },
       { label: "Add example", run: run(() => onAction({ type: "add-example", requestId: node.id })) },
       { label: "Duplicate", run: run(() => onAction({ type: "duplicate", id: node.id })) },
@@ -254,7 +261,7 @@ export function CollectionTree(props: Props) {
       {menu && (
         <div ref={menuRef} className="menu" style={{ left: Math.min(menu.x, window.innerWidth - 170), top: Math.min(menu.y, window.innerHeight - 40 * menu.items.length) }} role="menu">
           {menu.items.map((m) => (
-            <button key={m.label} className={m.danger ? "danger" : ""} onClick={m.run} role="menuitem">
+            <button key={m.label} className={`${m.danger ? "danger" : ""} ${m.note ? "menu-note" : ""}`.trim()} onClick={m.run} role="menuitem" disabled={!!m.note} title={m.note}>
               {m.label}
             </button>
           ))}

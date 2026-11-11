@@ -6,6 +6,7 @@ function makeCtx(over: Partial<CommandCtx> = {}) {
   const actions: CommandActions = {
     setSection: vi.fn(),
     requests: vi.fn(),
+    newTool: vi.fn(),
     toggleVariables: vi.fn(),
     openCertificates: vi.fn(),
     openAbout: vi.fn(),

@@ -17,12 +17,34 @@ interface Props {
   activeRecordId: string | null;
   onOpenRecord: (record: LookupRecord) => void;
   onClearHistory: () => void;
+  onExport: () => void;
+  onImport: (file: File) => void;
   keepsHistory: boolean;
   onKeepHistory: (keep: boolean) => void;
 }
 
 /** Tools and the open tool's recent lookups on the left of Tools mode. Below 1000px wide it turns into a select at the top. */
-export function ToolsSidebar({ collapsed, onToggleCollapsed, tools, activeToolId, onOpenTool, onNewTool, runningToolIds, recents, activeRecordId, onOpenRecord, onClearHistory, keepsHistory, onKeepHistory }: Props) {
+export function ToolsSidebar({ collapsed, onToggleCollapsed, tools, activeToolId, onOpenTool, onNewTool, runningToolIds, recents, activeRecordId, onOpenRecord, onClearHistory, onExport, onImport, keepsHistory, onKeepHistory }: Props) {
+  const importLink = (
+    <label className="link-btn" title="Import tools from a file">
+      Import
+      <input
+        type="file"
+        accept=".json,application/json"
+        hidden
+        onChange={(e) => {
+          const f = e.target.files?.[0];
+          if (f) onImport(f);
+          e.target.value = "";
+        }}
+      />
+    </label>
+  );
+  const exportLink = (
+    <button className="link-btn" onClick={onExport} title="Save every tool, with the saved requests they use, to a file">
+      Export
+    </button>
+  );
   return (
     <>
       <div className="runbook-nav-compact">
@@ -37,6 +59,8 @@ export function ToolsSidebar({ collapsed, onToggleCollapsed, tools, activeToolId
         <button className="link-btn small" onClick={onNewTool}>
           New
         </button>
+        {importLink}
+        {tools.length > 0 && exportLink}
       </div>
 
       {collapsed && (
@@ -54,6 +78,8 @@ export function ToolsSidebar({ collapsed, onToggleCollapsed, tools, activeToolId
               <button className="link-btn" onClick={onNewTool} title="Add a tool">
                 New
               </button>
+              {importLink}
+              {tools.length > 0 && exportLink}
               <button className="icon-btn" onClick={onToggleCollapsed} aria-label="Hide the list" title="Hide the list" aria-expanded>
                 «
               </button>

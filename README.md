@@ -29,6 +29,9 @@ Chain cases, suites and saved requests on a canvas with branches, loops, retries
 
 <p align="center"><img src="docs/images/flows.png" alt="A flow on the canvas" width="760"></p>
 
+### Tools
+Turn saved requests into small lookup pages: type an ID, press Look up, and see the answers of several requests side by side. Pick a row from a list, run Action buttons (with a confirm on production-marked environments), save a lookup as an HTML page, and share tools as files. See [docs/tools.md](docs/tools.md).
+
 ## Local by design
 
 - No account, no sync, no telemetry banners. Your data lives on your computer.

@@ -8,7 +8,7 @@ import { InputControl } from "./InputControl";
 
 const tool = sampleTool();
 const findRequest = sampleFindRequest();
-const actions: BoardActions = { onInput: () => {}, onRunKey: () => {}, onRetry: () => {}, onOpenRequest: () => {}, onCopy: () => {}, onPick: () => {} };
+const actions: BoardActions = { onInput: () => {}, onRunKey: () => {}, onRetry: () => {}, onOpenRequest: () => {}, onCopy: () => {}, onPick: () => {}, onRunAction: () => {} };
 
 function done(callId: string, body: unknown, status = 200): CallResult {
   const text = JSON.stringify(body);
@@ -16,7 +16,7 @@ function done(callId: string, body: unknown, status = 200): CallResult {
 }
 
 function stateOf(results: CallResult[], extra: Partial<SessionState> = {}): SessionState {
-  return { inputs: {}, results: Object.fromEntries(results.map((r) => [r.callId, r])), sending: [], running: false, startedAt: null, viewing: null, recordId: null, pending: [], error: null, stopped: false, loaded: true, ...extra };
+  return { inputs: {}, results: Object.fromEntries(results.map((r) => [r.callId, r])), sending: [], writes: {}, writing: [], running: false, startedAt: null, viewing: null, recordId: null, pending: [], error: null, stopped: false, loaded: true, ...extra };
 }
 
 function card(blockId: string, state: SessionState, t = tool): string {
@@ -73,10 +73,46 @@ describe("block types", () => {
     expect(html).not.toContain("tool-block-status");
   });
 
-  it("action: a disabled button for now", () => {
+  it("action: an enabled button before it is pressed", () => {
     const html = card("b-suspend", stateOf([]));
-    expect(html).toMatch(/<button[^>]*disabled/);
+    expect(html).not.toMatch(/<button[^>]*disabled/);
     expect(html).toContain("Suspend");
+  });
+
+  const cardWith = (state: SessionState, a: Partial<BoardActions> = {}) =>
+    renderToStaticMarkup(<BlockCard block={tool.blocks.find((b) => b.id === "b-suspend")!} tool={tool} state={state} findRequest={findRequest} actions={{ ...actions, ...a }} />);
+
+  it("action: shows what the write call got back, including an error body", () => {
+    const ok = cardWith(stateOf([], { writes: { "c-suspend": done("c-suspend", { suspended: true }, 201) } }));
+    expect(ok).toContain("201");
+    expect(ok).toContain("suspended");
+    const bad = cardWith(stateOf([], { writes: { "c-suspend": done("c-suspend", { error: "no" }, 409) } }));
+    expect(bad).toContain("tone-bad");
+    expect(bad).toContain("409");
+    const net = cardWith(stateOf([], { writes: { "c-suspend": { callId: "c-suspend", name: "Suspend", state: "network-error", error: "connection refused" } } }));
+    expect(net).toContain("connection refused");
+  });
+
+  it("action: a declined confirm reads Not confirmed, a missing value reads its message", () => {
+    const no = cardWith(stateOf([], { writes: { "c-suspend": { callId: "c-suspend", name: "Suspend", state: "skipped", reason: "not-confirmed", message: "Not sent: Prod needs confirming first." } } }));
+    expect(no).toContain("Not confirmed");
+    const need = cardWith(stateOf([], { writes: { "c-suspend": { callId: "c-suspend", name: "Suspend", state: "skipped", reason: "needs-value", message: "Needs id from Subscriber" } } }));
+    expect(need).toContain("Needs id from Subscriber");
+  });
+
+  it("action: says which production environment it asks about, and is off while sending or looking up", () => {
+    const guarded = cardWith(stateOf([]), { guard: { name: "Prod", cssColor: "var(--env-red)" } });
+    expect(guarded).toContain("on Prod");
+    expect(guarded).toContain("guarded");
+    expect(cardWith(stateOf([], { writing: ["c-suspend"] }))).toMatch(/<button[^>]*disabled=""[^>]*>Sending…/);
+    expect(cardWith(stateOf([], { running: true }))).toMatch(/<button[^>]*disabled=""/);
+  });
+
+  it("action: a lookup call cannot be run from a button", () => {
+    const t = { ...tool, blocks: tool.blocks.map((b) => (b.id === "b-suspend" ? { ...b, callId: "c-subscriber" } : b)) };
+    const html = renderToStaticMarkup(<BlockCard block={t.blocks.find((b) => b.id === "b-suspend")!} tool={t} state={stateOf([])} findRequest={findRequest} actions={actions} />);
+    expect(html).toMatch(/<button[^>]*disabled=""/);
+    expect(html).toContain("runs with Look up");
   });
 
   it("input: the input's box with its default as the hint", () => {

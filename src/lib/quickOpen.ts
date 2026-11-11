@@ -4,11 +4,12 @@ import type { TestRunSummary } from "./testing/testRun";
 import type { TestSuite } from "./testing/types";
 import type { HistoryEntry } from "./types";
 import type { Flow, FlowRunSummary } from "./flows/types";
+import type { Tool } from "./tools/types";
 import { whenLabel } from "./earlierSends";
 
 /** Quick open (Ctrl/Cmd + K): one search over everything you can jump to. */
 
-export type QuickKind = "command" | "request" | "example" | "history" | "batch-run" | "suite" | "case" | "test-run" | "flow" | "flow-run";
+export type QuickKind = "command" | "request" | "example" | "history" | "batch-run" | "suite" | "case" | "test-run" | "flow" | "flow-run" | "tool";
 
 export interface QuickItem {
   kind: QuickKind;
@@ -41,14 +42,15 @@ export const KIND_LABELS: Record<QuickKind, string> = {
   "test-run": "Test runs",
   flow: "Flows",
   "flow-run": "Flow runs",
+  tool: "Tools",
 };
 
 /** Group order, per mode: the mode you are in comes first. */
 export const KIND_ORDER: Record<"requests" | "testing" | "flows" | "tools", QuickKind[]> = {
-  requests: ["command", "request", "example", "history", "batch-run", "suite", "case", "test-run", "flow", "flow-run"],
-  testing: ["command", "suite", "case", "test-run", "flow", "flow-run", "request", "example", "history", "batch-run"],
-  tools: ["command", "request", "example", "history", "batch-run", "suite", "case", "test-run", "flow", "flow-run"],
-  flows: ["command", "flow", "flow-run", "suite", "case", "test-run", "request", "example", "history", "batch-run"],
+  requests: ["command", "request", "example", "history", "batch-run", "suite", "case", "test-run", "flow", "flow-run", "tool"],
+  testing: ["command", "suite", "case", "test-run", "flow", "flow-run", "request", "example", "history", "batch-run", "tool"],
+  tools: ["command", "tool", "request", "example", "history", "batch-run", "suite", "case", "test-run", "flow", "flow-run"],
+  flows: ["command", "flow", "flow-run", "suite", "case", "test-run", "request", "example", "history", "batch-run", "tool"],
 };
 
 export const CURL_COMMAND_ID = "import-curl";
@@ -161,6 +163,10 @@ export function flowItems(flows: Flow[]): QuickItem[] {
     const steps = f.nodes.filter((n) => n.type !== "note" && n.type !== "start" && n.type !== "schedule").length;
     return { kind: "flow", id: f.id, title: f.name || "(unnamed)", detail: f.description || `${steps} step${steps === 1 ? "" : "s"}` };
   });
+}
+
+export function toolItems(tools: Tool[]): QuickItem[] {
+  return tools.map((t) => ({ kind: "tool", id: t.id, title: t.name || "(unnamed)", detail: t.description || `${t.calls.length} call${t.calls.length === 1 ? "" : "s"}` }));
 }
 
 const FLOW_END: Record<FlowRunSummary["end"], string> = { passed: "passed", "passed-handled": "passed with handled failures", failed: "failed", cancelled: "stopped" };

@@ -19,6 +19,8 @@ export interface CommandActions {
   setSection: (mode: Mode) => void;
   /** Requests-section work. */
   requests: (action: RequestsAction) => void;
+  /** Switches to Tools and starts a new tool. */
+  newTool: () => void;
   toggleVariables: () => void;
   openCertificates: () => void;
   openAbout: () => void;
@@ -95,6 +97,7 @@ export function buildCommands(ctx: Pick<CommandCtx, "environments" | "activeEnvI
     { id: "run-csv", title: "Run with CSV…", keywords: "batch csv rows data run", group: "Request", enabled: inRequests, run: (c) => c.actions.requests({ type: "open-batch" }) },
     { id: "new-request", title: "New request", keywords: "new tab untitled create request", shortcut: shortcutKeys("new-request"), group: "Request", enabled: inRequests, run: (c) => c.actions.requests({ type: "new-request" }) },
     { id: "new-collection", title: "New collection", keywords: "new create collection folder", group: "Request", enabled: always, run: (c) => c.actions.requests({ type: "new-collection" }) },
+    { id: "new-tool", title: "New tool", keywords: "new create tool lookup page", group: "Request", enabled: always, run: (c) => c.actions.newTool() },
     { id: CURL_COMMAND_ID, title: "Import from cURL…", keywords: "curl paste import command", group: "Request", enabled: always, run: (c) => c.actions.requests({ type: "import-curl" }) },
     { id: "export-workspace", title: "Export workspace…", keywords: "export save backup download file", group: "Request", enabled: always, run: (c) => c.actions.requests({ type: "export-workspace" }) },
     ...(envs.length > 0

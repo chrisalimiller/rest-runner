@@ -41,6 +41,15 @@ describe("railBadge", () => {
     expect(railBadge("flows", getSectionStatus(), NOW)).toBeNull();
   });
 
+  it("tools: accent dot while looking up, ✕ after a lookup with problems until seen", () => {
+    setSectionStatus("tools", { running: true });
+    expect(railBadge("tools", getSectionStatus(), NOW)).toEqual({ kind: "pill", text: "●", tone: "accent" });
+    setSectionStatus("tools", { running: false, failed: 2, unseen: true });
+    expect(railBadge("tools", getSectionStatus(), NOW)).toEqual({ kind: "pill", text: "✕", tone: "bad" });
+    markSectionSeen("tools");
+    expect(railBadge("tools", getSectionStatus(), NOW)).toBeNull();
+  });
+
   it("variables: the unfilled count", () => {
     expect(railBadge("variables", getSectionStatus(), NOW)).toBeNull();
     setRequestStatus({ unfilled: 0, certInUse: null, url: "", skipped: false, onSkip: null });

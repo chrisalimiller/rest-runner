@@ -73,6 +73,10 @@ export function SideRail({ section, onMode }: Props) {
       if (status.flows.running) return "running";
       return status.flows.unseen && status.flows.failed > 0 ? "last run failed" : "";
     }
+    if (m === "tools") {
+      if (status.tools.running) return "running";
+      return status.tools.unseen && status.tools.failed > 0 ? "last lookup had problems" : "";
+    }
     return "";
   };
 

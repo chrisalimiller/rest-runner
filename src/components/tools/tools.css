@@ -248,12 +248,28 @@
 
 .tool-action {
   display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+}
+
+.tool-action-row {
+  display: flex;
   align-items: center;
-  gap: 12px;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .tool-action .secondary {
   border: 1px solid var(--btn-border);
+}
+
+.tool-action-env {
+  color: var(--muted);
+}
+
+.tool-action-result p {
+  margin: 0 0 6px;
 }
 
 /* Fields: label and value pairs. */

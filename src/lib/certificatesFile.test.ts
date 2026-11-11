@@ -28,9 +28,9 @@ describe("workspace file version 4", () => {
     const file = JSON.parse(text);
     expect(file.version).toBe(4);
     expect(file.certificates).toHaveLength(1);
-    expect(importWorkspace(text, { collections: [], environments: [], suites: [], flows: [] }).environments).toHaveLength(1);
+    expect(importWorkspace(text, { collections: [], environments: [], suites: [], flows: [], tools: [] }).environments).toHaveLength(1);
     const v3 = JSON.stringify({ app: "rest-runner", version: 3, collections: [], environments: [], suites: [], flows: [] });
-    expect(importWorkspace(v3, { collections: [], environments: [], suites: [], flows: [] }).environments).toEqual([]);
+    expect(importWorkspace(v3, { collections: [], environments: [], suites: [], flows: [], tools: [] }).environments).toEqual([]);
     expect(JSON.parse(toWorkspaceFile([], [], {})).certificates).toBeUndefined();
   });
 });

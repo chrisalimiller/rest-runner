@@ -2279,6 +2279,12 @@ select {
   color: var(--text-on-accent);
 }
 
+.menu button.menu-note:disabled {
+  color: var(--muted);
+  font-size: 0.9em;
+  cursor: default;
+}
+
 .menu button.danger {
   color: var(--danger);
 }

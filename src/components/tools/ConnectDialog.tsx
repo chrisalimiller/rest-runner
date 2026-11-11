@@ -554,6 +554,13 @@ function StepFormat({ work, block, setBlock, call, state }: { work: Tool; block:
         {action ? "Button text" : "Block title"}
         <input type="text" value={block.title} placeholder={callName ?? ""} onChange={(e) => setBlock({ ...block, title: e.target.value })} />
       </label>
+      {action && (
+        <label className="field">
+          Confirm text (optional)
+          <input type="text" value={block.text ?? ""} placeholder="Suspend this subscriber?" onChange={(e) => setBlock({ ...block, text: e.target.value })} />
+          <span className="small muted">Asked before the button sends. On an environment marked as production it always asks, with or without text.</span>
+        </label>
+      )}
       {block.type === "json" && <p className="small muted">A JSON block shows the response as it came. There is nothing to format.</p>}
       {block.type === "number" && (
         <label className="field">

@@ -11,6 +11,7 @@ import {
   searchQuickOpen,
   suiteItems,
   testRunItems,
+  toolItems,
   type QuickItem,
 } from "../../lib/quickOpen";
 import { commandItems, type Command, type CommandCtx } from "../../lib/commands";
@@ -23,6 +24,7 @@ import { cleanSuites } from "../../lib/testing/suites";
 import { listTestRuns } from "../../lib/testing/testRunStore";
 import { listFlowRuns } from "../../lib/flows/flowRunStore";
 import { loadFlows } from "../../lib/flows/flows";
+import { loadTools } from "../../lib/tools/tools";
 import { useEscape } from "../useEscape";
 import { useExitTransition } from "../useExitTransition";
 import { useFocusTrap } from "../useFocusTrap";
@@ -49,10 +51,11 @@ function readStoredItems(): QuickItem[] {
     ...historyItems(cleanHistory(load<unknown>("rest-runner.history", []))),
     ...suiteItems(cleanSuites(load("rest-runner.test-suites", []))),
     ...flowItems(loadFlows()),
+    ...toolItems(loadTools()),
   ];
 }
 
-/** Ctrl/Cmd + K: fuzzy search over requests, examples, history, batch runs, suites, cases, test runs, flows and flow runs. */
+/** Ctrl/Cmd + K: fuzzy search over requests, examples, history, batch runs, suites, cases, test runs, flows, flow runs and tools. */
 export function QuickOpen({ mode, onClose, onPick, onClearHistory, commands, ctx }: Props) {
   const [query, setQuery] = useState("");
   const [stored, setItems] = useState<QuickItem[]>(readStoredItems);
@@ -133,7 +136,7 @@ export function QuickOpen({ mode, onClose, onPick, onClearHistory, commands, ctx
               }
             }}
             placeholder={
-              (mode === "testing" ? "Jump to a suite, case or test run" : mode === "flows" ? "Jump to a flow, flow run, suite or case" : "Jump to a request, example, run or history") + " · type > for commands"
+              (mode === "testing" ? "Jump to a suite, case or test run" : mode === "flows" ? "Jump to a flow, flow run, suite or case" : mode === "tools" ? "Jump to a tool, request, example or run" : "Jump to a request, example, run or history") + " · type > for commands"
             }
             aria-label="Search"
             aria-controls="quick-open-list"
