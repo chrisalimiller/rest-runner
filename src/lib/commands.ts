@@ -91,6 +91,7 @@ export function buildCommands(ctx: Pick<CommandCtx, "environments" | "activeEnvI
     section("go-requests", "requests", "Go to Requests"),
     section("go-testing", "testing", "Go to Testing"),
     section("go-flows", "flows", "Go to Flows"),
+    section("go-tools", "tools", "Go to Tools"),
     { id: "send", title: "Send request", keywords: "run request send", shortcut: shortcutKeys("send"), group: "Request", enabled: inRequests, run: (c) => c.actions.requests({ type: "send" }) },
     { id: "run-csv", title: "Run with CSV…", keywords: "batch csv rows data run", group: "Request", enabled: inRequests, run: (c) => c.actions.requests({ type: "open-batch" }) },
     { id: "new-request", title: "New request", keywords: "new tab untitled create request", shortcut: shortcutKeys("new-request"), group: "Request", enabled: inRequests, run: (c) => c.actions.requests({ type: "new-request" }) },

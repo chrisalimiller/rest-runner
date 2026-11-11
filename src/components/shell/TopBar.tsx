@@ -9,7 +9,7 @@ import { InfoIcon, PencilIcon, SearchIcon } from "./Icons";
 import { useTopBarFit } from "./useTopBarFit";
 import { EnvPicker } from "./EnvPicker";
 
-export type Mode = "requests" | "testing" | "flows";
+export type Mode = "requests" | "testing" | "flows" | "tools";
 
 interface Props {
   mode: Mode;
@@ -25,7 +25,7 @@ interface Props {
   envTitle?: string;
 }
 
-export const MODE_LABELS: Record<Mode, string> = { requests: "Requests", testing: "Testing", flows: "Flows" };
+export const MODE_LABELS: Record<Mode, string> = { requests: "Requests", testing: "Testing", flows: "Flows", tools: "Tools" };
 
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 export const MOD_KEY = isMac ? "⌘" : "Ctrl";

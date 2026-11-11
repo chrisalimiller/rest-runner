@@ -6,13 +6,14 @@ import { MODES, nextModeIndex } from "../../lib/topBar";
 import { overlayTitleBar } from "../../lib/windowChrome";
 import { CERT_WARNING_DAYS, railBadge, useSectionStatus, type RailBadge, type RailItem } from "../../lib/sectionStatus";
 import { toggleSidePanel, useSidePanels } from "../../lib/sidePanels";
-import { FlowsIcon, LockIcon, RequestsIcon, TestingIcon } from "./Icons";
+import { FlowsIcon, LockIcon, RequestsIcon, TestingIcon, ToolsIcon } from "./Icons";
 import { MOD_KEY, MODE_LABELS, type Mode } from "./TopBar";
 
 const MODE_ICONS: Record<Mode, () => React.ReactNode> = {
   requests: () => <RequestsIcon size={18} />,
   testing: () => <TestingIcon size={18} />,
   flows: () => <FlowsIcon size={18} />,
+  tools: () => <ToolsIcon size={18} />,
 };
 
 interface Props {
@@ -37,7 +38,7 @@ function soonestExpiryDays(notAfter: readonly number[], now: number): number | n
   return Math.ceil((Math.min(...notAfter) * 1000 - now) / 86_400_000);
 }
 
-/** The slim bar on the window's right edge: the three sections, then the Variables and Certificates side panels. */
+/** The slim bar on the window's right edge: the four sections, then the Variables and Certificates side panels. */
 export function SideRail({ section, onMode }: Props) {
   const [limitOpen, setLimitOpen] = useState(false);
   const [limit, setLimit] = useState(() => String(getResponseLimit()));

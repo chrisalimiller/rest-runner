@@ -178,6 +178,17 @@ export function TestingIcon({ size = 16, className }: IconProps) {
   );
 }
 
+export function ToolsIcon({ size = 16, className }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="3.5" y="4" width="17" height="16" rx="2.5" />
+      <path d="M3.5 9.5h17" />
+      <path d="M8 14h3" />
+      <path d="M8 17h8" />
+    </svg>
+  );
+}
+
 export function FlowsIcon({ size = 16, className }: IconProps) {
   return (
     <svg {...base(size)} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className={className}>

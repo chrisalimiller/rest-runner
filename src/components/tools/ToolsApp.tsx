@@ -1,0 +1,354 @@
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { setBusy } from "../../lib/busyWork";
+import { cleanCollections, COLLECTIONS_KEY } from "../../lib/collections";
+import { environmentVars, loadEnvironments, mergeHydrated, onSecretsHydrated, saveEnvironments, type Environment } from "../../lib/environments";
+import type { RequestLookup } from "../../lib/flows/flows";
+import { sendRequest } from "../../lib/http";
+import { reinsert, removeById } from "../../lib/listUndo";
+import { isString, load, save } from "../../lib/storage";
+import { createWorkerScriptRunner } from "../../lib/testing/scriptRunner";
+import { listPickableRequests } from "../../lib/testing/requestSources";
+import { clearLookups, listLookups } from "../../lib/tools/lookupStore";
+import { sampleCollection, sampleTool, SAMPLE_COLLECTION_NAME } from "../../lib/tools/sample";
+import { SessionRegistry } from "../../lib/tools/session";
+import { loadTools, newTool, saveTools, validateTool } from "../../lib/tools/tools";
+import type { LookupRecord, Tool } from "../../lib/tools/types";
+import { environmentNames, lookupAsText } from "../../lib/tools/view";
+import type { ShellCommand, ShellProps } from "../../Root";
+import { SectionVariablesPanel } from "../variables/SectionVariablesPanel";
+import { TrashIcon } from "../shell/Icons";
+import { OverflowMenu } from "../shell/OverflowMenu";
+import { useToast } from "../shell/Toast";
+import { TopBar } from "../shell/TopBar";
+import { TitleSwitcher } from "../shell/TitleSwitcher";
+import { useCollapsed } from "../shell/useCollapsed";
+import { ToolBuildPlaceholder } from "./ToolBuildPlaceholder";
+import { ToolsSidebar } from "./ToolsSidebar";
+import { ToolUse } from "./ToolUse";
+import { useToolSession } from "./useToolSession";
+import "./tools.css";
+
+const OPEN_TOOL_KEY = "rest-runner.tool-open";
+const MODE_KEY = "rest-runner.tools-mode";
+
+export type ToolsMode = "use" | "build";
+
+interface Props {
+  /** True when Tools is on screen. */
+  active: boolean;
+  shell: ShellProps;
+  command: ShellCommand | null;
+}
+
+function readRequests(): RequestLookup {
+  const byId = new Map(listPickableRequests().map((r) => [r.id, r.request]));
+  return (id) => byId.get(id) ?? null;
+}
+
+/**
+ * Tools mode: small lookup pages. Use mode (the default) runs a tool and shows its blocks; Build mode edits it.
+ * Each tool keeps its own environment (tool.settings.environmentId) and its own lookup session, so a lookup keeps
+ * running while another tool or section is on screen.
+ */
+export function ToolsApp({ active, shell, command }: Props) {
+  const [navCollapsed, toggleNav] = useCollapsed("rest-runner.tools-nav-collapsed");
+  const [tools, setTools] = useState<Tool[]>(loadTools);
+  const [openToolId, setOpenToolId] = useState<string | null>(() => load<string | null>(OPEN_TOOL_KEY, null, isString));
+  const [mode, setMode] = useState<ToolsMode>(() => (load<string>(MODE_KEY, "use") === "build" ? "build" : "use"));
+  const [environments, setEnvironments] = useState<Environment[]>(loadEnvironments);
+  // The keychain can finish loading after first render: fill in secrets without losing edits.
+  useEffect(() => onSecretsHydrated(() => setEnvironments((cur) => mergeHydrated(cur, loadEnvironments()))), []);
+  const [findRequest, setFindRequest] = useState<RequestLookup>(readRequests);
+  const [recents, setRecents] = useState<LookupRecord[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
+  const registry = useMemo(() => new SessionRegistry(), []);
+  const scripts = useMemo(() => createWorkerScriptRunner(), []);
+  useEffect(() => () => scripts.dispose(), [scripts]);
+  const toast = useToast();
+
+  useEffect(() => {
+    if (!saveTools(tools)) setNotice("Could not save tools: local storage is full.");
+  }, [tools]);
+  useEffect(() => {
+    save(OPEN_TOOL_KEY, openToolId);
+  }, [openToolId]);
+  useEffect(() => {
+    save(MODE_KEY, mode);
+  }, [mode]);
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 6000);
+    return () => clearTimeout(t);
+  }, [notice]);
+
+  // Requests and environments are edited in the other sections; pick up changes whenever Tools is shown.
+  useEffect(() => {
+    if (!active) return;
+    setEnvironments(loadEnvironments());
+    setFindRequest(() => readRequests());
+  }, [active]);
+
+  const tool = tools.find((t) => t.id === openToolId) ?? null;
+  const session = registry.get(tool?.id ?? "");
+  const state = useToolSession(session);
+  const problems = useMemo(() => (tool ? validateTool(tool, findRequest) : []), [tool, findRequest]);
+  const environment = environments.find((e) => e.id === tool?.settings.environmentId) ?? null;
+
+  // Re-render when any session changes (the sidebar shows which tools are running).
+  useSyncExternalStore(registry.subscribe, registry.getVersion);
+  const runningIds = registry.runningIds();
+  const anyRunning = runningIds.length > 0;
+  useEffect(() => setBusy("tools", anyRunning), [anyRunning]);
+
+  const updateTool = useCallback((next: Tool) => {
+    setTools((list) => {
+      const before = list.find((t) => t.id === next.id);
+      // Turning "keep recent lookups" off removes what was kept.
+      if (before?.settings.keepHistory && !next.settings.keepHistory) {
+        void clearLookups(next.id).then(() => setRecents((r) => (r.length && r[0].toolId === next.id ? [] : r)));
+      }
+      return list.map((t) => (t.id === next.id ? next : t));
+    });
+  }, []);
+
+  const toolRef = useRef<Tool | null>(null);
+  const refreshRecents = useCallback((toolId: string) => {
+    listLookups(toolId)
+      .then((list) => {
+        if (toolRef.current?.id === toolId) setRecents(list);
+      })
+      .catch(() => setRecents([]));
+  }, []);
+
+  const lookUp = useCallback(
+    async (t: Tool) => {
+      const requests = readRequests();
+      setFindRequest(() => requests);
+      const envs = loadEnvironments();
+      const env = envs.find((e) => e.id === t.settings.environmentId) ?? null;
+      const s = registry.get(t.id);
+      const record = await s.lookup(t, { findRequest: requests, envVars: environmentVars(env), environmentName: env?.name, send: sendRequest, scripts: scripts.run });
+      if (record) refreshRecents(t.id);
+    },
+    [registry, scripts, refreshRecents],
+  );
+  const lookUpRef = useRef(lookUp);
+  lookUpRef.current = lookUp;
+
+  // Opening a tool shows its latest saved lookup without sending anything (unless the tool asks to run on open).
+  const toolId = tool?.id ?? null;
+  const runOnOpen = tool?.settings.runOnOpen ?? false;
+  toolRef.current = tool;
+  useEffect(() => {
+    if (!toolId) {
+      setRecents([]);
+      return;
+    }
+    let on = true;
+    setRecents([]);
+    listLookups(toolId)
+      .then((list) => {
+        if (!on) return;
+        setRecents(list);
+        const s = registry.get(toolId);
+        const st = s.getState();
+        if (st.loaded) return;
+        s.markLoaded();
+        if (st.running || Object.keys(st.results).length > 0) return;
+        const t = toolRef.current;
+        if (runOnOpen && t) void lookUpRef.current(t);
+        else if (list[0]) s.show(list[0]);
+      })
+      .catch(() => on && registry.get(toolId).markLoaded());
+    return () => {
+      on = false;
+    };
+  }, [toolId, registry, runOnOpen]);
+
+  const openTool = (id: string) => setOpenToolId(id);
+
+  const createTool = () => {
+    const t = newTool();
+    setTools((list) => [...list, t]);
+    setOpenToolId(t.id);
+    // A new tool has nothing to show yet; Build is where it starts.
+    setMode("build");
+  };
+
+  const deleteTool = (target: Tool) => {
+    const taken = removeById(tools, target.id);
+    if (!taken) return;
+    registry.drop(target.id);
+    setTools(taken.list);
+    setOpenToolId(null);
+    toast.show({
+      message: `Deleted the tool "${target.name || "(unnamed)"}"`,
+      onUndo: () => {
+        setTools((list) => reinsert(list, taken.item, taken.index));
+        setOpenToolId(taken.item.id);
+      },
+      // Its saved lookups go when the Undo time has passed.
+      onExpire: () => void clearLookups(target.id),
+    });
+  };
+
+  const changeEnvironment = (id: string | null) => {
+    if (tool) updateTool({ ...tool, settings: { ...tool.settings, environmentId: id } });
+  };
+
+  /** Edits made in the Variables panel go straight to storage, where Requests and the other sections read them. */
+  const editEnvironments = useCallback((envs: Environment[]) => {
+    setEnvironments(envs);
+    saveEnvironments(envs);
+  }, []);
+
+  const copy = (text: string) => {
+    navigator.clipboard
+      ?.writeText(text)
+      .then(() => toast.show({ message: "Copied" }))
+      .catch(() => setNotice("Could not copy."));
+  };
+
+  /** Dev builds only: puts the example requests in a collection and adds the example tool. */
+  const loadExample = () => {
+    const collections = cleanCollections(load(COLLECTIONS_KEY, []));
+    if (!collections.some((c) => c.name === SAMPLE_COLLECTION_NAME)) {
+      save(COLLECTIONS_KEY, [...collections, sampleCollection()]);
+      shell.onDataChanged(["collections"]);
+    }
+    setFindRequest(() => readRequests());
+    const example = sampleTool();
+    setTools((list) => (list.some((t) => t.id === example.id) ? list : [...list, example]));
+    setOpenToolId(example.id);
+    setMode("use");
+  };
+
+  const lastCommand = useRef<number | null>(null);
+  useEffect(() => {
+    if (!command || lastCommand.current === command.nonce) return;
+    lastCommand.current = command.nonce;
+    if (command.type === "reload") {
+      setTools(loadTools());
+      setEnvironments(loadEnvironments());
+      setFindRequest(() => readRequests());
+    }
+  }, [command]);
+
+  const modeSwitch = tool ? (
+    <div className="segmented tools-mode" role="radiogroup" aria-label="Tool mode">
+      {(["use", "build"] as const).map((m) => (
+        <button key={m} role="radio" aria-checked={mode === m} className={mode === m ? "on" : ""} onClick={() => setMode(m)}>
+          {m === "use" ? "Use" : "Build"}
+        </button>
+      ))}
+    </div>
+  ) : null;
+
+  return (
+    <div className="mode tools-mode-root">
+      <TopBar
+        mode="tools"
+        onQuickOpen={shell.onQuickOpen}
+        searchPlaceholder="Jump to a request, example, run or history…"
+        switcher={
+          tool ? (
+            <>
+              <TitleSwitcher noun="Tools" title={tool.name} items={tools.map((t) => ({ id: t.id, name: t.name }))} activeId={openToolId} onOpen={openTool} onNew={createTool} />
+              {modeSwitch}
+            </>
+          ) : undefined
+        }
+        environments={environments}
+        activeEnvId={tool?.settings.environmentId ?? null}
+        onEnvChange={changeEnvironment}
+        envTitle="Each tool keeps its own environment. Environments are edited in Requests mode."
+      />
+      <div className={`tools-layout ${navCollapsed ? "nav-collapsed" : ""}`}>
+        <ToolsSidebar
+          collapsed={navCollapsed}
+          onToggleCollapsed={toggleNav}
+          tools={tools}
+          activeToolId={openToolId && tool ? openToolId : null}
+          onOpenTool={openTool}
+          onNewTool={createTool}
+          runningToolIds={runningIds}
+          recents={recents}
+          activeRecordId={state.recordId}
+          onOpenRecord={(r) => {
+            setMode("use");
+            session.show(r);
+          }}
+          onClearHistory={() => {
+            if (!tool) return;
+            void clearLookups(tool.id).then(() => setRecents([]));
+          }}
+          keepsHistory={tool?.settings.keepHistory ?? true}
+          onKeepHistory={(keep) => tool && updateTool({ ...tool, settings: { ...tool.settings, keepHistory: keep } })}
+        />
+        {tool ? (
+          <div className="tool-pane">
+            <div className="tool-tab-actions">
+              {notice && (
+                <span className="small notice" role="status" title={notice}>
+                  {notice}
+                </span>
+              )}
+              <OverflowMenu label="Tool actions" items={[{ label: "Delete tool", icon: <TrashIcon />, onSelect: () => deleteTool(tool), danger: true, disabled: state.running, title: state.running ? "Stop the lookup first" : "Its recent lookups are removed too" }]} />
+            </div>
+            {mode === "build" ? (
+              <ToolBuildPlaceholder tool={tool} />
+            ) : (
+              <ToolUse
+                tool={tool}
+                state={state}
+                findRequest={findRequest}
+                environment={environment}
+                problems={problems}
+                onLookup={() => void lookUp(tool)}
+                onStop={() => session.stop()}
+                onCopyAll={() => copy(lookupAsText(tool, state.results, findRequest))}
+                actions={{
+                  onInput: (name, value) => session.setInput(name, value),
+                  // Retry runs the whole lookup again with the same inputs, so whatever depends on the call is refreshed too.
+                  onRetry: () => void lookUp(tool),
+                  onOpenRequest: shell.onOpenRequest,
+                  onCopy: copy,
+                  onPick: (callId, index) => session.choosePick(callId, index),
+                }}
+              />
+            )}
+          </div>
+        ) : (
+          <main className="suite-doc testing-empty">
+            <div>
+              <h2>Tools</h2>
+              <p className="muted">A tool is a small lookup page. Type an ID, press Look up, and see the answers from several saved requests side by side, each filling in as it arrives.</p>
+              {notice && <p className="small notice">{notice}</p>}
+              <button className="send" onClick={createTool}>
+                Create a tool
+              </button>
+              {import.meta.env.DEV && (
+                <p className="small muted tools-dev">
+                  <button className="link-btn" onClick={loadExample} title="Development builds only: adds the Subscriber 360 example requests (to a collection) and tool">
+                    Load the Subscriber 360 example (dev build only)
+                  </button>
+                </p>
+              )}
+            </div>
+          </main>
+        )}
+      </div>
+      {shell.section === "tools" && tool && (
+        <SectionVariablesPanel
+          environments={environments}
+          activeEnvId={tool.settings.environmentId}
+          setEnvironments={editEnvironments}
+          setActiveEnvId={changeEnvironment}
+          used={environmentNames(tool, findRequest)}
+          scope="This tool"
+          onEditEnvironments={shell.onEditEnvironments}
+        />
+      )}
+    </div>
+  );
+}

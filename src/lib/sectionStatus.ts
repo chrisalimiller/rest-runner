@@ -80,7 +80,7 @@ export function useSectionStatus(): SectionStatus {
   );
 }
 
-export type RailItem = "requests" | "testing" | "flows" | "variables" | "certificates";
+export type RailItem = "requests" | "testing" | "flows" | "tools" | "variables" | "certificates";
 export type BadgeTone = "bad" | "accent" | "ok" | "warn";
 
 export interface RailBadge {
