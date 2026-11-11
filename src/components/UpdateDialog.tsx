@@ -7,6 +7,7 @@ import { canUpdate, checkForUpdate, installedVersion, type FoundUpdate } from ".
 import { downloadPercent, plainNotes, releaseDate, versionLabel, type UpdateInfo, type UpdateState } from "../lib/updates";
 import { ShortcutsList } from "./shell/ShortcutsList";
 import { loadConfirmProduction, saveConfirmProduction } from "../lib/productionGuard";
+import { DEFAULT_RESPONSE_LIMIT, MAX_RESPONSE_LIMIT, getResponseLimit, setResponseLimit } from "../lib/http";
 import "./updateDialog.css";
 
 type SettingsPage = "general" | "shortcuts" | "about";
@@ -17,6 +18,8 @@ export function UpdateDialog({ onClose }: { onClose: () => void }) {
   const [version, setVersion] = useState("");
   const [state, setState] = useState<UpdateState>({ kind: "idle" });
   const [confirmProd, setConfirmProd] = useState(loadConfirmProduction);
+  const [limit, setLimit] = useState(() => String(getResponseLimit()));
+  const [limitError, setLimitError] = useState("");
   const found = useRef<FoundUpdate | null>(null);
   const supported = canUpdate();
   const working = state.kind === "checking" || state.kind === "downloading" || state.kind === "installing";
@@ -58,6 +61,14 @@ export function UpdateDialog({ onClose }: { onClose: () => void }) {
     }
   };
 
+  const saveLimit = () => {
+    const value = Number(limit);
+    if (!Number.isSafeInteger(value) || value < 1 || value > MAX_RESPONSE_LIMIT) {
+      return setLimitError(`Enter a whole number from 1 to ${MAX_RESPONSE_LIMIT.toLocaleString("en-US")}.`);
+    }
+    setLimitError(setResponseLimit(value) ? "" : "Could not save the limit.");
+  };
+
   const onInstallClick = (info: UpdateInfo) => {
     if (isBusy()) setState({ kind: "confirm-stop", info });
     else void install(info);
@@ -87,6 +98,15 @@ export function UpdateDialog({ onClose }: { onClose: () => void }) {
                 <input type="checkbox" checked={confirmProd} onChange={(e) => { setConfirmProd(e.target.checked); saveConfirmProduction(e.target.checked); }} />
               </label>
               <p className="muted small">Ask before single sends and batch runs to environments marked Production.</p>
+            </section>
+            <section className="settings-block">
+              <label className="update-setting">
+                <span>Response size limit (bytes)</span>
+                <input type="number" min={1} max={MAX_RESPONSE_LIMIT} step={1} value={limit} aria-invalid={limitError ? true : undefined} aria-describedby="response-limit-help"
+                  onChange={(e) => { setLimit(e.target.value); setLimitError(""); }} onBlur={saveLimit} />
+              </label>
+              <p id="response-limit-help" className="muted small">Largest decoded response body a request may return, up to {MAX_RESPONSE_LIMIT.toLocaleString("en-US")}. Larger responses fail instead of being shown. Default: {DEFAULT_RESPONSE_LIMIT.toLocaleString("en-US")}.</p>
+              {limitError && <p role="alert" className="update-error">{limitError}</p>}
             </section>
             <section className="settings-block"><strong>Secret storage</strong><p className="muted small">{keychainNote(typeof navigator === "undefined" ? "" : navigator.platform)}</p></section>
           </>}
