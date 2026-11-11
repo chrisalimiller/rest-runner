@@ -1,11 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { newCollection, newFolder, requestNode, type Collection } from "./collections";
 import { newRequest } from "./defaults";
 import { newFlow, newNode } from "./flows/flows";
 import type { FlowRunSummary } from "./flows/types";
-import { collectionItems, flowItems, flowRunItems, fuzzyScore, historyItems, KIND_ORDER, readableUrl, searchQuickOpen, suiteItems, type QuickItem } from "./quickOpen";
+import { collectionItems, flowItems, flowRunItems, fuzzyScore, historyItems, KIND_ORDER, readableUrl, searchQuickOpen, suiteItems, toolItems, type QuickItem } from "./quickOpen";
 import { buildCommands, commandItems, type CommandCtx } from "./commands";
 import { newSuite, newTestCase } from "./testing/suites";
+import { newCall, newTool } from "./tools/tools";
 
 function sampleCollections(): Collection[] {
   const c = newCollection("NaaP E-Bonding");
@@ -74,6 +75,25 @@ describe("searchQuickOpen", () => {
 
   it("caps each group", () => {
     expect(searchQuickOpen(items, "", KIND_ORDER.requests, 1).every((g) => g.items.length === 1)).toBe(true);
+  });
+});
+
+describe("tool items", () => {
+  it("lists tools, finds them from any section and the New tool command runs", () => {
+    const t = { ...newTool("Subscriber 360"), calls: [newCall("r", "A"), newCall("r", "B")] };
+    expect(toolItems([t])).toEqual([{ kind: "tool", id: t.id, title: "Subscriber 360", detail: "2 calls" }]);
+    for (const mode of ["requests", "testing", "flows", "tools"] as const) {
+      const groups = searchQuickOpen(toolItems([t]), "subscr", KIND_ORDER[mode]);
+      expect(groups.map((g) => g.label)).toEqual(["Tools"]);
+    }
+    expect(KIND_ORDER.tools[1]).toBe("tool");
+    const newToolSpy = vi.fn();
+    const ctx: CommandCtx = { section: "requests", environments: [], activeEnvId: null, theme: "dark", actions: { newTool: newToolSpy } as never };
+    const cmd = buildCommands(ctx).find((c) => c.id === "new-tool");
+    expect(cmd?.title).toBe("New tool");
+    cmd?.run(ctx);
+    expect(newToolSpy).toHaveBeenCalledOnce();
+    expect(searchQuickOpen(commandItems(buildCommands(ctx), ctx), ">new t", KIND_ORDER.tools)[0].items[0].id).toBe("new-tool");
   });
 });
 

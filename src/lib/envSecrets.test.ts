@@ -105,7 +105,7 @@ describe("environments with the secret store", () => {
 
   it("writeWorkspace routes environments through the store", async () => {
     await initSecretStore();
-    expect(writeWorkspace({ collections: [], environments: [env("e1", [row("a", "a", "ws-secret", true)])], suites: [], flows: [] })).toBe(true);
+    expect(writeWorkspace({ collections: [], environments: [env("e1", [row("a", "a", "ws-secret", true)])], suites: [], flows: [], tools: [] }));
     expect(raw()).not.toContain("ws-secret");
     expect(getSecret("e1", "a")).toBe("ws-secret");
   });

@@ -41,6 +41,8 @@ const SECTION_KEY = "rest-runner.section";
 export type ShellCommand =
   | { type: "open"; item: QuickItem; nonce: number; permanent?: boolean }
   | { type: "clear-history"; nonce: number }
+  /** The palette's "New tool" command. */
+  | { type: "new-tool"; nonce: number }
   /** Another mode changed saved data this mode keeps in memory: read it again from storage. */
   | { type: "reload"; nonce: number }
   /** Another mode's Variables panel asked for the environment editor, which only Requests has. */
@@ -50,6 +52,7 @@ export type ShellCommand =
 
 function modeFor(item: QuickItem): Mode {
   if (item.kind === "flow" || item.kind === "flow-run") return "flows";
+  if (item.kind === "tool") return "tools";
   if (item.kind === "command") return "requests";
   return item.kind === "suite" ||
     item.kind === "case" ||
@@ -93,7 +96,8 @@ export default function Root() {
     if (section === "testing" && status.testing.unseen)
       markSectionSeen("testing");
     if (section === "flows" && status.flows.unseen) markSectionSeen("flows");
-  }, [section, status.testing.unseen, status.flows.unseen]);
+    if (section === "tools" && status.tools.unseen) markSectionSeen("tools");
+  }, [section, status.testing.unseen, status.flows.unseen, status.tools.unseen]);
 
   const quickOpenRef = useRef(false);
   quickOpenRef.current = quickOpen;
@@ -147,6 +151,10 @@ export default function Root() {
       // Setting the environment works from any section; the rest are Requests work.
       if (action.type !== "set-environment") setSection("requests");
       send("requests", { type: "action", nonce: Date.now(), action });
+    },
+    newTool: () => {
+      setSection("tools");
+      send("tools", { type: "new-tool", nonce: Date.now() });
     },
     toggleVariables: () => toggleSidePanel("variables"),
     openCertificates: () => openSidePanel("certificates"),
@@ -228,7 +236,7 @@ export default function Root() {
             onDone={(changed) => {
               setFirstRun(false);
               if (changed)
-                shell.onDataChanged(["collections", "suites", "flows"]);
+                shell.onDataChanged(["collections", "suites", "flows", "tools"]);
             }}
           />
         )}
@@ -240,7 +248,7 @@ export default function Root() {
         )}
         {shortcutsOpen && <ShortcutsDialog onClose={() => setShortcutsOpen(false)} />}
         {updateOpen && <UpdateDialog onClose={closeUpdateDialog} />}
-        {importOpen && <ImportDialog onClose={closeImportDialog} onChanged={() => shell.onDataChanged(["collections", "suites", "flows"])} />}
+        {importOpen && <ImportDialog onClose={closeImportDialog} onChanged={() => shell.onDataChanged(["collections", "suites", "flows", "tools"])} />}
         {quickOpen && (
           <QuickOpen
             mode={section}

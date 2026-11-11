@@ -2,6 +2,7 @@ import { cleanCollections } from "./collections";
 import { loadEnvironments, saveEnvironments } from "./environments";
 import { cleanFlows, FLOWS_KEY } from "./flows/flows";
 import { load, save } from "./storage";
+import { loadTools, saveTools } from "./tools/tools";
 import { cleanSuites } from "./testing/suites";
 import type { Workspace } from "./workspace";
 
@@ -16,18 +17,19 @@ export function readWorkspace(): Workspace {
     environments: loadEnvironments(),
     suites: cleanSuites(load(SUITES_KEY, [])),
     flows: cleanFlows(load(FLOWS_KEY, [])),
+    tools: loadTools(),
   };
 }
 
-/** Saves all four parts. Returns false when storage refused one of them. */
+/** Saves every part. Returns false when storage refused one of them. */
 export function writeWorkspace(ws: Workspace): boolean {
-  const results = [save(COLLECTIONS_KEY, ws.collections), saveEnvironments(ws.environments), save(SUITES_KEY, ws.suites), save(FLOWS_KEY, ws.flows)];
+  const results = [save(COLLECTIONS_KEY, ws.collections), saveEnvironments(ws.environments), save(SUITES_KEY, ws.suites), save(FLOWS_KEY, ws.flows), saveTools(ws.tools)];
   return results.every(Boolean);
 }
 
 /** True for a fresh install: nothing saved yet and the first-run screen has not been dealt with. */
 export function isFirstRun(ws: Workspace = readWorkspace(), onboarded: boolean = load<boolean>(ONBOARDED_KEY, false)): boolean {
-  return !onboarded && ws.collections.length === 0 && ws.suites.length === 0 && ws.flows.length === 0;
+  return !onboarded && ws.collections.length === 0 && ws.suites.length === 0 && ws.flows.length === 0 && ws.tools.length === 0;
 }
 
 export function markOnboarded(): void {

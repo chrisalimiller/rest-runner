@@ -17,6 +17,7 @@ It searches these groups in one list:
 | **Test runs** | The report in Testing |
 | **Flows** | The flow on its canvas |
 | **Flow runs** | The [flow run report](flows.md#reports) |
+| **Tools** | The tool, in Use mode ([Tools](tools.md)) |
 
 The group for the mode you are in comes first. A **Commands** group comes last, or first when no request, run or other item has your text in its title. Pasting a whole curl command into the box opens Import from cURL with it filled in. See [Paste a cURL command](curl-import.md).
 
@@ -26,14 +27,15 @@ Quick open is also a command palette. Type `>` first (as in VS Code) to see only
 
 | Command | What it does |
 | --- | --- |
-| **Go to Requests / Testing / Flows** | Switch section |
+| **Go to Requests / Testing / Flows / Tools** | Switch section |
+| **New tool** | Switch to Tools and add a tool (opens in Build mode) |
 | **Send request** | Send the open request (Requests only; says so if the URL is empty) |
 | **Run with CSV…** | Open the batch pane of the open request, where you pick the file |
 | **New request** | Open a new Untitled tab (Requests only) |
 | **New collection** | Add a collection and start renaming it |
 | **Import…** | Open the Import dialog (Postman, Insomnia, Bruno, .env, REST Runner files) |
 | **Import from cURL…** | Open the cURL import dialog |
-| **Export workspace…** | Export collections, environments, suites and flows to one file |
+| **Export workspace…** | Export collections, environments, suites, flows and tools to one file |
 | **Switch environment…** | Types `>Environment: ` so the choices (None and each environment) are listed; Enter on one makes it active. **Current** marks the active one. You can also type `>env staging` |
 | **Toggle Variables panel** | Open or close the Variables side panel |
 | **Open Certificates** | Open the Certificates side panel |
@@ -53,7 +55,7 @@ Quick open is also a command palette. Type `>` first (as in VS Code) to see only
 | --- | --- |
 | `Mod + K` | Open or close Quick open and the command palette |
 | `?` | Show the keyboard shortcuts (when no text field or editor has focus and no dialog is open) |
-| `Mod + 1` / `2` / `3` | Switch to Requests, Testing or Flows, the top three buttons of the side bar on the right (works from inside text fields and editors too) |
+| `Mod + 1` / `2` / `3` / `4` | Switch to Requests, Testing, Flows or Tools, the top four buttons of the side bar on the right (works from inside text fields and editors too) |
 | `Mod + Enter` | Send the request (Requests mode; also works from inside the body and script editors) |
 | `Enter` in the URL box | Send the request |
 | `Mod + S` | Save the open request or example |

@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { SendFn } from "../batch";
 import { inlineScriptRunner } from "../testing/scriptTestHelper";
 import type { PreparedRequest, SendOutcome } from "../types";
+import { canRetryAlone } from "./engine";
 import { sampleFindRequest, sampleReply, sampleTool } from "./sample";
 import { SessionRegistry, ToolSession, pendingRows, type LookupDeps } from "./session";
 import { newBlock, newCall, newTool } from "./tools";
@@ -278,6 +279,72 @@ describe("SessionRegistry", () => {
     reg.drop("a");
     expect((await pending)?.stopped).toBe(true);
     expect(reg.runningIds()).toEqual([]);
+  });
+});
+
+describe("ToolSession.runAction and retryCall", () => {
+  const env = (color: "red" | "none") => ({ id: "e", name: "Prod", vars: [], color }) as never;
+
+  it("sends a write call after a lookup, keeps the result, and clears it when the next lookup starts", async () => {
+    const s = server();
+    const session = new ToolSession("t");
+    const tool = sampleTool();
+    await session.lookup(tool, depsOf(s.send), { subscriberId: "100234" });
+    const confirm = vi.fn(async () => true);
+    const r = await session.runAction(tool, "c-suspend", { ...depsOf(s.send), environment: env("none"), confirm });
+    expect(r?.state).toBe("done");
+    expect(confirm).not.toHaveBeenCalled();
+    expect(session.getState().writes["c-suspend"]).toBe(r);
+    expect(session.getState().writing).toEqual([]);
+    const pending = session.lookup(tool, depsOf(s.send), { subscriberId: "100234" });
+    expect(session.getState().writes).toEqual({});
+    await pending;
+  });
+
+  it("asks on a coloured environment and does not send when declined", async () => {
+    const s = server();
+    const session = new ToolSession("t");
+    const confirm = vi.fn(async () => false);
+    const r = await session.runAction(sampleTool(), "c-suspend", { ...depsOf(s.send), environment: env("red"), confirm }, false);
+    expect(confirm).toHaveBeenCalledOnce();
+    expect(r).toMatchObject({ state: "skipped", reason: "not-confirmed" });
+    expect(s.sent).toEqual([]);
+  });
+
+  it("asks on an unmarked environment when the block has confirm text, with no guard", async () => {
+    const s = server();
+    const session = new ToolSession("t");
+    const confirm = vi.fn(async () => false);
+    const r = await session.runAction(sampleTool(), "c-suspend", { ...depsOf(s.send), environment: env("none"), confirm }, true);
+    expect(confirm).toHaveBeenCalledWith(null, "c-suspend");
+    expect(r?.reason).toBe("not-confirmed");
+    expect(s.sent).toEqual([]);
+  });
+
+  it("retries one call alone when nothing depends on it, and leaves the other answers as they are", async () => {
+    const s = server();
+    const session = new ToolSession("t");
+    const tool = sampleTool();
+    await session.lookup(tool, depsOf(s.send), { subscriberId: "100234" });
+    const before = session.getState().results;
+    s.sent.length = 0;
+    const r = await session.retryCall(tool, "c-devices", depsOf(s.send));
+    expect(r?.state).toBe("done");
+    expect(s.sent).toEqual(["https://api.test/subscribers/100234/devices"]);
+    expect(session.getState().results["c-account"]).toBe(before["c-account"]);
+    expect(session.getState().results["c-devices"]).toBe(r);
+  });
+});
+
+describe("canRetryAlone", () => {
+  it("is false for a call others read from, a write call and a pick-a-row call", () => {
+    const tool = sampleTool();
+    const find = sampleFindRequest();
+    expect(canRetryAlone(tool, "c-devices", find)).toBe(true);
+    expect(canRetryAlone(tool, "c-subscriber", find)).toBe(false);
+    expect(canRetryAlone(tool, "c-suspend", find)).toBe(false);
+    const pick = { ...tool, calls: tool.calls.map((c) => (c.id === "c-devices" ? { ...c, pickRow: { listPath: "devices", labelPath: "model" } } : c)) };
+    expect(canRetryAlone(pick, "c-devices", find)).toBe(false);
   });
 });
 

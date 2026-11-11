@@ -52,7 +52,7 @@ The bar on the right edge, full window height, holds the sections and two tools.
 
 | Button | What it does |
 | --- | --- |
-| **Requests**, **Testing**, **Flows** | Switch section. The open one has a tile, a purple icon and a marker on the edge. Press `Mod + 1`, `Mod + 2` or `Mod + 3`; with focus in this group the Up and Down arrow keys move between them. Testing shows `N✕` after a run with failed cases until you open Testing, and a blue dot while a suite runs. Flows shows a green dot while a flow runs, and `✕` after a failed run until you open Flows. |
+| **Requests**, **Testing**, **Flows**, **Tools** | Switch section. The open one has a tile, a purple icon and a marker on the edge. Press `Mod + 1` to `Mod + 4`; with focus in this group the Up and Down arrow keys move between them. Testing shows `N✕` after a run with failed cases until you open Testing, and a blue dot while a suite runs. Flows shows a green dot while a flow runs, and `✕` after a failed run until you open Flows. Tools shows an accent dot while a lookup runs, and `✕` when a lookup that finished while you were elsewhere had calls with an error until you open Tools. |
 | **{x}** Variables (Requests only) | Opens the [Variables sidebar](requests.md#variables). The badge counts placeholders in the open request that have no value. |
 | **Lock** Certificates | Opens the Certificates panel: the certificate this request uses (with **Send without a certificate**), and every imported certificate. A green dot means the open request uses a certificate; amber means one expires within 30 days. **Manage…** opens the full dialog. |
 
@@ -65,6 +65,8 @@ In Testing and Flows the list on the left (suites and runs, flows and runs) can 
 **Testing mode** has suites and test runs on the left, the open suite in the middle, and the latest run on the right. See [Testing](testing.md).
 
 **Flows mode** has flows and flow runs on the left, the flow's canvas in the middle, and the selected step's settings (or the latest run) on the right. See [Flows](flows.md).
+
+**Tools mode** has your tools and a tool's recent lookups on the left and the tool's page in the middle, in Use or Build mode. See [Tools](tools.md).
 
 ## Your first request
 
@@ -87,4 +89,5 @@ Updates only work in installed builds, not in `npm run tauri dev`. Versions befo
 - Batch the request over a spreadsheet: [CSV batch runs](batch-runs.md).
 - Add checks and run several requests in order: [Testing](testing.md).
 - Chain cases, suites and saved requests with branches and retries: [Flows](flows.md).
+- Turn saved requests into a lookup page: [Tools](tools.md).
 - Pull a token out of one response and use it in the next request: [scripting](scripting.md#quick-example).

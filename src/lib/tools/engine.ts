@@ -362,3 +362,33 @@ export async function runWriteCall(tool: Tool, callId: string, rawInputs: Record
   ctx.onCall?.(result);
   return result;
 }
+
+/** Calls whose values come from this call's response (so a retry of it would leave them out of date). */
+export function dependentCalls(tool: Tool, callId: string, findRequest: RequestLookup): ToolCall[] {
+  return tool.calls.filter((c) => {
+    if (c.id === callId) return false;
+    const def = findRequest(c.requestId);
+    return (def ? requestPlaceholders(def) : []).some((p) => c.mappings[p]?.call?.callId === callId);
+  });
+}
+
+/** Whether Retry can run this one call alone: nothing reads its answer and it is not a pick-a-row call. Otherwise the whole lookup runs again. */
+export function canRetryAlone(tool: Tool, callId: string, findRequest: RequestLookup): boolean {
+  const call = tool.calls.find((c) => c.id === callId);
+  return !!call && !call.write && !call.pickRow && dependentCalls(tool, callId, findRequest).length === 0;
+}
+
+/** Runs one lookup call again, reading what it needs from `prior` (the answers on screen). Never throws except for a call that is not a lookup call. */
+export async function runLookupCall(tool: Tool, callId: string, rawInputs: Record<string, string>, ctx: ToolRunContext & { prior?: Record<string, CallResult> }): Promise<CallResult> {
+  const call = tool.calls.find((c) => c.id === callId);
+  if (!call) throw new ToolNotRunnableError("That call is not part of this tool.");
+  if (call.write) throw new ToolNotRunnableError(`${call.name} is a write call; it runs from its Action button.`);
+  const def = ctx.findRequest(call.requestId);
+  if (!def) return skipped(call, "missing-request", "Request missing");
+  const byId = new Map(tool.calls.map((c) => [c.id, c]));
+  const r = resolvePlaceholders(call, def, resolveInputs(tool, rawInputs), byId, ctx.prior ?? {});
+  if (r.missing.length > 0) return skipped(call, "needs-value", needsMessage(r));
+  const result = await sendCall(call, def, r.data, ctx);
+  ctx.onCall?.(result);
+  return result;
+}

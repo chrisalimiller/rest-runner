@@ -73,6 +73,9 @@ import { saveTextFile } from "./lib/saveFile";
 import { toWorkspaceFile } from "./lib/workspace";
 import { openImportDialog } from "./lib/importDialog";
 import { readWorkspace } from "./lib/workspaceStore";
+import { loadTools } from "./lib/tools/tools";
+import { deleteWarning, idsRemovedBy, toolsUsingRequests } from "./lib/tools/usage";
+import { Modal } from "./components/shell/Modal";
 import {
   activate,
   applyCurl,
@@ -198,6 +201,8 @@ function loadCollections(): Collection[] {
 type Dialog =
   | { type: "save"; dest: Destination | null }
   | { type: "move"; id: string; name: string }
+  /** Deleting something tools use: asks first, naming the tools. */
+  | { type: "delete-used"; action: Extract<TreeAction, { type: "delete" }>; tools: string[] }
   | { type: "example"; requestId: string; requestName: string; exampleName: string; base: RequestDef; response: SampleResponse | null; responseLabel: string | null };
 
 function sampleOutcome(example: RequestExample, response: SampleResponse, envVars: Record<string, string>): SendOutcome {
@@ -794,16 +799,25 @@ export default function App({ active = true, shell, command }: Props) {
         break;
       }
       case "delete": {
-        const taken = removeWithRestore(collections, a.id);
-        if (!taken) break;
-        setCollections(taken.collections);
-        // Tabs showing what was deleted stay open, now unsaved (and Undo makes them saved again).
-        const orphaned = tabsRef.current.tabs.filter((t) => locate(collections, t.def.id) && !locate(taken.collections, t.def.id)).length;
-        const note = orphaned === 0 ? "" : `. ${orphaned === 1 ? "Its open tab stays" : `${orphaned} open tabs stay`} as unsaved ${orphaned === 1 ? "request" : "requests"}`;
-        toast.show({ message: `Deleted ${a.label}${note}`, onUndo: () => setCollections((c) => taken.restore(c)) });
+        const used = toolsUsingRequests(loadTools(), idsRemovedBy(collections, a.id));
+        if (used.length > 0) {
+          setDialog({ type: "delete-used", action: a, tools: used.map((t) => t.name || "(unnamed)") });
+          break;
+        }
+        deleteNow(a);
         break;
       }
     }
+  };
+
+  const deleteNow = (a: Extract<TreeAction, { type: "delete" }>) => {
+    const taken = removeWithRestore(collections, a.id);
+    if (!taken) return;
+    setCollections(taken.collections);
+    // Tabs showing what was deleted stay open, now unsaved (and Undo makes them saved again).
+    const orphaned = tabsRef.current.tabs.filter((t) => locate(collections, t.def.id) && !locate(taken.collections, t.def.id)).length;
+    const note = orphaned === 0 ? "" : `. ${orphaned === 1 ? "Its open tab stays" : `${orphaned} open tabs stay`} as unsaved ${orphaned === 1 ? "request" : "requests"}`;
+    toast.show({ message: `Deleted ${a.label}${note}`, onUndo: () => setCollections((c) => taken.restore(c)) });
   };
 
   const addCollection = () => {
@@ -819,7 +833,7 @@ export default function App({ active = true, shell, command }: Props) {
   const exportWorkspace = async (includeSecrets: boolean, includeCertificateFiles = false) => {
     try {
       const certificates = await certificatesForExport(loadCertificates(), includeCertificateFiles && isTauri());
-      const result = await saveTextFile("rest-runner-export.json", toWorkspaceFile(collections, environments, { includeSecrets, suites: readWorkspace().suites, flows: readWorkspace().flows, certificates }), "REST Runner export", "json");
+      const result = await saveTextFile("rest-runner-export.json", toWorkspaceFile(collections, environments, { includeSecrets, suites: readWorkspace().suites, flows: readWorkspace().flows, tools: readWorkspace().tools, certificates }), "REST Runner export", "json");
       if (result.saved) notify(result.path ? `Exported to ${result.path}` : "Export downloaded.");
     } catch (e) {
       notify(`Could not export: ${e instanceof Error ? e.message : String(e)}`);
@@ -900,7 +914,7 @@ export default function App({ active = true, shell, command }: Props) {
       else if (a.type === "set-environment") {
         if (a.id === null || environments.some((e) => e.id === a.id)) setActiveEnvId(a.id);
       }
-    } else openItem(command.item, command.permanent);
+    } else if (command.type === "open") openItem(command.item, command.permanent);
   }, [command]);
 
   useEffect(() => {
@@ -1033,7 +1047,7 @@ export default function App({ active = true, shell, command }: Props) {
           <button className="link-btn" onClick={openImportDialog} title="Import collections and environments from Postman, Insomnia, Bruno, .env or REST Runner files">
             Import…
           </button>
-          <button className="link-btn" onClick={startExport} title="Export collections, environments, test suites and flows to one file">
+          <button className="link-btn" onClick={startExport} title="Export collections, environments, test suites, flows and tools to one file">
             Export workspace…
           </button>
         </span>
@@ -1078,6 +1092,7 @@ export default function App({ active = true, shell, command }: Props) {
             if (permanent) setSwitcherOpen(false);
           }}
           onAction={onTreeAction}
+          toolsUsing={(ids) => toolsUsingRequests(loadTools(), ids).map((t) => t.name || "(unnamed)")}
         />
       </div>
     </RequestSwitcher>
@@ -1354,6 +1369,37 @@ export default function App({ active = true, shell, command }: Props) {
             notify(`Saved "${name}".`);
           }}
         />
+      )}
+      {dialog?.type === "delete-used" && (
+        <Modal label="Delete request used by tools" onClose={() => setDialog(null)} className="small-modal">
+          <div className="modal-head">
+            <h3>Delete {dialog.action.label}?</h3>
+          </div>
+          <div className="dialog-body">
+            <p>{deleteWarning("It", dialog.tools.map((name) => ({ name })))}</p>
+            <ul>
+              {dialog.tools.map((name) => (
+                <li key={name}>{name}</li>
+              ))}
+            </ul>
+          </div>
+          <div className="modal-foot">
+            <button className="secondary" onClick={() => setDialog(null)} autoFocus>
+              Cancel
+            </button>
+            <span className="flex-gap" />
+            <button
+              className="send"
+              onClick={() => {
+                const a = dialog.action;
+                setDialog(null);
+                deleteNow(a);
+              }}
+            >
+              Delete anyway
+            </button>
+          </div>
+        </Modal>
       )}
       {dialog?.type === "move" && (
         <MoveDialog

@@ -5,7 +5,7 @@ import { useSyncExternalStore } from "react";
  * and the user has not looked yet, and facts about the active request (unfilled variables, certificate in use).
  * Module state with subscribers, like busyWork.ts and certificatesDialog.ts.
  */
-export type StatusSection = "testing" | "flows";
+export type StatusSection = "testing" | "flows" | "tools";
 
 export interface SectionState {
   running: boolean;
@@ -31,12 +31,13 @@ export interface RequestStatus {
 export interface SectionStatus {
   testing: SectionState;
   flows: SectionState;
+  tools: SectionState;
   request: RequestStatus | null;
 }
 
 const EMPTY: SectionState = { running: false, failed: 0, unseen: false };
 
-let state: SectionStatus = { testing: EMPTY, flows: EMPTY, request: null };
+let state: SectionStatus = { testing: EMPTY, flows: EMPTY, tools: EMPTY, request: null };
 const listeners = new Set<() => void>();
 
 function set(next: SectionStatus) {
@@ -67,7 +68,7 @@ export function getSectionStatus(): SectionStatus {
 }
 
 export function resetSectionStatus(): void {
-  set({ testing: EMPTY, flows: EMPTY, request: null });
+  set({ testing: EMPTY, flows: EMPTY, tools: EMPTY, request: null });
 }
 
 export function useSectionStatus(): SectionStatus {
@@ -110,6 +111,12 @@ export function railBadge(item: RailItem, status: SectionStatus & { certNotAfter
     case "flows": {
       const s = status.flows;
       if (s.running) return { kind: "pill", text: "●", tone: "ok" };
+      if (s.unseen && s.failed > 0) return { kind: "pill", text: "✕", tone: "bad" };
+      return null;
+    }
+    case "tools": {
+      const s = status.tools;
+      if (s.running) return { kind: "pill", text: "●", tone: "accent" };
       if (s.unseen && s.failed > 0) return { kind: "pill", text: "✕", tone: "bad" };
       return null;
     }

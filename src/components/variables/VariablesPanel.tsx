@@ -54,6 +54,8 @@ function useView(): VariablesView {
 interface Props {
   /** Names the open request, case or flow uses, in order of appearance. */
   used: string[];
+  /** Names the tool fills from its own inputs (Tools). Listed read-only: they are not environment variables. */
+  inputs?: string[];
   /** What the list is scoped to, as the first toggle says it: "This request", "This case", "This flow". */
   scope: string;
   /** Script variables only exist in Requests. */
@@ -237,7 +239,7 @@ function EnvRows({ group, api }: { group: SidebarEnvGroup; api: PanelVariablesAp
 }
 
 /** The Variables sidebar: every variable by priority, editable in place. */
-export function VariablesPanel({ used, scope, showScript = true, api: given, onEditEnvironments, onSwitchEnvironment }: Props) {
+export function VariablesPanel({ used, inputs, scope, showScript = true, api: given, onEditEnvironments, onSwitchEnvironment }: Props) {
   const fromContext = useVariables();
   const api = given ?? fromContext;
   const state = { ...useView(), open: useSidePanels().variables };
@@ -316,6 +318,23 @@ export function VariablesPanel({ used, scope, showScript = true, api: given, onE
             <ul className="variables-list">
               {missing.map((name) => (
                 <MissingRow key={name} name={name} envName={activeEnv ? activeEnv.name || "(unnamed)" : null} onAdd={(value, secret) => api.add(name, value, secret)} />
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {inputs && inputs.length > 0 && (
+          <section>
+            <div className="variables-head">
+              <span className="section-title">Tool inputs</span>
+            </div>
+            <ul className="variables-list">
+              {inputs.map((name) => (
+                <li key={name} className="variables-row">
+                  <code className="var-chip">{name}</code>
+                  <span className="muted small">typed on the tool's page</span>
+                  <span className="tag">input</span>
+                </li>
               ))}
             </ul>
           </section>

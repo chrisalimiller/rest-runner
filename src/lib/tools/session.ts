@@ -2,7 +2,8 @@ import type { SendFn } from "../batch";
 import type { RequestLookup } from "../flows/flows";
 import type { ScriptRunner } from "../testing/scriptRunner";
 import type { Vars } from "../template";
-import { resolveInputs, runLookup, ToolNotRunnableError } from "./engine";
+import type { Environment } from "../environments";
+import { resolveInputs, runLookup, runLookupCall, runWriteCall, ToolNotRunnableError, writeCallGuard } from "./engine";
 import { saveLookup } from "./lookupStore";
 import type { CallResult, LookupRecord, Tool } from "./types";
 
@@ -32,6 +33,10 @@ export interface SessionState {
   viewing: LookupRecord | null;
   /** Id of the saved lookup the answers on screen are (viewed, or just made and saved). Null while a lookup runs. */
   recordId: string | null;
+  /** What Action buttons got back, by write call id. Cleared when a lookup starts or a saved lookup is shown. */
+  writes: Record<string, CallResult>;
+  /** Write calls that were sent and have not finished. */
+  writing: string[];
   /** A pick-a-row call is waiting for the user to choose a row. */
   pending: PendingPick[];
   /** Why Look up could not start. */
@@ -57,6 +62,8 @@ const START: SessionState = {
   inputs: {},
   results: {},
   sending: [],
+  writes: {},
+  writing: [],
   running: false,
   startedAt: null,
   viewing: null,
@@ -66,6 +73,16 @@ const START: SessionState = {
   stopped: false,
   loaded: false,
 };
+
+export interface ActionDeps extends Omit<LookupDeps, "save"> {
+  /** The environment in use. A coloured one needs confirming first. */
+  environment?: Environment | null;
+  /**
+   * Asked before the write call is sent: on a coloured environment (with its guard), or on any environment when the block has
+   * confirm text (guard is null then). Resolve true to send.
+   */
+  confirm: (guard: ReturnType<typeof writeCallGuard>, callId: string) => Promise<boolean>;
+}
 
 export class ToolSession {
   private state: SessionState = START;
@@ -103,7 +120,7 @@ export class ToolSession {
     if (this.state.running) return;
     const results: Record<string, CallResult> = {};
     for (const r of record.results) results[r.callId] = r;
-    this.set({ inputs: { ...record.inputs }, results, sending: [], startedAt: record.startedAt, viewing: record, recordId: record.id, pending: [], error: null, stopped: record.stopped });
+    this.set({ inputs: { ...record.inputs }, results, sending: [], writes: {}, writing: [], startedAt: record.startedAt, viewing: record, recordId: record.id, pending: [], error: null, stopped: record.stopped });
   }
 
   /** Stops a running lookup: calls not yet started end as Stopped, sent ones are cancelled. */
@@ -117,6 +134,51 @@ export class ToolSession {
   }
 
   /**
+   * Runs one write call (an Action button) with the answers on screen. Not while a lookup runs, and not twice at once.
+   * The result is kept in `writes` and returned. `confirmAlways` asks even on an unmarked environment (the block has confirm text).
+   */
+  async runAction(tool: Tool, callId: string, deps: ActionDeps, confirmAlways = false): Promise<CallResult | null> {
+    if (this.state.running || this.state.writing.includes(callId)) return null;
+    this.set({ writing: [...this.state.writing, callId] });
+    const finish = (r: CallResult) => {
+      this.set({ writes: { ...this.state.writes, [callId]: r }, writing: this.state.writing.filter((id) => id !== callId) });
+      return r;
+    };
+    const name = tool.calls.find((c) => c.id === callId)?.name ?? "";
+    try {
+      if (confirmAlways && !writeCallGuard(deps.environment) && !(await deps.confirm(null, callId))) {
+        return finish({ callId, name, state: "skipped", reason: "not-confirmed", message: "Not sent: not confirmed." });
+      }
+      const result = await runWriteCall(tool, callId, this.state.inputs, {
+        findRequest: deps.findRequest,
+        envVars: deps.envVars,
+        send: deps.send,
+        scripts: deps.scripts,
+        prior: this.state.results,
+        environment: deps.environment,
+        confirm: (guard) => deps.confirm(guard, callId),
+      });
+      return finish(result);
+    } catch (e) {
+      return finish({ callId, name, state: "network-error", error: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
+  /** Runs one lookup call again and puts its answer in place. The saved lookup is not changed. */
+  async retryCall(tool: Tool, callId: string, deps: Omit<LookupDeps, "save">): Promise<CallResult | null> {
+    if (this.state.running || this.state.sending.includes(callId)) return null;
+    this.set({ sending: [...this.state.sending, callId] });
+    try {
+      const r = await runLookupCall(tool, callId, this.state.inputs, { findRequest: deps.findRequest, envVars: deps.envVars, send: deps.send, scripts: deps.scripts, prior: this.state.results });
+      this.set({ results: { ...this.state.results, [callId]: r }, sending: this.state.sending.filter((id) => id !== callId) });
+      return r;
+    } catch {
+      this.set({ sending: this.state.sending.filter((id) => id !== callId) });
+      return null;
+    }
+  }
+
+  /**
    * Runs the tool's lookup. Each block fills the moment its call finishes. The finished lookup is saved
    * (unless the tool keeps no history) and returned; null when it could not start.
    */
@@ -126,7 +188,7 @@ export class ToolSession {
     this.abort = controller;
     const inputs = resolveInputs(tool, rawInputs);
     this.picks.clear();
-    this.set({ results: {}, sending: [], running: true, startedAt: new Date().toISOString(), viewing: null, recordId: null, pending: [], error: null, stopped: false });
+    this.set({ results: {}, sending: [], writes: {}, running: true, startedAt: new Date().toISOString(), viewing: null, recordId: null, pending: [], error: null, stopped: false });
     try {
       const run = await runLookup(tool, rawInputs, {
         findRequest: deps.findRequest,

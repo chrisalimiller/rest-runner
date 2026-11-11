@@ -3,7 +3,7 @@ import { newCollection } from "./collections";
 import { newFlow } from "./flows/flows";
 import { isFirstRun } from "./workspaceStore";
 
-const empty = { collections: [], environments: [], suites: [], flows: [] };
+const empty = { collections: [], environments: [], suites: [], flows: [], tools: [] };
 
 describe("isFirstRun", () => {
   it("is true only for an empty workspace that was not dealt with yet", () => {

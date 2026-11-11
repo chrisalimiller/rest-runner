@@ -15,6 +15,9 @@ import { cleanEnvironments, type Environment } from "./environments";
 import { importFlowsFile } from "./flows/flowFile";
 import { cleanImportedFlows } from "./flows/flows";
 import type { Flow } from "./flows/types";
+import { cleanTools } from "./tools/tools";
+import { mergeToolsAndRequests } from "./tools/toolsFile";
+import type { Tool } from "./tools/types";
 import { importSuitesFile } from "./testing/suiteFile";
 import { cleanSuites } from "./testing/suites";
 import { validateImportedMethods } from "./importMethods";
@@ -24,7 +27,7 @@ import type { RequestDef } from "./types";
 
 /**
  * File format for exporting and importing a whole workspace: collections,
- * environments, test suites and flows (and, from version 4, certificate rules). Version 3 files (no certificates),
+ * environments, test suites, flows and tools (and, from version 4, certificate rules). Version 3 files (no certificates),
  * version 2 files (no suites or flows) and
  * version 1 files (a flat `savedRequests` list) still import, and so do the
  * separate suites and flows files.
@@ -38,6 +41,8 @@ export interface WorkspaceFile {
   environments: Environment[];
   suites: TestSuite[];
   flows: Flow[];
+  /** Tools. Files from before Tools existed have none. */
+  tools?: Tool[];
   /** Certificate rules, without key material unless the export included the files. Version 4 and later. */
   certificates?: ExportedCertificate[];
 }
@@ -48,6 +53,7 @@ export interface Workspace {
   environments: Environment[];
   suites: TestSuite[];
   flows: Flow[];
+  tools: Tool[];
 }
 
 export const IMPORTED_COLLECTION_NAME = "Imported requests";
@@ -61,7 +67,7 @@ export function exportEnvironments(environments: Environment[], includeSecrets: 
 export function toWorkspaceFile(
   collections: Collection[],
   environments: Environment[],
-  options: { includeSecrets?: boolean; suites?: TestSuite[]; flows?: Flow[]; certificates?: ExportedCertificate[] } = {},
+  options: { includeSecrets?: boolean; suites?: TestSuite[]; flows?: Flow[]; tools?: Tool[]; certificates?: ExportedCertificate[] } = {},
 ): string {
   const includeSecrets = options.includeSecrets ?? false;
   if (!includeSecrets) {
@@ -79,6 +85,7 @@ export function toWorkspaceFile(
     environments,
     suites: options.suites ?? [],
     flows: options.flows ?? [],
+    ...(options.tools?.length ? { tools: options.tools } : {}),
     ...(options.certificates?.length ? { certificates: options.certificates } : {}),
   };
   return JSON.stringify(file, null, 2);
@@ -97,7 +104,7 @@ export interface WorkspaceImport extends Workspace {
   /** Things in a Postman file that could not be carried over. */
   warnings?: string[];
   /** What changed, as [added, updated] pairs. */
-  counts: { collections: [number, number]; environments: [number, number]; suites: [number, number]; flows: [number, number]; requests: [number, number] };
+  counts: { collections: [number, number]; environments: [number, number]; suites: [number, number]; flows: [number, number]; tools: [number, number]; requests: [number, number] };
 }
 
 function isEnvironment(x: unknown): x is Environment {
@@ -145,7 +152,7 @@ export function importWorkspaceFile(text: string, collections: Collection[], env
   const postman = detectPostman(text);
   if (postman) {
     const zero: [number, number] = [0, 0];
-    const r = importPostman(postman.kind, postman.data, { collections, environments, suites: [], flows: [] }, { collections: zero, environments: zero, suites: zero, flows: zero, requests: zero });
+    const r = importPostman(postman.kind, postman.data, { collections, environments, suites: [], flows: [], tools: [] }, { collections: zero, environments: zero, suites: zero, flows: zero, tools: zero, requests: zero });
     const added = r.counts.collections[0] + r.counts.environments[0];
     const replaced = r.counts.collections[1] + r.counts.environments[1];
     return { collections: r.collections, environments: r.environments, added, replaced, warnings: r.warnings };
@@ -206,7 +213,7 @@ function importPostman(kind: "collection" | "environment", data: unknown, curren
  */
 export function importWorkspace(text: string, current: Workspace): WorkspaceImport {
   const zero: [number, number] = [0, 0];
-  const counts: WorkspaceImport["counts"] = { collections: zero, environments: zero, suites: zero, flows: zero, requests: zero };
+  const counts: WorkspaceImport["counts"] = { collections: zero, environments: zero, suites: zero, flows: zero, tools: zero, requests: zero };
   const postman = detectPostman(text);
   if (postman) return importPostman(postman.kind, postman.data, current, counts);
   const data = parseExport(text);
@@ -214,16 +221,21 @@ export function importWorkspace(text: string, current: Workspace): WorkspaceImpo
     const r = importFlowsFile(text, current);
     return { ...current, flows: r.flows, suites: r.suites, collections: r.collections, counts: { ...counts, flows: r.counts.flows, suites: r.counts.suites, requests: r.counts.requests } };
   }
+  if (data.kind === "tools") {
+    const r = mergeToolsAndRequests(data.tools, data.requests, current);
+    return { ...current, tools: r.tools, collections: r.collections, counts: { ...counts, tools: r.counts.tools, requests: r.counts.requests } };
+  }
   if (data.kind === "test-suites") {
     const r = importSuitesFile(text, current.suites);
     return { ...current, suites: r.suites, counts: { ...counts, suites: [r.added, r.replaced] } };
   }
-  if (!["collections", "savedRequests", "environments", "suites", "flows"].some((k) => Array.isArray(data[k]))) {
-    throw new Error("This REST Runner file has no collections, environments, test suites or flows to import.");
+  if (!["collections", "savedRequests", "environments", "suites", "flows", "tools"].some((k) => Array.isArray(data[k]))) {
+    throw new Error("This REST Runner file has no collections, environments, test suites, flows or tools to import.");
   }
   const base = importCollectionsAndEnvironments(data, current.collections, current.environments);
   const suites = mergeById(current.suites, cleanSuites(data.suites));
   const flows = mergeById(current.flows, cleanImportedFlows(data.flows));
+  const tools = mergeById(current.tools, cleanTools(data.tools));
   const incomingEnvs = (Array.isArray(data.environments) ? data.environments : []).filter(isEnvironment);
   const envReplaced = incomingEnvs.filter((e) => current.environments.some((x) => x.id === e.id)).length;
   const envCount: [number, number] = [incomingEnvs.length - envReplaced, envReplaced];
@@ -232,12 +244,14 @@ export function importWorkspace(text: string, current: Workspace): WorkspaceImpo
     environments: base.environments,
     suites: suites.list,
     flows: flows.list,
+    tools: tools.list,
     counts: {
       ...counts,
       collections: [base.added - envCount[0], base.replaced - envCount[1]],
       environments: envCount,
       suites: [suites.added, suites.replaced],
       flows: [flows.added, flows.replaced],
+      tools: [tools.added, tools.replaced],
     },
   };
 }
@@ -296,6 +310,7 @@ export function describeWorkspaceImport(name: string, c: WorkspaceImport["counts
     part("environments", c.environments),
     part("suites", c.suites),
     part("flows", c.flows),
+    part("tools", c.tools),
   ].filter(Boolean);
   return `Imported ${name}: ${parts.join("; ") || "nothing new"}.${c.flows[0] || c.flows[1] ? " Imported schedules are off; review and enable them in Flows." : ""}`;
 }

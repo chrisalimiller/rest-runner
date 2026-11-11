@@ -6,10 +6,11 @@ import { newRequest } from "./defaults";
 import { toWorkspaceFile, type Workspace } from "./workspace";
 import { newSuite } from "./testing/suites";
 import { newFlow } from "./flows/flows";
+import { newTool } from "./tools/tools";
 import type { Flow } from "./flows/types";
 import type { TestSuite } from "./testing/types";
 
-const empty: Workspace = { collections: [], environments: [], suites: [], flows: [] };
+const empty: Workspace = { collections: [], environments: [], suites: [], flows: [], tools: [] };
 
 /** A REST Runner workspace file as text. */
 function wf(collections: Collection[] = [], environments: Environment[] = [], suites: TestSuite[] = [], flows: Flow[] = []): string {
@@ -72,6 +73,16 @@ describe("scanText detection", () => {
     const col: Collection = { ...newCollection("Mine"), items: [requestNode(newRequest())] };
     const s = scanText("ws.json", wf([col], [env("Dev", [["a", "1"]])], [newSuite("S")], [newFlow("F")]));
     expect(s.items.map((i) => [i.kind, i.name])).toEqual([["collection", "Mine"], ["environment", "Dev"], ["suite", "S"], ["flow", "F"]]);
+  });
+  it("offers the tools in a workspace file and adds them, keeping a clashing one apart until it is resolved", () => {
+    const text = toWorkspaceFile([], [], { tools: [newTool("Customer lookup")] });
+    const scanned = scanText("ws.json", text).items;
+    expect(scanned.map((i) => [i.kind, i.name])).toEqual([["tool", "Customer lookup"]]);
+    const added = computeImport(empty, scanned.map(defaultChoice));
+    expect(added.workspace.tools.map((t) => t.name)).toEqual(["Customer lookup"]);
+    const clash = computeImport({ ...empty, tools: [newTool("Customer lookup")] }, scanned.map(defaultChoice));
+    expect(clash.unresolved).toBe(1);
+    expect(clash.workspace.tools).toHaveLength(1);
   });
   it("reports problems per file instead of throwing", () => {
     expect(scanText("e.json", "").error).toMatch(/empty/);

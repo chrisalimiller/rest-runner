@@ -74,7 +74,7 @@ it("disables imported schedules even on replacement, but preserves trusted reloa
   const flow = newFlow("Scheduled");
   const schedule = newNode("schedule");
   const incoming = { ...flow, nodes: [schedule, { ...schedule, id: "omitted", enabled: undefined }] };
-  const current = { flows: [flow], suites: [], collections: [], environments: [] };
+  const current = { flows: [flow], suites: [], collections: [], environments: [], tools: [] };
   expect(cleanFlows([incoming])[0].nodes.map(n => n.type === "schedule" && n.enabled)).toEqual([true, true]);
   for (const kind of ["flows", "workspace"]) {
     const result = importWorkspace(JSON.stringify({ app: "rest-runner", kind, flows: [incoming] }), current);

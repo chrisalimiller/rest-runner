@@ -28,6 +28,12 @@ export interface BoardActions {
   onOpenRequest: (requestId: string) => void;
   onCopy: (text: string) => void;
   onPick: (callId: string, index: number | null) => void;
+  /** An Action button was pressed: run this write call. */
+  onRunAction: (callId: string) => void;
+  /** The coloured (production-marked) environment in use, when there is one. Action buttons say so and ask first. */
+  guard?: { name: string; cssColor: string } | null;
+  /** Whether Retry on this call runs only that call (true) or the whole lookup (false). Default false. */
+  retryAlone?: (callId: string) => boolean;
 }
 
 interface BoardProps {
@@ -103,14 +109,7 @@ export function BlockCard({ block, tool, state, findRequest, actions }: CardProp
     );
   }
   if (block.type === "action") {
-    return (
-      <section className="tool-block tool-action" data-block="action">
-        <button type="button" className="secondary" disabled title="Action buttons arrive in a later update">
-          {title || call?.name || "Action"}
-        </button>
-        <p className="muted small">Action buttons arrive in a later update.</p>
-      </section>
-    );
+    return <ActionBody block={block} call={call} title={title} hasRequest={!!def} state={state} actions={actions} />;
   }
 
   const menu = (
@@ -144,6 +143,76 @@ export function BlockCard({ block, tool, state, findRequest, actions }: CardProp
         {raw && result && <pre className="code-view tool-raw">{rawResponseText(result) || "(empty)"}</pre>}
       </div>
     </section>
+  );
+}
+
+interface ActionProps {
+  block: ToolBlock;
+  call: ToolCall | undefined;
+  title: string;
+  hasRequest: boolean;
+  state: SessionState;
+  actions: BoardActions;
+}
+
+/** An Action button: runs a write request with the values on screen, and shows what came back. Never part of Look up. */
+function ActionBody({ block, call, title, hasRequest, state, actions }: ActionProps) {
+  const label = title || call?.name || "Action";
+  const result = call ? state.writes[call.id] : undefined;
+  const writing = !!call && state.writing.includes(call.id);
+  const usable = !!call && call.write && hasRequest;
+  const why = !call ? "No request chosen for this button." : !call.write ? "This is a lookup call, so it runs with Look up." : !hasRequest ? "The request is missing." : state.running ? "Wait for the lookup to finish." : "";
+  const guarded = !!actions.guard;
+  const view = result ? callView({ result, sending: false, lookingUp: false }) : null;
+  return (
+    <section className="tool-block tool-action" data-block="action" data-state={writing ? "running" : (view?.kind ?? "idle")} aria-busy={writing}>
+      <div className="tool-action-row">
+        <button
+          type="button"
+          className={`secondary tool-action-btn ${guarded ? "guarded" : ""}`}
+          disabled={!usable || state.running || writing}
+          style={guarded ? ({ "--guard": actions.guard?.cssColor } as React.CSSProperties) : undefined}
+          title={why || (guarded ? `Asks first: ${actions.guard?.name} is marked as production` : block.text ? "Asks first" : "Sends this write request")}
+          onClick={() => call && actions.onRunAction(call.id)}
+        >
+          {writing ? "Sending…" : label}
+        </button>
+        {guarded && <span className="tool-action-env small">on {actions.guard?.name}</span>}
+        {why && <span className="muted small">{why}</span>}
+      </div>
+      {result && view && <ActionResult result={result} view={view} />}
+    </section>
+  );
+}
+
+function ActionResult({ result, view }: { result: CallResult; view: CallView }) {
+  if (view.kind === "skipped") {
+    const notConfirmed = result.reason === "not-confirmed";
+    return (
+      <p className={`small ${notConfirmed ? "muted" : "tone-warn"}`} role="status">
+        {notConfirmed ? "Not confirmed" : view.message}
+        {notConfirmed && " — nothing was sent."}
+      </p>
+    );
+  }
+  if (view.kind === "network-error") {
+    return (
+      <p className="tone-bad small" role="alert">
+        {view.message}
+      </p>
+    );
+  }
+  if (view.kind === "stopped") return <p className="muted small">Stopped.</p>;
+  const body = rawResponseText(result);
+  const bad = view.kind === "http-error";
+  return (
+    <div className="tool-action-result" role="status">
+      <p className={`small ${bad ? "tone-bad" : "tone-ok"}`}>
+        <strong>{statusLabel(view)}</strong>
+        {result.response?.statusText ? ` ${result.response.statusText}` : ""}
+      </p>
+      {body && <pre className="code-view tool-error-body">{body}</pre>}
+    </div>
   );
 }
 
@@ -209,7 +278,13 @@ function BlockBody({ block, call, result, view, state, actions, hasRequest }: Bo
 
 function RetryButton({ call, actions, disabled }: { call: ToolCall; actions: BoardActions; disabled: boolean }) {
   return (
-    <button type="button" className="secondary" onClick={() => actions.onRetry(call.id)} disabled={disabled} title="Runs the whole lookup again, so anything that depends on this call is refreshed too">
+    <button
+      type="button"
+      className="secondary"
+      onClick={() => actions.onRetry(call.id)}
+      disabled={disabled}
+      title={actions.retryAlone?.(call.id) ? "Sends this call again" : "Runs the whole lookup again, so anything that depends on this call is refreshed too"}
+    >
       Retry
     </button>
   );

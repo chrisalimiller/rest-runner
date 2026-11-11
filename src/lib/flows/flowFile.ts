@@ -49,7 +49,7 @@ export function toFlowsFile(flows: Flow[], suites: TestSuite[], collections: Col
 }
 
 /** Replaces a node with the same id anywhere in the tree. Returns null when the id is not there. */
-function replaceNode(collections: Collection[], node: RequestNode): Collection[] | null {
+export function replaceNode(collections: Collection[], node: RequestNode): Collection[] | null {
   let found = false;
   const walk = (items: TreeNode[]): TreeNode[] =>
     items.map((i) => {
@@ -65,7 +65,7 @@ function replaceNode(collections: Collection[], node: RequestNode): Collection[]
 }
 
 /** Adds a node under a collection and folder path found (or made) by name. */
-function addByPath(collections: Collection[], collectionName: string, folderPath: string[], node: RequestNode): Collection[] {
+export function addByPath(collections: Collection[], collectionName: string, folderPath: string[], node: RequestNode): Collection[] {
   const list = [...collections];
   let ci = list.findIndex((c) => c.name === collectionName);
   if (ci === -1) {
@@ -84,7 +84,7 @@ function addByPath(collections: Collection[], collectionName: string, folderPath
   return list;
 }
 
-function mergeById<T extends { id: string }>(current: T[], incoming: T[]): { list: T[]; added: number; replaced: number } {
+export function mergeById<T extends { id: string }>(current: T[], incoming: T[]): { list: T[]; added: number; replaced: number } {
   const list = [...current];
   let added = 0;
   let replaced = 0;

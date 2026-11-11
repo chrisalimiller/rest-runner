@@ -16,6 +16,7 @@ import {
 } from "./importFormats";
 import { detectPostmanFile, importPostmanCollection, importPostmanEnvironment, isPostmanGlobals } from "./postman";
 import type { Flow } from "./flows/types";
+import type { Tool } from "./tools/types";
 import type { TestSuite } from "./testing/types";
 
 /**
@@ -24,7 +25,7 @@ import type { TestSuite } from "./testing/types";
  * Pure: it works on a copy of the workspace and never writes anything.
  */
 
-export type ImportKind = "collection" | "environment" | "suite" | "flow" | "certificates";
+export type ImportKind = "collection" | "environment" | "suite" | "flow" | "tool" | "certificates";
 
 /** Where an item came from: its own file, variables embedded in a collection, or a Postman globals file. */
 export type ImportOrigin = "file" | "embedded" | "globals";
@@ -47,6 +48,7 @@ export interface ImportItem {
   environment?: Environment;
   suite?: TestSuite;
   flow?: Flow;
+  tool?: Tool;
   /** Certificate rules from a workspace file (applied by the caller; they have no names to clash). */
   certificates?: unknown[];
 }
@@ -103,13 +105,14 @@ export function scanText(file: string, text: string, keyPrefix = file): ScannedF
 
     const obj = data as Record<string, unknown> | null;
     if (obj && typeof obj === "object" && obj.app === "rest-runner") {
-      const ws = importWorkspace(trimmed, { collections: [], environments: [], suites: [], flows: [] });
+      const ws = importWorkspace(trimmed, { collections: [], environments: [], suites: [], flows: [], tools: [] });
       const items: ImportItem[] = [];
       const b = () => base("REST Runner file", "file", true, []);
       for (const c of ws.collections) items.push(collectionItem(b(), c));
       for (const e of ws.environments) items.push(envItem(b(), e));
       for (const s of ws.suites) items.push({ ...b(), kind: "suite", name: s.name, detail: plural(s.cases.length, "test case"), suite: s });
       for (const f of ws.flows) items.push({ ...b(), kind: "flow", name: f.name, detail: plural(f.nodes.length, "step"), flow: f, warnings: ["Imported flow schedules are off. Review and enable them in Flows."] });
+      for (const t of ws.tools) items.push({ ...b(), kind: "tool", name: t.name, detail: plural(t.blocks.length, "block"), tool: t });
       const certs = Array.isArray(obj.certificates) ? obj.certificates : [];
       if (certs.length > 0) items.push({ ...b(), kind: "certificates", name: "Certificate rules", detail: plural(certs.length, "rule"), certificates: certs });
       if (items.length === 0) return fail("This REST Runner file has nothing to import.");
@@ -279,7 +282,7 @@ function keepBlankSecrets(incoming: Environment, existing: Environment): Environ
  * left out and counted in `unresolved`; the caller must not commit until that is zero.
  */
 export function computeImport(current: Workspace, choices: readonly ImportChoice[]): ImportOutcome {
-  let ws: Workspace = { collections: [...current.collections], environments: [...current.environments], suites: [...current.suites], flows: [...current.flows] };
+  let ws: Workspace = { collections: [...current.collections], environments: [...current.environments], suites: [...current.suites], flows: [...current.flows], tools: [...current.tools] };
   const clashes: boolean[] = [];
   const lines: string[] = [];
   const warnings: string[] = [];
@@ -296,7 +299,7 @@ export function computeImport(current: Workspace, choices: readonly ImportChoice
       continue;
     }
     const wanted = choice.name.trim() === "" ? item.name : choice.name.trim();
-    const list = item.kind === "collection" ? ws.collections : item.kind === "environment" ? ws.environments : item.kind === "suite" ? ws.suites : ws.flows;
+    const list = item.kind === "collection" ? ws.collections : item.kind === "environment" ? ws.environments : item.kind === "suite" ? ws.suites : item.kind === "tool" ? ws.tools : ws.flows;
     const names = new Set(list.map((x) => norm(x.name)));
     const clashing = list.find((x) => norm(x.name) === norm(wanted));
     clashes.push(!!clashing);
@@ -362,6 +365,19 @@ export function computeImport(current: Workspace, choices: readonly ImportChoice
       } else {
         const idTaken = ws.suites.some((s) => s.id === suite.id);
         ws = { ...ws, suites: [...ws.suites, { ...suite, id: mode === "keep-both" || idTaken ? newId() : suite.id }] };
+        counts.added += 1;
+        lines.push(`Added ${label}.`);
+      }
+    } else if (item.kind === "tool") {
+      const tool = { ...item.tool!, name: finalName };
+      if (mode === "replace") {
+        const old = clashing as Tool;
+        ws = { ...ws, tools: ws.tools.map((t) => (t.id === old.id ? { ...tool, id: old.id, name: old.name } : t)) };
+        counts.replaced += 1;
+        lines.push(`Replaced ${label}.`);
+      } else {
+        const idTaken = ws.tools.some((t) => t.id === tool.id);
+        ws = { ...ws, tools: [...ws.tools, { ...tool, id: mode === "keep-both" || idTaken ? newId() : tool.id }] };
         counts.added += 1;
         lines.push(`Added ${label}.`);
       }

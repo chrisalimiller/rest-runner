@@ -14,7 +14,7 @@ import { UnsavedDialog } from "./UnsavedDialog";
 
 const find = sampleFindRequest();
 const noop = () => {};
-const actions: BoardActions = { onInput: noop, onRunKey: noop, onRetry: noop, onOpenRequest: noop, onCopy: noop, onPick: noop };
+const actions: BoardActions = { onInput: noop, onRunKey: noop, onRetry: noop, onOpenRequest: noop, onCopy: noop, onPick: noop, onRunAction: noop };
 
 function done(callId: string, body: unknown): CallResult {
   const text = JSON.stringify(body);
@@ -22,7 +22,7 @@ function done(callId: string, body: unknown): CallResult {
 }
 
 function stateOf(results: CallResult[] = [], extra: Partial<SessionState> = {}): SessionState {
-  return { inputs: {}, results: Object.fromEntries(results.map((r) => [r.callId, r])), sending: [], running: false, startedAt: null, viewing: null, recordId: null, pending: [], error: null, stopped: false, loaded: true, ...extra };
+  return { inputs: {}, results: Object.fromEntries(results.map((r) => [r.callId, r])), sending: [], writes: {}, writing: [], running: false, startedAt: null, viewing: null, recordId: null, pending: [], error: null, stopped: false, loaded: true, ...extra };
 }
 
 const subscriber = done("c-subscriber", { name: "Ada", autoPay: true, account: { id: "A-77", planId: "P-5" } });
@@ -180,7 +180,7 @@ describe("tree and settings", () => {
 });
 
 describe("Build page", () => {
-  const props = { findRequest: find, environments: [], onChange: noop, onSave: noop, onDiscard: noop, onRunSample: noop, onStop: noop, actions: { onInput: noop, onOpenRequest: noop, onCopy: noop, onPick: noop } };
+  const props = { findRequest: find, environments: [], onChange: noop, onSave: noop, onDiscard: noop, onRunSample: noop, onStop: noop, actions: { onInput: noop, onOpenRequest: noop, onCopy: noop, onPick: noop, onRetry: noop, onRunAction: noop } };
 
   it("clean tool: Save and Discard are off", () => {
     const html = renderToStaticMarkup(<ToolBuild tool={sampleTool()} dirty={false} state={stateOf()} {...props} />);

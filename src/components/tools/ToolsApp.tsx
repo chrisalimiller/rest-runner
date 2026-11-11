@@ -1,21 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { setBusy } from "../../lib/busyWork";
 import { cleanCollections, COLLECTIONS_KEY } from "../../lib/collections";
-import { environmentVars, loadEnvironments, mergeHydrated, onSecretsHydrated, saveEnvironments, type Environment } from "../../lib/environments";
+import { environmentVars, guardFor, loadEnvironments, mergeHydrated, onSecretsHydrated, saveEnvironments, type Environment } from "../../lib/environments";
 import type { RequestLookup } from "../../lib/flows/flows";
 import { sendRequest } from "../../lib/http";
+import { saveTextFile } from "../../lib/saveFile";
+import { storedSecrets } from "../../lib/secrets";
+import { setSectionStatus } from "../../lib/sectionStatus";
 import { reinsert, removeById } from "../../lib/listUndo";
 import { isString, load, save } from "../../lib/storage";
 import { setLeaveGuard } from "../../lib/unsavedWork";
 import { createWorkerScriptRunner } from "../../lib/testing/scriptRunner";
 import { listPickableRequests } from "../../lib/testing/requestSources";
 import { isDirty, saveBlockers, tidyTool } from "../../lib/tools/builder";
+import { canRetryAlone } from "../../lib/tools/engine";
 import { clearLookups, listLookups } from "../../lib/tools/lookupStore";
 import { sampleCollection, sampleTool, SAMPLE_COLLECTION_NAME } from "../../lib/tools/sample";
-import { SessionRegistry } from "../../lib/tools/session";
+import { SessionRegistry, type ToolSession } from "../../lib/tools/session";
+import { snapshotFileName, toToolSnapshot } from "../../lib/tools/snapshot";
 import { loadTools, newTool, saveTools, validateTool } from "../../lib/tools/tools";
+import { describeToolsImport, importToolsFile, toToolsFile } from "../../lib/tools/toolsFile";
 import type { LookupRecord, Tool } from "../../lib/tools/types";
-import { environmentNames, lookupAsText } from "../../lib/tools/view";
+import { callView, environmentNames, lookupAsText, requestLine } from "../../lib/tools/view";
 import type { ShellCommand, ShellProps } from "../../Root";
 import { SectionVariablesPanel } from "../variables/SectionVariablesPanel";
 import { TrashIcon } from "../shell/Icons";
@@ -24,6 +30,7 @@ import { useToast } from "../shell/Toast";
 import { TopBar } from "../shell/TopBar";
 import { TitleSwitcher } from "../shell/TitleSwitcher";
 import { useCollapsed } from "../shell/useCollapsed";
+import { ConfirmActionDialog } from "./ConfirmActionDialog";
 import { ToolBuild } from "./ToolBuild";
 import { UnsavedDialog } from "./UnsavedDialog";
 import { ToolsSidebar } from "./ToolsSidebar";
@@ -70,6 +77,10 @@ export function ToolsApp({ active, shell, command }: Props) {
   // Edits made in Build mode, by tool id. They are kept (and the tool saved) only by Save.
   const [drafts, setDrafts] = useState<Record<string, Tool>>({});
   const [leaving, setLeaving] = useState<{ go: () => void } | null>(null);
+  // The confirm step of an Action button: the dialog on screen, and the answer it will give.
+  const [asking, setAsking] = useState<{ action: string; request: string; guard: { name: string; cssColor: string } | null; text?: string; answer: (ok: boolean) => void } | null>(null);
+  const activeRef = useRef(active);
+  activeRef.current = active;
   const scripts = useMemo(() => createWorkerScriptRunner(), []);
   useEffect(() => () => scripts.dispose(), [scripts]);
   const toast = useToast();
@@ -107,6 +118,8 @@ export function ToolsApp({ active, shell, command }: Props) {
   dirtyRef.current = dirty;
   const problems = useMemo(() => (tool ? validateTool(tool, findRequest) : []), [tool, findRequest]);
   const environment = environments.find((e) => e.id === tool?.settings.environmentId) ?? null;
+  const guardInfo = guardFor(environment);
+  const guard = guardInfo ? { name: guardInfo.name, cssColor: guardInfo.cssColor } : null;
 
   // Re-render when any session changes (the sidebar shows which tools are running).
   useSyncExternalStore(registry.subscribe, registry.getVersion);
@@ -114,6 +127,8 @@ export function ToolsApp({ active, shell, command }: Props) {
   const runningIds = registry.runningIds();
   const anyRunning = runningIds.length > 0 || buildRegistry.runningIds().length > 0;
   useEffect(() => setBusy("tools", anyRunning), [anyRunning]);
+  const lookingUp = runningIds.length > 0;
+  useEffect(() => setSectionStatus("tools", { running: lookingUp }), [lookingUp]);
 
   const updateTool = useCallback((next: Tool) => {
     setTools((list) => {
@@ -170,7 +185,15 @@ export function ToolsApp({ active, shell, command }: Props) {
       const env = envs.find((e) => e.id === t.settings.environmentId) ?? null;
       const s = registry.get(t.id);
       const record = await s.lookup(t, { findRequest: requests, envVars: environmentVars(env), environmentName: env?.name, send: sendRequest, scripts: scripts.run });
-      if (record) refreshRecents(t.id);
+      if (record) {
+        refreshRecents(t.id);
+        // The rail marks a lookup with problems that finished while another section was on screen.
+        const failed = record.results.filter((r) => {
+          const k = callView({ result: r, sending: false, lookingUp: false }).kind;
+          return k === "http-error" || k === "network-error";
+        }).length;
+        setSectionStatus("tools", { failed, unseen: failed > 0 && !activeRef.current });
+      }
     },
     [registry, scripts, refreshRecents],
   );
@@ -185,6 +208,41 @@ export function ToolsApp({ active, shell, command }: Props) {
     },
     [buildRegistry, scripts],
   );
+  /** Asks before an Action button sends: on a coloured environment, or when the block has confirm text. */
+  const askToConfirm = useCallback((t: Tool, callId: string, guard: { name: string; cssColor: string } | null): Promise<boolean> => {
+    const call = t.calls.find((c) => c.id === callId);
+    const block = t.blocks.find((b) => b.type === "action" && b.callId === callId);
+    const line = requestLine(call ? readRequests()(call.requestId) : null);
+    return new Promise<boolean>((resolve) =>
+      setAsking({ action: block?.title || call?.name || "Action", request: line ? `${line.method} ${line.path}` : "", guard, text: block?.text?.trim() || undefined, answer: resolve }),
+    );
+  }, []);
+  const answerAsk = (ok: boolean) => {
+    asking?.answer(ok);
+    setAsking(null);
+  };
+  /** An Action button: runs the write call with the answers on screen. Never part of Look up. */
+  const runAction = useCallback(
+    async (s: ToolSession, t: Tool, callId: string) => {
+      const requests = readRequests();
+      const env = loadEnvironments().find((e) => e.id === t.settings.environmentId) ?? null;
+      const block = t.blocks.find((b) => b.type === "action" && b.callId === callId);
+      await s.runAction(
+        t,
+        callId,
+        { findRequest: requests, envVars: environmentVars(env), environmentName: env?.name, send: sendRequest, scripts: scripts.run, environment: env, confirm: (guard) => askToConfirm(t, callId, guard ? { name: guard.name, cssColor: guard.cssColor } : null) },
+        !!block?.text?.trim(),
+      );
+    },
+    [scripts, askToConfirm],
+  );
+  /** Retry on one call: only that call when nothing reads its answer, else the whole lookup so what depends on it is refreshed. */
+  const retry = async (s: ToolSession, t: Tool, callId: string, whole: () => void) => {
+    const requests = readRequests();
+    if (!canRetryAlone(t, callId, requests)) return whole();
+    const env = loadEnvironments().find((e) => e.id === t.settings.environmentId) ?? null;
+    await s.retryCall(t, callId, { findRequest: requests, envVars: environmentVars(env), environmentName: env?.name, send: sendRequest, scripts: scripts.run });
+  };
   const lookUpRef = useRef(lookUp);
   lookUpRef.current = lookUp;
 
@@ -269,6 +327,56 @@ export function ToolsApp({ active, shell, command }: Props) {
     saveEnvironments(envs);
   }, []);
 
+  /** Save as HTML: the answers on screen as a page to send. Secret values are masked like in history and reports. */
+  const saveHtml = async (t: Tool) => {
+    const st = registry.get(t.id).getState();
+    const inputs = st.viewing?.inputs ?? st.inputs;
+    try {
+      const html = toToolSnapshot({
+        tool: t,
+        results: st.results,
+        inputs,
+        findRequest: readRequests(),
+        environmentName: st.viewing ? st.viewing.environmentName : environments.find((e) => e.id === t.settings.environmentId)?.name,
+        at: st.startedAt ?? undefined,
+        secrets: storedSecrets(),
+      });
+      const result = await saveTextFile(snapshotFileName(t, inputs), html, "HTML page", "html");
+      if (result.saved) setNotice(result.path ? `Saved to ${result.path}` : "Page downloaded.");
+    } catch (e) {
+      setNotice(`Could not save the page: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
+  /** Export writes the saved tools (unsaved Build edits are not in the file), with the saved requests they use. */
+  const exportTools = async (list: Tool[]) => {
+    try {
+      const collections = cleanCollections(load(COLLECTIONS_KEY, []));
+      const fileName = list.length === 1 ? `${list[0].name.replace(/[\\/:*?"<>|]+/g, " ").trim() || "tool"}.tool.json` : "rest-runner-tools.json";
+      const result = await saveTextFile(fileName, toToolsFile(list, collections), "REST Runner tools", "json");
+      if (result.saved) setNotice(result.path ? `Exported to ${result.path}` : "Export downloaded.");
+    } catch (e) {
+      setNotice(`Could not export: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
+  /** Import replaces a tool with the same id and the saved requests it uses. A replaced tool's unsaved Build edits are dropped: they were made against the old one. */
+  const importTools = async (file: File) => {
+    try {
+      const result = importToolsFile(await file.text(), { tools, collections: cleanCollections(load(COLLECTIONS_KEY, [])) });
+      if (result.counts.requests[0] + result.counts.requests[1] > 0) {
+        if (!save(COLLECTIONS_KEY, result.collections)) throw new Error("local storage is full");
+        shell.onDataChanged(["collections"]);
+      }
+      setTools(result.tools);
+      result.replacedIds.forEach((id) => dropDraft(id));
+      setFindRequest(() => readRequests());
+      setNotice(describeToolsImport(file.name, result.counts));
+    } catch (e) {
+      setNotice(`Could not import ${file.name}: ${e instanceof Error ? e.message : String(e)}`);
+    }
+  };
+
   const copy = (text: string) => {
     navigator.clipboard
       ?.writeText(text)
@@ -307,13 +415,34 @@ export function ToolsApp({ active, shell, command }: Props) {
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);
 
+  const toolsRef = useRef(tools);
+  toolsRef.current = tools;
+  const createToolRef = useRef(createTool);
+  createToolRef.current = createTool;
+  const guardedRef = useRef(guarded);
+  guardedRef.current = guarded;
   const lastCommand = useRef<number | null>(null);
   useEffect(() => {
     if (!command || lastCommand.current === command.nonce) return;
     lastCommand.current = command.nonce;
+    if (command.type === "new-tool") {
+      createToolRef.current();
+      return;
+    }
+    if (command.type === "open" && command.item.kind === "tool") {
+      const id = command.item.id;
+      if (toolsRef.current.some((t) => t.id === id))
+        guardedRef.current(() => {
+          setOpenToolId(id);
+          setMode("use");
+        });
+      return;
+    }
     if (command.type === "reload") {
-      setTools(loadTools());
-      setDrafts({});
+      const fresh = loadTools();
+      setTools(fresh);
+      // Another section wrote tools (an import). Unsaved Build edits are kept only for tools that did not change.
+      setDrafts((d) => Object.fromEntries(Object.entries(d).filter(([id]) => JSON.stringify(toolsRef.current.find((t) => t.id === id)) === JSON.stringify(fresh.find((t) => t.id === id)))));
       setEnvironments(loadEnvironments());
       setFindRequest(() => readRequests());
     }
@@ -369,6 +498,8 @@ export function ToolsApp({ active, shell, command }: Props) {
             if (!tool) return;
             void clearLookups(tool.id).then(() => setRecents([]));
           }}
+          onExport={() => void exportTools(tools)}
+          onImport={(f) => void importTools(f)}
           keepsHistory={tool?.settings.keepHistory ?? true}
           onKeepHistory={(keep) => patchSettings({ keepHistory: keep })}
         />
@@ -380,7 +511,7 @@ export function ToolsApp({ active, shell, command }: Props) {
                   {notice}
                 </span>
               )}
-              <OverflowMenu label="Tool actions" items={[{ label: "Delete tool", icon: <TrashIcon />, onSelect: () => deleteTool(tool), danger: true, disabled: state.running, title: state.running ? "Stop the lookup first" : "Its recent lookups are removed too" }]} />
+              <OverflowMenu label="Tool actions" items={[{ label: "Export tool", icon: "⇪", onSelect: () => void exportTools([tool]), title: "Save this tool, with the saved requests it uses, to a file. Unsaved Build edits are not included." }, { label: "Delete tool", icon: <TrashIcon />, onSelect: () => deleteTool(tool), danger: true, disabled: state.running, title: state.running ? "Stop the lookup first" : "Its recent lookups are removed too" }]} />
             </div>
             {mode === "build" ? (
               <ToolBuild
@@ -399,6 +530,10 @@ export function ToolsApp({ active, shell, command }: Props) {
                   onOpenRequest: (id) => guarded(() => shell.onOpenRequest(id)),
                   onCopy: copy,
                   onPick: (callId, index) => buildSession.choosePick(callId, index),
+                  onRetry: (callId) => void retry(buildSession, draft ?? tool, callId, () => void runSample(draft ?? tool)),
+                  onRunAction: (callId) => void runAction(buildSession, draft ?? tool, callId),
+                  guard,
+                  retryAlone: (callId) => canRetryAlone(draft ?? tool, callId, findRequest),
                 }}
               />
             ) : (
@@ -411,10 +546,14 @@ export function ToolsApp({ active, shell, command }: Props) {
                 onLookup={() => void lookUp(tool)}
                 onStop={() => session.stop()}
                 onCopyAll={() => copy(lookupAsText(tool, state.results, findRequest))}
+                onSaveHtml={() => void saveHtml(tool)}
                 actions={{
                   onInput: (name, value) => session.setInput(name, value),
-                  // Retry runs the whole lookup again with the same inputs, so whatever depends on the call is refreshed too.
-                  onRetry: () => void lookUp(tool),
+                  // Retry sends just that call when nothing reads its answer; otherwise it runs the whole lookup again.
+                  onRetry: (callId) => void retry(session, tool, callId, () => void lookUp(tool)),
+                  onRunAction: (callId) => void runAction(session, tool, callId),
+                  guard,
+                  retryAlone: (callId) => canRetryAlone(tool, callId, findRequest),
                   onOpenRequest: shell.onOpenRequest,
                   onCopy: copy,
                   onPick: (callId, index) => session.choosePick(callId, index),
@@ -461,6 +600,7 @@ export function ToolsApp({ active, shell, command }: Props) {
           }}
         />
       )}
+      {asking && <ConfirmActionDialog action={asking.action} request={asking.request} guard={asking.guard} text={asking.text} onConfirm={() => answerAsk(true)} onCancel={() => answerAsk(false)} />}
       {shell.section === "tools" && tool && (
         <SectionVariablesPanel
           environments={environments}
@@ -468,6 +608,7 @@ export function ToolsApp({ active, shell, command }: Props) {
           setEnvironments={editEnvironments}
           setActiveEnvId={changeEnvironment}
           used={environmentNames(tool, findRequest)}
+          inputs={tool.inputs.map((i) => i.name)}
           scope="This tool"
           onEditEnvironments={shell.onEditEnvironments}
         />

@@ -24,6 +24,8 @@ The app is a desktop window around a web view, and it keeps its data in that web
 | `rest-runner.section` | Whether Requests, Testing or Flows was open |
 | `rest-runner.test-suites` | Test suites, including their saved CSV data |
 | `rest-runner.test-open-suite`, `rest-runner.test-environment` | The open suite, and the environment selected in Testing |
+| `rest-runner.tools` | [Tools](tools.md): their inputs, calls, blocks and settings |
+| `rest-runner.tool-open`, `rest-runner.tools-mode` | The open tool, and whether Use or Build is shown |
 | `rest-runner.flows` | [Flows](flows.md): their steps, wires, sticky notes and settings |
 | `rest-runner.flow-open`, `rest-runner.flow-environment` | The open flow, and the environment selected in Flows |
 | `rest-runner.flow-schedules` | For each [Schedule](flows.md#schedules) step: the last time it came due, the last run, and the last skipped run with its reason |
@@ -40,7 +42,7 @@ The app is a desktop window around a web view, and it keeps its data in that web
 | Database | Contents | Limit |
 | --- | --- | --- |
 | `rest-runner` | Saved batch runs | The last 30 runs; response bodies cut at 1 MB |
-| `rest-runner-tests` | Saved test runs, and saved flow runs | The last 50 test runs and the last 50 flow runs; response bodies cut at 1 MB |
+| `rest-runner-tests` | Saved test runs, saved flow runs and saved tool lookups | The last 50 test runs and the last 50 flow runs; the last 20 lookups of each tool (none for a tool with Keep recent lookups off); response bodies cut at 1 MB |
 
 The oldest runs are removed automatically past those limits.
 
@@ -92,6 +94,7 @@ The banner appears only when some variable is marked secret, and can be dismisse
 ## Backing up and moving to another computer
 
 - **Everything at once:** **Export workspace…** in the request switcher's popover writes collections, environments, test suites (with their CSV data) and flows to one file, and **Import…** reads it on the other computer. See [Export and import](collections.md#export-and-import).
+- **Tools** export and import from the Tools sidebar, with the saved requests they use. See [Tools](tools.md#export-and-import).
 - **Test suites** and **flows** also export and import on their own, from the Testing and Flows sidebars. See [Testing](testing.md#exporting-suites).
 - **Run history** (batch runs, test runs) is not part of those exports. Export the HTML or CSV report of a run if you want to keep it.
 
@@ -105,6 +108,7 @@ From inside the app:
 - **Environments:** delete them in the environment editor.
 - **Suites:** **Delete suite** in the ⋯ menu of the suite header. Deleting a suite keeps its saved test runs.
 - **Test cases, flows and flow steps:** in the ⋯ menu of the case or flow (a step has **Delete step** in its settings).
+- **Tools:** **Delete tool** in the tool's ⋯ menu (its recent lookups go when the Undo toast goes away). **Clear history** removes only the lookups.
 - **Batch runs, test runs and flow runs:** open one and use **Delete** (in the ⋯ menu for test and flow runs).
 
 Deleting any of these does not ask first. A toast at the bottom left offers **Undo** for 8 seconds. A saved run is only removed from storage when the toast goes away. In Flows, **Ctrl/Cmd + Z** also undoes edits to the canvas (see [Flows](flows.md#undo)).

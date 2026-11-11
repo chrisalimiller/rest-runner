@@ -36,9 +36,9 @@ const RESOLUTION_HINTS: Record<Resolution, string> = {
   replace: "Swap the existing one for the imported one",
   "keep-both": "Add the imported one under a new name",
 };
-const KIND_LABELS: Record<ImportItem["kind"], string> = { collection: "Collection", environment: "Environment", suite: "Test suite", flow: "Flow", certificates: "Certificates" };
-const KIND_ARTICLE: Record<ImportItem["kind"], string> = { collection: "A collection", environment: "An environment", suite: "A test suite", flow: "A flow", certificates: "Certificates" };
-const KIND_NOUN: Record<ImportItem["kind"], string> = { collection: "collection", environment: "environment", suite: "test suite", flow: "flow", certificates: "certificates" };
+const KIND_LABELS: Record<ImportItem["kind"], string> = { collection: "Collection", environment: "Environment", suite: "Test suite", flow: "Flow", tool: "Tool", certificates: "Certificates" };
+const KIND_ARTICLE: Record<ImportItem["kind"], string> = { collection: "A collection", environment: "An environment", suite: "A test suite", flow: "A flow", tool: "A tool", certificates: "Certificates" };
+const KIND_NOUN: Record<ImportItem["kind"], string> = { collection: "collection", environment: "environment", suite: "test suite", flow: "flow", tool: "tool", certificates: "certificates" };
 
 const STEPS = ["Add files", "Review", "Resolve clashes", "Done"] as const;
 
@@ -457,6 +457,8 @@ function namesOf(ws: ReturnType<typeof readWorkspace>, kind: ImportItem["kind"])
       return ws.suites.map((c) => c.name);
     case "flow":
       return ws.flows.map((c) => c.name);
+    case "tool":
+      return ws.tools.map((c) => c.name);
     default:
       return [];
   }
