@@ -11,7 +11,9 @@ const RUNS = "runs";
 /** Flow runs share this database (added in version 2). */
 export const FLOW_SUMMARIES = "flow-summaries";
 export const FLOW_RUNS = "flow-runs";
-const STORES = [SUMMARIES, RUNS, FLOW_SUMMARIES, FLOW_RUNS];
+/** Tool lookups share this database too (added in version 3). */
+export const TOOL_LOOKUPS = "tool-lookups";
+const STORES = [SUMMARIES, RUNS, FLOW_SUMMARIES, FLOW_RUNS, TOOL_LOOKUPS];
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
@@ -20,7 +22,7 @@ export function openDb(): Promise<IDBDatabase> {
     dbPromise = openDatabase(
       indexedDB,
       DB_NAME,
-      2,
+      3,
       (db) => {
         for (const name of STORES) if (!db.objectStoreNames.contains(name)) db.createObjectStore(name, { keyPath: "id" });
       },
