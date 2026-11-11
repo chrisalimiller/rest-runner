@@ -289,6 +289,33 @@ button.call-request:hover {
   gap: 6px;
 }
 
+.add-request-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.add-request-title {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.add-request-head .icon-btn {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.add-request-hint {
+  margin: 0;
+}
+
 .add-request-list {
   list-style: none;
   margin: 0;

@@ -57,7 +57,7 @@ export function CallsColumn({ tool, findRequest, results, onChange, onEditInputs
       <div className="build-col-head">
         <h3>Calls</h3>
         <button type="button" className="secondary" onClick={() => setPicking(!picking)} aria-expanded={picking}>
-          Add request
+          {picking ? "Close" : "Add request"}
         </button>
       </div>
       {picking && <AddRequestPanel onAdd={(r) => add(r)} onClose={() => setPicking(false)} />}
@@ -221,6 +221,12 @@ function AddRequestPanel({ onAdd, onClose }: { onAdd: (r: PickableRequest) => vo
   const shown = all.filter((r) => !q || `${r.path.join(" ")} ${r.request.method} ${r.request.url}`.toLowerCase().includes(q));
   return (
     <div className="add-request" role="region" aria-label="Add a saved request">
+      <div className="add-request-head">
+        <span className="add-request-title">Add a saved request</span>
+        <button type="button" className="icon-btn" onClick={onClose} aria-label="Close the list" title="Close the list (Esc)">
+          ×
+        </button>
+      </div>
       <input
         className="search"
         type="search"
@@ -236,6 +242,7 @@ function AddRequestPanel({ onAdd, onClose }: { onAdd: (r: PickableRequest) => vo
         }}
         autoFocus
       />
+      <p className="muted small add-request-hint">Click a request to add it. The list stays open so you can add more; press Esc or Close when you are done.</p>
       {all.length === 0 && <p className="muted small">No saved requests yet. Save requests in the Requests section first.</p>}
       <ul className="add-request-list">
         {shown.map((r) => (
