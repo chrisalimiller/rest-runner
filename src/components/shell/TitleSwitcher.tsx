@@ -18,7 +18,7 @@ interface Props {
   activeId: string | null;
   onOpen: (id: string) => void;
   onNew: () => void;
-  onImport: (file: File) => void;
+  onImport?: (file: File) => void;
   /** Left out for a list that cannot be exported yet. */
   onExport?: () => void;
 }
@@ -61,7 +61,7 @@ export function TitleSwitcher({ noun, title, items, activeId, onOpen, onNew, onI
               >
                 New
               </button>
-              <label className="link-btn">
+              {onImport && <label className="link-btn">
                 Import
                 <input
                   type="file"
@@ -76,7 +76,7 @@ export function TitleSwitcher({ noun, title, items, activeId, onOpen, onNew, onI
                     }
                   }}
                 />
-              </label>
+              </label>}
               {onExport && (
                 <button
                   className="link-btn"

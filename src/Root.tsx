@@ -3,6 +3,7 @@ import App from "./App";
 import { QuickOpen } from "./components/shell/QuickOpen";
 import type { Mode } from "./components/shell/TopBar";
 import { FlowsApp } from "./components/flows/FlowsApp";
+import { ToolsApp } from "./components/tools/ToolsApp";
 import { TestingApp } from "./components/testing/TestingApp";
 import { type QuickItem } from "./lib/quickOpen";
 import { buildCommands, type CommandActions, type CommandCtx, type RequestsAction } from "./lib/commands";
@@ -54,11 +55,11 @@ function modeFor(item: QuickItem): Mode {
     : "requests";
 }
 
-/** The three modes (Requests, Testing and Flows). All stay mounted so a running batch, suite or flow keeps going. */
+/** The four modes (Requests, Testing, Flows and Tools). All stay mounted so a running batch, suite or flow keeps going. */
 export default function Root() {
   const [section, setSection] = useState<Mode>(() => {
     const saved = load<string>(SECTION_KEY, "requests");
-    return saved === "testing" || saved === "flows" ? saved : "requests";
+    return saved === "testing" || saved === "flows" || saved === "tools" ? saved : "requests";
   });
   const [quickOpen, setQuickOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -69,6 +70,7 @@ export default function Root() {
     requests: null,
     testing: null,
     flows: null,
+    tools: null,
   });
   useEffect(() => {
     save(SECTION_KEY, section);
@@ -153,12 +155,17 @@ export default function Root() {
       setSection("requests");
       send("requests", { type: "edit-environments", nonce: Date.now(), varId });
     },
+    onOpenRequest: (id) => {
+      setSection("requests");
+      send("requests", { type: "open", item: { kind: "request", id, title: "", detail: "" }, nonce: Date.now(), permanent: true });
+    },
     onDataChanged: (what) => {
       const nonce = Date.now();
       if (what.includes("collections"))
         send("requests", { type: "reload", nonce });
       if (what.includes("suites")) send("testing", { type: "reload", nonce });
       if (what.includes("flows")) send("flows", { type: "reload", nonce });
+      if (what.includes("tools")) send("tools", { type: "reload", nonce });
     },
   };
 
@@ -196,6 +203,13 @@ export default function Root() {
               active={section === "flows"}
               shell={shell}
               command={commands.flows}
+            />
+          </div>
+          <div className="root-section" hidden={section !== "tools"}>
+            <ToolsApp
+              active={section === "tools"}
+              shell={shell}
+              command={commands.tools}
             />
           </div>
         </div>
@@ -246,6 +260,8 @@ export interface ShellProps {
   /** Opens the environment editor in Requests, on the variable `varId` when given. */
   onEditEnvironments: (varId?: string) => void;
   onQuickOpen: () => void;
+  /** Switches to Requests with this saved request open (Tools: "Open request"). */
+  onOpenRequest: (id: string) => void;
   /** A mode wrote saved data that another mode holds in memory (Flows importing suites or requests). */
-  onDataChanged: (what: ("suites" | "collections" | "flows")[]) => void;
+  onDataChanged: (what: ("suites" | "collections" | "flows" | "tools")[]) => void;
 }

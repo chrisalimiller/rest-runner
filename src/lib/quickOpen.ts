@@ -44,9 +44,10 @@ export const KIND_LABELS: Record<QuickKind, string> = {
 };
 
 /** Group order, per mode: the mode you are in comes first. */
-export const KIND_ORDER: Record<"requests" | "testing" | "flows", QuickKind[]> = {
+export const KIND_ORDER: Record<"requests" | "testing" | "flows" | "tools", QuickKind[]> = {
   requests: ["command", "request", "example", "history", "batch-run", "suite", "case", "test-run", "flow", "flow-run"],
   testing: ["command", "suite", "case", "test-run", "flow", "flow-run", "request", "example", "history", "batch-run"],
+  tools: ["command", "request", "example", "history", "batch-run", "suite", "case", "test-run", "flow", "flow-run"],
   flows: ["command", "flow", "flow-run", "suite", "case", "test-run", "request", "example", "history", "batch-run"],
 };
 

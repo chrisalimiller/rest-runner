@@ -35,11 +35,11 @@ export function nextFitLevel(level: number, overflowPx: number, spareWidthPx: nu
   return level;
 }
 
-/** The sections in switcher order; Ctrl/Cmd + 1, 2, 3 pick them. */
-export const MODES: readonly Mode[] = ["requests", "testing", "flows"];
+/** The sections in switcher order; Ctrl/Cmd + 1, 2, 3, 4 pick them. */
+export const MODES: readonly Mode[] = ["requests", "testing", "flows", "tools"];
 
 /** Which button gets focus after a key press in the side rail's section group (wrapping), or null when the key does nothing there. */
-export function nextModeIndex(current: number, key: string, count = 3): number | null {
+export function nextModeIndex(current: number, key: string, count = MODES.length): number | null {
   if (key === "ArrowRight" || key === "ArrowDown") return (current + 1) % count;
   if (key === "ArrowLeft" || key === "ArrowUp") return (current - 1 + count) % count;
   if (key === "Home") return 0;
@@ -47,9 +47,9 @@ export function nextModeIndex(current: number, key: string, count = 3): number |
   return null;
 }
 
-/** The section a Ctrl/Cmd + 1-3 key press switches to. Uses the physical key so it works on any layout. */
+/** The section a Ctrl/Cmd + 1-4 key press switches to. Uses the physical key so it works on any layout. */
 export function modeForShortcut(e: { code: string; ctrlKey: boolean; metaKey: boolean; shiftKey: boolean; altKey: boolean }): Mode | null {
   if (!(e.metaKey || e.ctrlKey) || e.shiftKey || e.altKey) return null;
-  const m = /^Digit([1-3])$/.exec(e.code);
+  const m = /^Digit([1-4])$/.exec(e.code);
   return m ? MODES[Number(m[1]) - 1] : null;
 }

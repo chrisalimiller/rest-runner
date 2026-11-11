@@ -20,32 +20,33 @@ describe("modeForShortcut", () => {
   const press = (code: string, mods: Partial<Record<"ctrlKey" | "metaKey" | "shiftKey" | "altKey", boolean>> = {}) =>
     modeForShortcut({ code, ctrlKey: false, metaKey: false, shiftKey: false, altKey: false, ...mods });
 
-  it("maps Ctrl/Cmd + 1-3 to the sections", () => {
+  it("maps Ctrl/Cmd + 1-4 to the sections", () => {
     expect(press("Digit1", { ctrlKey: true })).toBe("requests");
     expect(press("Digit2", { metaKey: true })).toBe("testing");
     expect(press("Digit3", { metaKey: true })).toBe("flows");
+    expect(press("Digit4", { ctrlKey: true })).toBe("tools");
   });
 
   it("ignores Shift or Alt, a missing modifier, and other keys", () => {
     expect(press("Digit1", { ctrlKey: true, shiftKey: true })).toBeNull();
     expect(press("Digit1", { ctrlKey: true, altKey: true })).toBeNull();
     expect(press("Digit2")).toBeNull();
-    expect(press("Digit4", { ctrlKey: true })).toBeNull();
+    expect(press("Digit5", { ctrlKey: true })).toBeNull();
   });
 });
 
 describe("nextModeIndex", () => {
   it("wraps with the arrow keys", () => {
-    expect(nextModeIndex(2, "ArrowRight")).toBe(0);
-    expect(nextModeIndex(0, "ArrowLeft")).toBe(2);
+    expect(nextModeIndex(3, "ArrowRight")).toBe(0);
+    expect(nextModeIndex(0, "ArrowLeft")).toBe(3);
     expect(nextModeIndex(0, "ArrowRight")).toBe(1);
-    expect(nextModeIndex(2, "ArrowDown")).toBe(0);
-    expect(nextModeIndex(0, "ArrowUp")).toBe(2);
+    expect(nextModeIndex(3, "ArrowDown")).toBe(0);
+    expect(nextModeIndex(0, "ArrowUp")).toBe(3);
   });
 
   it("jumps with Home and End, and ignores other keys", () => {
     expect(nextModeIndex(1, "Home")).toBe(0);
-    expect(nextModeIndex(1, "End")).toBe(2);
+    expect(nextModeIndex(1, "End")).toBe(3);
     expect(nextModeIndex(1, "a")).toBeNull();
   });
 });

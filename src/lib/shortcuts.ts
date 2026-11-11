@@ -24,6 +24,7 @@ export const SHORTCUTS: Shortcut[] = [
   { id: "section-requests", keys: "Mod+1", label: "Switch to Requests", group: "General" },
   { id: "section-testing", keys: "Mod+2", label: "Switch to Testing", group: "General" },
   { id: "section-flows", keys: "Mod+3", label: "Switch to Flows", group: "General" },
+  { id: "section-tools", keys: "Mod+4", label: "Switch to Tools", group: "General" },
   { id: "keyboard-shortcuts", keys: "?", label: "Show keyboard shortcuts (when no field is focused)", group: "General" },
   { id: "close", keys: "Esc", label: "Close the palette, menus and dialogs", group: "General" },
   { id: "send", keys: "Mod+Enter", label: "Send the request", group: "Requests" },
