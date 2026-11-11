@@ -632,7 +632,12 @@ button.call-request:hover {
 }
 
 .build-connect {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   height: 24px;
+  line-height: 1;
+  white-space: nowrap;
   padding: 0 10px;
   margin: 0 4px;
   font-size: var(--fs-sm);
