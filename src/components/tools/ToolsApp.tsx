@@ -6,8 +6,10 @@ import type { RequestLookup } from "../../lib/flows/flows";
 import { sendRequest } from "../../lib/http";
 import { reinsert, removeById } from "../../lib/listUndo";
 import { isString, load, save } from "../../lib/storage";
+import { setLeaveGuard } from "../../lib/unsavedWork";
 import { createWorkerScriptRunner } from "../../lib/testing/scriptRunner";
 import { listPickableRequests } from "../../lib/testing/requestSources";
+import { isDirty, saveBlockers, tidyTool } from "../../lib/tools/builder";
 import { clearLookups, listLookups } from "../../lib/tools/lookupStore";
 import { sampleCollection, sampleTool, SAMPLE_COLLECTION_NAME } from "../../lib/tools/sample";
 import { SessionRegistry } from "../../lib/tools/session";
@@ -22,7 +24,8 @@ import { useToast } from "../shell/Toast";
 import { TopBar } from "../shell/TopBar";
 import { TitleSwitcher } from "../shell/TitleSwitcher";
 import { useCollapsed } from "../shell/useCollapsed";
-import { ToolBuildPlaceholder } from "./ToolBuildPlaceholder";
+import { ToolBuild } from "./ToolBuild";
+import { UnsavedDialog } from "./UnsavedDialog";
 import { ToolsSidebar } from "./ToolsSidebar";
 import { ToolUse } from "./ToolUse";
 import { useToolSession } from "./useToolSession";
@@ -62,6 +65,11 @@ export function ToolsApp({ active, shell, command }: Props) {
   const [recents, setRecents] = useState<LookupRecord[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const registry = useMemo(() => new SessionRegistry(), []);
+  // Build mode has its own sessions (sample inputs and Run with sample answers), so they never mix with Use mode's.
+  const buildRegistry = useMemo(() => new SessionRegistry(), []);
+  // Edits made in Build mode, by tool id. They are kept (and the tool saved) only by Save.
+  const [drafts, setDrafts] = useState<Record<string, Tool>>({});
+  const [leaving, setLeaving] = useState<{ go: () => void } | null>(null);
   const scripts = useMemo(() => createWorkerScriptRunner(), []);
   useEffect(() => () => scripts.dispose(), [scripts]);
   const toast = useToast();
@@ -91,13 +99,20 @@ export function ToolsApp({ active, shell, command }: Props) {
   const tool = tools.find((t) => t.id === openToolId) ?? null;
   const session = registry.get(tool?.id ?? "");
   const state = useToolSession(session);
+  const buildSession = buildRegistry.get(tool?.id ?? "");
+  const buildState = useToolSession(buildSession);
+  const draft = tool ? drafts[tool.id] : undefined;
+  const dirty = isDirty(tool ?? undefined, draft);
+  const dirtyRef = useRef(false);
+  dirtyRef.current = dirty;
   const problems = useMemo(() => (tool ? validateTool(tool, findRequest) : []), [tool, findRequest]);
   const environment = environments.find((e) => e.id === tool?.settings.environmentId) ?? null;
 
   // Re-render when any session changes (the sidebar shows which tools are running).
   useSyncExternalStore(registry.subscribe, registry.getVersion);
+  useSyncExternalStore(buildRegistry.subscribe, buildRegistry.getVersion);
   const runningIds = registry.runningIds();
-  const anyRunning = runningIds.length > 0;
+  const anyRunning = runningIds.length > 0 || buildRegistry.runningIds().length > 0;
   useEffect(() => setBusy("tools", anyRunning), [anyRunning]);
 
   const updateTool = useCallback((next: Tool) => {
@@ -110,6 +125,33 @@ export function ToolsApp({ active, shell, command }: Props) {
       return list.map((t) => (t.id === next.id ? next : t));
     });
   }, []);
+
+  /** Changes the draft (Build mode edits). The saved tool stays as it is until Save. */
+  const editDraft = useCallback((next: Tool) => setDrafts((d) => ({ ...d, [next.id]: next })), []);
+  const dropDraft = useCallback((id: string) => {
+    setDrafts((d) => {
+      if (!(id in d)) return d;
+      const { [id]: _gone, ...rest } = d;
+      void _gone;
+      return rest;
+    });
+  }, []);
+
+  /** Keeps the draft: prunes mappings no longer used, closes gaps between rows, and saves through updateTool. False when it cannot be saved. */
+  const saveDraft = (): boolean => {
+    if (!tool || !draft) return true;
+    const requests = readRequests();
+    if (saveBlockers(draft, requests).length > 0) return false;
+    updateTool(tidyTool(draft, requests));
+    dropDraft(tool.id);
+    return true;
+  };
+
+  /** Runs `go` now, or after asking what to do with unsaved Build edits. */
+  const guarded = (go: () => void) => {
+    if (dirtyRef.current) setLeaving({ go });
+    else go();
+  };
 
   const toolRef = useRef<Tool | null>(null);
   const refreshRecents = useCallback((toolId: string) => {
@@ -131,6 +173,17 @@ export function ToolsApp({ active, shell, command }: Props) {
       if (record) refreshRecents(t.id);
     },
     [registry, scripts, refreshRecents],
+  );
+  /** Run with sample: the same lookup, on the draft, answering to Build mode's own session. Nothing is saved to history. */
+  const runSample = useCallback(
+    async (t: Tool) => {
+      const requests = readRequests();
+      setFindRequest(() => requests);
+      const envs = loadEnvironments();
+      const env = envs.find((e) => e.id === t.settings.environmentId) ?? null;
+      await buildRegistry.get(t.id).lookup(t, { findRequest: requests, envVars: environmentVars(env), environmentName: env?.name, send: sendRequest, scripts: scripts.run, save: async () => {} });
+    },
+    [buildRegistry, scripts],
   );
   const lookUpRef = useRef(lookUp);
   lookUpRef.current = lookUp;
@@ -165,20 +218,30 @@ export function ToolsApp({ active, shell, command }: Props) {
     };
   }, [toolId, registry, runOnOpen]);
 
-  const openTool = (id: string) => setOpenToolId(id);
-
-  const createTool = () => {
-    const t = newTool();
-    setTools((list) => [...list, t]);
-    setOpenToolId(t.id);
-    // A new tool has nothing to show yet; Build is where it starts.
-    setMode("build");
+  const openTool = (id: string) => {
+    if (id !== openToolId) guarded(() => setOpenToolId(id));
   };
+  const switchMode = (m: ToolsMode) => {
+    if (m === mode) return;
+    if (m === "use") guarded(() => setMode(m));
+    else setMode(m);
+  };
+
+  const createTool = () =>
+    guarded(() => {
+      const t = newTool();
+      setTools((list) => [...list, t]);
+      setOpenToolId(t.id);
+      // A new tool has nothing to show yet; Build is where it starts.
+      setMode("build");
+    });
 
   const deleteTool = (target: Tool) => {
     const taken = removeById(tools, target.id);
     if (!taken) return;
     registry.drop(target.id);
+    buildRegistry.drop(target.id);
+    dropDraft(target.id);
     setTools(taken.list);
     setOpenToolId(null);
     toast.show({
@@ -192,9 +255,13 @@ export function ToolsApp({ active, shell, command }: Props) {
     });
   };
 
-  const changeEnvironment = (id: string | null) => {
-    if (tool) updateTool({ ...tool, settings: { ...tool.settings, environmentId: id } });
+  /** Settings changed outside Build (the top bar's environment, the sidebar's "keep recent lookups") apply to the draft too, so Save does not undo them. */
+  const patchSettings = (patch: Partial<Tool["settings"]>) => {
+    if (!tool) return;
+    updateTool({ ...tool, settings: { ...tool.settings, ...patch } });
+    if (draft) editDraft({ ...draft, settings: { ...draft.settings, ...patch } });
   };
+  const changeEnvironment = (id: string | null) => patchSettings({ environmentId: id });
 
   /** Edits made in the Variables panel go straight to storage, where Requests and the other sections read them. */
   const editEnvironments = useCallback((envs: Environment[]) => {
@@ -210,7 +277,8 @@ export function ToolsApp({ active, shell, command }: Props) {
   };
 
   /** Dev builds only: puts the example requests in a collection and adds the example tool. */
-  const loadExample = () => {
+  const loadExample = () => guarded(addExample);
+  const addExample = () => {
     const collections = cleanCollections(load(COLLECTIONS_KEY, []));
     if (!collections.some((c) => c.name === SAMPLE_COLLECTION_NAME)) {
       save(COLLECTIONS_KEY, [...collections, sampleCollection()]);
@@ -223,12 +291,29 @@ export function ToolsApp({ active, shell, command }: Props) {
     setMode("use");
   };
 
+  // Leaving the section (or closing the window) with unsaved Build edits asks first.
+  useEffect(() => {
+    setLeaveGuard("tools", (proceed) => {
+      if (!dirtyRef.current) return true;
+      setLeaving({ go: proceed });
+      return false;
+    });
+    return () => setLeaveGuard("tools", null);
+  }, []);
+  useEffect(() => {
+    if (!dirty) return;
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
+    window.addEventListener("beforeunload", warn);
+    return () => window.removeEventListener("beforeunload", warn);
+  }, [dirty]);
+
   const lastCommand = useRef<number | null>(null);
   useEffect(() => {
     if (!command || lastCommand.current === command.nonce) return;
     lastCommand.current = command.nonce;
     if (command.type === "reload") {
       setTools(loadTools());
+      setDrafts({});
       setEnvironments(loadEnvironments());
       setFindRequest(() => readRequests());
     }
@@ -237,7 +322,7 @@ export function ToolsApp({ active, shell, command }: Props) {
   const modeSwitch = tool ? (
     <div className="segmented tools-mode" role="radiogroup" aria-label="Tool mode">
       {(["use", "build"] as const).map((m) => (
-        <button key={m} role="radio" aria-checked={mode === m} className={mode === m ? "on" : ""} onClick={() => setMode(m)}>
+        <button key={m} role="radio" aria-checked={mode === m} className={mode === m ? "on" : ""} onClick={() => switchMode(m)}>
           {m === "use" ? "Use" : "Build"}
         </button>
       ))}
@@ -274,16 +359,18 @@ export function ToolsApp({ active, shell, command }: Props) {
           runningToolIds={runningIds}
           recents={recents}
           activeRecordId={state.recordId}
-          onOpenRecord={(r) => {
-            setMode("use");
-            session.show(r);
-          }}
+          onOpenRecord={(r) =>
+            guarded(() => {
+              setMode("use");
+              session.show(r);
+            })
+          }
           onClearHistory={() => {
             if (!tool) return;
             void clearLookups(tool.id).then(() => setRecents([]));
           }}
           keepsHistory={tool?.settings.keepHistory ?? true}
-          onKeepHistory={(keep) => tool && updateTool({ ...tool, settings: { ...tool.settings, keepHistory: keep } })}
+          onKeepHistory={(keep) => patchSettings({ keepHistory: keep })}
         />
         {tool ? (
           <div className="tool-pane">
@@ -296,7 +383,24 @@ export function ToolsApp({ active, shell, command }: Props) {
               <OverflowMenu label="Tool actions" items={[{ label: "Delete tool", icon: <TrashIcon />, onSelect: () => deleteTool(tool), danger: true, disabled: state.running, title: state.running ? "Stop the lookup first" : "Its recent lookups are removed too" }]} />
             </div>
             {mode === "build" ? (
-              <ToolBuildPlaceholder tool={tool} />
+              <ToolBuild
+                tool={draft ?? tool}
+                dirty={dirty}
+                findRequest={findRequest}
+                environments={environments}
+                state={buildState}
+                onChange={editDraft}
+                onSave={() => void saveDraft()}
+                onDiscard={() => dropDraft(tool.id)}
+                onRunSample={(t) => void runSample(t)}
+                onStop={() => buildSession.stop()}
+                actions={{
+                  onInput: (name, value) => buildSession.setInput(name, value),
+                  onOpenRequest: (id) => guarded(() => shell.onOpenRequest(id)),
+                  onCopy: copy,
+                  onPick: (callId, index) => buildSession.choosePick(callId, index),
+                }}
+              />
             ) : (
               <ToolUse
                 tool={tool}
@@ -338,6 +442,25 @@ export function ToolsApp({ active, shell, command }: Props) {
           </main>
         )}
       </div>
+      {leaving && tool && (
+        <UnsavedDialog
+          toolName={draft?.name ?? tool.name}
+          blocked={draft ? saveBlockers(draft, findRequest)[0]?.message : undefined}
+          onCancel={() => setLeaving(null)}
+          onDiscard={() => {
+            dropDraft(tool.id);
+            const go = leaving.go;
+            setLeaving(null);
+            go();
+          }}
+          onSave={() => {
+            if (!saveDraft()) return;
+            const go = leaving.go;
+            setLeaving(null);
+            go();
+          }}
+        />
+      )}
       {shell.section === "tools" && tool && (
         <SectionVariablesPanel
           environments={environments}

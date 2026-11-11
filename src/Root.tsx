@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { guardLeave } from "./lib/unsavedWork";
 import App from "./App";
 import { QuickOpen } from "./components/shell/QuickOpen";
 import type { Mode } from "./components/shell/TopBar";
@@ -57,10 +58,17 @@ function modeFor(item: QuickItem): Mode {
 
 /** The four modes (Requests, Testing, Flows and Tools). All stay mounted so a running batch, suite or flow keeps going. */
 export default function Root() {
-  const [section, setSection] = useState<Mode>(() => {
+  const [section, setSectionNow] = useState<Mode>(() => {
     const saved = load<string>(SECTION_KEY, "requests");
     return saved === "testing" || saved === "flows" || saved === "tools" ? saved : "requests";
   });
+  // Leaving a section with unsaved edits (a tool being built) asks first.
+  const sectionRef = useRef(section);
+  sectionRef.current = section;
+  const setSection = useCallback((next: Mode) => {
+    const from = sectionRef.current;
+    if (next !== from) guardLeave(from, () => setSectionNow(next));
+  }, []);
   const [quickOpen, setQuickOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
   const certificates = useCertificatesDialog();
