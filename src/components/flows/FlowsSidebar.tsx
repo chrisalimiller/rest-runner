@@ -2,6 +2,7 @@ import { triggerText } from "../../lib/flows/scheduleChip";
 import { END_LABELS } from "../../lib/flows/flowReport";
 import { whenLabel } from "../../lib/earlierSends";
 import type { Flow, FlowRunSummary } from "../../lib/flows/types";
+import { CollapseIcon } from "../shell/Icons";
 
 interface Props {
   /** The list is folded to a thin rail; the choice is remembered. */
@@ -90,7 +91,7 @@ export function FlowsSidebar({ collapsed, onToggleCollapsed, flows, activeFlowId
       {collapsed && (
         <nav className="runbook-nav collapsed" aria-label="Flows and flow runs">
           <button className="icon-btn" onClick={onToggleCollapsed} aria-label="Show flows and flow runs" title="Show the list" aria-expanded={false}>
-            »
+            <CollapseIcon expand />
           </button>
         </nav>
       )}
@@ -109,7 +110,7 @@ export function FlowsSidebar({ collapsed, onToggleCollapsed, flows, activeFlowId
                 </button>
               )}
               <button className="icon-btn" onClick={onToggleCollapsed} aria-label="Hide the list" title="Hide the list" aria-expanded>
-                «
+                <CollapseIcon />
               </button>
             </span>
           </div>

@@ -30,6 +30,12 @@ const subscriber = done("c-subscriber", { name: "Ada", autoPay: true, account: {
 describe("Calls column", () => {
   const html = renderToStaticMarkup(<CallsColumn tool={sampleTool()} findRequest={find} results={{}} onChange={noop} onEditInputs={noop} onFillIn={noop} onOpenRequest={noop} />);
 
+  it("always labels the picker button Add request", () => {
+    expect(html).toContain("Add request");
+    expect(html).toContain('aria-haspopup="dialog"');
+    expect(html).not.toContain("Close");
+  });
+
   it("lists Input, then Step 1 and Step 2, in that order", () => {
     const at = (s: string) => html.indexOf(`aria-label="${s}"`);
     expect(at("Input")).toBeGreaterThan(-1);

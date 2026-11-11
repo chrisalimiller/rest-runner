@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useRef, useState } from "react";
 import type { RequestLookup } from "../../lib/flows/flows";
 import { addCall, callGives, callGroups, callNeeds, guessLabelPath, listPathOptions, removeCall, renameCall, setCallWrite, setPickRow } from "../../lib/tools/builder";
 import { callJson } from "../../lib/tools/engine";
@@ -6,9 +6,9 @@ import { listPickableRequests, type PickableRequest } from "../../lib/testing/re
 import type { CallResult, Tool, ToolCall } from "../../lib/tools/types";
 import { requestLine } from "../../lib/tools/view";
 import { TrashIcon } from "../shell/Icons";
+import { AddRequestFlyout, REQUEST_DRAG_TYPE } from "./AddRequestFlyout";
 
-/** What a dragged saved request carries, so the Calls column (or any later source) can accept it. */
-export const REQUEST_DRAG_TYPE = "application/x-rest-runner-request";
+export { REQUEST_DRAG_TYPE };
 
 interface Props {
   tool: Tool;
@@ -25,6 +25,9 @@ export function CallsColumn({ tool, findRequest, results, onChange, onEditInputs
   const groups = callGroups(tool, findRequest);
   const [picking, setPicking] = useState(false);
   const [over, setOver] = useState(false);
+  const addBtn = useRef<HTMLButtonElement>(null);
+  const counts = new Map<string, number>();
+  for (const c of tool.calls) counts.set(c.requestId, (counts.get(c.requestId) ?? 0) + 1);
 
   const add = (r: PickableRequest) => {
     const { tool: next } = addCall(tool, { id: r.id, name: r.request.name || r.path[r.path.length - 1], method: r.request.method });
@@ -56,11 +59,21 @@ export function CallsColumn({ tool, findRequest, results, onChange, onEditInputs
     >
       <div className="build-col-head">
         <h3>Calls</h3>
-        <button type="button" className="secondary" onClick={() => setPicking(!picking)} aria-expanded={picking}>
+        <button ref={addBtn} type="button" className="secondary" onClick={() => setPicking(!picking)} aria-expanded={picking} aria-haspopup="dialog" aria-controls={picking ? "add-request-flyout" : undefined}>
           Add request
         </button>
       </div>
-      {picking && <AddRequestPanel onAdd={(r) => add(r)} onClose={() => setPicking(false)} />}
+      {picking && (
+        <AddRequestFlyout
+          anchor={addBtn}
+          counts={counts}
+          onAdd={add}
+          onClose={(toButton) => {
+            setPicking(false);
+            if (toButton) addBtn.current?.focus();
+          }}
+        />
+      )}
       <div className="build-calls-scroll">
         {!groups.ok && (
           <p className="build-cycle tone-bad" role="alert">
@@ -211,56 +224,5 @@ function CallCard({ tool, call, findRequest, result, onChange, onFillIn, onOpenR
       )}
       {call.write && <p className="small muted">Runs only from an Action button.</p>}
     </li>
-  );
-}
-
-function AddRequestPanel({ onAdd, onClose }: { onAdd: (r: PickableRequest) => void; onClose: () => void }) {
-  const all = useMemo(() => listPickableRequests(), []);
-  const [query, setQuery] = useState("");
-  const q = query.trim().toLowerCase();
-  const shown = all.filter((r) => !q || `${r.path.join(" ")} ${r.request.method} ${r.request.url}`.toLowerCase().includes(q));
-  return (
-    <div className="add-request" role="region" aria-label="Add a saved request">
-      <input
-        className="search"
-        type="search"
-        placeholder="Search saved requests"
-        aria-label="Search saved requests"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") {
-            e.stopPropagation();
-            onClose();
-          }
-        }}
-        autoFocus
-      />
-      {all.length === 0 && <p className="muted small">No saved requests yet. Save requests in the Requests section first.</p>}
-      <ul className="add-request-list">
-        {shown.map((r) => (
-          <li key={r.id}>
-            <button
-              type="button"
-              className="add-request-row"
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData(REQUEST_DRAG_TYPE, r.id);
-                e.dataTransfer.effectAllowed = "copy";
-              }}
-              onClick={() => onAdd(r)}
-              title="Click to add, or drag it into the Calls column. You can add the same request twice."
-            >
-              <span className={`method m-${r.request.method.toLowerCase()}`}>{r.request.method}</span>
-              <span className="add-request-name">
-                {r.isExample && <span className="muted">example: </span>}
-                {r.path[r.path.length - 1]}
-                {r.path.length > 1 && <span className="muted small"> · {r.path.slice(0, -1).join(" › ")}</span>}
-              </span>
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
   );
 }
