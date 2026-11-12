@@ -38,7 +38,7 @@ export function nextFitLevel(level: number, overflowPx: number, spareWidthPx: nu
 /** The sections in switcher order; Ctrl/Cmd + 1, 2, 3, 4 pick them. */
 export const MODES: readonly Mode[] = ["requests", "testing", "flows", "tools"];
 
-/** Which button gets focus after a key press in the side rail's section group (wrapping), or null when the key does nothing there. */
+/** Which button gets focus after a key press in the status bar's section group (wrapping), or null when the key does nothing there. */
 export function nextModeIndex(current: number, key: string, count = MODES.length): number | null {
   if (key === "ArrowRight" || key === "ArrowDown") return (current + 1) % count;
   if (key === "ArrowLeft" || key === "ArrowUp") return (current - 1 + count) % count;

@@ -1,17 +1,16 @@
 import { useRef } from "react";
 import { useCertificates } from "../CertificatesDialog";
 import { MODES, nextModeIndex } from "../../lib/topBar";
-import { overlayTitleBar } from "../../lib/windowChrome";
-import { CERT_WARNING_DAYS, railBadge, useSectionStatus, type RailBadge, type RailItem } from "../../lib/sectionStatus";
+import { CERT_WARNING_DAYS, railBadge, useSectionStatus, type RailBadge, type RailItem, type StatusSection } from "../../lib/sectionStatus";
 import { toggleSidePanel, useSidePanels } from "../../lib/sidePanels";
 import { FlowsIcon, LockIcon, RequestsIcon, TestingIcon, ToolsIcon } from "./Icons";
 import { MOD_KEY, MODE_LABELS, type Mode } from "./TopBar";
 
 const MODE_ICONS: Record<Mode, () => React.ReactNode> = {
-  requests: () => <RequestsIcon size={18} />,
-  testing: () => <TestingIcon size={18} />,
-  flows: () => <FlowsIcon size={18} />,
-  tools: () => <ToolsIcon size={18} />,
+  requests: () => <RequestsIcon size={17} />,
+  testing: () => <TestingIcon size={17} />,
+  flows: () => <FlowsIcon size={17} />,
+  tools: () => <ToolsIcon size={17} />,
 };
 
 interface Props {
@@ -22,9 +21,9 @@ interface Props {
 function Badge({ badge }: { badge: RailBadge | null }) {
   if (!badge) return null;
   return badge.kind === "dot" ? (
-    <span className={`rail-dot tone-${badge.tone}`} aria-hidden />
+    <span className={`sb-dot tone-${badge.tone}`} aria-hidden />
   ) : (
-    <span className={`rail-badge tone-${badge.tone}`} aria-hidden>
+    <span className={`sb-badge tone-${badge.tone}`} aria-hidden>
       {badge.text}
     </span>
   );
@@ -36,8 +35,13 @@ function soonestExpiryDays(notAfter: readonly number[], now: number): number | n
   return Math.ceil((Math.min(...notAfter) * 1000 - now) / 86_400_000);
 }
 
-/** The slim bar on the window's right edge: the four sections, then the Variables and Certificates side panels. */
-export function SideRail({ section, onMode }: Props) {
+const BACKGROUND: readonly StatusSection[] = ["testing", "flows", "tools"];
+
+/**
+ * The bar along the bottom of the window: the four sections as tabs, what is running or has just failed in another
+ * section, and the Variables and Certificates side panels at the right.
+ */
+export function StatusBar({ section, onMode }: Props) {
   const status = useSectionStatus();
   const panels = useSidePanels();
   const certs = useCertificates();
@@ -85,9 +89,17 @@ export function SideRail({ section, onMode }: Props) {
   ].filter(Boolean);
   const certNote = certNotes.join(", ");
 
+  // The activity slot: sections still working, else the first one whose latest run failed and has not been looked at.
+  const running = BACKGROUND.filter((s) => status[s].running);
+  const failedSection = BACKGROUND.find((s) => status[s].unseen && status[s].failed > 0);
+  const failedText = (s: StatusSection) => {
+    const n = status[s].failed;
+    return s === "testing" ? `${MODE_LABELS[s]}: ${n} failed` : s === "flows" ? `${MODE_LABELS[s]}: run failed` : `${MODE_LABELS[s]}: lookup had problems`;
+  };
+
   return (
-    <aside className="side-rail" aria-label="Sections and tools">
-      <nav className="rail-group" aria-label="Sections" ref={navRef} onKeyDown={onKeyDown}>
+    <footer className="status-bar" aria-label="Sections and tools">
+      <nav className="sb-nav" aria-label="Sections" ref={navRef} onKeyDown={onKeyDown}>
         {MODES.map((m, i) => {
           const on = section === m;
           const note = sectionNote(m);
@@ -95,7 +107,7 @@ export function SideRail({ section, onMode }: Props) {
             <button
               key={m}
               type="button"
-              className={`rail-btn ${on ? "on section" : ""}`}
+              className={`sb-tab ${on ? "on" : ""}`}
               aria-pressed={on}
               aria-current={on ? "page" : undefined}
               aria-label={note ? `${MODE_LABELS[m]}, ${note}` : MODE_LABELS[m]}
@@ -104,16 +116,32 @@ export function SideRail({ section, onMode }: Props) {
               onClick={() => onMode(m)}
             >
               {MODE_ICONS[m]()}
+              <span className="sb-label">{MODE_LABELS[m]}</span>
               <Badge badge={badge(m)} />
             </button>
           );
         })}
       </nav>
-      <div className="rail-group rail-tools" role="group" aria-label="Tools">
-        <div className="rail-spacer" data-tauri-drag-region={overlayTitleBar ? "" : undefined} />
+      <span className="sb-sep" aria-hidden />
+      <div className="sb-activity" role="status">
+        {running.length > 0 ? (
+          <button type="button" className="sb-act" onClick={() => onMode(running[0])} title={`Go to ${MODE_LABELS[running[0]]}`}>
+            <span className="sb-pulse" aria-hidden />
+            <span className="sb-long">{running.map((s) => MODE_LABELS[s]).join(" and ")} running</span>
+          </button>
+        ) : failedSection ? (
+          <button type="button" className="sb-act bad" onClick={() => onMode(failedSection)} title={`Go to ${MODE_LABELS[failedSection]}`}>
+            <span aria-hidden>✕</span>
+            <span className="sb-long">{failedText(failedSection)}</span>
+          </button>
+        ) : (
+          <span className="sb-idle">Nothing running</span>
+        )}
+      </div>
+      <div className="sb-right" role="group" aria-label="Tools">
         <button
           type="button"
-          className={`rail-btn ${panels.variables ? "on" : ""}`}
+          className={`sb-item ${panels.variables ? "on" : ""}`}
           data-variables-trigger
           aria-expanded={panels.variables}
           aria-controls="variables-panel"
@@ -121,14 +149,15 @@ export function SideRail({ section, onMode }: Props) {
           title={`Variables${variablesNote ? ` · ${variablesNote}` : ""}`}
           onClick={() => toggleSidePanel("variables")}
         >
-          <span className="rail-glyph" aria-hidden>
+          <span className="sb-glyph" aria-hidden>
             {"{x}"}
           </span>
-          <Badge badge={section === "requests" ? badge("variables") : null} />
+          {unfilled > 0 && <span className="sb-warn">{unfilled > 99 ? "99+" : unfilled}</span>}
+          <span className="sb-long">{unfilled > 0 ? "unfilled" : "Variables"}</span>
         </button>
         <button
           type="button"
-          className={`rail-btn ${panels.certificates ? "on" : ""}`}
+          className={`sb-item ${panels.certificates ? "on" : ""}`}
           data-certificates-trigger
           aria-expanded={panels.certificates}
           aria-controls="certificates-panel"
@@ -136,10 +165,11 @@ export function SideRail({ section, onMode }: Props) {
           title={`Certificates${certNote ? ` · ${certNote}` : ""}`}
           onClick={() => toggleSidePanel("certificates")}
         >
-          <LockIcon size={17} />
+          <LockIcon size={16} />
           <Badge badge={badge("certificates")} />
+          <span className="sb-long">{section === "requests" && status.request?.certInUse ? status.request.certInUse : "Certificates"}</span>
         </button>
       </div>
-    </aside>
+    </footer>
   );
 }

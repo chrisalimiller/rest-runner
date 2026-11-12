@@ -103,7 +103,7 @@ Each tool keeps its **last 20 lookups**, listed under **Recent lookups** on the 
 
 In Requests, a saved request that tools use shows **Used by 2 tools** at the top of its context menu (hover for the names). Deleting a request, folder or collection that tools use asks first and names those tools; if you delete anyway, their calls show "Request missing" until you pick another request in Build mode.
 
-## Quick open and the side bar
+## Quick open and the status bar
 
 - **Quick open** (`Mod + K`) lists your tools; picking one switches to Tools and opens it. **New tool** is a command (type `>new tool`).
-- The Tools button on the side bar shows an accent dot while a lookup runs and `✕` when a lookup that finished while you were in another section had calls that ended with an error status or no response, until you open Tools.
+- The Tools tab on the status bar shows an accent dot while a lookup runs (and the activity slot says "Tools running"), and `✕` when a lookup that finished while you were in another section had calls that ended with an error status or no response, until you open Tools.

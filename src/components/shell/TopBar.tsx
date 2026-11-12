@@ -30,7 +30,7 @@ export const MODE_LABELS: Record<Mode, string> = { requests: "Requests", testing
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 export const MOD_KEY = isMac ? "⌘" : "Ctrl";
 
-/** The one bar at the top of each section: brand, switcher, quick open, environment. Sections and tools live in the side rail. */
+/** The one bar at the top of each section: brand, switcher, quick open, environment. Sections and tools live in the status bar. */
 export function TopBar(props: Props) {
   const width = useViewportWidth();
   const headerRef = useRef<HTMLElement>(null);

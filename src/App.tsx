@@ -972,7 +972,7 @@ export default function App({ active = true, shell, command }: Props) {
   const usedNames = useMemo(() => requestPlaceholders(def), [def]);
   const unfilled = unresolvedPlaceholders(def, sendVars);
 
-  // The side rail shows this request's unfilled count and certificate state. Debounced like the URL bar's dot.
+  // The status bar shows this request's unfilled count and certificate state. Debounced like the URL bar's dot.
   const patchRef = useRef(patch);
   patchRef.current = patch;
   const skipCertificate = useCallback((skip: boolean) => patchRef.current({ noCertificate: skip || undefined }), []);

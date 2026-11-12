@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from "react";
 
 /**
- * What the side rail shows beside its buttons: whether Testing or Flows is running, whether the latest run failed
+ * What the status bar shows on its tabs and in its activity slot: whether Testing or Flows is running, whether the latest run failed
  * and the user has not looked yet, and facts about the active request (unfilled variables, certificate in use).
  * Module state with subscribers, like busyWork.ts and certificatesDialog.ts.
  */

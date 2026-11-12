@@ -103,7 +103,7 @@ The banner appears only when some variable is marked secret, and can be dismisse
 From inside the app:
 
 - **History:** Quick open → History group → **Clear history**.
-- **Script variables:** **Clear** or **Clear all** in the Variables sidebar (side bar on the right, Requests mode).
+- **Script variables:** **Clear** or **Clear all** in the Variables sidebar (**{x}** in the status bar, Requests mode).
 - **Collections, folders, requests, examples:** delete them from the request switcher's tree.
 - **Environments:** delete them in the environment editor.
 - **Suites:** **Delete suite** in the ⋯ menu of the suite header. Deleting a suite keeps its saved test runs.
