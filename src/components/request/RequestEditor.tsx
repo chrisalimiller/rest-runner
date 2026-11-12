@@ -1,10 +1,10 @@
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { findLiteralSecrets } from "../../lib/redactStorage";
 import { requestToCurl } from "../../lib/curl";
 import { findJsonProblem, formatJson } from "../../lib/jsonFormat";
 import { readableUrl } from "../../lib/quickOpen";
 import { unresolvedPlaceholders } from "../../lib/request";
-import { BODY_LABELS, loadDetailsState, requestDetailsSummary, resolvedUrl, rowCounts, splitPlaceholders, type DetailsState, type DetailsTab } from "../../lib/requestSummary";
+import { BODY_LABELS, loadEditorTab, resolvedUrl, rowCounts, splitPlaceholders, type DetailsTab } from "../../lib/requestSummary";
 import { load, save } from "../../lib/storage";
 import type { Vars } from "../../lib/template";
 import { MethodSelect } from "../MethodSelect";
@@ -19,7 +19,7 @@ import { useToast } from "../shell/Toast";
 import { useCertificates } from "../CertificatesDialog";
 import { CertificateChip } from "./CertificateChip";
 import { CurlPanel } from "./CurlPanel";
-import { RequestDetailsDrawer, RequestSummary } from "./RequestDetails";
+import { RequestTabs, tabDomId } from "./RequestDetails";
 import { usesPostman } from "../../lib/postmanScripts";
 import { UrlInput } from "./UrlInput";
 
@@ -33,7 +33,7 @@ interface Props {
   onConvertLiteral?: (path: string) => void;
   /** Enter in the URL box. */
   onEnter?: () => void;
-  /** Where the Request details drawer's open state and tab are remembered. */
+  /** Where the selected tab is remembered. */
   detailsKey: string;
   urlPlaceholder?: string;
   /** Variables set by scripts on earlier sends, shown under the script editor. */
@@ -132,39 +132,21 @@ const BODY_MODES: BodyMode[] = ["none", "json", "text", "urlencoded"];
 const CURL_OPEN_KEY = "rest-runner.curl-open";
 
 /**
- * The request column: the URL row (with Send and the ⋯ menu), one summary line, and the body filling the rest.
- * Params, Auth, Headers and Scripts live in a Request details drawer that slides over the body. Requests mode
- * and the Testing "Edit request" dialog both use it.
+ * The request column: the URL row (with Send and the ⋯ menu), one row of tabs (Params, Auth, Headers, Body, Scripts),
+ * and the open tab filling the rest of the height. The URL row never wraps. Requests mode and the Testing
+ * "Edit request" dialog both use it.
  */
 export function RequestEditor({ def, onChange, envVars, envName, onConvertLiteral, onEnter, detailsKey, urlPlaceholder, scriptVars, scriptsNote, onOpenVariables, sendSlot, menuItems, onPasteCurl, banner, onReplaceFromCurl }: Props) {
-  const [details, setDetails] = useState<DetailsState>(() => loadDetailsState(load<unknown>(detailsKey, null)));
+  const [stored, setStored] = useState<DetailsTab>(() => loadEditorTab(load<unknown>(detailsKey, null)));
   useEffect(() => {
-    save(detailsKey, details);
-  }, [detailsKey, details]);
+    save(detailsKey, { tab: stored });
+  }, [detailsKey, stored]);
 
   const methodAllowsBody = def.method !== "GET" && def.method !== "HEAD";
-  // With no body to cover, the details fill its place and are always showing.
-  const docked = !methodAllowsBody;
-  const open = details.open || docked;
-  const detailsId = useId();
-  const opener = useRef<HTMLElement | null>(null);
-
-  const closeDetails = useCallback(() => {
-    setDetails((d) => ({ ...d, open: false }));
-    requestAnimationFrame(() => {
-      const back = opener.current?.isConnected ? opener.current : document.querySelector<HTMLElement>(".req-details-btn");
-      back?.focus();
-    });
-  }, []);
-  const toggleDetails = (from: HTMLElement) => {
-    if (details.open) return closeDetails();
-    opener.current = from;
-    setDetails((d) => ({ ...d, open: true }));
-  };
-  const pickTab = (tab: DetailsTab, from: HTMLElement) => {
-    if (!docked && !details.open) opener.current = from;
-    setDetails((d) => ({ ...d, tab, open: docked ? d.open : true }));
-  };
+  const panelId = useId();
+  const tabs: readonly DetailsTab[] = methodAllowsBody ? ["params", "auth", "headers", "body", "scripts"] : ["params", "auth", "headers", "scripts"];
+  // GET and HEAD send no body, so a remembered Body tab shows Params instead.
+  const tab: DetailsTab = tabs.includes(stored) ? stored : "params";
 
   const toast = useToast();
   const copyToClipboard = (text: string, message: string) => {
@@ -199,9 +181,9 @@ export function RequestEditor({ def, onChange, envVars, envName, onConvertLitera
     params: rowCounts(def.params).on ? String(rowCounts(def.params).on) : "",
     auth: def.auth.type !== "none" ? "•" : "",
     headers: rowCounts(def.headers).on ? String(rowCounts(def.headers).on) : "",
+    body: def.bodyMode !== "none" ? BODY_LABELS[def.bodyMode] : "",
     scripts: (def.preScript ?? "").trim() || (def.postScript ?? "").trim() ? "•" : "",
   };
-
   const postmanWarning = usesPostman(def.preScript ?? "") || usesPostman(def.postScript ?? "") ? POSTMAN_WARNING : undefined;
   const noUrl = def.url.trim() === "";
   const bashCurl = requestToCurl(urlInputs.def, urlInputs.envVars, "bash", certificates).command;
@@ -261,70 +243,76 @@ export function RequestEditor({ def, onChange, envVars, envName, onConvertLitera
         {curlOpen && fullMenu && <CurlPanel def={urlInputs.def} vars={urlInputs.envVars} envName={envName} />}
       </div>
 
-      <RequestSummary
-        items={requestDetailsSummary(def, envVars)}
-        showToggle={!docked}
-        open={open}
-        detailsId={detailsId}
-        onToggle={toggleDetails}
-        onPick={pickTab}
-        end={methodAllowsBody ? undefined : <span className="muted">No body for {def.method}</span>}
-      >
-        <CertificateChip url={finalUrl} skipped={!!def.noCertificate} onSkip={(skip) => onChange({ noCertificate: skip || undefined })} />
-      </RequestSummary>
+      <RequestTabs
+        tabs={tabs}
+        active={tab}
+        onTab={setStored}
+        panelId={panelId}
+        marks={marks}
+        warnings={postmanWarning ? { scripts: postmanWarning } : undefined}
+        end={
+          <>
+            {!methodAllowsBody && <span className="muted">No body for {def.method}</span>}
+            <CertificateChip url={finalUrl} skipped={!!def.noCertificate} onSkip={(skip) => onChange({ noCertificate: skip || undefined })} />
+          </>
+        }
+      />
 
-      <div className="req-body-area">
-        {methodAllowsBody && (
-          <div className="req-body-block">
-            <div className="req-body-head">
-              <select className="body-mode-select" value={def.bodyMode} onChange={(e) => onChange({ bodyMode: e.target.value as BodyMode })} aria-label="Body type">
-                {BODY_MODES.map((m) => (
-                  <option key={m} value={m}>
-                    {BODY_LABELS[m]}
-                  </option>
-                ))}
-              </select>
-              {def.bodyMode === "json" && def.body.trim() !== "" && <span className={`json-status ${problem ? "bad" : "ok"}`}>{problem ? "Invalid JSON" : "Valid"}</span>}
-              <span className="hero-gap" />
-              {def.bodyMode === "json" && (
-                <button
-                  className="link-btn small"
-                  onClick={() => {
-                    const formatted = formatJson(def.body);
-                    if (formatted !== null) onChange({ body: formatted });
-                  }}
-                  disabled={problem !== null || def.body.trim() === ""}
-                  title="Format (Shift+Alt+F)"
-                >
-                  Format
-                </button>
-              )}
-              {(def.bodyMode === "json" || def.bodyMode === "text") && (
-                <button className="block-icon-btn" onClick={() => copyToClipboard(def.body, "Copied the body")} disabled={def.body === ""} aria-label="Copy body" title="Copy body">
-                  <CopyIcon />
-                </button>
-              )}
+      <div className="req-body-area" role="tabpanel" id={panelId} aria-labelledby={tabDomId(panelId, tab)}>
+        <div className="req-body-block">
+          {tab === "body" ? (
+            <>
+              <div className="req-body-head">
+                <select className="body-mode-select" value={def.bodyMode} onChange={(e) => onChange({ bodyMode: e.target.value as BodyMode })} aria-label="Body type">
+                  {BODY_MODES.map((m) => (
+                    <option key={m} value={m}>
+                      {BODY_LABELS[m]}
+                    </option>
+                  ))}
+                </select>
+                {def.bodyMode === "json" && def.body.trim() !== "" && <span className={`json-status ${problem ? "bad" : "ok"}`}>{problem ? "Invalid JSON" : "Valid"}</span>}
+                <span className="hero-gap" />
+                {def.bodyMode === "json" && (
+                  <button
+                    className="link-btn small"
+                    onClick={() => {
+                      const formatted = formatJson(def.body);
+                      if (formatted !== null) onChange({ body: formatted });
+                    }}
+                    disabled={problem !== null || def.body.trim() === ""}
+                    title="Format (Shift+Alt+F)"
+                  >
+                    Format
+                  </button>
+                )}
+                {(def.bodyMode === "json" || def.bodyMode === "text") && (
+                  <button className="block-icon-btn" onClick={() => copyToClipboard(def.body, "Copied the body")} disabled={def.body === ""} aria-label="Copy body" title="Copy body">
+                    <CopyIcon />
+                  </button>
+                )}
+              </div>
+              <BodyEditor
+                toolbar={false}
+                lineNumbers
+                mode={def.bodyMode}
+                body={def.body}
+                formBody={def.formBody}
+                placeholderVars={envVars}
+                methodAllowsBody={methodAllowsBody}
+                onModeChange={(bodyMode) => onChange({ bodyMode })}
+                onBodyChange={(b) => onChange({ body: b })}
+                onFormChange={(formBody) => onChange({ formBody })}
+              />
+            </>
+          ) : (
+            <div className="req-details-body">
+              {tab === "params" && <KeyValueEditor rows={def.params} onChange={(rows) => onChange({ params: rows })} placeholderVars={envVars} />}
+              {tab === "auth" && <AuthEditor auth={def.auth} onChange={(a) => onChange({ auth: a })} placeholderVars={envVars} literalPath={literal.auth} envName={envName} onConvertLiteral={onConvertLiteral && literal.auth ? () => onConvertLiteral(literal.auth!) : undefined} />}
+              {tab === "headers" && <KeyValueEditor rows={def.headers} onChange={(rows) => onChange({ headers: rows })} placeholderVars={envVars} literalRows={literal.headerRows} />}
+              {tab === "scripts" && <ScriptsPanel def={def} onChange={onChange} scriptVars={scriptVars} onOpenVariables={onOpenVariables} scriptsNote={scriptsNote} />}
             </div>
-            <BodyEditor
-              toolbar={false}
-              lineNumbers
-              mode={def.bodyMode}
-              body={def.body}
-              formBody={def.formBody}
-              placeholderVars={envVars}
-              methodAllowsBody={methodAllowsBody}
-              onModeChange={(bodyMode) => onChange({ bodyMode })}
-              onBodyChange={(b) => onChange({ body: b })}
-              onFormChange={(formBody) => onChange({ formBody })}
-            />
-          </div>
-        )}
-        <RequestDetailsDrawer id={detailsId} open={open} docked={docked} tab={details.tab} onTab={(tab) => setDetails((d) => ({ ...d, tab }))} onClose={closeDetails} marks={marks} warnings={postmanWarning ? { scripts: postmanWarning } : undefined}>
-          {details.tab === "params" && <KeyValueEditor rows={def.params} onChange={(rows) => onChange({ params: rows })} placeholderVars={envVars} />}
-          {details.tab === "auth" && <AuthEditor auth={def.auth} onChange={(a) => onChange({ auth: a })} placeholderVars={envVars} literalPath={literal.auth} envName={envName} onConvertLiteral={onConvertLiteral && literal.auth ? () => onConvertLiteral(literal.auth!) : undefined} />}
-          {details.tab === "headers" && <KeyValueEditor rows={def.headers} onChange={(rows) => onChange({ headers: rows })} placeholderVars={envVars} literalRows={literal.headerRows} />}
-          {details.tab === "scripts" && <ScriptsPanel def={def} onChange={onChange} scriptVars={scriptVars} onOpenVariables={onOpenVariables} scriptsNote={scriptsNote} />}
-        </RequestDetailsDrawer>
+          )}
+        </div>
       </div>
     </>
   );

@@ -2385,7 +2385,6 @@ select {
 .tree-count,
 .nav-row-count,
 .tab-badge,
-.req-summary-item,
 .rtab-group {
   font-feature-settings: "tnum" 1;
 }

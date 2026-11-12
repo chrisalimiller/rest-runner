@@ -18,11 +18,12 @@ GET and HEAD requests never send a body, even if you filled one in. The summary 
 
 ## The request column
 
-The column has three rows: the URL row (method, URL, **Send** and the ⋯ menu), a summary line, and the body editor, which fills the rest of the height. Params, Auth, Headers and Scripts are in Request details, opened from the summary line under the URL. Save, Save as example, Run with CSV and cURL are in the ⋯ menu next to Send.
+The column has three parts: the URL row (method, URL, **Send** and the ⋯ menu), one row of tabs, and the open tab, which fills the rest of the height. Save as example, Run with CSV and cURL are in the ⋯ menu next to Send.
 
-- **URL row.** Hover the URL box to see the final URL with environment values and query params filled in. An amber dot with a count inside the box means placeholders have no value; click it to open Variables. The ⋯ menu holds **Save**, **Save as example** (and **Set sample response** when an example has a live response), **Run with CSV…**, **Copy final URL**, **Show cURL** / **Hide cURL** and the two **Copy as cURL** items.
-- **Summary line.** The **Request details** button opens or closes the drawer. Next to it, `1 param · Bearer {{token}} · 3 headers · after-script` shows what each part holds; click one to open the drawer on that tab (an auth value with no value is shown in red). The body type, JSON validity and **Format** are at the right end.
-- **Request details drawer.** It slides over the body with tabs for Params, Auth, Headers and Scripts. Escape or × closes it and puts focus back on the button that opened it. Whether it is open and which tab are remembered. For GET and HEAD, which send no body, the details are always showing in place of the body.
+- **URL row.** It always stays on one line; the URL box shrinks first. Hover the URL box to see the final URL with environment values and query params filled in. An amber dot with a count inside the box means placeholders have no value; click it to open Variables. The ⋯ menu holds **Save**, **Save as example** (and **Set sample response** when an example has a live response), **Run with CSV…**, **Copy final URL**, **Show cURL** / **Hide cURL** and the two **Copy as cURL** items.
+- **Tabs.** Params, Auth, Headers, Body and Scripts. Each tab shows what it holds: a count of enabled rows, a dot when auth or a script is set, and the body type. The certificate chip is at the right end. Arrow keys, Home and End move between tabs. The selected tab is remembered. GET and HEAD send no body, so they have no Body tab.
+- **Body tab.** The body type, JSON validity, **Format** and **Copy body** sit in the strip above the editor.
+- **Unsaved changes bar.** While a request has unsaved changes, a bar over the bottom of the column offers **Save** (the same as the shortcut) and **Discard**, which asks once more before putting back the saved version. A request that has never been saved shows **Not saved** and Save only.
 
 ### Params, Headers and form fields
 
