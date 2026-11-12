@@ -2736,3 +2736,7 @@ table.results.row-picker-table tr.rp-filters th {
   outline: 2px solid var(--accent-fg);
   outline-offset: 2px;
 }
+
+.block-head .link-btn.on {
+  color: var(--accent-fg);
+}

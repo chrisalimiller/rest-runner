@@ -16,6 +16,7 @@ import {
   tableView,
   type CallView,
 } from "../../lib/tools/view";
+import { BodyView } from "../BodyView";
 import { OverflowMenu } from "../shell/OverflowMenu";
 import { InputControl } from "./InputControl";
 
@@ -140,7 +141,11 @@ export function BlockCard({ block, tool, state, findRequest, actions }: CardProp
       </header>
       <div className="tool-block-body">
         <BlockBody block={block} call={call} result={result} view={view} state={state} actions={actions} hasRequest={!!def} />
-        {raw && result && <pre className="code-view tool-raw">{rawResponseText(result) || "(empty)"}</pre>}
+        {raw && result && (
+          <div className="tool-raw">
+            <BodyView body={rawResponseText(result)} />
+          </div>
+        )}
       </div>
     </section>
   );
