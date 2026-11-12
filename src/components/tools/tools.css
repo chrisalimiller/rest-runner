@@ -356,6 +356,15 @@
   margin-top: 10px;
 }
 
+/* The highlighted JSON view sits inside the scrolling box, so its own frame draws no second border. */
+.tool-raw .code-view-frame,
+.tool-raw > .code-view {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  max-height: none;
+}
+
 .tool-error-body {
   margin-top: 6px;
   color: var(--danger-fg);

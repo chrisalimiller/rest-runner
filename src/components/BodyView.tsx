@@ -6,10 +6,12 @@ interface Props {
   /** Pretty-print and highlight when the body is JSON. */
   pretty?: boolean;
   lineNumbers?: boolean;
+  /** In the raw view (pretty off): indent JSON, still as plain text. */
+  beautify?: boolean;
 }
 
 /** Shows a request or response body: highlighted JSON when it is JSON, plain monospace text otherwise. */
-export function BodyView({ body, pretty = true, lineNumbers = false }: Props) {
+export function BodyView({ body, pretty = true, lineNumbers = false, beautify = false }: Props) {
   if (body === "") {
     return (
       <pre className="code-view">
@@ -25,5 +27,5 @@ export function BodyView({ body, pretty = true, lineNumbers = false }: Props) {
       </div>
     );
   }
-  return <pre className="code-view">{body}</pre>;
+  return <pre className="code-view">{beautify && p.isJson ? p.text : body}</pre>;
 }

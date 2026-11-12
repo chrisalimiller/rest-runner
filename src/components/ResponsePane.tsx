@@ -1,7 +1,7 @@
 import { currentMasker } from "../lib/secrets";
 import { useEffect, useRef, useState } from "react";
 import { formatMs, statusTone } from "../lib/earlierSends";
-import { splitBytes } from "../lib/format";
+import { prettyBody, splitBytes } from "../lib/format";
 import { CANCELLED } from "../lib/http";
 import { BodyView } from "./BodyView";
 import { ScriptResults, ScriptsBadge, scriptsTabLabel, scriptTestCounts, type ScriptRun } from "./ScriptResults";
@@ -39,6 +39,7 @@ function timeOfDay(iso: string): string {
 export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, errorHint, scripts, scriptVars, bodyNote }: Props) {
   const [chosenTab, setTab] = useState<Tab>("body");
   const [pretty, setPretty] = useState(true);
+  const [beautify, setBeautify] = useState(false);
   const [now, setNow] = useState(Date.now());
   const startRef = useRef(0);
   // Counts distinct responses (by outcome identity), so the arrival cue replays per send but not on tab switches or other re-renders.
@@ -85,6 +86,8 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
     (isSample && chosenTab === "request") || ((!res || bodyNote) && chosenTab === "headers") || (!hasScripts && chosenTab === "scripts") ? "body" : chosenTab;
   const tone = statusTone(res ? res.status : null);
   const mask = currentMasker();
+  // Only the raw view needs it (Pretty parses the body itself); skipped otherwise so big bodies are not parsed twice.
+  const body = res && !pretty ? prettyBody(res.body) : { isJson: false, text: "" };
   const contentType = res?.headers.find(([k]) => k.toLowerCase() === "content-type")?.[1].split(";")[0].trim() || "No content type";
 
   return (
@@ -159,7 +162,12 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
                 Raw
               </button>
             </div>
-            <button className="block-icon-btn" onClick={() => navigator.clipboard?.writeText(res.body)} aria-label="Copy response body" title="Copy response body">
+            {!pretty && body.isJson && (
+              <button className={`link-btn small ${beautify ? "on" : ""}`} aria-pressed={beautify} onClick={() => setBeautify((b) => !b)} title="Indent the JSON; the raw text is still plain and selectable">
+                {beautify ? "Beautified" : "Beautify"}
+              </button>
+            )}
+            <button className="block-icon-btn" onClick={() => navigator.clipboard?.writeText(!pretty && beautify && body.isJson ? body.text : res.body)} aria-label="Copy response body" title="Copy response body">
               <CopyIcon />
             </button>
           </div>
@@ -169,7 +177,7 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
           (res && bodyNote ? (
             <p className="muted small body-note">{bodyNote}</p>
           ) : res ? (
-            <BodyView body={res.body} pretty={pretty} lineNumbers />
+            <BodyView body={res.body} pretty={pretty} beautify={beautify} lineNumbers />
           ) : (
             <div className="error-box">
               <div className="error-title">

@@ -141,7 +141,7 @@ Masking matches the value wherever it appears, including inside JSON, URL-encode
 
 The top of the response column shows the status code and text, time, size and the time the request was sent. Then a switch:
 
-- **Body**: JSON is highlighted. **Raw** shows the body as received and **Pretty** re-indents JSON. **Copy** copies the body.
+- **Body**: JSON is highlighted. **Raw** shows the body as received and **Pretty** re-indents JSON. In Raw, JSON bodies also get a **Beautify** button that indents the text while keeping it plain and selectable (click again to see it as received). **Copy** copies what is showing.
 - **Headers**: all response headers, with a count.
 - **Sent request**: the exact request that was sent, after placeholders, auth and default headers were applied.
 - **Scripts** (only when the request has scripts): see below. The label shows how many `rr.test` checks passed, for example `Scripts 2/3`, and the tab turns red if something failed.
