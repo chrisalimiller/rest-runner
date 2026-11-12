@@ -38,7 +38,7 @@ Turn saved requests into small lookup pages: type an ID, press Look up, and see 
 - Requests are sent from the Rust side, so browser CORS rules do not apply.
 - Secret variables are kept in the macOS Keychain or Windows Credential Manager and masked on screen and in reports.
 - Works offline; fonts are bundled.
-- Environments can be coloured; Prod-style ones turn Send red.
+- Environments can be coloured; Prod-style ones turn Send red, and an environment marked as production asks before a send or batch run (switch this off in Settings, opened from the info button in the top bar).
 
 ## Get it
 
