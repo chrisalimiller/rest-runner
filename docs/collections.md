@@ -42,7 +42,7 @@ An example is a named copy of a request's payload (URL, params, headers, body, a
 
 ## Export and import
 
-**Export workspace…** (in the switcher popover) writes one JSON file, the *workspace file*, with all collections (with folders and examples), all environments, all test suites (with their CSV data), all flows and all [tools](tools.md). It is the file to hand to a teammate or to back up with. If any environment variable is marked [secret](requests.md#secret-values), a dialog asks **Include secret values?** and leaves them out by default (the variables stay in the file with empty values). **Import** reads a workspace file and merges it, and the notice afterwards says how many collections, environments, suites and flows were added or updated:
+**Export workspace…** (in the switcher popover) writes one JSON file, the *workspace file*, with all collections (with folders and examples), all environments, all test suites (with their CSV data), all flows and all [tools](tools.md). It is the file to hand to a teammate or to back up with. If any environment variable is marked [secret](requests.md#secret-values), a dialog asks **Include secret values?** and leaves them out by default (the variables stay in the file with empty values). **Import** reads a workspace file and merges it, and the notice afterwards says how many collections, environments, suites, flows and tools were added or updated:
 
 Everything comes back in through one **Import** dialog, described next.
 

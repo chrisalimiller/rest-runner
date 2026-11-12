@@ -51,7 +51,7 @@ Calls that read from another call run after it; Build mode lists them as Input, 
 
 ### Pick a row
 
-When a call's response is a list (for example "the subscriber's devices"), mark it **pick a row** in Build mode. In Use mode the table block shows **Use this row** next to each row, and the calls that need a field of the chosen row wait until you pick; calls that do not need it carry on. **Use none** skips them. The chosen row is highlighted afterwards. Without a table block for that call, the first row is used.
+When a call's response is a list (for example "the subscriber's devices"), tick **Ask me to pick a row** in Build mode. In Use mode the table block shows **Use this row** next to each row, and the calls that need a field of the chosen row wait until you pick; calls that do not need it carry on. **Use none** skips them. The chosen row is highlighted afterwards. Without a table block for that call, the first row is used.
 
 ### Action buttons and the production confirm
 
@@ -74,10 +74,10 @@ The **{x}** Variables panel in Tools shows the tool's environment and the placeh
 
 Switch with **Build** next to the tool name. Build edits a draft; nothing is kept until **Save**. Leaving with unsaved changes (switching tools, section or closing the window) asks to **Save**, **Discard** or keep editing.
 
-- **Calls column (left):** the calls grouped as Input, Step 1, Step 2…, with what each call needs and gives. **Add a request** picks a saved request or example. Each call has a name, a **write** switch (on by default for POST, PUT, PATCH and DELETE requests) and **pick a row** for lists.
-- **Block page (right):** rows of up to three blocks. Move a block by its handle or the arrow buttons; **Connect** opens the dialog that asks which request fills the block, which value fills each placeholder, which fields to show, and the label and format (text, number, money, date, yes/no).
+- **Calls column (left):** the calls grouped as Input, Step 1, Step 2…, with what each call needs and gives. **Add request** opens a panel beside the column with a search box (name, folder or URL) and your saved requests and examples. Click one, or move with the arrow keys and press Enter, to add it; the panel stays open so you can add more, and shows how many times each request is already used. You can also drag a request from the panel into the Calls column. Esc closes it. Each call has a name, a **Write call** checkbox (on by default for POST, PUT, PATCH and DELETE requests) and **Ask me to pick a row** for lists.
+- **Block page (right):** rows of up to three blocks. Type `/` in the bar at the bottom ("Type / to add a block") and pick a block type from the list. Move a block by its handle or the arrow buttons; **Connect** opens the dialog that asks which request fills the block, which value fills each placeholder, which fields to show, and the label and format (text, number, money, date, yes/no).
 - **Run with sample** runs the lookup with the sample values typed in Build, so every block fills with a real answer and **Connect** can offer values to click. Sample runs are never saved to history, and write calls are not sent by Look up or Run with sample. Action buttons in Build can be pressed too; they use the sample answers and the same production confirm.
-- **Settings:** see below.
+- **Settings** (button in the Build header): see below.
 
 ### Tool settings
 

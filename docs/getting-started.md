@@ -78,9 +78,17 @@ In Testing and Flows the list on the left (suites and runs, flows and runs) can 
 
 The request you are editing is remembered between launches, even if you never save it.
 
+## Settings
+
+The **info button** in the top bar opens Settings, a dialog with a list on the left:
+
+- **General:** appearance, **Confirm production requests**, **Response size limit (bytes)** (see [Response size limits](requests.md#response-size-limits)) and a note on where secrets are stored.
+- **Keyboard shortcuts:** the list from [Quick open and keyboard shortcuts](shortcuts.md).
+- **About & updates:** the installed version and **Check for updates**.
+
 ## Updating REST Runner
 
-REST Runner never checks for updates by itself. To update an installed copy, click the **info button** in the top bar (or **REST Runner › Check for Updates…** on macOS, or **Check for updates** in Quick open), then **Check for updates**. If there is a newer release you see its notes; **Download and install** installs it and restarts the app. If a batch, test run or flow is running, it asks before stopping it. Your saved data stays.
+REST Runner never checks for updates by itself. To update an installed copy, click the **info button** in the top bar, which opens Settings (or choose **REST Runner › Check for Updates…** on macOS, or **Settings and about…** in Quick open), go to **About & updates** and press **Check for updates**. If there is a newer release you see its notes; **Download and install** installs it and restarts the app. If a batch, test run or flow is running, it asks before stopping it. Your saved data stays.
 
 Updates only work in installed builds, not in `npm run tauri dev`. Versions before v0.3.0 have no updater: install v0.3.0 by hand once. Maintainers: see [releasing.md](releasing.md).
 
