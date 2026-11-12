@@ -85,7 +85,7 @@ Edit the value right in the card: Enter or clicking away saves it to whichever p
 
 ## The Variables sidebar
 
-Click **{x}** in the side bar on the right edge to open a sidebar. The button sits at the bottom, just above Certificates, in Requests, Testing and Flows, and the panel stays open when you switch section. It sits between the content and the side bar at any window width, never over the content, the same way the Certificates panel does. The ✕ button, Escape (with focus inside the panel) and the **{x}** button all close it, and it stays open or closed the next time you start the app.
+Click **{x}** at the right end of the status bar to open a sidebar. The button sits next to Certificates in Requests, Testing and Flows, and the panel stays open when you switch section. It sits beside the content at any window width, never over it, the same way the Certificates panel does. The ✕ button, Escape (with focus inside the panel) and the **{x}** button all close it, and it stays open or closed the next time you start the app.
 
 **This request / All** switches between the variables the open request uses and every variable. **Filter by name** narrows the list. Groups are listed with the winner first, as a send resolves them:
 

@@ -187,7 +187,7 @@ export function ToolsApp({ active, shell, command }: Props) {
       const record = await s.lookup(t, { findRequest: requests, envVars: environmentVars(env), environmentName: env?.name, send: sendRequest, scripts: scripts.run });
       if (record) {
         refreshRecents(t.id);
-        // The rail marks a lookup with problems that finished while another section was on screen.
+        // The status bar marks a lookup with problems that finished while another section was on screen.
         const failed = record.results.filter((r) => {
           const k = callView({ result: r, sending: false, lookingUp: false }).kind;
           return k === "http-error" || k === "network-error";

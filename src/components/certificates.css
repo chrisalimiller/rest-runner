@@ -158,7 +158,7 @@
   border-color: color-mix(in srgb, var(--warn) 50%, transparent);
 }
 
-/* The Certificates side panel: docked beside the content, in the slot next to the side rail. */
+/* The Certificates side panel: docked beside the content, in the slot beside the content. */
 .certs-panel {
   width: 320px;
   flex-shrink: 0;

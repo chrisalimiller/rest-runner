@@ -9,10 +9,17 @@
   height: 100%;
   overflow: hidden;
   display: flex;
+  flex-direction: column;
   position: relative;
 }
 
-/* The three sections share this column; the side rail sits to its right at full window height. */
+/* Everything above the status bar: the sections, then the Variables or Certificates panel to their right. */
+.app-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
 .root-sections {
   flex: 1;
   min-width: 0;

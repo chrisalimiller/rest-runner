@@ -1,7 +1,12 @@
+/* Height of the bar along the bottom of the window; toasts sit above it. */
+:root {
+  --statusbar-h: 40px;
+}
+
 .toast-region {
   position: fixed;
   left: 16px;
-  bottom: 16px;
+  bottom: calc(var(--statusbar-h) + 12px);
   z-index: 200;
   display: flex;
   flex-direction: column;
@@ -243,157 +248,190 @@
   gap: 8px;
 }
 
-/* ---------- Side rail: sections, then the Variables and Certificates tools ---------- */
-.side-rail {
-  flex: 0 0 52px;
-  width: 52px;
-  height: 100%;
+/* ---------- Status bar: sections, what is running elsewhere, then the Variables and Certificates tools ---------- */
+.status-bar {
+  flex: none;
+  height: var(--statusbar-h);
   box-sizing: border-box;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-  padding: 10px 0;
+  align-items: stretch;
   background: var(--bg-inset);
-  border-left: 1px solid var(--border-muted);
+  border-top: 1px solid var(--border-muted);
+  font-size: var(--fs-md);
+  white-space: nowrap;
 }
 
-.rail-group {
+.sb-nav,
+.sb-right {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
 }
 
-.rail-tools {
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-}
-
-.rail-spacer {
-  flex: 1;
-  width: 100%;
-  min-height: 0;
-}
-
-.rail-divider {
-  width: 24px;
-  height: 1px;
-  margin: 6px 0;
-  background: var(--border-muted);
-}
-
-.rail-btn {
+.sb-tab,
+.sb-item,
+.sb-act {
   position: relative;
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  padding: 0;
+  gap: 8px;
+  padding: 0 16px;
   border: 0;
-  border-radius: var(--r-md);
+  border-radius: 0;
   background: transparent;
   color: var(--muted);
+  font: inherit;
   cursor: pointer;
 }
 
-.rail-btn:hover {
+.sb-item,
+.sb-act {
+  gap: 7px;
+  padding: 0 14px;
+}
+
+.sb-tab:hover,
+.sb-item:hover,
+.sb-act:hover {
   background: var(--bg-soft);
   color: var(--text);
 }
 
-.rail-btn.on {
-  background: var(--btn-bg);
+.sb-tab.on {
+  background: var(--bg);
   color: var(--text);
-  box-shadow: inset 0 0 0 1px var(--border);
+  font-weight: 600;
+  box-shadow: inset 0 3px 0 var(--brand);
 }
 
-.rail-btn.section.on {
+.sb-tab.on svg {
   color: var(--brand);
 }
 
-.rail-btn.section.on::after {
-  content: "";
-  position: absolute;
-  right: -7px;
-  top: 50%;
-  width: 3px;
-  height: 20px;
-  transform: translateY(-50%);
-  border-radius: var(--r-xs);
-  background: var(--brand);
+.sb-item.on {
+  background: var(--bg);
+  color: var(--text);
 }
 
-.rail-btn:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--accent-fg);
+.sb-tab:focus-visible,
+.sb-item:focus-visible,
+.sb-act:focus-visible {
+  outline: 2px solid var(--accent-fg);
+  outline-offset: -2px;
 }
 
-.rail-btn.on:focus-visible {
-  box-shadow:
-    inset 0 0 0 1px var(--border),
-    0 0 0 2px var(--accent-fg);
+.sb-sep {
+  flex: none;
+  width: 1px;
+  margin: 9px 6px;
+  background: var(--border-muted);
 }
 
-.rail-glyph {
+.sb-activity {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+}
+
+.sb-act {
+  color: var(--accent-fg);
+  min-width: 0;
+}
+
+.sb-act.bad {
+  color: var(--bad);
+}
+
+.sb-idle {
+  display: flex;
+  align-items: center;
+  padding: 0 14px;
+  color: var(--faint);
+}
+
+.sb-glyph {
   font: 600 var(--fs-md) var(--mono);
 }
 
-.rail-badge {
-  position: absolute;
-  right: 1px;
-  bottom: 1px;
-  height: 14px;
-  box-sizing: border-box;
-  padding: 0 4px;
+.sb-warn {
+  color: var(--warn);
+  font-weight: 600;
+}
+
+.sb-pulse {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: sb-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes sb-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sb-pulse {
+    animation: none;
+  }
+}
+
+.sb-badge {
   display: inline-flex;
   align-items: center;
+  height: 16px;
+  box-sizing: border-box;
+  padding: 0 6px;
   border-radius: var(--r-pill);
   font: 700 var(--fs-xs) var(--mono);
   line-height: 1;
-  box-shadow: 0 0 0 2px var(--bg-inset);
-  pointer-events: none;
 }
 
-.rail-dot {
-  position: absolute;
-  right: 4px;
-  bottom: 4px;
-  width: 8px;
-  height: 8px;
+.sb-dot {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  box-shadow: 0 0 0 2px var(--bg-inset);
-  pointer-events: none;
 }
 
-.rail-badge.tone-bad {
+.sb-badge.tone-bad {
   background: color-mix(in srgb, var(--bad) 20%, transparent);
   color: var(--bad);
 }
 
-.rail-badge.tone-accent {
+.sb-badge.tone-accent {
   background: color-mix(in srgb, var(--accent-fg) 20%, transparent);
   color: var(--accent-fg);
 }
 
-.rail-badge.tone-ok {
+.sb-badge.tone-ok {
   background: color-mix(in srgb, var(--ok) 20%, transparent);
   color: var(--ok);
 }
 
-.rail-badge.tone-warn {
+.sb-badge.tone-warn {
   background: color-mix(in srgb, var(--warn) 25%, transparent);
   color: var(--warn);
 }
 
-.rail-dot.tone-ok {
+.sb-dot.tone-ok {
   background: var(--ok);
 }
 
-.rail-dot.tone-warn {
+.sb-dot.tone-warn {
   background: var(--warn);
+}
+
+/* Below the width where the columns stack: only the open section keeps its name, and the long status text goes. */
+@media (max-width: 1000px) {
+  .sb-tab:not(.on) .sb-label,
+  .sb-item .sb-long {
+    display: none;
+  }
+
+  .sb-act.bad .sb-long {
+    display: none;
+  }
 }
 
 /* --- Appearance setting (AppearanceControl, shown in the About dialog) --- */

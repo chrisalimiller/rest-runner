@@ -28,7 +28,7 @@ import {
 } from "./lib/certificatesDialog";
 import { CertificatesPanel } from "./components/CertificatesPanel";
 import { SidePanelSlotContext } from "./components/shell/SidePanelSlot";
-import { SideRail } from "./components/shell/SideRail";
+import { StatusBar } from "./components/shell/StatusBar";
 import { FirstRun } from "./components/shell/FirstRun";
 import { modeForShortcut } from "./lib/topBar";
 import { markSectionSeen, useSectionStatus } from "./lib/sectionStatus";
@@ -89,7 +89,7 @@ export default function Root() {
   useEffect(() => {
     save(SECTION_KEY, section);
   }, [section]);
-  // Opening Testing or Flows counts as looking at its latest run, so the rail's failure badge goes away.
+  // Opening Testing or Flows counts as looking at its latest run, so the status bar's failure badge goes away.
   const [panelSlot, setPanelSlot] = useState<HTMLElement | null>(null);
   const status = useSectionStatus();
   useEffect(() => {
@@ -198,6 +198,7 @@ export default function Root() {
   return (
     <SidePanelSlotContext.Provider value={panelSlot}>
       <div className="app-shell">
+        <div className="app-body">
         <div className="root-sections">
           <div className="root-section" hidden={section !== "requests"}>
             <App
@@ -230,7 +231,8 @@ export default function Root() {
         </div>
         <div className="side-panel-slot" ref={setPanelSlot} />
         <CertificatesPanel section={section} />
-        <SideRail section={section} onMode={setSection} />
+        </div>
+        <StatusBar section={section} onMode={setSection} />
         {firstRun && (
           <FirstRun
             onDone={(changed) => {
