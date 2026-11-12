@@ -7,6 +7,7 @@ import { ToastProvider } from "./components/shell/Toast";
 import { installStorageRedaction } from "./lib/redactStorage";
 import { initSecretStore } from "./lib/secretStore";
 import { runSecretsMigration } from "./lib/secretsMigration";
+import { installAutocorrectOff } from "./lib/disableAutocorrect";
 import { initTheme } from "./lib/theme";
 import { showWindowWhenReady } from "./lib/showWindow";
 import { setupWindowChrome } from "./lib/windowChrome";
@@ -18,6 +19,7 @@ import "./components/testing/testing.css";
 import "./layout.css";
 
 installStorageRedaction();
+installAutocorrectOff();
 initTheme();
 setupWindowChrome();
 showWindowWhenReady();

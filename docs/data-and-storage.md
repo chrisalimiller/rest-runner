@@ -20,7 +20,7 @@ The app is a desktop window around a web view, and it keeps its data in that web
 | `rest-runner.active-environment` | The environment selected in Requests mode |
 | `rest-runner.script-vars` | [Script variables](scripting.md#variable-scoping) set by request scripts |
 | `rest-runner.batch-options` | Your batch run options |
-| `rest-runner.request-details`, `rest-runner.case-request-details`, `rest-runner.split` | Whether the Request details drawer is open and its tab, and the column split |
+| `rest-runner.request-details`, `rest-runner.case-request-details`, `rest-runner.split` | The selected request tab (Params, Auth, Headers, Body or Scripts), and the column split |
 | `rest-runner.section` | Whether Requests, Testing or Flows was open |
 | `rest-runner.test-suites` | Test suites, including their saved CSV data |
 | `rest-runner.test-open-suite`, `rest-runner.test-environment` | The open suite, and the environment selected in Testing |
@@ -125,4 +125,4 @@ Export anything you want to keep first. Deleting the folder cannot be undone, an
 Stored data that cannot be read, for example a value edited by hand, is ignored rather than breaking the app. If REST Runner still hits an error it cannot recover from, it shows **Something went wrong** with the error message instead of a blank window:
 
 - **Reload** starts the app again.
-- **Reset view state and reload** first forgets what the screen remembers: the old single draft, which collections and folders are expanded, the Request details drawer and column split, which mode, suite and flow were open, the selected environments, and the hidden lists. Collections, environments, test suites, flows, open tabs, history and saved runs are kept.
+- **Reset view state and reload** first forgets what the screen remembers: the old single draft, which collections and folders are expanded, the selected request tab and column split, which mode, suite and flow were open, the selected environments, and the hidden lists. Collections, environments, test suites, flows, open tabs, history and saved runs are kept.

@@ -155,51 +155,12 @@ export function splitPlaceholders(text: string, vars?: Vars): TextPart[] {
   return out;
 }
 
-export type DetailsTab = "params" | "auth" | "headers" | "scripts";
+export type DetailsTab = "params" | "auth" | "headers" | "body" | "scripts";
 
-export const DETAILS_TABS: readonly DetailsTab[] = ["params", "auth", "headers", "scripts"];
+export const DETAILS_TABS: readonly DetailsTab[] = ["params", "auth", "headers", "body", "scripts"];
 
-export interface DetailsItem {
-  id: DetailsTab;
-  text: string;
-  /** "missing" when the text holds a {{placeholder}} that has no value. */
-  tone?: "missing";
-}
-
-function plural(n: number, noun: string): string {
-  return `${n} ${noun}${n === 1 ? "" : "s"}`;
-}
-
-/**
- * The items of the summary line under the URL: "1 param · Bearer {{token}} · 3 headers · after-script".
- * Disabled and unnamed rows are not counted. With `vars`, an auth value whose placeholder has no value is marked missing.
- * Scripts is left out when the request has none.
- */
-export function requestDetailsSummary(def: RequestDef, vars?: Vars): DetailsItem[] {
-  const params = rowCounts(def.params).on;
-  const headers = rowCounts(def.headers).on;
-  const auth = authSummary(def.auth);
-  const authText = auth.value ? `${auth.label} ${auth.value}` : auth.label === AUTH_LABELS.none ? "No auth" : auth.label;
-  const missing = !!vars && splitPlaceholders(authText, vars).some((p) => p.placeholder && p.resolved === false);
-  const pre = (def.preScript ?? "").trim() !== "";
-  const post = (def.postScript ?? "").trim() !== "";
-  const items: DetailsItem[] = [
-    { id: "params", text: params ? plural(params, "param") : "No params" },
-    { id: "auth", text: authText, ...(missing ? { tone: "missing" as const } : {}) },
-    { id: "headers", text: headers ? plural(headers, "header") : "No headers" },
-  ];
-  if (pre || post) items.push({ id: "scripts", text: pre && post ? "both scripts" : pre ? "before-script" : "after-script" });
-  return items;
-}
-
-export interface DetailsState {
-  open: boolean;
-  tab: DetailsTab;
-}
-
-/** What was remembered about the Request details drawer, with anything unreadable or unknown replaced by closed on Params. */
-export function loadDetailsState(raw: unknown): DetailsState {
+/** The tab remembered for the request editor, or Body when nothing readable is stored. */
+export function loadEditorTab(raw: unknown): DetailsTab {
   const r = raw !== null && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
-  const tab = DETAILS_TABS.find((t) => t === r.tab) ?? "params";
-  return { open: r.open === true, tab };
+  return DETAILS_TABS.find((t) => t === r.tab) ?? "body";
 }

@@ -776,10 +776,10 @@ body.dragging-split {
   font-size: var(--fs-sm);
 }
 
-/* Two floating panels. The request panel stays overflow: visible so the open drawer's shadow is not clipped;
-   its body block clips itself. */
+/* Two floating panels. The request panel stays overflow: visible; its body block clips itself. */
 .request-col,
 .response-col {
+  position: relative;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -802,8 +802,10 @@ body.dragging-split {
   flex: none;
 }
 
+/* The URL row is always one line: the URL box gives way, Send and the menu keep their size. */
 .url-row {
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 8px;
 }
@@ -852,7 +854,7 @@ body.dragging-split {
   border-radius: var(--r-lg);
   background: var(--bg-inset);
   box-shadow: inset 0 0 0 1px var(--border);
-  overflow: hidden;
+  /* Not overflow: hidden, which would clip the method list that drops below the bar. */
 }
 
 .url-bar:focus-within {
@@ -1013,83 +1015,42 @@ button.unfilled-dot:hover {
   background: var(--warn);
 }
 
-/* The summary line: what Request details holds and the certificate, as pills. */
-.req-summary {
+/* One row of tabs under the URL row: Params, Auth, Headers, Body, Scripts, with the certificate chip at the right end. */
+.req-tabs {
   flex: none;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  font-size: var(--fs-sm);
-  color: var(--muted);
-}
-
-.req-details-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  height: 28px;
-  padding: 0 12px;
-  border: 0;
-  border-radius: var(--r-pill);
-  background: var(--bg-soft);
-  box-shadow: inset 0 0 0 1px var(--border);
-  color: var(--text);
+  gap: 12px;
+  min-width: 0;
   font-size: var(--fs-sm);
 }
 
-.req-details-btn:hover,
-.req-details-btn[aria-expanded="true"] {
-  background: var(--bg-hover);
-}
-
-.req-summary-items {
-  display: inline-flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
+.req-tabs .tabs {
+  flex: 1 1 auto;
   min-width: 0;
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  gap: 2px;
+  border-bottom: 0;
 }
 
-.req-summary-item {
-  display: inline-flex;
-  align-items: center;
-  min-width: 0;
-}
-
-.req-summary-dot {
+.req-tabs .tabs::-webkit-scrollbar {
   display: none;
 }
 
-.req-summary-link {
-  height: 26px;
-  padding: 0 10px;
-  border-radius: var(--r-pill);
-  background: color-mix(in srgb, var(--other) 12%, transparent);
-  color: var(--text-soft);
+.req-tabs .tabs button {
+  flex: none;
+  height: 30px;
+  margin: 0;
+  padding: 0 12px;
   font-size: var(--fs-sm);
-  max-width: 260px;
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.req-summary-link:hover {
-  background: color-mix(in srgb, var(--other) 16%, transparent);
-  color: var(--text);
-}
-
-.req-summary-link.missing {
-  background: color-mix(in srgb, var(--bad) 12%, transparent);
-  color: var(--danger);
-}
-
-.req-summary-link.missing:hover {
-  background: color-mix(in srgb, var(--bad) 16%, transparent);
-}
-
-.req-summary-end {
-  margin-left: auto;
+.req-tabs-end {
+  flex: none;
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -1105,8 +1066,7 @@ button.unfilled-dot:hover {
 }
 
 /* The soft code block: rounded, with a header strip. A ::after layer draws the ring above the editor's own background. */
-.req-body-block,
-.req-details.docked {
+.req-body-block {
   position: relative;
   flex: 1;
   min-height: 0;
@@ -1117,8 +1077,7 @@ button.unfilled-dot:hover {
   overflow: hidden;
 }
 
-.req-body-block::after,
-.req-details.docked::after {
+.req-body-block::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -1204,81 +1163,6 @@ button.unfilled-dot:hover {
   padding: 0 12px 0 16px;
 }
 
-/* Request details: a floating sheet over the body block. */
-.req-details {
-  position: absolute;
-  inset: 0 8px 8px 8px;
-  z-index: 3;
-  display: flex;
-  flex-direction: column;
-  border-radius: var(--r-lg);
-  background: var(--bg-soft);
-  box-shadow: 0 0 0 1px var(--border), 0 18px 40px var(--shadow-pop);
-  transform: translateY(calc(100% + 24px));
-  visibility: hidden;
-  transition: transform 150ms ease, visibility 0s linear 150ms;
-}
-
-.req-details.open {
-  transform: none;
-  visibility: visible;
-  transition: transform 150ms ease;
-}
-
-/* Methods without a body: the details sit where the body would be, in the same rounded block. */
-.req-details.docked {
-  inset: auto;
-  z-index: auto;
-  box-shadow: none;
-  transform: none;
-  visibility: visible;
-  transition: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .req-details,
-  .req-details.open {
-    transition: none;
-  }
-}
-
-.req-details-head {
-  flex: none;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 10px 12px 6px;
-  min-width: 0;
-}
-
-/* The drawer's tabs are a pill segmented control. */
-.req-details-head .tabs {
-  flex: 0 1 auto;
-  min-width: 0;
-  flex-wrap: wrap;
-  gap: 2px;
-  padding: 2px;
-  border: 0;
-  border-radius: var(--r-pill);
-  background: var(--bg);
-  box-shadow: inset 0 0 0 1px var(--border);
-}
-
-.req-details-head .tabs button {
-  height: 26px;
-  margin: 0;
-  padding: 0 12px;
-  border: 0;
-  border-radius: var(--r-pill);
-  font-size: var(--fs-sm);
-}
-
-.req-details-head .tabs button.active {
-  background: var(--btn-bg);
-  color: var(--text);
-}
-
 .req-details-mark {
   margin-left: 6px;
   color: var(--muted);
@@ -1308,28 +1192,18 @@ button.unfilled-dot:hover {
   color: var(--warn);
 }
 
-.req-details-close {
-  flex: none;
-  align-self: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: var(--bg);
-  box-shadow: inset 0 0 0 1px var(--border);
-  font-size: var(--fs-xl);
-  line-height: 1;
-}
-
 .req-details-body {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 4px 12px 12px;
+  padding: 14px 12px 12px;
 }
 
 .req-details-body .kv {
   border-collapse: separate;
   border-spacing: 0 6px;
+  /* The row spacing already adds 6px above the first row. */
+  margin-top: -6px;
 }
 
 .req-details-body .kv th,
@@ -3036,7 +2910,8 @@ select:focus-visible,
   position: relative;
 }
 
-.ph-input.marked input {
+.ph-input.marked input,
+.kv td .ph-input.marked input:not([type="checkbox"]):focus {
   color: transparent;
   caret-color: var(--text);
   background: transparent;
@@ -3349,3 +3224,66 @@ select:focus-visible,
   font-weight: 600;
   letter-spacing: 0.04em;
 }
+
+/* Floating bar over the bottom of the request column while the request has changes. */
+.unsaved-bar {
+  position: absolute;
+  left: 50%;
+  bottom: 14px;
+  z-index: 5;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 24px);
+  padding: 6px 6px 6px 14px;
+  border-radius: var(--r-lg);
+  background: var(--bg-soft);
+  box-shadow: 0 0 0 1px var(--border), 0 12px 28px var(--shadow-pop);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  animation: unsaved-in 140ms ease-out;
+}
+
+.unsaved-bar-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.unsaved-bar-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--warn);
+}
+
+.unsaved-bar button {
+  height: 28px;
+  padding: 0 12px;
+}
+
+.unsaved-bar .kbd-hint {
+  margin-left: 6px;
+  color: inherit;
+  opacity: 0.7;
+  font-size: var(--fs-xs);
+}
+
+@keyframes unsaved-in {
+  from {
+    opacity: 0;
+    transform: translate(-50%, 8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .unsaved-bar {
+    animation: none;
+  }
+}
+

@@ -6,6 +6,7 @@ import { EnvironmentEditor } from "./components/EnvironmentEditor";
 import { CurlBanner } from "./components/request/CurlBanner";
 import { CurlImportDialog, type CurlImportChoice } from "./components/request/CurlImportDialog";
 import { RequestEditor } from "./components/request/RequestEditor";
+import { UnsavedBar } from "./components/request/UnsavedBar";
 import { RequestSwitcher } from "./components/request/RequestSwitcher";
 import { RequestTabBar, showTabBar } from "./components/request/RequestTabBar";
 import { ResponsePane } from "./components/ResponsePane";
@@ -1236,6 +1237,14 @@ export default function App({ active = true, shell, command }: Props) {
               { label: "Run with CSV…", title: "Send this request once per CSV row", onSelect: openBatch },
             ]}
           />
+          {dirtyIds.has(activeId) && (
+            <UnsavedBar
+              kind={savedVersion ? "changed" : "new"}
+              shortcut={`${MOD_KEY} S`}
+              onSave={saveCurrent}
+              onDiscard={() => savedVersion && applyTabs((s) => updateActiveDef(s, () => structuredClone(savedVersion)))}
+            />
+          )}
         </section>
 
         <div
