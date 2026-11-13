@@ -598,6 +598,8 @@ body.dragging-split {
 
 .quick-open {
   width: min(640px, calc(100vw - 32px));
+  /* One height from the first frame: the box does not grow as results appear while you type. */
+  height: min(440px, 70vh);
   max-height: 70vh;
   display: flex;
   flex-direction: column;
@@ -619,7 +621,10 @@ body.dragging-split {
 }
 
 .quick-open-input input {
-  flex: 1;
+  /* Full width from the first frame, whether or not anything is typed yet. */
+  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
   border: 0;
   background: transparent;
   font-size: var(--fs-lg);
@@ -2609,9 +2614,13 @@ details.case-try .call-detail {
 }
 
 /* Fixes after the first browser check */
-.quick-open-input input:focus {
+.quick-open-input input:focus,
+.quick-open-input input:focus-visible {
+  /* The row is the field: no accent border or focus ring around the text. The caret shows where you are. */
   border: 0;
   background: transparent;
+  box-shadow: none;
+  outline: none;
 }
 
 .batch-file button {
