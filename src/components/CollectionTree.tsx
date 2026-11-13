@@ -123,7 +123,7 @@ export function CollectionTree(props: Props) {
     ];
     return (
       <li key={folder.id}>
-        <div className={`tree-row ${menu?.id === folder.id ? "menu-open" : ""}`} style={indent(depth)} onContextMenu={(e) => openMenu(e, folder.id, menuItems)}>
+        <div className={`tree-row ${menu?.id === folder.id ? "menu-open" : ""}`} data-node-id={folder.id} style={indent(depth)} onContextMenu={(e) => openMenu(e, folder.id, menuItems)}>
           {renamingId === folder.id ? (
             <span className="tree-main">
               <Chevron open={open} />
@@ -244,7 +244,7 @@ export function CollectionTree(props: Props) {
           ];
           return (
             <li key={c.id}>
-              <div className={`tree-row collection ${menu?.id === c.id ? "menu-open" : ""}`} onContextMenu={(e) => openMenu(e, c.id, menuItems)}>
+              <div className={`tree-row collection ${menu?.id === c.id ? "menu-open" : ""}`} data-node-id={c.id} onContextMenu={(e) => openMenu(e, c.id, menuItems)}>
                 {renamingId === c.id ? (
                   <span className="tree-main">
                     <Chevron open={open} />

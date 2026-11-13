@@ -3,7 +3,8 @@ import { useCertificates } from "../CertificatesDialog";
 import { MODES, nextModeIndex } from "../../lib/topBar";
 import { CERT_WARNING_DAYS, railBadge, useSectionStatus, type RailBadge, type RailItem, type StatusSection } from "../../lib/sectionStatus";
 import { toggleSidePanel, useSidePanels } from "../../lib/sidePanels";
-import { FlowsIcon, LockIcon, RequestsIcon, TestingIcon, ToolsIcon } from "./Icons";
+import { useRequestsSidebar } from "../../lib/requestsSidebar";
+import { FlowsIcon, LockIcon, RequestsIcon, SidebarIcon, TestingIcon, ToolsIcon } from "./Icons";
 import { MOD_KEY, MODE_LABELS, type Mode } from "./TopBar";
 
 const MODE_ICONS: Record<Mode, () => React.ReactNode> = {
@@ -45,6 +46,7 @@ export function StatusBar({ section, onMode }: Props) {
   const status = useSectionStatus();
   const panels = useSidePanels();
   const certs = useCertificates();
+  const sidebar = useRequestsSidebar();
   const navRef = useRef<HTMLElement>(null);
   const now = Date.now();
   const certNotAfter = certs.flatMap((c) => [c.client?.details.notAfter, c.ca?.details.notAfter]).filter((n): n is number => typeof n === "number");
@@ -99,6 +101,23 @@ export function StatusBar({ section, onMode }: Props) {
 
   return (
     <footer className="status-bar" aria-label="Sections and tools">
+      {section === "requests" && sidebar && (
+        <>
+          <button
+            type="button"
+            className={`sb-item sb-sidebar ${sidebar.open ? "on" : ""}`}
+            aria-pressed={sidebar.open}
+            aria-label="Collections sidebar"
+            aria-keyshortcuts="Control+B Meta+B"
+            title={`${sidebar.open ? "Hide" : "Show"} the collections sidebar (${MOD_KEY} B)`}
+            onClick={sidebar.toggle}
+          >
+            <SidebarIcon size={17} />
+            <span className="sb-long">Collections</span>
+          </button>
+          <span className="sb-sep" aria-hidden />
+        </>
+      )}
       <nav className="sb-nav" aria-label="Sections" ref={navRef} onKeyDown={onKeyDown}>
         {MODES.map((m, i) => {
           const on = section === m;

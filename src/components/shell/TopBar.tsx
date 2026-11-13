@@ -44,7 +44,7 @@ export function TopBar(props: Props) {
   return (
     // With the macOS overlay title bar, empty parts of the top bar drag the window; buttons and fields still click.
     <header
-      className="topbar"
+      className={`topbar ${props.switcher ? "" : "centered-search"}`}
       ref={headerRef}
       data-fit-crumbs={fit >= 1 ? "off" : undefined}
       data-fit-max={fit >= 3 ? "" : undefined}

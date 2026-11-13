@@ -95,7 +95,7 @@ The banner appears only when some variable is marked secret, and can be dismisse
 
 ## Backing up and moving to another computer
 
-- **Everything at once:** **Export workspace…** in the request switcher's popover writes collections, environments, test suites (with their CSV data), flows and tools to one file, and **Import…** reads it on the other computer. See [Export and import](collections.md#export-and-import).
+- **Everything at once:** **Export workspace…** in the collections sidebar's ⋯ menu writes collections, environments, test suites (with their CSV data), flows and tools to one file, and **Import…** reads it on the other computer. See [Export and import](collections.md#export-and-import).
 - **Tools** export and import from the Tools sidebar, with the saved requests they use. See [Tools](tools.md#export-and-import).
 - **Test suites** and **flows** also export and import on their own, from the Testing and Flows sidebars. See [Testing](testing.md#exporting-suites).
 - **Run history** (batch runs, test runs) is not part of those exports. Export the HTML or CSV report of a run if you want to keep it.
@@ -106,7 +106,7 @@ From inside the app:
 
 - **History:** Quick open → History group → **Clear history**.
 - **Script variables:** **Clear** or **Clear all** in the Variables sidebar (**{x}** in the status bar, Requests mode).
-- **Collections, folders, requests, examples:** delete them from the request switcher's tree.
+- **Collections, folders, requests, examples:** delete them from the collections sidebar's tree.
 - **Environments:** delete them in the environment editor.
 - **Suites:** **Delete suite** in the ⋯ menu of the suite header. Deleting a suite keeps its saved test runs.
 - **Test cases, flows and flow steps:** in the ⋯ menu of the case or flow (a step has **Delete step** in its settings).

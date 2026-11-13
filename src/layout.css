@@ -394,6 +394,21 @@ body.dragging-split {
   min-width: 0;
 }
 
+/* With no switcher, the search sits in the middle of the bar (the compact icon too). The brand and the right-hand
+   controls stay in the flow, so the fit measuring still counts everything. */
+.topbar.centered-search > .quick-open-field {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  flex: none;
+  width: clamp(200px, 38vw, 460px);
+}
+
+.topbar.centered-search > .quick-open-field.compact {
+  width: auto;
+}
+
 /* Last measured fit level 1: the request switcher drops its folder path. */
 .topbar[data-fit-crumbs="off"] .switcher-crumb {
   display: none;
@@ -843,6 +858,129 @@ body.dragging-split {
   overflow: hidden;
 }
 
+.request-crumb {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: none;
+  min-width: 0;
+  box-sizing: border-box;
+  /* The same 36px strip as the response side's switch, so the bands below line up. */
+  height: 36px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border-muted);
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.request-crumb ol {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.request-crumb li {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.request-crumb .crumb-seg {
+  padding: 2px 5px;
+  border-radius: var(--r-xs);
+  color: var(--muted);
+  white-space: nowrap;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.request-crumb .crumb-seg:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.request-crumb .crumb-cur {
+  gap: 2px;
+}
+
+.request-crumb .crumb-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
+}
+
+.request-crumb .crumb-pencil {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--r-xs);
+  color: var(--muted);
+  opacity: 0;
+}
+
+.request-crumb .crumb-cur:hover .crumb-pencil,
+.request-crumb .crumb-pencil:focus-visible {
+  opacity: 1;
+}
+
+.request-crumb .crumb-pencil:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.request-crumb .crumb-rename {
+  min-width: 140px;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--accent);
+  border-radius: var(--r-xs);
+  background: var(--bg-inset);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+}
+
+.request-crumb .crumb-sep {
+  padding: 0 1px;
+}
+
+.request-crumb .crumb-cur {
+  padding: 2px 5px;
+  color: var(--text);
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: block;
+}
+
+.request-crumb .crumb-unsaved-where {
+  padding: 2px 5px;
+  font-style: italic;
+}
+
+.request-crumb .crumb-sep + .crumb-cur,
+.request-crumb .crumb-unsaved-where + .crumb-cur {
+  margin-left: 0;
+}
+
+.crumb-status {
+  flex: none;
+  white-space: nowrap;
+}
+
+.crumb-status.warn {
+  color: var(--warn);
+}
+
 .url-block {
   display: flex;
   flex-direction: column;
@@ -896,8 +1034,9 @@ body.dragging-split {
   flex: 1;
   min-width: 0;
   display: flex;
-  align-items: center;
-  height: 40px;
+  /* Grows when the focused URL wraps onto more lines; the controls stay on the first line. */
+  align-items: flex-start;
+  min-height: 40px;
   padding: 5px;
   border: 0;
   border-radius: var(--r-lg);
@@ -985,7 +1124,7 @@ body.dragging-split {
   border: 0;
   border-radius: 0;
   background: transparent;
-  padding: 0 12px;
+  padding: 5px 12px;
 }
 
 .body-mode-select {
@@ -1043,7 +1182,7 @@ body.dragging-split {
   align-items: center;
   gap: 5px;
   height: 24px;
-  margin-right: 2px;
+  margin: 3px 2px 0 0;
   padding: 0 10px 0 8px;
   font-size: var(--fs-xs);
   font-weight: 600;
@@ -1298,7 +1437,7 @@ button.unfilled-dot:hover {
   outline: none;
 }
 
-/* The Response / Batch run switch, with an empty strip of the same height above the request so the bands still line up. */
+/* The Response / Batch run switch (or an empty strip) above the response, the same height as the breadcrumb strip above the request, so the bands still line up. */
 .pane-switch,
 .pane-spacer {
   display: flex;
@@ -3086,7 +3225,14 @@ select:focus-visible,
 
 .url-field .url-input {
   position: relative;
+  display: block;
   width: 100%;
+  height: 30px;
+  box-sizing: border-box;
+  resize: none;
+  overflow: hidden;
+  white-space: pre;
+  line-height: 20px;
   color: transparent;
   caret-color: var(--text);
 }
@@ -3099,9 +3245,8 @@ select:focus-visible,
 .url-mirror {
   position: absolute;
   inset: 0;
-  display: flex;
-  align-items: center;
-  padding: 0 12px;
+  padding: 5px 12px;
+  line-height: 20px;
   overflow: hidden;
   pointer-events: none;
   font-family: var(--mono);
@@ -3110,8 +3255,16 @@ select:focus-visible,
 }
 
 .url-mirror-text {
+  display: block;
   white-space: pre;
   will-change: transform;
+}
+
+/* Focused: the URL wraps (anywhere, as URLs have no spaces) and the box grows to fit. */
+.url-field.expanded .url-input,
+.url-field.expanded .url-mirror-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 /* No padding, so the marked text lines up with the input's characters; the shadow gives the mark room instead. */
@@ -3378,15 +3531,6 @@ select:focus-visible,
 }
 
 /* ---------- Requests: collapsible collections sidebar ---------- */
-.sidebar-toggle {
-  flex: none;
-}
-
-.sidebar-toggle.on {
-  color: var(--text);
-  background: var(--btn-bg);
-}
-
 .requests-sidebar {
   flex: none;
   width: 260px;

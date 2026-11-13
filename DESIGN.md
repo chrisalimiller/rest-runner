@@ -280,7 +280,7 @@ Segmented controls are 8px-radius with 6px buttons in the global style, and beco
 Quiet and compact. Every interactive element has a hover, a keyboard focus ring and a disabled state (50% opacity, `cursor: default`).
 
 ### Top bar
-- **Style:** 52px, inset background, 1px muted bottom border. Left to right: brand lockup (mark at least 20px tall, `rest-runner` in 13px mono with a purple hyphen), request switcher (32px field, surface background, name in 600 with a hidden-until-hover pencil, chevron), quick-open field (32px, canvas background, shortcut `kbd`), environment switch, overflow menu. On Windows the top bar is the window's title bar: the native one is turned off and minimize, maximize and close sit at its right edge (30px rounded buttons; close tints red on hover).
+- **Style:** 52px, inset background, 1px muted bottom border. Left to right: brand lockup (mark at least 20px tall, `rest-runner` in 13px mono with a purple hyphen), quick-open field (32px, canvas background, shortcut `kbd`; centered in the bar where there is no switcher), environment switch, overflow menu. On Windows the top bar is the window's title bar: the native one is turned off and minimize, maximize and close sit at its right edge (30px rounded buttons; close tints red on hover). The open request's path and name sit in a 36px strip above the URL bar.
 - **Behavior:** fit levels collapse parts in a fixed order (see Layout).
 
 ### Status bar

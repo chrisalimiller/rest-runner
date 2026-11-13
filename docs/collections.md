@@ -6,7 +6,7 @@ REST Runner supports GET, POST, PUT, PATCH, DELETE, HEAD and OPTIONS. REST Runne
 
 Saved requests live in **collections**. A collection holds requests and **folders**, and folders nest as deep as you like.
 
-Open the tree by clicking the folder area of the **request switcher** in the top bar. The popover has:
+The tree lives in the collections sidebar: open it with the **Collections** button at the left of the status bar (`Mod + B`), or click any part of the path above the URL bar. The sidebar has:
 
 - **New**: adds a collection. **Import…** opens the [Import dialog](#the-import-dialog); **Export workspace…**: see below.
 - **+ New request**: opens a blank request in the editor (it is not saved until you save it).
@@ -27,9 +27,9 @@ If you had requests saved before collections existed, they were moved into a col
 
 ## Saving
 
-- **Save** (in the ⋯ menu next to Send, or Ctrl/Cmd + S) updates the open request where it already lives. A dot on the menu item and in the switcher means unsaved changes.
+- **Save** (in the ⋯ menu next to Send, or Ctrl/Cmd + S) updates the open request where it already lives. The path above the URL bar says **Unsaved changes** (or **Not saved**) in amber.
 - The first time you save a new request, a dialog asks for a name and where it goes: an existing collection or folder, or a new collection.
-- The switcher shows the breadcrumb (Collection › Folder) and an **Example** tag when an example is open. Click the request name, or press F2, to rename it.
+- The path above the URL bar shows Collection › Folder › request name. Click a collection or folder to open the sidebar at it. Double-click the name, click its pencil, or press F2 to rename the request.
 
 ## Examples
 
@@ -42,13 +42,13 @@ An example is a named copy of a request's payload (URL, params, headers, body, a
 
 ## Export and import
 
-**Export workspace…** (in the switcher popover) writes one JSON file, the *workspace file*, with all collections (with folders and examples), all environments, all test suites (with their CSV data), all flows and all [tools](tools.md). It is the file to hand to a teammate or to back up with. If any environment variable is marked [secret](requests.md#secret-values), a dialog asks **Include secret values?** and leaves them out by default (the variables stay in the file with empty values). **Import** reads a workspace file and merges it, and the notice afterwards says how many collections, environments, suites, flows and tools were added or updated:
+**Export workspace…** (in the sidebar's ⋯ menu) writes one JSON file, the *workspace file*, with all collections (with folders and examples), all environments, all test suites (with their CSV data), all flows and all [tools](tools.md). It is the file to hand to a teammate or to back up with. If any environment variable is marked [secret](requests.md#secret-values), a dialog asks **Include secret values?** and leaves them out by default (the variables stay in the file with empty values). **Import** reads a workspace file and merges it, and the notice afterwards says how many collections, environments, suites, flows and tools were added or updated:
 
 Everything comes back in through one **Import** dialog, described next.
 
 ### The Import dialog
 
-The dialog has a left column with the steps (**Add files**, **Review**, **Resolve clashes**, **Done**, with a tick on finished ones) and a detail pane on the right. Resolving clashes happens inside Review. The title bar and footer stay in view. The same dialog opens from **Import…** in the collections sidebar (the switcher popover), from **Import…** in the environment manager, and from **Import…** in Quick open (Ctrl/Cmd + K). There is no format picker: each file is recognised on its own.
+The dialog has a left column with the steps (**Add files**, **Review**, **Resolve clashes**, **Done**, with a tick on finished ones) and a detail pane on the right. Resolving clashes happens inside Review. The title bar and footer stay in view. The same dialog opens from **Import…** in the collections sidebar (the sidebar), from **Import…** in the environment manager, and from **Import…** in Quick open (Ctrl/Cmd + K). There is no format picker: each file is recognised on its own.
 
 1. **Add files.** Drop several files at once, choose them with **Choose files…**, or use **Paste text…** for JSON or the contents of a `.env` file. Supported:
    - Postman collections (v2.0 and v2.1), environments and globals

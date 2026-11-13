@@ -15,7 +15,7 @@ export function usePlaceholderHover(spanSelector: string) {
   const spans = () => [...(root.current?.querySelectorAll<HTMLElement>(spanSelector) ?? [])];
 
   const onMouseMove = useCallback(
-    (e: React.MouseEvent<HTMLInputElement>) => {
+    (e: React.MouseEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       if (!api) return;
       const hit = spans().find((s) => {
         const r = s.getBoundingClientRect();
@@ -36,7 +36,7 @@ export function usePlaceholderHover(spanSelector: string) {
 
   /** Returns true when it handled the key. */
   const onKeyDown = useCallback(
-    (e: React.KeyboardEvent<HTMLInputElement>) => {
+    (e: React.KeyboardEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       if (!api || !(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.key.toLowerCase() !== "i") return false;
       const input = e.currentTarget;
       const at = placeholderAt(input.value, input.selectionStart ?? 0);
