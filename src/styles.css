@@ -123,6 +123,12 @@
   --syn-selection: rgba(56, 139, 253, 0.3);
   --syn-bracket-bg: rgba(63, 185, 80, 0.25);
   --syn-bracket-ring: rgba(63, 185, 80, 0.6);
+  /* Rainbow brackets: four colours by nesting depth, then back to the first. */
+  --rb-0: #e3b341;
+  --rb-1: #f778ba;
+  --rb-2: #56d4dd;
+  --rb-3: #a5a5ff;
+  --rb-err: #ff7b72;
   color-scheme: dark;
 }
 
@@ -219,6 +225,12 @@
   --syn-selection: rgba(31, 95, 208, 0.24);
   --syn-bracket-bg: rgba(23, 106, 48, 0.18);
   --syn-bracket-ring: rgba(23, 106, 48, 0.6);
+  /* Rainbow brackets: four colours by nesting depth, then back to the first. */
+  --rb-0: #7d5000;
+  --rb-1: #a62c74;
+  --rb-2: #0a6c7a;
+  --rb-3: #5340c8;
+  --rb-err: #bf1f2a;
   color-scheme: light;
 }
 
@@ -314,6 +326,12 @@
     --syn-selection: rgba(31, 95, 208, 0.24);
     --syn-bracket-bg: rgba(23, 106, 48, 0.18);
     --syn-bracket-ring: rgba(23, 106, 48, 0.6);
+    /* Rainbow brackets: four colours by nesting depth, then back to the first. */
+    --rb-0: #7d5000;
+    --rb-1: #a62c74;
+    --rb-2: #0a6c7a;
+    --rb-3: #5340c8;
+    --rb-err: #bf1f2a;
     color-scheme: light;
   }
 }
@@ -2738,4 +2756,16 @@ table.results.row-picker-table tr.rp-filters th {
 
 .req-tabs-end .link-btn.on {
   color: var(--accent-fg);
+}
+
+/* Rainbow brackets. Set on the bracket itself (code editors) or on a span around it (read-only views);
+   the descendant rule beats the syntax colour the editor puts on the same character. */
+.rb-0, .rb-0 * { color: var(--rb-0) !important; }
+.rb-1, .rb-1 * { color: var(--rb-1) !important; }
+.rb-2, .rb-2 * { color: var(--rb-2) !important; }
+.rb-3, .rb-3 * { color: var(--rb-3) !important; }
+.rb-err, .rb-err * {
+  color: var(--rb-err) !important;
+  text-decoration: underline wavy var(--rb-err);
+  text-underline-offset: 3px;
 }

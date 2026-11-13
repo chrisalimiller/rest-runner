@@ -21,7 +21,9 @@ import {
 import { tags as t } from "@lezer/highlight";
 import { useEffect, useRef } from "react";
 import { findJsonComments, findJsonProblem, formatJson } from "../lib/jsonFormat";
+import { bracketClass, findBrackets, type BracketLanguage, type BracketToken } from "../lib/rainbowBrackets";
 import { placeholderAt, placeholderPattern } from "../lib/requestSummary";
+import { useRainbowBrackets } from "./useRainbowBrackets";
 
 /** Syntax colors come from --syn-* tokens, so they follow the theme. */
 const themedHighlight = HighlightStyle.define([
@@ -109,6 +111,49 @@ const commentMarks = ViewPlugin.fromClass(
   },
   { decorations: (v) => v.decorations },
 );
+
+/** Colours brackets by nesting depth (rb-0 ... rb-3, rb-err). Only the brackets in view are decorated; the scan reruns when the text changes. */
+function rainbowBrackets(language: BracketLanguage): Extension {
+  const marks = new Map<string, Decoration>();
+  const markFor = (cls: string) => {
+    let d = marks.get(cls);
+    if (!d) marks.set(cls, (d = Decoration.mark({ class: cls })));
+    return d;
+  };
+  return ViewPlugin.fromClass(
+    class {
+      decorations: DecorationSet;
+      tokens: BracketToken[];
+      constructor(view: EditorView) {
+        this.tokens = findBrackets(view.state.doc.toString(), language);
+        this.decorations = this.build(view);
+      }
+      update(u: ViewUpdate) {
+        if (u.docChanged) this.tokens = findBrackets(u.state.doc.toString(), language);
+        if (u.docChanged || u.viewportChanged) this.decorations = this.build(u.view);
+      }
+      build(view: EditorView): DecorationSet {
+        const ranges = [];
+        for (const { from, to } of view.visibleRanges) {
+          // Tokens are in text order, so a binary search finds the first one in view.
+          let lo = 0;
+          let hi = this.tokens.length;
+          while (lo < hi) {
+            const mid = (lo + hi) >> 1;
+            if (this.tokens[mid].index < from) lo = mid + 1;
+            else hi = mid;
+          }
+          for (let i = lo; i < this.tokens.length && this.tokens[i].index < to; i++) {
+            const t = this.tokens[i];
+            ranges.push(markFor(bracketClass(t)).range(t.index, t.index + 1));
+          }
+        }
+        return Decoration.set(ranges, true);
+      }
+    },
+    { decorations: (v) => v.decorations },
+  );
+}
 
 function issueLinter(find: (code: string) => CodeIssue[]): Extension {
   return [
@@ -288,6 +333,8 @@ export function CodeEditor({
   const hoverRef = useRef(variableHover);
   hoverRef.current = variableHover;
   const modeCompartment = useRef(new Compartment());
+  const rainbowCompartment = useRef(new Compartment());
+  const rainbow = useRainbowBrackets();
   const onViewRef = useRef(onView);
   onViewRef.current = onView;
 
@@ -304,6 +351,9 @@ export function CodeEditor({
     return isJson ? [json(), jsonCommentTokens, commentMarks, syntaxHighlighting(themedHighlight), readOnly ? [] : [jsonLinter, formatOnPaste]] : [];
   };
 
+  const rainbowLanguage: BracketLanguage = language ? (language === "bash" ? "shell" : "python") : isJs ? "js" : isJson ? "json" : "plain";
+  const rainbowExtension = (): Extension => (rainbow ? rainbowBrackets(rainbowLanguage) : []);
+
   useEffect(() => {
     if (!host.current) return;
     const extensions: Extension[] = [
@@ -312,6 +362,7 @@ export function CodeEditor({
       placeholderMarks,
       lineNumbers ? lineNumbersExt() : [],
       modeCompartment.current.of(modeExtensions()),
+      rainbowCompartment.current.of(rainbowExtension()),
       EditorView.contentAttributes.of({ "aria-label": ariaLabel ?? "Code", spellcheck: "false" }),
     ];
     if (readOnly) {
@@ -358,6 +409,11 @@ export function CodeEditor({
     view.current?.dispatch({ effects: modeCompartment.current.reconfigure(modeExtensions()) });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isJson, isJs, language, findIssues]);
+
+  useEffect(() => {
+    view.current?.dispatch({ effects: rainbowCompartment.current.reconfigure(rainbowExtension()) });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rainbow, rainbowLanguage]);
 
   return <div ref={host} className={`code-editor ${readOnly ? "readonly" : ""} ${lineNumbers ? "with-lines" : ""}`} />;
 }
