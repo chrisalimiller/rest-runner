@@ -1,9 +1,9 @@
-import { useCallback, useLayoutEffect, useRef, type InputHTMLAttributes } from "react";
+import { useCallback, useLayoutEffect, useRef, useState, type TextareaHTMLAttributes } from "react";
 import { looksLikeCurl } from "../../lib/curlImport";
 import { splitPlaceholders } from "../../lib/requestSummary";
 import { usePlaceholderHover } from "../variables/usePlaceholderHover";
 
-type Props = Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "className"> & {
+type Props = Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, "value" | "className"> & {
   value: string;
   className?: string;
   /**
@@ -14,19 +14,23 @@ type Props = Omit<InputHTMLAttributes<HTMLInputElement>, "value" | "className"> 
 };
 
 /**
- * A plain text input that shows {{placeholders}} highlighted. The input itself
- * does all the typing, pasting and key handling; its text is drawn transparent
- * and a copy of the text with the placeholders marked sits behind it, scrolled
- * in step with the input.
+ * A URL box that shows {{placeholders}} highlighted. The field itself does all the
+ * typing, pasting and key handling; its text is drawn transparent and a copy of the
+ * text with the placeholders marked sits behind it, scrolled in step with the field.
+ *
+ * It is a textarea so the whole URL can be seen while editing: unfocused it is one
+ * line that scrolls sideways, focused it wraps and grows to show every line. A URL
+ * never contains a line break, so Enter is swallowed and pasted breaks are removed.
  */
-export function UrlInput({ value, className, onKeyDown, onMouseMove, onMouseLeave, onPaste, onPasteCurl, ...inputProps }: Props) {
+export function UrlInput({ value, className, onKeyDown, onMouseMove, onMouseLeave, onPaste, onPasteCurl, onChange, onFocus, onBlur, ...inputProps }: Props) {
   const hover = usePlaceholderHover(".url-var");
-  const input = useRef<HTMLInputElement>(null);
+  const input = useRef<HTMLTextAreaElement>(null);
+  const [expanded, setExpanded] = useState(false);
   const text = useRef<HTMLSpanElement>(null);
 
   const sync = useCallback(() => {
-    if (input.current && text.current) text.current.style.transform = `translateX(${-input.current.scrollLeft}px)`;
-  }, []);
+    if (input.current && text.current) text.current.style.transform = expanded ? "" : `translateX(${-input.current.scrollLeft}px)`;
+  }, [expanded]);
 
   // Typing and pasting can scroll the input before or after React renders, so check again on the next frame too.
   const syncSoon = useCallback(() => {
@@ -35,6 +39,22 @@ export function UrlInput({ value, className, onKeyDown, onMouseMove, onMouseLeav
   }, [sync]);
 
   useLayoutEffect(syncSoon, [value, syncSoon]);
+
+  // Focused, the box is as tall as the wrapped text; otherwise it returns to the one-line height from CSS.
+  // Wrapping depends on the width, so a window resize refits it too.
+  useLayoutEffect(() => {
+    const el = input.current;
+    if (!el) return;
+    const fit = () => {
+      el.style.height = "";
+      if (expanded) el.style.height = `${el.scrollHeight}px`;
+    };
+    fit();
+    el.scrollLeft = 0;
+    if (!expanded) return;
+    window.addEventListener("resize", fit);
+    return () => window.removeEventListener("resize", fit);
+  }, [value, expanded]);
 
   useLayoutEffect(() => {
     const el = input.current;
@@ -49,7 +69,7 @@ export function UrlInput({ value, className, onKeyDown, onMouseMove, onMouseLeav
   }, [syncSoon]);
 
   return (
-    <div ref={hover.root} className={`url-field ${hover.over ? "hover-var" : ""}`}>
+    <div ref={hover.root} className={`url-field ${expanded ? "expanded" : ""} ${hover.over ? "hover-var" : ""}`}>
       <div className="url-mirror" aria-hidden>
         <span ref={text} className="url-mirror-text">
           {splitPlaceholders(value).map((p, i) =>
@@ -63,12 +83,27 @@ export function UrlInput({ value, className, onKeyDown, onMouseMove, onMouseLeav
           )}
         </span>
       </div>
-      <input
+      <textarea
         ref={input}
         {...inputProps}
+        rows={1}
+        wrap={expanded ? "soft" : "off"}
         value={value}
         className={`url-input ${className ?? ""}`.trim()}
+        onChange={(e) => {
+          if (/[\r\n]/.test(e.target.value)) e.target.value = e.target.value.replace(/[\r\n]+/g, "");
+          onChange?.(e);
+        }}
+        onFocus={(e) => {
+          setExpanded(true);
+          onFocus?.(e);
+        }}
+        onBlur={(e) => {
+          setExpanded(false);
+          onBlur?.(e);
+        }}
         onKeyDown={(e) => {
+          if (e.key === "Enter") e.preventDefault();
           if (!hover.onKeyDown(e)) onKeyDown?.(e);
         }}
         onPaste={(e) => {

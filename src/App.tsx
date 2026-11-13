@@ -6,6 +6,7 @@ import { EnvironmentEditor } from "./components/EnvironmentEditor";
 import { CurlBanner } from "./components/request/CurlBanner";
 import { CurlImportDialog, type CurlImportChoice } from "./components/request/CurlImportDialog";
 import { RequestEditor } from "./components/request/RequestEditor";
+import { RequestCrumb } from "./components/request/RequestCrumb";
 import { UnsavedBar } from "./components/request/UnsavedBar";
 import { RequestSwitcher } from "./components/request/RequestSwitcher";
 import { RequestTabBar, showTabBar } from "./components/request/RequestTabBar";
@@ -1287,6 +1288,7 @@ export default function App({ active = true, shell, command }: Props) {
       >
         <section className="request-col" id="request-panel" role="tabpanel" aria-label="Request">
           {(batchVisited || batchRunning) && <div className="pane-spacer" aria-hidden />}
+          <RequestCrumb crumbs={crumbs} name={def.name} unsaved={!savedVersion ? "Not saved" : isDirty ? "Unsaved changes" : null} onReveal={revealActive} />
           <RequestEditor
             key={activeId}
             def={def}
