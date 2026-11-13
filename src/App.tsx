@@ -1185,31 +1185,31 @@ export default function App({ active = true, shell, command }: Props) {
         }}
       />
       <SecretStatusBanner variant="shell" hasSecrets={hasSecretVars(environments)} />
-      {showTabBar(tabs.tabs) && (
-        <RequestTabBar
-          tabs={tabs.tabs}
-          activeId={activeId}
-          collections={collections}
-          dirtyIds={dirtyIds}
-          busyIds={busyIds}
-          canReopen={tabs.closed.length > 0}
-          onActivate={activateTab}
-          onClose={closeTabById}
-          onNew={openNewTab}
-          onNewFromCurl={() => openCurlDialog()}
-          onPin={(id) => applyTabs((s) => pin(s, id))}
-          onUnpin={(id) => applyTabs((s) => unpin(s, id))}
-          onDuplicate={(id) => applyTabs((s) => duplicateTab(s, id))}
-          onReveal={revealTab}
-          onCloseOthers={closeOtherTabs}
-          onCloseSaved={closeSavedTabs}
-          onReopen={reopenLast}
-        />
-      )}
       <div className="requests-body">
         {sidebar}
         {sideOverlay && overlayOpen && <div className="side-scrim" onClick={closeOverlay} aria-hidden />}
         <div className="requests-main">
+        {showTabBar(tabs.tabs) && (
+          <RequestTabBar
+            tabs={tabs.tabs}
+            activeId={activeId}
+            collections={collections}
+            dirtyIds={dirtyIds}
+            busyIds={busyIds}
+            canReopen={tabs.closed.length > 0}
+            onActivate={activateTab}
+            onClose={closeTabById}
+            onNew={openNewTab}
+            onNewFromCurl={() => openCurlDialog()}
+            onPin={(id) => applyTabs((s) => pin(s, id))}
+            onUnpin={(id) => applyTabs((s) => unpin(s, id))}
+            onDuplicate={(id) => applyTabs((s) => duplicateTab(s, id))}
+            onReveal={revealTab}
+            onCloseOthers={closeOtherTabs}
+            onCloseSaved={closeSavedTabs}
+            onReopen={reopenLast}
+          />
+        )}
       {openRun !== null && (
         <main className="workspace full-view">
           <RunExplorer
