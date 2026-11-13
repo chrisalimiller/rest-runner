@@ -41,9 +41,9 @@ The app is one window with a bar along the top and a status bar along the bottom
 | Part of the top bar | What it does |
 | --- | --- |
 | **Brand** | The rest-runner mark. |
-| **Quick open** (centered) | Jumps to any request, example, run or history entry. The open request's path and name are above the URL bar; double-click the name or press `F2` to rename it. |
+| **Request path** (Requests mode, above the URL bar) | Shows where the open request is saved and whether it has unsaved changes. Click a collection or folder to open the sidebar there. Double-click the name, or press `F2`, to rename it. |
 | **Suite name** (Testing mode), **Flow name** (Flows mode) | The open suite or flow. Click it to switch to another one without opening the list on the left. |
-| **Quick open** | A search box that opens with Ctrl/Cmd + K. See [Quick open](shortcuts.md). |
+| **Quick open** (centered) | A search box that opens with Ctrl/Cmd + K. See [Quick open](shortcuts.md). |
 | **Environment switch** | One button per environment plus **None**. When the window is narrow (under 1200 px) or there are more than three environments, it becomes a drop-down that still shows the colour of the selected one. The pencil opens the environment editor (Requests mode only). |
 
 ### The status bar
