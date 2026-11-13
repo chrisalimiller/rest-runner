@@ -105,7 +105,7 @@ export function StatusBar({ section, onMode }: Props) {
         <>
           <button
             type="button"
-            className={`sb-item sb-sidebar ${sidebar.open ? "on" : ""}`}
+            className={`sb-item sb-sidebar ${sidebar.open ? "on" : ""} ${sidebar.docked ? "docked" : ""}`}
             aria-pressed={sidebar.open}
             aria-label="Collections sidebar"
             aria-keyshortcuts="Control+B Meta+B"

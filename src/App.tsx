@@ -6,6 +6,7 @@ import { EnvironmentEditor } from "./components/EnvironmentEditor";
 import { CurlBanner } from "./components/request/CurlBanner";
 import { CurlImportDialog, type CurlImportChoice } from "./components/request/CurlImportDialog";
 import { RequestEditor } from "./components/request/RequestEditor";
+import { SendButton } from "./components/request/SendButton";
 import { RequestCrumb } from "./components/request/RequestCrumb";
 import { UnsavedBar } from "./components/request/UnsavedBar";
 import { RequestTabBar, showTabBar } from "./components/request/RequestTabBar";
@@ -305,10 +306,20 @@ export default function App({ active = true, shell, command }: Props) {
     if (sideOverlay) setOverlayOpen(true);
     else toggleSideCollapsed();
   };
+  // Keep the docked sidebar mounted while it slides shut.
+  const [sideMounted, setSideMounted] = useState(sideOpen);
+  useEffect(() => {
+    if (sideOpen) {
+      setSideMounted(true);
+      return;
+    }
+    const t = window.setTimeout(() => setSideMounted(false), 320);
+    return () => window.clearTimeout(t);
+  }, [sideOpen]);
   // The toggle itself lives in the status bar, which reads this.
   useEffect(() => {
-    publishRequestsSidebar({ open: sideOpen, toggle: () => toggleSidebarRef.current() });
-  }, [sideOpen]);
+    publishRequestsSidebar({ open: sideOpen, docked: !sideOverlay, toggle: () => toggleSidebarRef.current() });
+  }, [sideOpen, sideOverlay]);
   useEffect(() => () => publishRequestsSidebar(null), []);
   const [renamingName, setRenamingName] = useState(false);
   const [split, setSplit] = useState<number>(() => {
@@ -553,11 +564,16 @@ export default function App({ active = true, shell, command }: Props) {
     return () => window.removeEventListener("paste", onPaste);
   }, []);
   /** After the sidebar has re-rendered with the path open, bring the active row into view. */
-  const scrollActiveIntoView = (nodeId?: string) =>
+  const scrollActiveIntoView = (nodeId?: string, delay = 60) =>
     setTimeout(() => {
       const row = (nodeId && document.querySelector(`.requests-sidebar [data-node-id="${nodeId}"]`)) || document.querySelector(".requests-sidebar .tree-row.active");
-      row?.scrollIntoView({ block: "nearest" });
-    }, 60);
+      if (!row) return;
+      row.scrollIntoView({ block: "nearest" });
+      // Say where it landed: the row glows briefly (replayed if it is already glowing).
+      row.classList.remove("reveal-hit");
+      void (row as HTMLElement).offsetWidth;
+      row.classList.add("reveal-hit");
+    }, delay);
   const revealTab = (id: string) => {
     const t = tabsRef.current.tabs.find((x) => x.id === id);
     if (!t) return;
@@ -568,7 +584,7 @@ export default function App({ active = true, shell, command }: Props) {
       openSidebar();
       setSideTab("collections");
       setSideQuery("");
-      scrollActiveIntoView();
+      scrollActiveIntoView(undefined, sideOpen ? 60 : 340);
     } else notify(`${tabName(t)} is not saved in a collection yet.`);
   };
 
@@ -1095,13 +1111,13 @@ export default function App({ active = true, shell, command }: Props) {
       setSideTab("collections");
       setSideQuery("");
       const ids = [found.collection.id, ...found.path.map((f) => f.id)];
-      scrollActiveIntoView(crumb !== undefined ? ids[crumb] : undefined);
+      scrollActiveIntoView(crumb !== undefined ? ids[crumb] : undefined, sideOpen ? 60 : 340);
     } else notify("This request is not saved in a collection yet.");
   };
 
   const sideCollections = filterCollections(collections, sideQuery);
   const sideExpanded = sideQuery.trim() !== "" ? allNodeIds(sideCollections) : expanded;
-  const sidebar = sideOpen ? (
+  const sidebarEl = (sideOverlay ? sideOpen : sideMounted) ? (
     <RequestsSidebar
       tab={sideTab}
       onTab={(t) => {
@@ -1136,6 +1152,14 @@ export default function App({ active = true, shell, command }: Props) {
       onClose={closeOverlay}
     />
   ) : null;
+  // Docked, the sidebar sits in a slot whose width animates; it stays mounted until the close has finished.
+  const sidebar = sideOverlay ? (
+    sidebarEl
+  ) : (
+    <div className={`side-slot ${sideOpen ? "open" : ""}`} inert={!sideOpen}>
+      {sidebarEl}
+    </div>
+  );
 
   return (
     <VariablesProvider
@@ -1254,22 +1278,16 @@ export default function App({ active = true, shell, command }: Props) {
             onReplaceFromCurl={() => openCurlDialog({ openIn: "active" })}
             banner={curlBannerView}
             sendSlot={
-              sending ? (
-                <button className="send cancel" onClick={cancel}>
-                  Cancel
-                </button>
-              ) : (
-                <button
-                  className={`send ${guard ? "guarded" : ""}`}
-                  style={guardStyle(guard) as React.CSSProperties | undefined}
-                  onClick={() => void requestSend()}
-                  disabled={def.url.trim() === ""}
-                  title={unfilled.length > 0 ? `Sends with ${unfilled.map((n) => `{{${n}}}`).join(", ")} as written` : "Send (Ctrl/Cmd + Enter)"}
-                >
-                  {unfilled.length > 0 && <span aria-hidden>⚠ </span>}
-                  {guard ? guard.send : "Send"}
-                </button>
-              )
+              <SendButton
+                sending={sending}
+                label={`${unfilled.length > 0 ? "⚠ " : ""}${guard ? guard.send : "Send"}`}
+                guarded={!!guard}
+                style={guardStyle(guard) as React.CSSProperties | undefined}
+                disabled={def.url.trim() === ""}
+                title={unfilled.length > 0 ? `Sends with ${unfilled.map((n) => `{{${n}}}`).join(", ")} as written` : "Send (Ctrl/Cmd + Enter)"}
+                onSend={() => void requestSend()}
+                onCancel={cancel}
+              />
             }
             menuItems={[
               { label: savedVersion && isDirty ? "Save •" : "Save", hint: `${MOD_KEY} S`, onSelect: saveCurrent },

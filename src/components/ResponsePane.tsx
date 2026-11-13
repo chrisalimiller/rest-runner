@@ -5,6 +5,7 @@ import { prettyBody, splitBytes } from "../lib/format";
 import { CANCELLED } from "../lib/http";
 import { BodyView } from "./BodyView";
 import { RainbowText } from "./RainbowText";
+import { useSlidingUnderline } from "./useTabMotion";
 import { ScriptResults, ScriptsBadge, scriptsTabLabel, scriptTestCounts, type ScriptRun } from "./ScriptResults";
 import { AlertIcon, CopyIcon, LockIcon, PlayIcon } from "./shell/Icons";
 import { MOD_KEY } from "./shell/TopBar";
@@ -69,6 +70,8 @@ function IdleTabs() {
 /** Status band, Body / Headers / Sent request / Scripts tabs, and the body. Also draws the empty and sending states. */
 export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, errorHint, scripts, scriptVars, bodyNote, earlier }: Props) {
   const [chosenTab, setTab] = useState<Tab>("body");
+  const tabStrip = useRef<HTMLDivElement>(null);
+  useSlidingUnderline(tabStrip, chosenTab);
   const [pretty, setPretty] = useState(true);
   const [beautify, setBeautify] = useState(false);
   const [now, setNow] = useState(Date.now());
@@ -169,7 +172,7 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
       </Band>
 
       <div className="req-tabs resp-tabs">
-        <div className="tabs" role="tablist" aria-label="Response parts">
+        <div className="tabs slide" role="tablist" aria-label="Response parts" ref={tabStrip}>
           <button role="tab" aria-selected={tab === "body"} className={tab === "body" ? "active" : ""} onClick={() => setTab("body")}>
             Body
           </button>

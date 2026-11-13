@@ -299,7 +299,23 @@
   background: var(--bg);
   color: var(--text);
   font-weight: 600;
-  box-shadow: inset 0 3px 0 var(--brand);
+}
+
+/* The brand rule across the top of the open tab; motion.css grows it in. */
+.sb-tab::before,
+.sb-sidebar::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--brand);
+  transform: scaleX(0);
+  transform-origin: left;
+}
+
+.sb-tab.on::before,
+.sb-sidebar.on::before {
+  transform: scaleX(1);
 }
 
 .sb-tab.on svg {
@@ -315,10 +331,6 @@
    surface, with the same top rule. */
 .sb-sidebar {
   padding: 0 16px;
-}
-
-.sb-sidebar.on {
-  box-shadow: inset 0 3px 0 var(--brand);
 }
 
 .sb-sidebar.on svg {

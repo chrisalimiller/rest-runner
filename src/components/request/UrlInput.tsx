@@ -41,19 +41,31 @@ export function UrlInput({ value, className, onKeyDown, onMouseMove, onMouseLeav
   useLayoutEffect(syncSoon, [value, syncSoon]);
 
   // Focused, the box is as tall as the wrapped text; otherwise it returns to the one-line height from CSS.
-  // Wrapping depends on the width, so a window resize refits it too.
+  // Opening and closing ease (the CSS height transition); typing and resizing set the height without easing.
+  const wasExpanded = useRef(false);
   useLayoutEffect(() => {
     const el = input.current;
     if (!el) return;
-    const fit = () => {
-      el.style.height = "";
-      if (expanded) el.style.height = `${el.scrollHeight}px`;
+    const toggled = wasExpanded.current !== expanded;
+    wasExpanded.current = expanded;
+    const fit = (ease: boolean) => {
+      if (!ease) el.style.transition = "none";
+      if (expanded) {
+        // Measure at the natural height: shrink first, unless this is the opening ease (it grows from the one-line height).
+        if (!ease) el.style.height = "";
+        el.style.height = `${el.scrollHeight}px`;
+      } else el.style.height = "";
+      if (!ease) {
+        void el.offsetHeight;
+        el.style.transition = "";
+      }
     };
-    fit();
+    fit(toggled);
     el.scrollLeft = 0;
     if (!expanded) return;
-    window.addEventListener("resize", fit);
-    return () => window.removeEventListener("resize", fit);
+    const onResize = () => fit(false);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
   }, [value, expanded]);
 
   useLayoutEffect(() => {

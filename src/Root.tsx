@@ -70,9 +70,15 @@ export default function Root() {
   // Leaving a section with unsaved edits (a tool being built) asks first.
   const sectionRef = useRef(section);
   sectionRef.current = section;
+  // The first paint does not animate; every later switch does.
+  const [switched, setSwitched] = useState(false);
   const setSection = useCallback((next: Mode) => {
     const from = sectionRef.current;
-    if (next !== from) guardLeave(from, () => setSectionNow(next));
+    if (next !== from)
+      guardLeave(from, () => {
+        setSwitched(true);
+        setSectionNow(next);
+      });
   }, []);
   const [quickOpen, setQuickOpen] = useState(false);
   const [shortcutsOpen, setShortcutsOpen] = useState(false);
@@ -199,7 +205,7 @@ export default function Root() {
     <SidePanelSlotContext.Provider value={panelSlot}>
       <div className="app-shell">
         <div className="app-body">
-        <div className="root-sections">
+        <div className={`root-sections ${switched ? "switched" : ""}`}>
           <div className="root-section" hidden={section !== "requests"}>
             <App
               active={section === "requests" && !quickOpen}
