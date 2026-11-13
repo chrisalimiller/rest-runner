@@ -234,6 +234,14 @@ pub fn run() {
             app.manage(store.clone());
             app.manage(secrets::new_shared());
             app.manage(Arc::new(http::HttpState::new(store)));
+            // Windows: the native title bar is replaced by the page's top bar (minimize, maximize and close are drawn
+            // there). Turned off here, while the window is still hidden, so there is no flash of the native bar.
+            // The shadow keeps the window's edge and rounded corners on Windows 11.
+            #[cfg(windows)]
+            if let Some(window) = tauri::Manager::get_webview_window(app, "main") {
+                let _ = window.set_decorations(false);
+                let _ = window.set_shadow(true);
+            }
             #[cfg(windows)]
             if let Some(window) = tauri::Manager::get_webview_window(app, "main") {
                 if let Ok(theme) = window.theme() {

@@ -1,13 +1,14 @@
 import { useRef } from "react";
 import { type Environment } from "../../lib/environments";
 import { BrandLockup } from "../BrandMark";
-import { overlayTitleBar } from "../../lib/windowChrome";
+import { customWindowControls, overlayTitleBar } from "../../lib/windowChrome";
 import { topBarLayout } from "../../lib/topBar";
 import { useViewportWidth } from "../useViewportWidth";
 import { openUpdateDialog } from "../../lib/updateDialog";
 import { InfoIcon, PencilIcon, SearchIcon } from "./Icons";
 import { useTopBarFit } from "./useTopBarFit";
 import { EnvPicker } from "./EnvPicker";
+import { WindowControls } from "./WindowControls";
 
 export type Mode = "requests" | "testing" | "flows" | "tools";
 
@@ -47,7 +48,7 @@ export function TopBar(props: Props) {
       ref={headerRef}
       data-fit-crumbs={fit >= 1 ? "off" : undefined}
       data-fit-max={fit >= 3 ? "" : undefined}
-      data-tauri-drag-region={overlayTitleBar ? "deep" : undefined}
+      data-tauri-drag-region={overlayTitleBar || customWindowControls ? "deep" : undefined}
     >
       <BrandLockup />
       {props.leading}
@@ -75,6 +76,7 @@ export function TopBar(props: Props) {
       <button className="icon-btn topbar-about" onClick={openUpdateDialog} aria-label="Settings and about" title="Settings and about">
         <InfoIcon />
       </button>
+      {customWindowControls && <WindowControls />}
     </header>
   );
 }
