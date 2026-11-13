@@ -9,28 +9,34 @@
   <a href="docs/shortcuts.md">Shortcuts</a>
 </p>
 
-<p align="center"><img src="docs/images/requests.png" alt="The Requests screen: request on the left, response on the right" width="860"></p>
+<p align="center"><img src="docs/images/requests.png" alt="The Requests screen: the request editor with its Params, Auth, Headers, Body and Scripts tabs on the left, the response on the right, and the section bar along the bottom" width="860"></p>
 
 ## One app, four jobs
 
+The four sections (Requests, Testing, Flows and Tools) sit in a bar along the bottom of the window. Switch with the tabs or `Ctrl/Cmd + 1` to `4`; anything that is running keeps going while you look at another section.
+
 ### Requests
-Build a request with params, headers, auth and a JSON body, with `{{placeholders}}`, and read the response next to it, including the exact request that was sent. Keep requests in collections and folders, open several as tabs, import a cURL command, or collections and environments from Postman, Insomnia, Bruno or a .env file.
+Build a request with params, auth, headers, a body and optional scripts (one row of tabs under the URL), with `{{placeholders}}`, and read the response next to it, including the exact request that was sent. The response is Pretty or Raw, with a Beautify button for Raw. A Save bar appears when a request has unsaved changes. Keep requests in collections and folders, open several as tabs, import a cURL command, or collections and environments from Postman, Insomnia, Bruno or a .env file.
 
 ### Batch runs from a CSV
 Write the request once with `{{column}}` placeholders, pick a CSV, choose how many run at once and how long to pause, and results stream in as they arrive. Export an HTML or CSV report, or a Python/Bash script to run it without the app.
 
-<p align="center"><img src="docs/images/batch.png" alt="A batch run with results arriving" width="760"></p>
+<p align="center"><img src="docs/images/batch.png" alt="A batch run: five CSV rows sent, all passed, with the selected row's values shown on the right" width="760"></p>
 
 ### Test suites
-Ordered test cases with no-code assertions (status, time, headers, JSON paths) and optional JavaScript scripts using the `rr` API. A suite can run once per CSV row.
+Ordered test cases with no-code assertions (status, time, headers, JSON paths) and optional JavaScript scripts using the `rr` API. A suite can run once per CSV row. See [docs/testing.md](docs/testing.md).
+
+<p align="center"><img src="docs/images/testing.png" alt="The Testing section: a suite with assertions and the results of its last run" width="760"></p>
 
 ### Flows
-Chain cases, suites and saved requests on a canvas with branches, loops, retries and schedules.
+Chain cases, suites and saved requests on a canvas with branches, loops, retries and schedules. See [docs/flows.md](docs/flows.md).
 
-<p align="center"><img src="docs/images/flows.png" alt="A flow on the canvas" width="760"></p>
+<p align="center"><img src="docs/images/flows.png" alt="A flow on the canvas that ran a suite and then a request, with each step's result" width="760"></p>
 
 ### Tools
 Turn saved requests into small lookup pages: type an ID, press Look up, and see the answers of several requests side by side. Pick a row from a list, run Action buttons (with a confirm on production-marked environments), save a lookup as an HTML page, and share tools as files. See [docs/tools.md](docs/tools.md).
+
+<p align="center"><img src="docs/images/tools.png" alt="The Tools section: a Subscriber 360 lookup page with several answers side by side" width="760"></p>
 
 ## Local by design
 
@@ -42,14 +48,16 @@ Turn saved requests into small lookup pages: type an ID, press Look up, and see 
 
 ## Get it
 
-Every push builds installers in GitHub Actions. Open the latest run on the **Actions** tab and download `rest-runner-macos-universal` (a `.dmg`) or `rest-runner-windows-x64` (an `.msi` and a setup `.exe`).
+Download the installers from the [latest release](https://github.com/chrisalimiller/rest-runner/releases/latest): a `.dmg` for macOS (Apple Silicon and Intel) and a setup `.exe` or an `.msi` for Windows.
 
 Builds are not signed with a paid certificate yet:
 
 - **macOS:** right-click the app and choose **Open**. If macOS says it is damaged, run `xattr -cr "/Applications/REST Runner.app"` once.
 - **Windows:** on the SmartScreen prompt, click **More info**, then **Run anyway**.
 
-Updating is manual and never automatic; see [Updating](docs/getting-started.md#updating-rest-runner).
+### Updating REST Runner
+
+Updating is manual and never automatic. Click the info button in the top bar (Settings), open **About & updates** and press **Check for updates**; **Download and install** installs the newer release and restarts the app, and your saved data stays. Updates work in installed builds only, and versions before v0.3.0 need one manual install first. Details: [Updating](docs/getting-started.md#updating-rest-runner).
 
 ## Build from source
 

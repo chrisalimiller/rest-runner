@@ -2,7 +2,7 @@
 
 A **tool** is a small lookup page built from your saved requests. You type an ID, press **Look up**, and see the answers from several requests side by side, each block filling in as its request finishes. Typical uses: "Subscriber 360" (profile, account, usage, invoices, plan and devices for one subscriber) or "Order status".
 
-Open it with the **Tools** tab at the top right (`Mod + 4`).
+Open it with the **Tools** tab in the status bar along the bottom of the window (`Mod + 4`).
 
 ## What a tool is made of
 

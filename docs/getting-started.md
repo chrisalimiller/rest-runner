@@ -2,10 +2,10 @@
 
 ## Install the app
 
-Every push to `main` builds installers in GitHub Actions. Open the latest run on the repository's **Actions** tab and download:
+Download the installers from the repository's [latest release](https://github.com/chrisalimiller/rest-runner/releases/latest) (the Releases page on GitHub). They are:
 
-- `rest-runner-macos-universal`: a `.dmg` that runs on both Apple Silicon and Intel Macs.
-- `rest-runner-windows-x64`: an `.msi` and a setup `.exe`.
+- a `.dmg` for macOS that runs on both Apple Silicon and Intel Macs.
+- an `.msi` and a setup `.exe` for Windows.
 
 The builds are not signed with a paid certificate, so the first launch needs one extra step:
 
