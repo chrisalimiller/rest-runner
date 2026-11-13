@@ -545,7 +545,11 @@ export default function App({ active = true, shell, command }: Props) {
     return () => window.removeEventListener("paste", onPaste);
   }, []);
   /** After the sidebar has re-rendered with the path open, bring the active row into view. */
-  const scrollActiveIntoView = () => setTimeout(() => document.querySelector(".requests-sidebar .tree-row.active")?.scrollIntoView({ block: "nearest" }), 60);
+  const scrollActiveIntoView = (nodeId?: string) =>
+    setTimeout(() => {
+      const row = (nodeId && document.querySelector(`.requests-sidebar [data-node-id="${nodeId}"]`)) || document.querySelector(".requests-sidebar .tree-row.active");
+      row?.scrollIntoView({ block: "nearest" });
+    }, 60);
   const revealTab = (id: string) => {
     const t = tabsRef.current.tabs.find((x) => x.id === id);
     if (!t) return;
@@ -1074,14 +1078,22 @@ export default function App({ active = true, shell, command }: Props) {
     />
   );
 
-  /** The ⋯ button on the switcher in the top bar: show the open request in the sidebar. */
-  const revealActive = () => {
+  /**
+   * Show the open request in the sidebar, opening the sidebar if it is closed. `crumb` is the index of a breadcrumb
+   * segment (collection, then folders): the sidebar scrolls to that one instead of the request.
+   */
+  const revealActive = (crumb?: number) => {
     const found = locate(collections, def.id);
     if (found?.kind === "request" || found?.kind === "example") {
       expand(found.collection.id, ...found.path.map((f) => f.id), ...(found.kind === "example" ? [found.node.id] : []));
+      if (!sideOpen) {
+        if (sideOverlay) setOverlayOpen(true);
+        else toggleSideCollapsed();
+      }
       setSideTab("collections");
       setSideQuery("");
-      scrollActiveIntoView();
+      const ids = [found.collection.id, ...found.path.map((f) => f.id)];
+      scrollActiveIntoView(crumb !== undefined ? ids[crumb] : undefined);
     } else notify("This request is not saved in a collection yet.");
   };
 
@@ -1133,7 +1145,7 @@ export default function App({ active = true, shell, command }: Props) {
       open={switcherOpen}
       onOpenChange={setSwitcherOpen}
       docked={sideDocked}
-      onReveal={revealActive}
+      onReveal={() => revealActive()}
       renaming={renamingName}
       onRenamingChange={setRenamingName}
       onRename={(name) => {
@@ -1288,7 +1300,7 @@ export default function App({ active = true, shell, command }: Props) {
       >
         <section className="request-col" id="request-panel" role="tabpanel" aria-label="Request">
           {(batchVisited || batchRunning) && <div className="pane-spacer" aria-hidden />}
-          <RequestCrumb crumbs={crumbs} name={def.name} unsaved={!savedVersion ? "Not saved" : isDirty ? "Unsaved changes" : null} onReveal={revealActive} />
+          <RequestCrumb crumbs={crumbs} name={def.name} unsaved={!savedVersion ? "Not saved" : isDirty ? "Unsaved changes" : null} onReveal={(i) => revealActive(i)} />
           <RequestEditor
             key={activeId}
             def={def}

@@ -4,13 +4,13 @@ interface Props {
   name: string;
   /** "Unsaved changes" or "Not saved" when the status should call attention to itself, otherwise null. */
   unsaved: string | null;
-  /** Show the request in the collections sidebar. */
-  onReveal: () => void;
+  /** Open the collections sidebar at a segment: the index into `crumbs`. */
+  onReveal: (index: number) => void;
 }
 
 /**
  * Where the open request is saved, as a path above the URL bar: Collection › Folder › Request name.
- * Every segment reveals the request in the sidebar; the status sits at the right end.
+ * Every segment opens the sidebar at that collection or folder; the status sits at the right end.
  */
 export function RequestCrumb({ crumbs, name, unsaved, onReveal }: Props) {
   const title = name || "Untitled request";
@@ -22,7 +22,7 @@ export function RequestCrumb({ crumbs, name, unsaved, onReveal }: Props) {
         ) : (
           crumbs.map((c, i) => (
             <li key={i}>
-              <button className="crumb-seg" onClick={onReveal} title={`Show ${c} in the sidebar`}>
+              <button className="crumb-seg" onClick={() => onReveal(i)} title={`Show ${c} in the sidebar`}>
                 {c}
               </button>
               <span className="crumb-sep" aria-hidden>
