@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { useSlidingUnderline } from "../useTabMotion";
 import type { DetailsTab } from "../../lib/requestSummary";
 
 export const TAB_LABELS: Record<DetailsTab, string> = { params: "Params", auth: "Auth", headers: "Headers", body: "Body", scripts: "Scripts" };
@@ -23,6 +24,7 @@ export const tabDomId = (panelId: string, tab: DetailsTab) => `${panelId}-tab-${
 /** Params, Auth, Headers, Body and Scripts as one row of tabs under the URL, with what each holds on the tab. */
 export function RequestTabs({ tabs, active, onTab, panelId, marks, warnings, end }: Props) {
   const strip = useRef<HTMLDivElement>(null);
+  useSlidingUnderline(strip, active);
 
   const onKeyDown = (e: React.KeyboardEvent) => {
     const i = tabs.indexOf(active);
@@ -39,7 +41,7 @@ export function RequestTabs({ tabs, active, onTab, panelId, marks, warnings, end
 
   return (
     <div className="req-tabs">
-      <div className="tabs" role="tablist" aria-label="Request" ref={strip} onKeyDown={onKeyDown}>
+      <div className="tabs slide" role="tablist" aria-label="Request" ref={strip} onKeyDown={onKeyDown}>
         {tabs.map((t) => (
           <button
             key={t}

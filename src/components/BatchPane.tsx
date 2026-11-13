@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildRerunInput, DEFAULT_BATCH_OPTIONS,rerunDisabledReason, rerunLabel, runBatch, type BatchEnd, type BatchItemResult, type BatchOptions } from "../lib/batch";
+import { RunnerMark } from "./shell/RunnerMark";
 import { checkCsvFile, parseCsv, type CsvData } from "../lib/csv";
 import { statusClass } from "../lib/format";
 import { sendRequest } from "../lib/http";
@@ -494,8 +495,11 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, confirm
 
       {(running || end || results.length > 0) && (
         <div className="batch-progress">
-          <div className="progress-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
-            <div className={`progress-fill ${failed ? "has-failures" : ""}`} style={{ transform: `scaleX(${Math.min(1, Math.max(0, pct / 100))})` }} />
+          <div className="batch-track" style={{ "--p": Math.min(1, Math.max(0, pct / 100)) } as React.CSSProperties}>
+            <RunnerMark live={running} className={running ? "" : "idle"} />
+            <div className="progress-bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+              <div className={`progress-fill ${failed ? "has-failures" : ""}`} style={{ transform: `scaleX(${Math.min(1, Math.max(0, pct / 100))})` }} />
+            </div>
           </div>
           <div className="batch-tiles">
             <div className="batch-tile">

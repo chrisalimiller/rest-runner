@@ -1,0 +1,400 @@
+/*
+ * Motion. Everything that moves, in one place, on the tokens in styles.css (--dur-fast 100ms, --dur-base 160ms,
+ * --dur-slow 280ms, --ease-out). Motion explains a change (where something went, that a click registered, that work
+ * is in flight); it never decorates. Reduced motion keeps the colour and opacity changes and drops the travel.
+ */
+
+@keyframes rr-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes rr-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- Switching sections ---------- */
+/* Sections stay mounted (a running batch keeps going), so only the incoming one animates, and not on the first paint. */
+.root-sections.switched .root-section:not([hidden]) {
+  animation: rr-rise 340ms var(--ease-out) backwards;
+}
+
+/* ---------- Status bar ---------- */
+.sb-tab,
+.sb-item {
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.sb-tab::before,
+.sb-sidebar::before {
+  transition: transform var(--dur-slow) var(--ease-out);
+}
+
+/* The Collections button grows to the width of the sidebar it opens, so the two read as one object. */
+.sb-sidebar {
+  box-sizing: border-box;
+  width: 144px;
+  overflow: hidden;
+  transition:
+    width var(--dur-slow) var(--ease-out),
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.sb-sidebar.docked.on {
+  width: 260px;
+}
+
+@media (max-width: 1000px) {
+  .sb-sidebar {
+    width: 56px;
+  }
+
+  .sb-sidebar.docked.on {
+    width: 260px;
+  }
+
+  .sb-sidebar.docked.on .sb-long {
+    display: inline;
+  }
+}
+
+/* ---------- Collections sidebar ---------- */
+.side-slot {
+  flex: none;
+  display: flex;
+  min-height: 0;
+  width: 0;
+  overflow: hidden;
+  visibility: hidden;
+  transition:
+    width var(--dur-slow) var(--ease-out),
+    visibility 0s linear var(--dur-slow);
+}
+
+.side-slot.open {
+  width: 260px;
+  visibility: visible;
+  transition: width var(--dur-slow) var(--ease-out);
+}
+
+/* Narrow windows: it floats in from the left over a scrim that fades up. */
+.requests-sidebar.overlay {
+  animation: rr-slide-in 220ms var(--ease-out);
+}
+
+.side-scrim {
+  animation: rr-fade 220ms var(--ease-out);
+}
+
+@keyframes rr-slide-in {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* Where a breadcrumb click landed. */
+.tree-row.reveal-hit {
+  animation: rr-reveal-hit 700ms var(--ease-out);
+}
+
+@keyframes rr-reveal-hit {
+  0%,
+  70% {
+    background: color-mix(in srgb, var(--brand) 18%, transparent);
+    box-shadow: inset 3px 0 0 var(--brand);
+  }
+  100% {
+    background: transparent;
+    box-shadow: inset 3px 0 0 transparent;
+  }
+}
+
+.request-crumb .crumb-seg {
+  transition:
+    background-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+/* ---------- The runner (from the logo) ---------- */
+.runner {
+  display: inline-block;
+  color: var(--text);
+  pointer-events: none;
+}
+
+.runner svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.runner .pose-b {
+  opacity: 0;
+}
+
+/* Two poses swap in steps to read as a stride, with a small bob. */
+.runner.live .pose-a {
+  animation: rr-pose-a 340ms steps(1, end) infinite;
+}
+
+.runner.live .pose-b {
+  animation: rr-pose-b 340ms steps(1, end) infinite;
+}
+
+.runner.live svg {
+  animation: rr-bob 340ms ease-in-out infinite;
+}
+
+@keyframes rr-pose-a {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+@keyframes rr-pose-b {
+  0% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes rr-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-1.5px);
+  }
+}
+
+@keyframes rr-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+/* ---------- Send ---------- */
+.url-row .send {
+  position: relative;
+  transition:
+    background-color var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    transform 60ms var(--ease-out);
+}
+
+.url-row .send:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+/* Send and Cancel are two lines of one label, so they can crossfade. */
+.send-label {
+  position: relative;
+  display: block;
+  height: 20px;
+  line-height: 20px;
+  overflow: hidden;
+}
+
+.send-a,
+.send-b {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    opacity var(--dur-base) var(--ease-out);
+}
+
+.send-b {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+.send.running .send-a {
+  opacity: 0;
+  transform: translateY(-8px);
+}
+
+.send.running .send-b {
+  opacity: 1;
+  transform: none;
+}
+
+.send-rail {
+  position: absolute;
+  left: 8px;
+  right: 8px;
+  bottom: 2px;
+  height: 1px;
+  background: var(--border);
+  opacity: 0;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+
+.send.running .send-rail {
+  opacity: 0.7;
+}
+
+/* The runner jogs toward the far side without reaching it, then dashes off the end when the response is in. */
+.send .runner {
+  position: absolute;
+  left: -16px;
+  bottom: 3px;
+  width: 13px;
+  height: 15px;
+  opacity: 0;
+}
+
+.send.running .runner {
+  left: 80%;
+  opacity: 1;
+  transition:
+    left 2.4s var(--ease-out),
+    opacity var(--dur-fast) var(--ease-out);
+}
+
+.send.finish .runner {
+  left: calc(100% + 16px);
+  opacity: 0;
+  transition:
+    left 240ms var(--ease-in),
+    opacity 240ms var(--ease-in);
+}
+
+/* ---------- Batch progress: the runner stands at the progress ---------- */
+.batch-track {
+  position: relative;
+  padding-top: 22px;
+}
+
+.batch-track .runner {
+  position: absolute;
+  top: 0;
+  left: calc((100% - 16px) * var(--p, 0));
+  width: 16px;
+  height: 18px;
+  transition:
+    left 200ms linear,
+    opacity var(--dur-base) var(--ease-out);
+}
+
+.batch-track .runner.idle {
+  opacity: 0.5;
+}
+
+/* ---------- Tabs ---------- */
+/* One underline slides between the tabs (see useSlidingUnderline). */
+.tabs.slide {
+  position: relative;
+}
+
+.tabs.slide::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 2px;
+  width: var(--ul-w, 0px);
+  transform: translateX(var(--ul-x, 0px));
+  background: var(--tab-underline, var(--accent));
+  pointer-events: none;
+}
+
+.tabs.slide.ul-ready::after {
+  transition:
+    transform var(--dur-base) var(--ease-out),
+    width var(--dur-base) var(--ease-out);
+}
+
+.tabs.slide button.active {
+  border-bottom-color: transparent;
+}
+
+.tab-swap {
+  animation: rr-fade var(--dur-base) var(--ease-out);
+}
+
+/* ---------- URL bar ---------- */
+/* Eases open when focused; UrlInput switches this off while typing so the height follows the text. */
+.url-field .url-input {
+  transition: height 120ms var(--ease-out);
+}
+
+/* ---------- Reduced motion ---------- */
+/* Fewer and gentler, not none: colour and opacity changes stay, travel goes. */
+@media (prefers-reduced-motion: reduce) {
+  .root-sections.switched .root-section:not([hidden]) {
+    animation-name: rr-fade;
+  }
+
+  .sb-tab::before,
+  .sb-sidebar,
+  .side-slot,
+  .side-slot.open,
+  .tabs.slide.ul-ready::after,
+  .url-field .url-input {
+    transition: none;
+  }
+
+  .requests-sidebar.overlay {
+    animation-name: rr-fade;
+  }
+
+  .url-row .send:active:not(:disabled) {
+    transform: none;
+  }
+
+  .send-a,
+  .send-b {
+    transform: none !important;
+  }
+
+  .send.running .runner {
+    left: 40%;
+    transition: opacity var(--dur-base) linear;
+    animation: rr-pulse 2.4s ease-in-out infinite;
+  }
+
+  .send.finish .runner {
+    transition: opacity var(--dur-base) linear;
+  }
+
+  .runner.live .pose-a,
+  .runner.live .pose-b,
+  .runner.live svg {
+    animation: none;
+  }
+
+  .batch-track .runner {
+    transition: opacity var(--dur-base) linear;
+  }
+}

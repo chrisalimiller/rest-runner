@@ -17,6 +17,7 @@ import "./assets/fonts/jetbrains-mono/jetbrains-mono.css";
 import "./styles.css";
 import "./components/testing/testing.css";
 import "./layout.css";
+import "./motion.css";
 
 installStorageRedaction();
 installAutocorrectOff();

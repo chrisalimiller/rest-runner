@@ -6,6 +6,8 @@ import { useSyncExternalStore } from "react";
  */
 export interface RequestsSidebarControl {
   open: boolean;
+  /** Pushing the panes aside (wide window) rather than floating over them. */
+  docked: boolean;
   toggle: () => void;
 }
 
@@ -14,7 +16,7 @@ const listeners = new Set<() => void>();
 
 /** Called by the Requests mode whenever the sidebar opens or closes. Pass null when it goes away. */
 export function publishRequestsSidebar(next: RequestsSidebarControl | null): void {
-  if (control === next || (control && next && control.open === next.open && control.toggle === next.toggle)) return;
+  if (control === next || (control && next && control.open === next.open && control.docked === next.docked && control.toggle === next.toggle)) return;
   control = next;
   listeners.forEach((l) => l());
 }

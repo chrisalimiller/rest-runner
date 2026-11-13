@@ -1,4 +1,5 @@
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { usePanelFade } from "../useTabMotion";
 import { findLiteralSecrets } from "../../lib/redactStorage";
 import { requestToCurl } from "../../lib/curl";
 import { findJsonProblem, formatJson } from "../../lib/jsonFormat";
@@ -144,9 +145,11 @@ export function RequestEditor({ def, onChange, envVars, envName, onConvertLitera
 
   const methodAllowsBody = def.method !== "GET" && def.method !== "HEAD";
   const panelId = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
   const tabs: readonly DetailsTab[] = methodAllowsBody ? ["params", "auth", "headers", "body", "scripts"] : ["params", "auth", "headers", "scripts"];
   // GET and HEAD send no body, so a remembered Body tab shows Params instead.
   const tab: DetailsTab = tabs.includes(stored) ? stored : "params";
+  usePanelFade(panelRef, tab);
 
   const toast = useToast();
   const copyToClipboard = (text: string, message: string) => {
@@ -290,7 +293,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onConvertLitera
         }
       />
 
-      <div className="req-body-area" role="tabpanel" id={panelId} aria-labelledby={tabDomId(panelId, tab)}>
+      <div className="req-body-area" ref={panelRef} role="tabpanel" id={panelId} aria-labelledby={tabDomId(panelId, tab)}>
         <div className="req-body-block">
           {tab === "body" ? (
             <>
