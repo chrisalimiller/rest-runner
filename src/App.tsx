@@ -1299,7 +1299,6 @@ export default function App({ active = true, shell, command }: Props) {
         style={{ "--split-a": `${split * 100}fr`, "--split-b": `${(1 - split) * 100}fr` } as React.CSSProperties}
       >
         <section className="request-col" id="request-panel" role="tabpanel" aria-label="Request">
-          {(batchVisited || batchRunning) && <div className="pane-spacer" aria-hidden />}
           <RequestCrumb crumbs={crumbs} name={def.name} unsaved={!savedVersion ? "Not saved" : isDirty ? "Unsaved changes" : null} onReveal={(i) => revealActive(i)} />
           <RequestEditor
             key={activeId}
@@ -1378,6 +1377,8 @@ export default function App({ active = true, shell, command }: Props) {
         />
 
         <section className="response-col" aria-label="Response">
+          {/* The request side opens with the breadcrumb strip, so this side opens with a strip of the same height. */}
+          {!(batchVisited || batchRunning) && <div className="pane-spacer" aria-hidden />}
           {(batchVisited || batchRunning) && (
             <div className="pane-switch">
               <div className="segmented" role="tablist" aria-label="Response or batch run">

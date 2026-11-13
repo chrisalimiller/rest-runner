@@ -849,7 +849,11 @@ body.dragging-split {
   gap: 12px;
   flex: none;
   min-width: 0;
-  padding: 8px 12px 0;
+  box-sizing: border-box;
+  /* The same 36px strip as the response side's switch, so the bands below line up. */
+  height: 36px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border-muted);
   font-size: var(--fs-sm);
   color: var(--muted);
 }
@@ -1374,7 +1378,7 @@ button.unfilled-dot:hover {
   outline: none;
 }
 
-/* The Response / Batch run switch, with an empty strip of the same height above the request so the bands still line up. */
+/* The Response / Batch run switch (or an empty strip) above the response, the same height as the breadcrumb strip above the request, so the bands still line up. */
 .pane-switch,
 .pane-spacer {
   display: flex;
