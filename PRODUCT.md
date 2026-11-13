@@ -34,7 +34,7 @@ Evidenced mechanisms: everything is local (no account, server or sync; requests 
 
 ## Operating Context
 - Desktop window used for sustained, repeated work, with several requests open as tabs and batches, suites and flows running side by side.
-- Three sections switched from a right-edge side bar: Requests, Testing, Flows (Ctrl/Cmd + 1/2/3). Top bar holds the request switcher, environment switch and quick open (Ctrl/Cmd + K); Request details drawer, Variables and Certificates panels sit alongside.
+- Four sections switched from a status bar along the bottom: Requests, Testing, Flows, Tools (Ctrl/Cmd + 1 to 4). Top bar holds the request switcher, environment switch and quick open (Ctrl/Cmd + K). Requests has a collapsible collections sidebar on the left (Ctrl/Cmd + B); Variables and Certificates panels dock on the right.
 - Keyboard-driven (many shortcuts, see docs/shortcuts.md); system, light and dark appearance options.
 - Works offline; fonts are bundled. Data lives in the web view's local storage; builds are unsigned for now; updates are manual (never automatic).
 - Runs that may hit real environments: environments can be coloured, and Prod-style environments are marked red on Send and Run buttons.

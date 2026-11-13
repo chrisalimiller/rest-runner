@@ -18,11 +18,15 @@ GET and HEAD requests never send a body, even if you filled one in. The summary 
 
 ## The request column
 
-The column has three parts: the URL row (method, URL, **Send** and the ⋯ menu), one row of tabs, and the open tab, which fills the rest of the height. Save as example, Run with CSV and cURL are in the ⋯ menu next to Send.
+Requests mode has up to three parts side by side: the **collections sidebar** on the left (see below), the **request** in the middle and the **response** on the right (below 1000 px of room they stack and share the height). The request and response are flat panes divided by a single 1px line, which you drag to resize (double-click resets, arrow keys move it when it has focus).
+
+The two panes line up on purpose. Each opens with a 60px band, the URL row on the left and the response status on the right, and then a 36px tab row, so the rules under them run straight across the window.
+
+The request column has three parts: the URL row (method, URL, **Send** and the ⋯ menu), one row of tabs, and the open tab, which fills the rest of the height. Save as example, Run with CSV and cURL are in the ⋯ menu next to Send.
 
 - **URL row.** It always stays on one line; the URL box shrinks first. Hover the URL box to see the final URL with environment values and query params filled in. An amber dot with a count inside the box means placeholders have no value; click it to open Variables. The ⋯ menu holds **Save**, **Save as example** (and **Set sample response** when an example has a live response), **Run with CSV…**, **Copy final URL**, **Show cURL** / **Hide cURL** and the two **Copy as cURL** items.
 - **Tabs.** Params, Auth, Headers, Body and Scripts. Each tab shows what it holds: a count of enabled rows, a dot when auth or a script is set, and the body type. The certificate chip is at the right end. Arrow keys, Home and End move between tabs. The selected tab is remembered. GET and HEAD send no body, so they have no Body tab.
-- **Body tab.** The body type, JSON validity, **Format** and **Copy body** sit in the strip above the editor.
+- **Body tab.** The body type, JSON validity, **Format** and **Copy body** sit at the right end of the tab row while the Body tab is open.
 - **Unsaved changes bar.** While a request has unsaved changes, a bar over the bottom of the column offers **Save** (the same as the shortcut) and **Discard**, which asks once more before putting back the saved version. A request that has never been saved shows **Not saved** and Save only.
 
 ### Params, Headers and form fields
@@ -138,9 +142,21 @@ Masking matches the value wherever it appears, including inside JSON, URL-encode
 - Requests are sent from the Rust side of the app, so browser CORS rules do not apply. Allowed URLs are `http://` and `https://` on any host and port.
 - If the request has a pre-request script, it runs first. If that script throws, nothing is sent. See [Scripting](scripting.md#when-scripts-run).
 
+## The collections sidebar
+
+The left column of Requests holds your collections, folders and requests (with their examples), and the history of sends.
+
+- **Collections** is the same tree that used to open from the request switcher: click a request to preview it, double-click (or **Open in new tab**) to keep it, right-click or the row's ⋯ button for the row menu. **Filter requests** narrows the tree by request name or URL and opens every branch that matches. **+ New request** and **From cURL…** are at the bottom; **New collection**, **Import…** and **Export workspace…** are in the ⋯ menu at the top.
+- **History** lists your latest sends of any request (name, status, how long ago) and **Filter history** narrows them. Click one to load it with its response as a sample, the same as Quick open.
+- **Show or hide it** with the sidebar button at the left of the top bar or `Mod + B`. The choice is remembered. It belongs to Requests; Testing, Flows and Tools keep their own lists.
+- **The top-bar switcher** keeps showing the open request. While the sidebar is open it only shows the path (no chevron or popover), and clicking it reveals the request in the tree; double-click or `F2` still renames. With the sidebar hidden it works as before and opens the collections popover.
+- **Narrow windows** (under 1100 px wide): the sidebar floats over the panes with a dimmed backdrop instead of pushing them, and closes when you open a request, press Escape or click the backdrop.
+
 ## The response viewer
 
-The top of the response column shows the status code and text, time, size and the time the request was sent. Then a switch:
+The top of the response column is a status band built like the URL bar: a pill with the status code and text (tinted by the status), then time, size, the certificate if one was used and the time the request was sent. At its right end, **Latest ▾** (or for example **11m ago ▾**) opens a list of the earlier sends and batch runs of this request (see [History and earlier sends](#history-and-earlier-sends)). Looking at an earlier send rings the band in amber and tags it, for example "Sent 4m ago · 142 ms", so it is clear you are not looking at the latest response.
+
+Under the band is one row of tabs. Content type, **Pretty / Raw** and **Copy** sit at its right end while the Body tab is open:
 
 - **Body**: JSON is highlighted. **Raw** shows the body as received and **Pretty** re-indents JSON. In Raw, JSON bodies also get a **Beautify** button that indents the text while keeping it plain and selectable (click again to see it as received). **Copy** copies what is showing.
 - **Headers**: all response headers, with a count.
@@ -156,7 +172,7 @@ On the **Scripts** tab each script shows how long it took, its error if it threw
 Every send is kept in history (the last 50). Each entry holds the request as sent, the status, time, the response (the body is cut at 32 KB), or the error, and what its scripts did.
 
 - Open **Quick open** and look in the **History** group to load one. Loading puts the request back in the editor and shows its response as a sample, labeled for example "Sent 4m ago · 142 ms".
-- Under the response, **Earlier sends of this request** shows up to six pills from the history and batch runs of the open request. A pill reads for example `201 · 142 ms · 4m ago` (the time is "12s ago" or "4m ago" within the hour, then `13:41`, "Yesterday", or a short date), with `· Dev` added when that send used a different environment from the one selected now. Hover for the full time, the environment and what changed since the previous send of the request (for example "body changed"). Click a send to see it again, or a batch pill to open that run in the [run explorer](batch-runs.md#the-run-explorer).
+- At the right end of the response status band, the **earlier sends** picker (it reads **Latest ▾**, or the age of the send on screen, or "4 earlier" before you have sent anything this session) lists up to six sends and batch runs of the open request. A row reads for example `201 · 142 ms · 4m ago` (the time is "12s ago" or "4m ago" within the hour, then `13:41`, "Yesterday", or a short date), with `· Dev` added when that send used a different environment from the one selected now. Hover a row for the full time, the environment and what changed since the previous send of the request (for example "body changed"). Click a send to see it again, or a batch row to open that run in the [run explorer](batch-runs.md#the-run-explorer). Arrow keys, Enter and Escape work like in the method list.
 - Entries saved by older versions of the app kept only a status. They load with a note that the body and headers were not kept. If local storage is full, responses are dropped from the oldest entries first so the newest stay.
 - **Clear history** is in Quick open, in the History group.
 

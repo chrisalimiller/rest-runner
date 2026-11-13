@@ -10,6 +10,12 @@ import { UnsavedBar } from "./components/request/UnsavedBar";
 import { RequestSwitcher } from "./components/request/RequestSwitcher";
 import { RequestTabBar, showTabBar } from "./components/request/RequestTabBar";
 import { ResponsePane } from "./components/ResponsePane";
+import { EarlierSendsSelect } from "./components/request/EarlierSendsSelect";
+import { RequestsSidebar, type SidebarTab } from "./components/request/RequestsSidebar";
+import { useCollapsed } from "./components/shell/useCollapsed";
+import { useViewportWidth } from "./components/useViewportWidth";
+import { SidebarIcon } from "./components/shell/Icons";
+import { allNodeIds, filterCollections } from "./lib/collectionFilter";
 import { RunExplorer } from "./components/RunExplorer";
 import { MOD_KEY, TopBar } from "./components/shell/TopBar";
 import { useToast } from "./components/shell/Toast";
@@ -48,7 +54,7 @@ import {
 import { setBusy } from "./lib/busyWork";
 import { openSidePanel } from "./lib/sidePanels";
 import { newRequest } from "./lib/defaults";
-import { earlierSendLabel, earlierSends, earlierSendTone, sendTooltip, whenLabel } from "./lib/earlierSends";
+import { earlierSends, whenLabel } from "./lib/earlierSends";
 import { cleanHistory, fitHistory, historyLabel, historyOutcome, MAX_HISTORY_BODY, responseNotKept } from "./lib/history";
 import { looksLikeCurl, parseCurl, type CurlCommand, type CurlNote } from "./lib/curlImport";
 import { matchVariables, type VarSwap } from "./lib/curlVariables";
@@ -138,6 +144,8 @@ interface CurlDialogState {
 }
 
 const TABS_KEY = "rest-runner.tabs";
+/** Below this window width the sidebar floats over the panes instead of pushing them. */
+const SIDEBAR_OVERLAY_BELOW = 1100;
 /** Single working copy kept before tabs existed; read once to migrate into the first tab, never written. */
 const LEGACY_DRAFT_KEY = "rest-runner.draft";
 const HISTORY_KEY = "rest-runner.history";
@@ -280,6 +288,19 @@ export default function App({ active = true, shell, command }: Props) {
   const [curlBanners, setCurlBanners] = useState<Record<string, CurlBannerState>>({});
   const [curlDialog, setCurlDialog] = useState<CurlDialogState | null>(null);
   const [switcherOpen, setSwitcherOpen] = useState(false);
+  // The collections sidebar: docked at the left when the window is wide, floating over the panes (with a scrim) when it is not.
+  const [sideCollapsed, toggleSideCollapsed] = useCollapsed("rest-runner.requests-sidebar-collapsed");
+  const viewportWidth = useViewportWidth();
+  const sideOverlay = viewportWidth < SIDEBAR_OVERLAY_BELOW;
+  const [overlayOpen, setOverlayOpen] = useState(false);
+  const [sideTab, setSideTab] = useState<SidebarTab>("collections");
+  const [sideQuery, setSideQuery] = useState("");
+  const sideOpen = sideOverlay ? overlayOpen : !sideCollapsed;
+  const sideDocked = sideOpen && !sideOverlay;
+  const toggleSidebar = () => (sideOverlay ? setOverlayOpen((o) => !o) : toggleSideCollapsed());
+  const toggleSidebarRef = useRef(toggleSidebar);
+  toggleSidebarRef.current = toggleSidebar;
+  const closeOverlay = () => setOverlayOpen(false);
   const [renamingName, setRenamingName] = useState(false);
   const [split, setSplit] = useState<number>(() => {
     const v = load<number>(SPLIT_KEY, 0.55);
@@ -522,6 +543,8 @@ export default function App({ active = true, shell, command }: Props) {
     window.addEventListener("paste", onPaste);
     return () => window.removeEventListener("paste", onPaste);
   }, []);
+  /** After the sidebar has re-rendered with the path open, bring the active row into view. */
+  const scrollActiveIntoView = () => setTimeout(() => document.querySelector(".requests-sidebar .tree-row.active")?.scrollIntoView({ block: "nearest" }), 60);
   const revealTab = (id: string) => {
     const t = tabsRef.current.tabs.find((x) => x.id === id);
     if (!t) return;
@@ -529,7 +552,11 @@ export default function App({ active = true, shell, command }: Props) {
     const found = locate(collections, t.def.id);
     if (found?.kind === "request" || found?.kind === "example") {
       expand(found.collection.id, ...found.path.map((f) => f.id), ...(found.kind === "example" ? [found.node.id] : []));
-      setSwitcherOpen(true);
+      if (sideDocked) {
+        setSideTab("collections");
+        setSideQuery("");
+        scrollActiveIntoView();
+      } else setSwitcherOpen(true);
     } else notify(`${tabName(t)} is not saved in a collection yet.`);
   };
 
@@ -936,6 +963,10 @@ export default function App({ active = true, shell, command }: Props) {
         e.preventDefault();
         setRenamingName(true);
       }
+      if (matchesShortcut("toggle-sidebar", e)) {
+        e.preventDefault();
+        toggleSidebarRef.current();
+      }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
@@ -1020,6 +1051,77 @@ export default function App({ active = true, shell, command }: Props) {
     patchRuntime(activeId, { pane: "batch", batchVisited: true });
   };
 
+  /** The collections tree, used by the switcher popover and by the sidebar. `afterOpen` runs after a request is opened for keeps. */
+  const renderTree = (cols: Collection[], expandedIds: Set<string>, afterOpen: () => void) => (
+    <CollectionTree
+      collections={cols}
+      activeId={openRun === null ? def.id : null}
+      expanded={expandedIds}
+      onToggle={toggle}
+      renamingId={renamingId}
+      onRenamingChange={setRenamingId}
+      onOpenRequest={(node, permanent) => {
+        openDef(node.request, permanent);
+        if (permanent) afterOpen();
+      }}
+      onOpenExample={(_node, ex, permanent) => {
+        openExample(ex, permanent);
+        if (permanent) afterOpen();
+      }}
+      onAction={onTreeAction}
+      toolsUsing={(ids) => toolsUsingRequests(loadTools(), ids).map((t) => t.name || "(unnamed)")}
+    />
+  );
+
+  /** The ⋯ button on the switcher in the top bar: show the open request in the sidebar. */
+  const revealActive = () => {
+    const found = locate(collections, def.id);
+    if (found?.kind === "request" || found?.kind === "example") {
+      expand(found.collection.id, ...found.path.map((f) => f.id), ...(found.kind === "example" ? [found.node.id] : []));
+      setSideTab("collections");
+      setSideQuery("");
+      scrollActiveIntoView();
+    } else notify("This request is not saved in a collection yet.");
+  };
+
+  const sideCollections = filterCollections(collections, sideQuery);
+  const sideExpanded = sideQuery.trim() !== "" ? allNodeIds(sideCollections) : expanded;
+  const sidebar = sideOpen ? (
+    <RequestsSidebar
+      tab={sideTab}
+      onTab={(t) => {
+        setSideTab(t);
+        setSideQuery("");
+      }}
+      query={sideQuery}
+      onQuery={setSideQuery}
+      tree={sideCollections.length > 0 ? renderTree(sideCollections, sideExpanded, closeOverlay) : null}
+      noCollections={collections.length === 0}
+      history={history}
+      currentHistoryId={shownHistoryId}
+      onOpenHistory={(h) => {
+        openHistory(h);
+        closeOverlay();
+      }}
+      onNewRequest={() => {
+        openDef(newRequest(), true);
+        closeOverlay();
+      }}
+      onFromCurl={() => {
+        const dest = activeDest();
+        openCurlDialog({ dest, saveTicked: dest !== null });
+        closeOverlay();
+      }}
+      menu={[
+        { label: "New collection", onSelect: addCollection },
+        { label: "Import…", onSelect: openImportDialog, title: "Import collections and environments from Postman, Insomnia, Bruno, .env or REST Runner files" },
+        { label: "Export workspace…", onSelect: startExport, title: "Export collections, environments, test suites, flows and tools to one file" },
+      ]}
+      overlay={sideOverlay}
+      onClose={closeOverlay}
+    />
+  ) : null;
+
   const switcher = (
     <RequestSwitcher
       crumbs={crumbs}
@@ -1029,6 +1131,8 @@ export default function App({ active = true, shell, command }: Props) {
       unsaved={!savedVersion ? "Not saved" : isDirty ? "Unsaved changes" : null}
       open={switcherOpen}
       onOpenChange={setSwitcherOpen}
+      docked={sideDocked}
+      onReveal={revealActive}
       renaming={renamingName}
       onRenamingChange={setRenamingName}
       onRename={(name) => {
@@ -1077,24 +1181,7 @@ export default function App({ active = true, shell, command }: Props) {
       </div>
       {collections.length === 0 && <p className="muted small pad">Click Save in the footer to keep a request in a collection.</p>}
       <div className="tree-scroll">
-        <CollectionTree
-          collections={collections}
-          activeId={openRun === null ? def.id : null}
-          expanded={expanded}
-          onToggle={toggle}
-          renamingId={renamingId}
-          onRenamingChange={setRenamingId}
-          onOpenRequest={(node, permanent) => {
-            openDef(node.request, permanent);
-            if (permanent) setSwitcherOpen(false);
-          }}
-          onOpenExample={(_node, ex, permanent) => {
-            openExample(ex, permanent);
-            if (permanent) setSwitcherOpen(false);
-          }}
-          onAction={onTreeAction}
-          toolsUsing={(ids) => toolsUsingRequests(loadTools(), ids).map((t) => t.name || "(unnamed)")}
-        />
+        {renderTree(collections, expanded, () => setSwitcherOpen(false))}
       </div>
     </RequestSwitcher>
   );
@@ -1114,6 +1201,18 @@ export default function App({ active = true, shell, command }: Props) {
         mode="requests"
         onQuickOpen={shell.onQuickOpen}
         searchPlaceholder="Jump to a request, example, run or history…"
+        leading={
+          <button
+            className={`icon-btn sidebar-toggle ${sideOpen ? "on" : ""}`}
+            onClick={toggleSidebar}
+            aria-pressed={sideOpen}
+            aria-label="Collections sidebar"
+            title={`${sideOpen ? "Hide" : "Show"} the collections sidebar (${MOD_KEY} B)`}
+            aria-keyshortcuts="Control+B Meta+B"
+          >
+            <SidebarIcon />
+          </button>
+        }
         switcher={switcher}
         environments={environments}
         activeEnvId={activeEnvId}
@@ -1146,6 +1245,8 @@ export default function App({ active = true, shell, command }: Props) {
         />
       )}
       <div className="requests-body">
+        {sidebar}
+        {sideOverlay && overlayOpen && <div className="side-scrim" onClick={closeOverlay} aria-hidden />}
         <div className="requests-main">
       {openRun !== null && (
         <main className="workspace full-view">
@@ -1185,6 +1286,7 @@ export default function App({ active = true, shell, command }: Props) {
         style={{ "--split-a": `${split * 100}fr`, "--split-b": `${(1 - split) * 100}fr` } as React.CSSProperties}
       >
         <section className="request-col" id="request-panel" role="tabpanel" aria-label="Request">
+          {(batchVisited || batchRunning) && <div className="pane-spacer" aria-hidden />}
           <RequestEditor
             key={activeId}
             def={def}
@@ -1294,28 +1396,18 @@ export default function App({ active = true, shell, command }: Props) {
                   ? `Check that the server is reachable from this computer, or switch environments (using ${activeEnv.name || "an unnamed environment"}).`
                   : undefined
               }
+              earlier={
+                sends.length > 0 ? (
+                  <EarlierSendsSelect
+                    items={sends}
+                    currentId={shownHistoryId}
+                    envName={activeEnv?.name}
+                    history={history}
+                    onOpen={(item) => (item.kind === "send" ? openHistory(item.entry) : setOpenRun(item.run.id))}
+                  />
+                ) : undefined
+              }
             />
-            {sends.length > 0 && (
-              <div className="earlier-sends">
-                <span className="section-title">Earlier sends of this request</span>
-                <div className="earlier-list">
-                  {sends.map((item) => {
-                    const key = item.kind === "send" ? item.entry.id : item.run.id;
-                    const current = item.kind === "send" && item.entry.id === shownHistoryId;
-                    return (
-                      <button
-                        key={key}
-                        className={`send-pill tone-${earlierSendTone(item)} ${current ? "current" : ""}`}
-                        onClick={() => (item.kind === "send" ? openHistory(item.entry) : setOpenRun(item.run.id))}
-                        title={item.kind === "send" ? sendTooltip(item.entry, history) : `Open the batch run from ${item.run.csvName}`}
-                      >
-                        {earlierSendLabel(item, new Date(), activeEnv?.name)}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
           </div>
           {tabs.tabs
             .filter((t) => runtime[t.id]?.batchVisited || runtime[t.id]?.batchRunning)

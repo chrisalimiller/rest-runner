@@ -36,6 +36,7 @@ The app is a desktop window around a web view, and it keeps its data in that web
 | `rest-runner.curl-open`, `rest-runner.curl-shell` | Whether the curl command is shown under the request, and its shell (Bash or Windows cmd) |
 | `rest-runner.script-export-language` | The language last picked in **Export script…** (Python or Bash) |
 | `rest-runner.testing-nav-collapsed`, `rest-runner.flows-nav-collapsed` | Whether the list on the left of Testing and of Flows is hidden |
+| `rest-runner.requests-sidebar-collapsed` | Whether the collections sidebar on the left of Requests is hidden |
 
 **IndexedDB** (larger items):
 

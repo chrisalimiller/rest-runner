@@ -141,9 +141,12 @@ components:
     backgroundColor: "{colors.surface-inset}"
     height: "52px"
     padding: "10px 20px"
-  side-rail:
+  status-bar:
     backgroundColor: "{colors.surface-inset}"
-    width: "52px"
+    height: "40px"
+  requests-sidebar:
+    backgroundColor: "{colors.surface-inset}"
+    width: "260px"
   flow-node:
     backgroundColor: "{colors.surface}"
     textColor: "{colors.ink}"
@@ -161,9 +164,9 @@ This file records the system as shipped in `src/styles.css`, `src/layout.css` an
 
 A workbench you sit at for hours: tools laid out within reach, nothing shouting. The surfaces are layered tonal greys with hairline borders, the type is small and even, and colour is spent only on meaning: HTTP method, response status, pass/fail, a single blue for focus and selection, and one green for Send. The default look is GitHub's Primer dark; the light theme ("Mist") is a deliberately cool slate rather than bright white (`#e9edf2` canvas).
 
-Density is high and consistent. Body text is 13px, controls are 26 to 40px tall, rows are 28 to 32px. Two floating, rounded panels (request and response) sit on a darker inset ground, which gives the layout its only real depth cue. Motion is short and functional: overlays fade or slide in 100 to 160ms with an exponential ease-out, and reduced-motion users get plain fades.
+Density is high and consistent. Body text is 13px, controls are 26 to 40px tall, rows are 28 to 32px. The request and response are flat panes on the canvas, divided by a single 1px line, and each opens with the same 60px band and 36px tab row so the lines between them run straight across the window. The darker inset ground marks the chrome around them (top bar, sidebar, status bar) and fields. Motion is short and functional: overlays fade or slide in 100 to 160ms with an exponential ease-out, and reduced-motion users get plain fades.
 
-The brand purple appears in a few small, deliberate places (the mark, the active section on the side rail, pinned-tab ring, script/start/schedule markers) and is kept apart from the PATCH method purple.
+The brand purple appears in a few small, deliberate places (the mark, the active section on the status bar, pinned-tab ring, script/start/schedule markers) and is kept apart from the PATCH method purple.
 
 **Key Characteristics:**
 - Tonal layering plus 1px rings; shadows only on things that float over other content.
@@ -181,13 +184,13 @@ Cool grey ground, one blue, one green, and a status rainbow that always carries 
 - **Send Green** (dark `#238636`, hover `#2ea043`; light `#1a7f37`, hover `#166b2e`): the Send button only, with white text (4.63:1 dark, 5.08:1 light). The Cancel state turns it to Danger Fill.
 
 ### Secondary (brand)
-- **Brand Purple** (dark `#bc8cff`; light `#6f3fc9`): the mark's braces, the hyphen in `rest-runner`, the active section indicator on the side rail, the pinned-tab active ring, and the Start/Schedule flow nodes. 7.5:1 dark, 5.5:1 light on canvas.
+- **Brand Purple** (dark `#bc8cff`; light `#6f3fc9`): the mark's braces, the hyphen in `rest-runner`, the active section indicator on the status bar, the pinned-tab active ring, and the Start/Schedule flow nodes. 7.5:1 dark, 5.5:1 light on canvas.
 - **Brand Strong** (dark `#8957e5`; light `#5b2fb0`): solid fills and the script source-chip border.
 
 ### Neutral
 - **Canvas** (dark `#0d1117`, light `#e9edf2`): body, panels, modals' base.
 - **Surface** (dark `#161b22`, light `#f2f5f8`): sidebars, popovers, inputs, flow nodes, active tab; also `--bg-overlay`.
-- **Inset** (dark `#010409`, light `#dde3ea`): the ground under the floating panels, top bar, side rail, code blocks, URL bar.
+- **Inset** (dark `#010409`, light `#dde3ea`): the top bar, status bar, collections sidebar, URL bar and the response status field.
 - **Hover** (dark `#1c2128`, light `#e0e6ed`): row hover and active row background.
 - **Border / Muted border / Strong border** (dark `#30363d` / `#21262d` / `#484f58`; light `#c8d0da` / `#d7dde5` / `#a9b3c0`): control outlines, hairline dividers, hover outlines.
 - **Ink** (dark `#e6edf3`, light `#18212b`): primary text, 16.0:1 and 13.8:1 on canvas. **Ink soft** (`#c9d1d9` / `#2e3a47`): secondary text in flows and summaries.
@@ -224,20 +227,20 @@ Cool grey ground, one blue, one green, and a status rainbow that always carries 
 - **Body** (400, 13px `--fs-md`, line-height 1.5): default text, menus, toasts.
 - **Small** (12px `--fs-sm`): summaries, hints, secondary lines, segmented buttons.
 - **Label** (600, 11px `--fs-xs`): section titles are uppercase with 0.04em to 0.6px tracking in muted; method labels are bold, uppercase, 0.04em; chips, counts, kbd and badges use 11px.
-- **Code** (mono, 13px): URL field, key/value inputs, editors, status code, rail glyphs, the wordmark (600, 13px).
+- **Code** (mono, 13px): URL field, key/value inputs, editors, status code, the status bar glyphs, the wordmark (600, 13px).
 
 ### Named Rules
 **The Scale-Only Rule.** Font sizes come from `--fs-xs/sm/md/lg/xl/display` (11/12/13/15/18/22). No other pixel font sizes exist in the stylesheets.
 
-**The Data Is Mono Rule.** URLs, status codes, timings, variable names, counts on the rail and code are mono. Names and prose are Red Hat.
+**The Data Is Mono Rule.** URLs, status codes, timings, variable names, counts on the status bar and code are mono. Names and prose are Red Hat.
 
 **The Tabular Numerals Rule.** Counts, tab badges, request summaries and tab groups use `font-feature-settings: "tnum" 1` so numbers do not jitter.
 
 ## Layout
 
-A fixed app shell: top bar (52px), request-tab bar (44px) under it, the active section filling the rest, a side rail (52px) at full window height on the right, and an optional side panel slot left of the rail (Variables, Certificates). Sidebars and nav columns are 240px (`--nav-w`, collapsing to 40px). The inspector splits request and response at 55fr / 45fr with a 10px transparent splitter whose pill handle is 4px by 44px; each side has a 380px minimum. When the Requests area is narrower than 1000px (a container query, so a side panel counts), the panels stack and the splitter disappears. The Testing runbook is three columns (nav, steps, a 280px last-run column), dropping to two at 1200px and one at 800px. Flows is nav, canvas (with a 148px palette) and a 320px node-settings column.
+A fixed app shell: top bar (52px), request-tab bar (44px) under it, the active section filling the rest, a status bar (40px) along the bottom with the section tabs, an activity slot and the Variables and Certificates buttons, and an optional side panel slot at the right (Variables, Certificates). Requests has a collapsible collections sidebar (260px, on the inset ground) at the left; Testing and Flows have their own nav columns (240px, `--nav-w`, collapsing to 40px). The inspector splits request and response at 55fr / 45fr with a 1px splitter line (7px hit area); each side has a 380px minimum. Both panes open with a 60px band (10px padding around a 40px field: the URL bar, or the response status field) and a 36px tab row with a 1px rule under it. When the Requests area is narrower than 1000px (a container query, so a side panel counts), the panes stack in two equal rows and the splitter becomes a horizontal line. Below a 1100px window the sidebar floats over the panes with a scrim. The Testing runbook is three columns (nav, steps, a 280px last-run column), dropping to two at 1200px and one at 800px. Flows is nav, canvas (with a 148px palette) and a 320px node-settings column.
 
-Spacing is a 4px-based rhythm with common steps of 4, 6, 8, 10, 12, 16, 22 and 24px; panels use 16px padding with 12px gaps; the top bar uses 16px gaps. There is no spacing token set, so these are conventions, not variables.
+Spacing is a 4px-based rhythm with common steps of 4, 6, 8, 10, 12, 16, 22 and 24px; the request and response bands use 10px 12px padding; the top bar uses 16px gaps. There is no spacing token set, so these are conventions, not variables.
 
 Density: controls are 40px (Send, URL bar), 36px (action footer), 32px (top-bar fields, quick-open rows), 28px (tabs, tree rows, summary pills), 26px (segmented buttons, small pills), 22px (small segmented). Small controls get their hit area enlarged with `::after` pseudo-elements to at least 24 by 24 px (WCAG 2.5.8) without changing their visible size (tree toggle and menu, switcher pencil, small segmented, swatches, sidebar icon buttons).
 
@@ -248,7 +251,6 @@ The top bar degrades by priority, not by squeezing: first the request breadcrumb
 Hybrid, but mostly tonal. Resting surfaces are flat: depth comes from three steps of grey (inset, canvas, surface) and 1px rings drawn as `box-shadow` or `inset box-shadow` (never a layout-shifting border). Real shadows are reserved for things that float over content, and they get heavier with height.
 
 ### Shadow Vocabulary
-- **Panel ring** (`0 0 0 1px var(--border-muted)`): the request and response panels.
 - **Selected row** (`inset 2px 0 0 var(--accent)`): active tree row, environment list, history and similar lists.
 - **Flow node** (`0 1px 0 var(--shadow-xs)`; selected `0 0 0 1px var(--accent-fg)`; running `0 0 0 2px var(--accent-fg)` pulsing to 5px `--accent-subtle`).
 - **Menu, toast, popover** (`0 8px 24px var(--shadow-md)`; the `.menu` uses `--shadow-lg`).
@@ -265,9 +267,9 @@ Hybrid, but mostly tonal. Resting surfaces are flat: depth comes from three step
 
 ## Shapes
 
-One radius scale for the whole app (`--r-*`): **4px** `xs` for tiny inline marks (variable chips, kbd, swatches, bars); **6px** `sm` for compact controls (inputs, small buttons, rows, tabs, `.secondary`); **8px** `md` for standard buttons, cards, menus, toasts, flow nodes and code blocks; **12px** `lg` for panels, dialogs, drawers, the URL bar, the Send button and the status tile; **pill** (999px) for chips, badges, counts, segmented controls inside panels and scrollbar thumbs. Circles (`50%`) are used directly for dots and spinners.
+One radius scale for the whole app (`--r-*`): **4px** `xs` for tiny inline marks (variable chips, kbd, swatches, bars); **6px** `sm` for compact controls (inputs, small buttons, rows, tabs, `.secondary`); **8px** `md` for standard buttons, cards, menus, toasts, flow nodes and code blocks; **12px** `lg` for dialogs, the URL bar, the response status field and the Send button; **pill** (999px) for chips, badges, counts, segmented controls inside panels and scrollbar thumbs. Circles (`50%`) are used directly for dots and spinners.
 
-Segmented controls are 8px-radius with 6px buttons in the global style, and become pills inside the request and response panels and the details drawer. Forms are inset (a darker field in a lighter row), with a 1px ring that turns blue on focus.
+Segmented controls are 8px-radius with 6px buttons in the global style, and become pills in the request and response panes. Forms are inset (a darker field in a lighter row), with a 1px ring that turns blue on focus.
 
 ### Named Rules
 **The Role-Radius Rule.** Pick the radius by role from the scale. Do not invent 3, 5, 10 or 14px.
@@ -280,8 +282,14 @@ Quiet and compact. Every interactive element has a hover, a keyboard focus ring 
 - **Style:** 52px, inset background, 1px muted bottom border. Left to right: brand lockup (mark at least 20px tall, `rest-runner` in 13px mono with a purple hyphen), request switcher (32px field, surface background, name in 600 with a hidden-until-hover pencil, chevron), quick-open field (32px, canvas background, shortcut `kbd`), environment switch, overflow menu.
 - **Behavior:** fit levels collapse parts in a fixed order (see Layout).
 
-### Side rail
-- **Style:** 52px wide, inset background, 1px left border. Buttons are 38 by 38 with 8px radius; muted by default, canvas-soft on hover; on, they get the button background and a 1px ring. The active section turns brand purple and shows a 3 by 20px brand bar 7px outside the button. Badges are 14px pills (mono 11px bold, 20% tint of the tone, with a 2px inset-coloured ring so they cut out of the button); dots are 8px.
+### Status bar
+- **Style:** 40px high, inset background, 1px top border. The section tabs (icon 17px, label 13px) are muted until hovered (soft) or open (canvas ground, 600 ink, brand icon, a 3px brand line on the top edge). Between the tabs and the right-hand tools sit a 1px separator and the activity slot (accent text with a pulsing dot while work runs elsewhere, red after a failed run, faint "Nothing running" otherwise). Badges are 16px pills (mono 11px bold, 20% tint of the tone); dots are 7px. Below 1000px only the open tab keeps its label.
+
+### Requests sidebar
+- **Style:** 260px on the inset ground with a 1px right border. A 44px header (Collections / History small segmented control, ⋯ menu), a 30px filter field (canvas ground, 1px ring, accent ring on focus), the tree or history list, and a footer with + New request and From cURL…. Below a 1100px window it floats over the panes (shadow, 45% scrim).
+
+### Response status band
+- **Style:** a 60px band holding a 40px field built like the URL bar (inset ground, 1px ring, 12px radius, 5px padding). The status sits in a 30px pill tinted by the status where the URL bar has the method pill, followed by time, size and sent time in mono. The earlier-sends picker is a 30px pill at the right end (Latest ▾) that opens a listbox like the method list. Viewing an earlier send rings the field in amber and adds a tag.
 
 ### Collection tree
 - **Style:** 28px rows, 6px radius, hover and active on `--bg-hover`, active also gets the 2px blue inset stripe. Method labels are 40px wide; folders have a muted chevron that rotates 90 degrees (100ms); counts are a muted pill; the row menu button (22px) appears on hover, focus or while open. Example rows are indented and muted until hovered or active.
@@ -297,7 +305,7 @@ Quiet and compact. Every interactive element has a hover, a keyboard focus ring 
 - **Style:** the status code (22px mono 600) and reason (15px Display 600) sit in an inline 12px-radius tile tinted 10% by status (ok, warn, bad, redirect); timing and size are `hero-meta` pills. The body is a soft code block (12px radius, inset background, 1px muted ring, 38px header strip). Empty and sending states sit in the same block; sending shows a 180 by 3px indeterminate bar.
 
 ### Chips and badges
-- **Style:** pill, 11px, 1px border, 10% neutral fill. Variants: ok (green tint), bad (red tint), env (blue tint), source chips (script: brand; env: blue; unset: red). Request-summary links are 26px pills; "earlier sends" are 26px mono pills tinted by status.
+- **Style:** pill, 11px, 1px border, 10% neutral fill. Variants: ok (green tint), bad (red tint), env (blue tint), source chips (script: brand; env: blue; unset: red). Earlier sends are listed in a dropdown, with a status-coloured dot for each.
 
 ### Segmented control
 - **Style:** 2px padding, 1px ring, 26px buttons, muted text; the selected item gets the button background and 600 weight. Used for the Appearance setting (a `radiogroup`, arrow keys move and select) and for mode switches. In panels it is a pill; `.small` is 22px.
@@ -310,7 +318,7 @@ Quiet and compact. Every interactive element has a hover, a keyboard focus ring 
 - **Side sheet:** up to 420px, right-aligned, left border and a leftward shadow, over `--scrim-soft`.
 - **Popovers and menus:** surface, 8px radius (6px for `.menu`), 4px padding, items 6px radius.
 - **Toasts:** bottom-left, 16px from the edges, 8px radius, undo link in blue.
-- **Request details drawer:** a floating sheet over the request body that slides up in 150ms.
+- **Sidebar overlay and earlier-sends list:** the sidebar slides over the panes below a 1100px window; the earlier-sends list opens like the method list (no animation).
 
 ### Flow nodes
 - **Style:** 220px wide, surface background, 1px border, 8px radius, 12px text. A kind row shows an 8px dot and an 11px uppercase label in the node colour. Passed and failed nodes get a 15% ok or bad wash; running nodes pulse a blue ring. Edges are muted by default, green when passed, red when failed, purple when the If is true, dashed grey when false, blue for parallel branches. The canvas uses React Flow with its colour variables mapped to app tokens, on dot-grid `--canvas-dot`.
@@ -320,7 +328,7 @@ Quiet and compact. Every interactive element has a hover, a keyboard focus ring 
 ### Do:
 - **Do** use the tokens in `src/styles.css`; add new values to both the dark `:root` and the Mist block, and to the `prefers-color-scheme: light` twin.
 - **Do** use `--r-*` for every radius and `--fs-*` for every font size.
-- **Do** draw state rings with `box-shadow` (`--focus-ring`, `--focus-ring-inset`, `--panel-ring`).
+- **Do** draw state rings with `box-shadow` (`--focus-ring`, `--focus-ring-inset`).
 - **Do** give every interactive element a visible keyboard focus state. The focus ring is a 2px `--accent-fg` ring.
 - **Do** enlarge small controls to a 24 by 24 px hit area with an `::after` overlay.
 - **Do** use `--dur-fast` (100ms) for exits and hover colour, `--dur-base` (160ms) for routine state change and enter, `--dur-slow` (280ms) at most, with `--ease-out` for enter and `--ease-in` for exit; animate only `transform` and `opacity` for overlays.
@@ -343,7 +351,7 @@ Quiet and compact. Every interactive element has a hover, a keyboard focus ring 
 - **Light `--other` and `--syn-comment` still use the old `#586575`.** They are hard-coded and no longer match `--muted` (`#4a5666`). They read at 4.60:1 on the inset background.
 - **Light muted/faint steps are small on inset.** `--faint` (`#5a6674`) is 4.53:1 on `#dde3ea`, and light accent on inset is 4.51:1; light POST on inset is 4.59:1. They pass AA with almost no margin.
 - **The collection tree animates only small subtrees.** `TreeChildren` animates expand and collapse for up to 40 rows and skips reduced motion, repeated toggles and drags; larger subtrees open instantly. The chevron still rotates at a hard-coded 100ms. `Collapse` is used for the Variables, cURL and flow run panels.
-- **Some motion is not on the tokens.** The request details drawer uses `150ms ease`, the chevron `0.1s`, the response body arrival `110ms ease-out`, and several loops (spinners 0.8s, pulse 1.2s, indeterminate 1.1s) use literals. The status tile and its code use `--dur-base` but `ease`, not `--ease-out`.
+- **Some motion is not on the tokens.** The chevron uses `0.1s`, the response body arrival `110ms ease-out`, and several loops (spinners 0.8s, pulse 1.2s, indeterminate 1.1s) use literals. The status tile and its code use `--dur-base` but `ease`, not `--ease-out`.
 - **Two focus treatments exist.** `styles.css` paints `--focus-ring` as a 2px `box-shadow`; `layout.css` later sets `outline: 2px solid var(--accent-fg); outline-offset: 1px` for buttons, summaries, separators and file-label links. `layout.css` loads last, so on buttons both apply (a box-shadow ring and an outline with 1px offset, both blue 2px). Inputs, selects and textareas use only the box-shadow.
 - **Legacy duplicate rules.** `styles.css` defines `.send`, `.modal`, `.chip`, `.secondary` and `.tabs` twice (an older GitHub-style block, then an overriding block). Edit the later block; the first is dead for most properties.
 - **No spacing or shadow tokens for sizes.** Shadow colours are tokens, but offsets and blur values, and all spacing, are literals.

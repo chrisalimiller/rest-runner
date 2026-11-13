@@ -32,6 +32,7 @@ export const SHORTCUTS: Shortcut[] = [
   { id: "send", keys: "Mod+Enter", label: "Send the request", group: "Requests" },
   { id: "save", keys: "Mod+S", label: "Save the open request or example", group: "Requests" },
   { id: "rename", keys: "F2", label: "Rename the open request", group: "Requests" },
+  { id: "toggle-sidebar", keys: "Mod+B", label: "Show or hide the collections sidebar", group: "Requests" },
   { id: "new-request", keys: "Mod+T", label: "New tab (an Untitled request)", group: "Tabs" },
   { id: "close-tab", keys: "Mod+W", label: "Close the active tab", group: "Tabs" },
   { id: "reopen-tab", keys: "Mod+Shift+T", label: "Reopen the last closed tab", group: "Tabs" },
