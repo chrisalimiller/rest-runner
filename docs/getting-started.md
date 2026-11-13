@@ -83,7 +83,7 @@ The request you are editing is remembered between launches, even if you never sa
 
 The **info button** in the top bar opens Settings, a dialog with a list on the left:
 
-- **General:** appearance, **Confirm production requests**, **Response size limit (bytes)** (see [Response size limits](requests.md#response-size-limits)) and a note on where secrets are stored.
+- **General:** appearance, **Confirm production requests**, **Rainbow brackets** (on by default; see [Rainbow brackets](requests.md#rainbow-brackets)), **Response size limit (bytes)** (see [Response size limits](requests.md#response-size-limits)) and a note on where secrets are stored.
 - **Keyboard shortcuts:** the list from [Quick open and keyboard shortcuts](shortcuts.md).
 - **About & updates:** the installed version and **Check for updates**.
 

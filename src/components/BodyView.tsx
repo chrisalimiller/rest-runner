@@ -1,5 +1,6 @@
 import { prettyBody } from "../lib/format";
 import { CodeEditor } from "./CodeEditor";
+import { RainbowText } from "./RainbowText";
 
 interface Props {
   body: string;
@@ -27,5 +28,7 @@ export function BodyView({ body, pretty = true, lineNumbers = false, beautify = 
       </div>
     );
   }
-  return <pre className="code-view">{beautify && p.isJson ? p.text : body}</pre>;
+  return <pre className="code-view">
+      <RainbowText text={beautify && p.isJson ? p.text : body} />
+    </pre>;
 }

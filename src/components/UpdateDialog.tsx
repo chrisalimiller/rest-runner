@@ -7,6 +7,8 @@ import { canUpdate, checkForUpdate, installedVersion, type FoundUpdate } from ".
 import { downloadPercent, plainNotes, releaseDate, versionLabel, type UpdateInfo, type UpdateState } from "../lib/updates";
 import { ShortcutsList } from "./shell/ShortcutsList";
 import { loadConfirmProduction, saveConfirmProduction } from "../lib/productionGuard";
+import { setRainbowBrackets } from "../lib/rainbowBrackets";
+import { useRainbowBrackets } from "./useRainbowBrackets";
 import { DEFAULT_RESPONSE_LIMIT, MAX_RESPONSE_LIMIT, getResponseLimit, setResponseLimit } from "../lib/http";
 import "./updateDialog.css";
 
@@ -18,6 +20,7 @@ export function UpdateDialog({ onClose }: { onClose: () => void }) {
   const [version, setVersion] = useState("");
   const [state, setState] = useState<UpdateState>({ kind: "idle" });
   const [confirmProd, setConfirmProd] = useState(loadConfirmProduction);
+  const rainbow = useRainbowBrackets();
   const [limit, setLimit] = useState(() => String(getResponseLimit()));
   const [limitError, setLimitError] = useState("");
   const found = useRef<FoundUpdate | null>(null);
@@ -98,6 +101,13 @@ export function UpdateDialog({ onClose }: { onClose: () => void }) {
                 <input type="checkbox" checked={confirmProd} onChange={(e) => { setConfirmProd(e.target.checked); saveConfirmProduction(e.target.checked); }} />
               </label>
               <p className="muted small">Ask before single sends and batch runs to environments marked Production.</p>
+            </section>
+            <section className="settings-block">
+              <label className="update-setting">
+                <span>Rainbow brackets</span>
+                <input type="checkbox" checked={rainbow} onChange={(e) => setRainbowBrackets(e.target.checked)} />
+              </label>
+              <p className="muted small">Colour matching brackets by how deeply they are nested in request and response bodies, scripts, the cURL command and exported scripts. Unmatched brackets show red.</p>
             </section>
             <section className="settings-block">
               <label className="update-setting">

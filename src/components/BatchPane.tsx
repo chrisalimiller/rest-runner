@@ -18,6 +18,7 @@ import { useCertificates } from "./CertificatesDialog";
 import { CallDetail } from "./CallDetail";
 import { PresetField } from "./PresetField";
 import { ConfirmProductionDialog } from "./shell/ConfirmProductionDialog";
+import { RainbowText } from "./RainbowText";
 import { RowPicker } from "./RowPicker";
 import { ScriptExportPanel } from "./ScriptExportPanel";
 
@@ -477,7 +478,14 @@ export function BatchPane({ def, envVars, scriptVars = NO_VARS, envName, confirm
                 {"\n"}
                 {`${p.method} ${p.url}\n`}
                 {p.headers.map(([k, v]) => `${k}: ${v}\n`).join("")}
-                {p.body ? `\n${p.body}` : ""}
+                {p.body ? (
+                  <>
+                    {"\n"}
+                    <RainbowText text={p.body} />
+                  </>
+                ) : (
+                  ""
+                )}
               </pre>
             );
           })}

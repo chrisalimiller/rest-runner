@@ -158,7 +158,7 @@ The top of the response column is a status band built like the URL bar: a pill w
 
 Under the band is one row of tabs. Content type, **Pretty / Raw** and **Copy** sit at its right end while the Body tab is open:
 
-- **Body**: JSON is highlighted. **Raw** shows the body as received and **Pretty** re-indents JSON. In Raw, JSON bodies also get a **Beautify** button that indents the text while keeping it plain and selectable (click again to see it as received). **Copy** copies what is showing.
+- **Body**: JSON is highlighted, with [rainbow brackets](#rainbow-brackets). **Raw** shows the body as received and **Pretty** re-indents JSON. In Raw, JSON bodies also get a **Beautify** button that indents the text while keeping it plain and selectable (click again to see it as received). **Copy** copies what is showing.
 - **Headers**: all response headers, with a count.
 - **Sent request**: the exact request that was sent, after placeholders, auth and default headers were applied.
 - **Scripts** (only when the request has scripts): see below. The label shows how many `rr.test` checks passed, for example `Scripts 2/3`, and the tab turns red if something failed.
@@ -166,6 +166,14 @@ Under the band is one row of tabs. Content type, **Pretty / Raw** and **Copy** s
 If no response comes back (server unreachable, DNS error, cancelled) you get an error box with the reason instead of a body. If the pre-request script failed, the box says the request was not sent and links to the script output.
 
 On the **Scripts** tab each script shows how long it took, its error if it threw, each `rr.test` with a pass or fail mark and message, its console output, and the **script variables afterwards**.
+
+## Rainbow brackets
+
+Matching brackets `( )`, `[ ]` and `{ }` are coloured by how deeply they are nested (four colours, then the first again), so you can see which one closes which. A bracket with no partner, or the wrong kind of partner, is red with a wavy underline. Brackets inside strings and comments are left alone, and so are the braces of `{{placeholders}}`.
+
+It applies to the request body editor, both script editors, the response body (Pretty and Raw), the sent-request view, the Tools raw response, the cURL panel, exported Python and Bash scripts, and the request preview in batch runs. The URL box, console output and error messages are not coloured.
+
+Turn it off or on in **Settings > General > Rainbow brackets** (the info button in the top bar). It is on by default, takes effect at once and is remembered. Bodies over 200,000 characters are shown without it, to keep typing and scrolling smooth.
 
 ## History and earlier sends
 

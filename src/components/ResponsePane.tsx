@@ -4,6 +4,7 @@ import { formatMs, statusTone } from "../lib/earlierSends";
 import { prettyBody, splitBytes } from "../lib/format";
 import { CANCELLED } from "../lib/http";
 import { BodyView } from "./BodyView";
+import { RainbowText } from "./RainbowText";
 import { ScriptResults, ScriptsBadge, scriptsTabLabel, scriptTestCounts, type ScriptRun } from "./ScriptResults";
 import { AlertIcon, CopyIcon, LockIcon, PlayIcon } from "./shell/Icons";
 import { MOD_KEY } from "./shell/TopBar";
@@ -266,7 +267,14 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
           <pre className="code-view">
             {mask(`${outcome.request.method} ${outcome.request.url}\n`)}
             {mask(outcome.request.headers.map(([k, v]) => `${k}: ${v}\n`).join(""))}
-            {outcome.request.body ? `\n${mask(outcome.request.body)}` : ""}
+            {outcome.request.body ? (
+              <>
+                {"\n"}
+                <RainbowText text={mask(outcome.request.body)} />
+              </>
+            ) : (
+              ""
+            )}
           </pre>
         )}
       </div>

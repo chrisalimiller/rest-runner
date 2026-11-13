@@ -17,6 +17,7 @@ import {
   type CallView,
 } from "../../lib/tools/view";
 import { BodyView } from "../BodyView";
+import { RainbowText } from "../RainbowText";
 import { OverflowMenu } from "../shell/OverflowMenu";
 import { InputControl } from "./InputControl";
 
@@ -333,7 +334,7 @@ function OkBody({ block, call, result, state, actions }: { block: ToolBlock; cal
       return (
         <details className="tool-json" open>
           <summary>{block.fields[0]?.path ? block.fields[0].path : "Response"}</summary>
-          <pre className="code-view">{text || "(nothing at that path)"}</pre>
+          <pre className="code-view">{text ? <RainbowText text={text} /> : "(nothing at that path)"}</pre>
         </details>
       );
     }

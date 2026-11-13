@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { CURL_SHELL_LABELS, requestToCurl, type CurlShell } from "../../lib/curl";
 import { Collapse } from "../Collapse";
+import { RainbowText } from "../RainbowText";
 import { useCertificates } from "../CertificatesDialog";
 import { currentMasker } from "../../lib/secrets";
 import { load, save } from "../../lib/storage";
@@ -81,7 +82,9 @@ export function CurlPanel({ def, vars, envName }: Props) {
       {empty ? (
         <p className="muted small">Enter a URL to see the command.</p>
       ) : (
-        <pre className="curl-command">{shown}</pre>
+        <pre className="curl-command">
+          <RainbowText text={shown} language="plain" />
+        </pre>
       )}
       {!empty && hasSecret && <p className="muted small">Secret values are hidden here. Copy puts the real command on your clipboard.</p>}
       {!empty && result.unresolved.length > 0 && (
