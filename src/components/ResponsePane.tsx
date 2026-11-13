@@ -24,6 +24,8 @@ interface Props {
   scriptVars?: Record<string, string>;
   /** Shown in place of the body when the sample kept no body, e.g. an older history entry. */
   bodyNote?: string;
+  /** The earlier-sends picker, shown at the end of the status field. */
+  earlier?: React.ReactNode;
 }
 
 type Tab = "body" | "headers" | "request" | "scripts";
@@ -35,8 +37,36 @@ function timeOfDay(iso: string): string {
   return Number.isNaN(d.getTime()) ? "" : `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-/** Status hero, Body / Headers / Sent request switch, and the body. Also draws the empty, sending and error states. */
-export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, errorHint, scripts, scriptVars, bodyNote }: Props) {
+/** The 60px band at the top of the response: one 40px field, built like the URL bar beside it. */
+function Band({ children, viewing = false }: { children: React.ReactNode; viewing?: boolean }) {
+  return (
+    <div className="resp-band">
+      <div className={`status-field ${viewing ? "viewing" : ""}`}>{children}</div>
+    </div>
+  );
+}
+
+/** The tab row used while there is no response to look at: Body only, the rest dimmed. */
+function IdleTabs() {
+  return (
+    <div className="req-tabs resp-tabs">
+      <div className="tabs" role="tablist" aria-label="Response parts">
+        <button role="tab" aria-selected className="active" tabIndex={0}>
+          Body
+        </button>
+        <button role="tab" aria-selected={false} disabled>
+          Headers
+        </button>
+        <button role="tab" aria-selected={false} disabled>
+          Sent request
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** Status band, Body / Headers / Sent request / Scripts tabs, and the body. Also draws the empty and sending states. */
+export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, errorHint, scripts, scriptVars, bodyNote, earlier }: Props) {
   const [chosenTab, setTab] = useState<Tab>("body");
   const [pretty, setPretty] = useState(true);
   const [beautify, setBeautify] = useState(false);
@@ -57,23 +87,40 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
 
   if (sending) {
     return (
-      <section className="response state">
-        <div className="indeterminate" aria-hidden>
-          <span />
+      <section className="response">
+        <Band>
+          <span className="field-main">
+            <span className="field-note">
+              <span className="pulse-dot" aria-hidden /> Sending request… <span className="mono muted">{formatMs(now - startRef.current)}</span>
+            </span>
+          </span>
+          {earlier}
+        </Band>
+        <IdleTabs />
+        <div className="response-body state">
+          <div className="indeterminate" aria-hidden>
+            <span />
+          </div>
         </div>
-        <p>
-          Sending request… <span className="mono muted">{formatMs(now - startRef.current)}</span>
-        </p>
       </section>
     );
   }
 
   if (!outcome) {
     return (
-      <section className="response state">
-        <PlayIcon size={28} className="state-icon" />
-        <p className="state-title">No response yet</p>
-        <p className="muted small">Press Send or {MOD_KEY} + Enter to see the response here.</p>
+      <section className="response">
+        <Band>
+          <span className="field-main">
+            <span className="field-note muted">No response yet</span>
+          </span>
+          {earlier}
+        </Band>
+        <IdleTabs />
+        <div className="response-body state">
+          <PlayIcon size={28} className="state-icon" />
+          <p className="state-title">No response yet</p>
+          <p className="muted small">Press Send or {MOD_KEY} + Enter to see the response here.</p>
+        </div>
       </section>
     );
   }
@@ -89,19 +136,17 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
   // Only the raw view needs it (Pretty parses the body itself); skipped otherwise so big bodies are not parsed twice.
   const body = res && !pretty ? prettyBody(res.body) : { isJson: false, text: "" };
   const contentType = res?.headers.find(([k]) => k.toLowerCase() === "content-type")?.[1].split(";")[0].trim() || "No content type";
+  const showBodyTools = tab === "body" && !!res && !bodyNote;
 
   return (
     <section className="response">
-      <div className="response-top">
-        <div className="status-hero">
+      <Band viewing={isSample && !cancelled}>
+        <span className="field-main">
           <span className={`status-tile tint-${tone}`} data-arrive={arrival}>
             <span className={`hero-code tone-${tone}`}>{res ? res.status : "ERR"}</span>
             <span className="hero-text">{res ? res.statusText || "" : cancelled ? "Cancelled" : "No response"}</span>
           </span>
-          <span className="hero-gap" />
-          {cancelled ? null : isSample ? (
-            <span className="chip example-chip">{sampleLabel ?? "Sample response"}</span>
-          ) : (
+          {cancelled ? null : (
             <span className="hero-meta">
               {outcome.ok ? outcome.response.durationMs : outcome.durationMs} <span className="unit">ms</span>
             </span>
@@ -117,43 +162,43 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
             </span>
           )}
           {!isSample && outcome.sentAt && <span className="hero-meta">{timeOfDay(outcome.sentAt)}</span>}
-        </div>
-        <div className="response-tools">
-          <div className="segmented" role="tablist" aria-label="Response parts">
-            <button role="tab" aria-selected={tab === "body"} className={tab === "body" ? "on" : ""} onClick={() => setTab("body")}>
-              Body
-            </button>
-            <button role="tab" aria-selected={tab === "headers"} className={tab === "headers" ? "on" : ""} onClick={() => setTab("headers")} disabled={!res || !!bodyNote}>
-              Headers{res ? ` ${res.headers.length}` : ""}
-            </button>
-            {!isSample && (
-              <button role="tab" aria-selected={tab === "request"} className={tab === "request" ? "on" : ""} onClick={() => setTab("request")}>
-                {notSent ? "Request" : "Sent request"}
-              </button>
-            )}
-            {hasScripts && (
-              <button
-                role="tab"
-                aria-selected={tab === "scripts"}
-                className={`${tab === "scripts" ? "on" : ""} ${scriptTestCounts(scripts).failed ? "has-failures" : ""}`}
-                onClick={() => setTab("scripts")}
-                title="Pre-request and post-response script output"
-              >
-                {scriptsTabLabel(scripts)}
-                <ScriptsBadge run={scripts} />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+          {isSample && !cancelled && <span className="viewing-tag">{sampleLabel ?? "Sample response"}</span>}
+        </span>
+        {earlier}
+      </Band>
 
-      <div className="response-block">
-        {tab === "body" && res && !bodyNote && (
-          <div className="block-head">
+      <div className="req-tabs resp-tabs">
+        <div className="tabs" role="tablist" aria-label="Response parts">
+          <button role="tab" aria-selected={tab === "body"} className={tab === "body" ? "active" : ""} onClick={() => setTab("body")}>
+            Body
+          </button>
+          <button role="tab" aria-selected={tab === "headers"} className={tab === "headers" ? "active" : ""} onClick={() => setTab("headers")} disabled={!res || !!bodyNote}>
+            Headers
+            {res && <span className="req-details-mark">{res.headers.length}</span>}
+          </button>
+          {!isSample && (
+            <button role="tab" aria-selected={tab === "request"} className={tab === "request" ? "active" : ""} onClick={() => setTab("request")}>
+              {notSent ? "Request" : "Sent request"}
+            </button>
+          )}
+          {hasScripts && (
+            <button
+              role="tab"
+              aria-selected={tab === "scripts"}
+              className={`${tab === "scripts" ? "active" : ""} ${scriptTestCounts(scripts).failed ? "has-failures" : ""}`}
+              onClick={() => setTab("scripts")}
+              title="Pre-request and post-response script output"
+            >
+              {scriptsTabLabel(scripts)}
+              <ScriptsBadge run={scripts} />
+            </button>
+          )}
+        </div>
+        {showBodyTools && (
+          <div className="req-tabs-end">
             <span className="block-head-type" title="Content-Type">
               {contentType}
             </span>
-            <span className="hero-gap" />
             <div className="segmented small" role="group" aria-label="Body view">
               <button className={pretty ? "on" : ""} aria-pressed={pretty} onClick={() => setPretty(true)} title="Pretty-print JSON">
                 Pretty
@@ -172,6 +217,8 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
             </button>
           </div>
         )}
+      </div>
+
       <div className="response-body" data-arrive={tab === "body" && (res?.body.length ?? 0) <= 200_000 ? arrival : undefined}>
         {tab === "body" &&
           (res && bodyNote ? (
@@ -222,7 +269,6 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
             {outcome.request.body ? `\n${mask(outcome.request.body)}` : ""}
           </pre>
         )}
-      </div>
       </div>
     </section>
   );

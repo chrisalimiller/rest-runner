@@ -119,7 +119,7 @@ Differences from a run in the app:
 
 ## The run explorer
 
-Open a saved run from **Quick open → Batch runs**, from the **Earlier sends of this request** pills, or the link after a run. It shows:
+Open a saved run from **Quick open → Batch runs**, from the earlier sends picker in the response band, or the link after a run. It shows:
 
 - **Totals**: sent, passed, failed, total time, average, and 95th percentile response time.
 - **Status code chips**: counts per status code (and `Error` for no response). Click one to filter the list.

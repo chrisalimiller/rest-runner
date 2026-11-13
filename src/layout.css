@@ -727,19 +727,12 @@ body.dragging-split {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(380px, var(--split-a, 55fr)) 10px minmax(380px, var(--split-b, 45fr));
-  background: var(--bg-inset);
-  padding: 10px 12px 12px;
+  grid-template-columns: minmax(380px, var(--split-a, 55fr)) 1px minmax(380px, var(--split-b, 45fr));
+  background: var(--bg);
 }
 
 .inspector[hidden] {
   display: none;
-}
-
-/* The tab bar already leaves 8px under its tabs (44px bar, 28px tabs), which matches the 8px above them.
-   Drop the inspector's own top padding there so the gap to the request panel is the same 8px. */
-.rtab-bar ~ .requests-body .inspector {
-  padding-top: 0;
 }
 
 /* A batch run is on screen: the request folds into a bar and the results take the full width. */
@@ -783,19 +776,16 @@ body.dragging-split {
   font-size: var(--fs-sm);
 }
 
-/* Two floating panels. The request panel stays overflow: visible; its body block clips itself. */
+/* Two flat panes on the canvas, divided by the 1px splitter. Each opens with a 60px band (the URL row, or the
+   response status) and a 36px tab row, so the lines between them run straight across both panes. */
 .request-col,
 .response-col {
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 12px;
   min-width: 0;
   min-height: 0;
-  padding: 16px;
   background: var(--bg);
-  border-radius: var(--r-lg);
-  box-shadow: var(--panel-ring);
 }
 
 .response-col {
@@ -807,6 +797,7 @@ body.dragging-split {
   flex-direction: column;
   gap: 8px;
   flex: none;
+  padding: 10px 12px;
 }
 
 /* The URL row is always one line: the URL box gives way, Send and the menu keep their size. */
@@ -1025,10 +1016,14 @@ button.unfilled-dot:hover {
 /* One row of tabs under the URL row: Params, Auth, Headers, Body, Scripts, with the certificate chip at the right end. */
 .req-tabs {
   flex: none;
+  box-sizing: border-box;
+  height: 36px;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 12px;
   min-width: 0;
+  padding: 0 10px 0 6px;
+  border-bottom: 1px solid var(--border-muted);
   font-size: var(--fs-sm);
 }
 
@@ -1047,11 +1042,16 @@ button.unfilled-dot:hover {
   display: none;
 }
 
+.req-tabs .tabs {
+  align-items: stretch;
+}
+
 .req-tabs .tabs button {
   flex: none;
-  height: 30px;
-  margin: 0;
-  padding: 0 12px;
+  height: auto;
+  margin: 0 0 -1px;
+  padding: 0 10px;
+  border-radius: 0;
   font-size: var(--fs-sm);
   white-space: nowrap;
 }
@@ -1061,6 +1061,7 @@ button.unfilled-dot:hover {
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
 }
 
 /* Body: fills what is left of the column; the drawer floats over it. */
@@ -1072,40 +1073,15 @@ button.unfilled-dot:hover {
   flex-direction: column;
 }
 
-/* The soft code block: rounded, with a header strip. A ::after layer draws the ring above the editor's own background. */
+/* The body fills the pane to its edges; the tab row above carries the body type, Valid, Format and Copy. */
 .req-body-block {
   position: relative;
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  border-radius: var(--r-lg);
-  background: var(--bg-inset);
+  background: var(--bg);
   overflow: hidden;
-}
-
-.req-body-block::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: inset 0 0 0 1px var(--border-muted);
-  pointer-events: none;
-}
-
-.req-body-block:focus-within::after {
-  box-shadow: inset 0 0 0 1px var(--accent);
-}
-
-.req-body-head,
-.block-head {
-  flex: none;
-  height: 38px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 10px 0 12px;
-  min-width: 0;
 }
 
 .block-icon-btn {
@@ -1248,43 +1224,39 @@ button.unfilled-dot:hover {
   background: transparent;
 }
 
-/* Splitter: no line, a pill handle in a transparent 10px track. */
+/* Splitter: one 1px line that is also the resize handle (7px hit area). */
 .splitter {
   position: relative;
   cursor: col-resize;
-  background: transparent;
+  background: var(--border-muted);
   touch-action: none;
 }
 
 .splitter::before {
   content: "";
   position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 4px;
-  height: 44px;
-  transform: translate(-50%, -50%);
-  border-radius: var(--r-pill);
-  background: var(--border);
+  inset: 0 -3px;
 }
 
-.splitter:hover::before,
-.splitter:focus-visible::before {
+.splitter:hover,
+.splitter:focus-visible {
   background: var(--accent);
 }
 
 .splitter:focus-visible {
   outline: none;
-  box-shadow: var(--focus-ring-inset);
 }
 
-.splitter:focus-visible::before {
-  width: 6px;
-}
-
-.pane-switch {
+/* The Response / Batch run switch, with an empty strip of the same height above the request so the bands still line up. */
+.pane-switch,
+.pane-spacer {
   display: flex;
   flex: none;
+  box-sizing: border-box;
+  height: 36px;
+  align-items: center;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--border-muted);
 }
 
 .response-main,
@@ -1293,7 +1265,6 @@ button.unfilled-dot:hover {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
 .response-main[hidden],
@@ -1306,31 +1277,60 @@ button.unfilled-dot:hover {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
-.response-top {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+/* The 60px band (10 + 40 + 10) matches the URL row beside it; the field is built like the URL bar. */
+.resp-band {
   flex: none;
+  box-sizing: border-box;
+  height: 60px;
+  padding: 10px 12px;
 }
 
-.status-hero {
+.status-field {
+  height: 40px;
+  box-sizing: border-box;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 6px 18px;
-  min-width: 0;
+  gap: 10px;
+  padding: 5px;
+  border-radius: var(--r-lg);
+  background: var(--bg-inset);
+  box-shadow: inset 0 0 0 1px var(--border);
 }
 
-/* The code and text sit in a tile tinted by the status. */
-.status-tile {
+.status-field.viewing {
+  box-shadow: inset 0 0 0 1px var(--warn);
+}
+
+/* Left part (status, timing, size). It clips; the earlier-sends picker at the right end does not. */
+.status-field .field-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.field-note {
+  padding: 0 8px;
   display: inline-flex;
-  align-items: baseline;
-  gap: 10px;
-  padding: 4px 14px 4px 12px;
-  border-radius: var(--r-lg);
+  align-items: center;
+  gap: 8px;
+}
+
+/* The status sits in a pill where the URL bar has the method pill. */
+.status-tile {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border-radius: var(--r-md);
   background: color-mix(in srgb, var(--other) 10%, transparent);
   transition: background-color var(--dur-base, 160ms) ease, color var(--dur-base, 160ms) ease, border-color var(--dur-base, 160ms) ease;
 }
@@ -1362,31 +1362,29 @@ button.unfilled-dot:hover {
   @keyframes response-arrive-reduced { from { opacity: 0.7; } to { opacity: 1; } }
 }
 
-.status-tile.tint-ok { background: color-mix(in srgb, var(--ok) 10%, transparent); }
-.status-tile.tint-warn { background: color-mix(in srgb, var(--warn) 10%, transparent); }
-.status-tile.tint-bad { background: color-mix(in srgb, var(--bad) 10%, transparent); }
-.status-tile.tint-redirect { background: color-mix(in srgb, var(--redirect) 10%, transparent); }
+.status-tile.tint-ok { background: color-mix(in srgb, var(--ok) 12%, transparent); }
+.status-tile.tint-warn { background: color-mix(in srgb, var(--warn) 12%, transparent); }
+.status-tile.tint-bad { background: color-mix(in srgb, var(--bad) 12%, transparent); }
+.status-tile.tint-redirect { background: color-mix(in srgb, var(--redirect) 12%, transparent); }
 
 .hero-code {
   font-family: var(--mono);
-  font-size: var(--fs-display);
-  font-weight: 600;
-  line-height: 1.1;
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  line-height: 1;
 }
 
 .hero-text {
   font-family: var(--display);
-  font-size: var(--fs-lg);
+  font-size: var(--fs-md);
   font-weight: 600;
 }
 
 .hero-meta {
+  flex: none;
   font-family: var(--mono);
   font-size: var(--fs-sm);
   color: var(--text);
-  padding: 3px 10px;
-  border-radius: var(--r-pill);
-  background: var(--bg-soft);
   white-space: nowrap;
 }
 
@@ -1394,11 +1392,17 @@ button.unfilled-dot:hover {
   color: var(--muted);
 }
 
-.response-tools {
-  display: flex;
-  flex-wrap: wrap;
+.viewing-tag {
+  flex: none;
+  height: 22px;
+  display: inline-flex;
   align-items: center;
-  gap: 8px 14px;
+  padding: 0 8px;
+  border-radius: var(--r-sm);
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--warn);
+  background: color-mix(in srgb, var(--warn) 14%, transparent);
 }
 
 /* Request and response panels: segmented switches are pills. */
@@ -1427,27 +1431,7 @@ button.unfilled-dot:hover {
   font-size: var(--fs-xs);
 }
 
-/* The response body block, like the request body block. */
-.response-block {
-  position: relative;
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-  border-radius: var(--r-lg);
-  background: var(--bg-inset);
-  overflow: hidden;
-}
-
-.response-block::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: inset 0 0 0 1px var(--border-muted);
-  pointer-events: none;
-}
-
+/* The response body fills the pane to its edges, like the request body. */
 .block-head-type {
   min-width: 0;
   overflow: hidden;
@@ -1469,7 +1453,7 @@ button.unfilled-dot:hover {
 .response-col .response-body > .code-view {
   border: 0;
   border-radius: 0;
-  background: var(--bg-inset);
+  background: var(--bg);
   min-height: 100%;
 }
 
@@ -1509,22 +1493,16 @@ button.unfilled-dot:hover {
   color: var(--muted);
 }
 
-/* Empty and sending states sit in the same rounded block. */
-.response.state {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
+/* Empty and sending states fill the body area under the band and tab row. */
+.response-body.state {
   align-items: center;
   justify-content: center;
   gap: 6px;
   text-align: center;
   padding: 24px;
-  border-radius: var(--r-lg);
-  background: var(--bg-inset);
-  box-shadow: inset 0 0 0 1px var(--border-muted);
 }
 
-.response.state p {
+.response-body.state p {
   margin: 0;
 }
 
@@ -1588,49 +1566,114 @@ button.unfilled-dot:hover {
   }
 }
 
-/* Earlier sends strip */
-.earlier-sends {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+/* Earlier sends: a pill at the end of the status field, built like the method pill at the other end of the URL bar. */
+.earlier-select {
+  position: relative;
   flex: none;
 }
 
-.earlier-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.send-pill {
-  height: 26px;
-  padding: 0 10px;
+.earlier-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  box-sizing: border-box;
+  padding: 0 8px 0 10px;
   border: 0;
-  border-radius: var(--r-pill);
-  background: color-mix(in srgb, var(--other) 12%, transparent);
-  font-family: var(--mono);
-  font-size: var(--fs-xs);
-  white-space: nowrap;
+  border-radius: var(--r-md);
+  background: var(--btn-bg);
+  box-shadow: inset 0 0 0 1px var(--btn-border);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: 500;
+  cursor: pointer;
 }
 
-.send-pill:hover,
-.send-pill.current {
+.earlier-trigger:hover {
+  background: var(--btn-hover);
+}
+
+.earlier-trigger:focus-visible {
+  outline: 2px solid var(--border-focus);
+  outline-offset: -2px;
+}
+
+.earlier-caret {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  opacity: 0.7;
+}
+
+.send-dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.send-dot.tone-ok { background: var(--ok); }
+.send-dot.tone-redirect { background: var(--redirect); }
+.send-dot.tone-warn { background: var(--warn); }
+.send-dot.tone-bad { background: var(--bad); }
+
+.earlier-list-popup {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 50;
+  width: 360px;
+  max-height: 320px;
+  overflow: auto;
+  padding: 4px;
   background: var(--bg-soft);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-md);
+  box-shadow: 0 8px 24px rgba(1, 4, 9, 0.5);
+}
+
+.earlier-list-head {
+  padding: 6px 8px 4px;
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--muted);
+}
+
+.earlier-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 8px;
+  border-radius: var(--r-xs);
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.earlier-option.active {
+  background: var(--bg-hover);
+}
+
+.earlier-option.current {
   box-shadow: inset 0 0 0 1px var(--border);
 }
 
-.send-pill.tone-ok { color: var(--ok); background: color-mix(in srgb, var(--ok) 12%, transparent); }
-.send-pill.tone-redirect { color: var(--redirect); background: color-mix(in srgb, var(--redirect) 12%, transparent); }
-.send-pill.tone-warn { color: var(--warn); background: color-mix(in srgb, var(--warn) 12%, transparent); }
-.send-pill.tone-bad { color: var(--bad); background: color-mix(in srgb, var(--bad) 12%, transparent); }
-.send-pill.tone-muted { color: var(--muted); }
+.earlier-option-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
 
-.send-pill.tone-ok:hover,
-.send-pill.tone-redirect:hover,
-.send-pill.tone-warn:hover,
-.send-pill.tone-bad:hover,
-.send-pill.current {
-  background: var(--bg-soft);
+.earlier-option-tag {
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: var(--fs-xs);
 }
 
 /* Batch pane inside the response column */
@@ -1641,27 +1684,12 @@ button.unfilled-dot:hover {
 /* Stack by the room the Requests area has, not the window, since a side panel can take 320px of it. */
 @container requests-main (max-width: 1000px) {
   .inspector {
-    display: flex;
-    flex-direction: column;
-    overflow: auto;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) 1px minmax(0, 1fr);
   }
 
   .splitter {
-    display: none;
-  }
-
-  .inspector {
-    gap: 10px;
-  }
-
-  .request-col {
-    flex: none;
-    min-height: 520px;
-  }
-
-  .response-col {
-    flex: none;
-    min-height: 480px;
+    cursor: row-resize;
   }
 }
 
@@ -3294,3 +3322,184 @@ select:focus-visible,
   }
 }
 
+/* ---------- Requests: collapsible collections sidebar ---------- */
+.sidebar-toggle {
+  flex: none;
+}
+
+.sidebar-toggle.on {
+  color: var(--text);
+  background: var(--btn-bg);
+}
+
+.requests-sidebar {
+  flex: none;
+  width: 260px;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-inset);
+  border-right: 1px solid var(--border-muted);
+}
+
+/* Narrow windows: it floats over the panes with a scrim instead of squeezing them. */
+.requests-sidebar.overlay {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 40;
+  border-right-color: var(--border);
+  box-shadow: 16px 0 32px var(--shadow-pop);
+}
+
+.side-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 39;
+  background: rgba(1, 4, 9, 0.45);
+}
+
+.requests-sidebar .side-head {
+  flex: none;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 8px 0 10px;
+}
+
+.side-head-gap {
+  flex: 1;
+}
+
+.side-search {
+  flex: none;
+  height: 30px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 10px 8px;
+  padding: 0 10px;
+  border-radius: var(--r-md);
+  background: var(--bg);
+  box-shadow: inset 0 0 0 1px var(--border);
+  color: var(--muted);
+}
+
+.side-search:focus-within {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.side-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: var(--text);
+  font-size: var(--fs-sm);
+}
+
+.side-search input:focus {
+  outline: none;
+  box-shadow: none;
+}
+
+.requests-sidebar .side-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 4px;
+}
+
+.side-note {
+  padding: 8px 10px;
+}
+
+.hist-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.hist-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: var(--r-xs);
+  background: transparent;
+  color: var(--text);
+  font-size: var(--fs-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.hist-row:hover {
+  background: var(--bg-hover);
+}
+
+.hist-row.current {
+  box-shadow: inset 0 0 0 1px var(--border);
+}
+
+.hist-row .method {
+  flex: none;
+  width: auto;
+  min-width: 38px;
+}
+
+.hist-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.hist-status {
+  flex: none;
+  font: 600 var(--fs-xs) var(--mono);
+}
+
+.hist-status.tone-ok { color: var(--ok); }
+.hist-status.tone-redirect { color: var(--redirect); }
+.hist-status.tone-warn { color: var(--warn); }
+.hist-status.tone-bad { color: var(--bad); }
+
+.hist-when {
+  flex: none;
+  min-width: 52px;
+  text-align: right;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.requests-sidebar .side-foot {
+  flex: none;
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--border-muted);
+}
+
+.requests-sidebar .side-foot button {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+/* Editors in the flat panes share the pane's ground instead of the darker inset. */
+.inspector .code-editor-frame,
+.inspector .cm-editor,
+.inspector .code-view-frame {
+  background: var(--bg);
+}

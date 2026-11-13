@@ -220,3 +220,14 @@ export function VariablesIcon({ size = 14 }: IconProps) {
     </svg>
   );
 }
+
+/** A window with its left column marked: the Requests sidebar toggle. */
+export function SidebarIcon({ size = 16 }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3.5" y="4.5" width="17" height="15" rx="2.5" />
+      <path d="M9.5 4.5v15" />
+    </svg>
+  );
+}
+

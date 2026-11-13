@@ -15,6 +15,8 @@ interface Props {
   mode: Mode;
   onQuickOpen: () => void;
   searchPlaceholder: string;
+  /** Right after the brand, before the switcher: the Requests sidebar toggle. */
+  leading?: React.ReactNode;
   /** The request switcher (Requests) or the suite name (Testing). */
   switcher?: React.ReactNode;
   environments: Environment[];
@@ -48,6 +50,7 @@ export function TopBar(props: Props) {
       data-tauri-drag-region={overlayTitleBar ? "deep" : undefined}
     >
       <BrandLockup />
+      {props.leading}
       {props.switcher}
       <button
         className={`quick-open-field ${layout.compactSearch ? "compact" : ""}`}

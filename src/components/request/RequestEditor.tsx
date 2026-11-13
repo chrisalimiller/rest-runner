@@ -205,6 +205,37 @@ export function RequestEditor({ def, onChange, envVars, envName, onConvertLitera
     },
   ];
 
+  const bodyTools = (
+    <>
+      <select className="body-mode-select" value={def.bodyMode} onChange={(e) => onChange({ bodyMode: e.target.value as BodyMode })} aria-label="Body type">
+        {BODY_MODES.map((m) => (
+          <option key={m} value={m}>
+            {BODY_LABELS[m]}
+          </option>
+        ))}
+      </select>
+      {def.bodyMode === "json" && def.body.trim() !== "" && <span className={`json-status ${problem ? "bad" : "ok"}`}>{problem ? "Invalid JSON" : "Valid"}</span>}
+      {def.bodyMode === "json" && (
+        <button
+          className="link-btn small"
+          onClick={() => {
+            const formatted = formatJson(def.body);
+            if (formatted !== null) onChange({ body: formatted });
+          }}
+          disabled={problem !== null || def.body.trim() === ""}
+          title="Format (Shift+Alt+F)"
+        >
+          Format
+        </button>
+      )}
+      {(def.bodyMode === "json" || def.bodyMode === "text") && (
+        <button className="block-icon-btn" onClick={() => copyToClipboard(def.body, "Copied the body")} disabled={def.body === ""} aria-label="Copy body" title="Copy body">
+          <CopyIcon />
+        </button>
+      )}
+    </>
+  );
+
   return (
     <>
       <div className="url-block">
@@ -252,6 +283,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onConvertLitera
         warnings={postmanWarning ? { scripts: postmanWarning } : undefined}
         end={
           <>
+            {tab === "body" && bodyTools}
             {!methodAllowsBody && <span className="muted">No body for {def.method}</span>}
             <CertificateChip url={finalUrl} skipped={!!def.noCertificate} onSkip={(skip) => onChange({ noCertificate: skip || undefined })} />
           </>
@@ -262,35 +294,6 @@ export function RequestEditor({ def, onChange, envVars, envName, onConvertLitera
         <div className="req-body-block">
           {tab === "body" ? (
             <>
-              <div className="req-body-head">
-                <select className="body-mode-select" value={def.bodyMode} onChange={(e) => onChange({ bodyMode: e.target.value as BodyMode })} aria-label="Body type">
-                  {BODY_MODES.map((m) => (
-                    <option key={m} value={m}>
-                      {BODY_LABELS[m]}
-                    </option>
-                  ))}
-                </select>
-                {def.bodyMode === "json" && def.body.trim() !== "" && <span className={`json-status ${problem ? "bad" : "ok"}`}>{problem ? "Invalid JSON" : "Valid"}</span>}
-                <span className="hero-gap" />
-                {def.bodyMode === "json" && (
-                  <button
-                    className="link-btn small"
-                    onClick={() => {
-                      const formatted = formatJson(def.body);
-                      if (formatted !== null) onChange({ body: formatted });
-                    }}
-                    disabled={problem !== null || def.body.trim() === ""}
-                    title="Format (Shift+Alt+F)"
-                  >
-                    Format
-                  </button>
-                )}
-                {(def.bodyMode === "json" || def.bodyMode === "text") && (
-                  <button className="block-icon-btn" onClick={() => copyToClipboard(def.body, "Copied the body")} disabled={def.body === ""} aria-label="Copy body" title="Copy body">
-                    <CopyIcon />
-                  </button>
-                )}
-              </div>
               <BodyEditor
                 toolbar={false}
                 lineNumbers

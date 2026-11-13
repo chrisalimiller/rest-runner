@@ -16,16 +16,23 @@ interface Props {
   renaming: boolean;
   onRenamingChange: (renaming: boolean) => void;
   onRename: (name: string) => void;
+  /** The collections sidebar is open beside the panes: no popover, no chevron; clicking the path reveals the request in the sidebar. */
+  docked?: boolean;
+  onReveal?: () => void;
   /** The popover: collections tree and its links. */
   children: React.ReactNode;
 }
 
 /**
  * The top-bar button that shows where the open request lives and opens the collections
- * popover. Clicking the name (or F2) renames the request in place.
+ * popover. Clicking the name (or F2) renames the request in place. With the sidebar docked it
+ * only shows the path, and a click reveals the request in the sidebar.
  */
 export function RequestSwitcher(props: Props) {
-  const { open, onOpenChange } = props;
+  const { onOpenChange } = props;
+  const popover = !props.docked;
+  const open = popover && props.open;
+  const toggle = () => (popover ? onOpenChange(!open) : props.onReveal?.());
   const wrapRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -44,13 +51,21 @@ export function RequestSwitcher(props: Props) {
   return (
     <div className="switcher" ref={wrapRef}>
       {/* Pointer-only convenience: clicking the bar's padding toggles the popover. Keyboard and screen-reader users operate the real buttons inside. */}
-      <div className={`switcher-btn ${open ? "open" : ""}`} role="presentation" onClick={(e) => e.target === e.currentTarget && onOpenChange(!open)}>
+      <div className={`switcher-btn ${open ? "open" : ""}`} role="presentation" onClick={(e) => e.target === e.currentTarget && toggle()}>
         <button
           className="switcher-open"
-          onClick={() => onOpenChange(!open)}
-          aria-haspopup="dialog"
-          aria-expanded={open}
-          title={props.crumbs.length ? `${props.crumbs.join(" › ")} · open collections` : "Open collections"}
+          onClick={toggle}
+          aria-haspopup={popover ? "dialog" : undefined}
+          aria-expanded={popover ? open : undefined}
+          title={
+            popover
+              ? props.crumbs.length
+                ? `${props.crumbs.join(" › ")} · open collections`
+                : "Open collections"
+              : props.crumbs.length
+                ? `${props.crumbs.join(" › ")} · show in the sidebar`
+                : "Show in the sidebar"
+          }
         >
           {props.crumbs.map((c, i) => (
             <span key={i} className={`switcher-crumb ${i === props.crumbs.length - 1 ? "last" : ""}`}>
@@ -75,14 +90,14 @@ export function RequestSwitcher(props: Props) {
           <>
             <button
               className="switcher-name"
-              onClick={() => onOpenChange(!open)}
+              onClick={toggle}
               onDoubleClick={() => {
                 onOpenChange(false);
                 props.onRenamingChange(true);
               }}
-              aria-haspopup="dialog"
-              aria-expanded={open}
-              title="Open collections. Double-click or press F2 to rename."
+              aria-haspopup={popover ? "dialog" : undefined}
+              aria-expanded={popover ? open : undefined}
+              title={popover ? "Open collections. Double-click or press F2 to rename." : "Show in the sidebar. Double-click or press F2 to rename."}
             >
               {props.name || "Untitled request"}
             </button>
@@ -92,9 +107,11 @@ export function RequestSwitcher(props: Props) {
           </>
         )}
         {props.unsaved && <span className="unsaved-dot" title={props.unsaved} aria-label={props.unsaved} role="img" />}
-        <button className="switcher-chevron" onClick={() => onOpenChange(!open)} aria-label="Open collections" aria-expanded={open} tabIndex={-1}>
-          <ChevronDownIcon />
-        </button>
+        {popover && (
+          <button className="switcher-chevron" onClick={toggle} aria-label="Open collections" aria-expanded={open} tabIndex={-1}>
+            <ChevronDownIcon />
+          </button>
+        )}
       </div>
       {open && (
         <ExitDiv className="switcher-popover" role="dialog" aria-label="Collections">

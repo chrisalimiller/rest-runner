@@ -82,7 +82,6 @@
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-in: cubic-bezier(0.4, 0, 1, 1);
   --r-pill: 999px;
-  --panel-ring: 0 0 0 1px var(--border-muted);
   --ok-subtle: rgba(63, 185, 80, 0.15);
   --bad-subtle: rgba(248, 81, 73, 0.15);
   --text-soft: #c9d1d9;
@@ -2737,6 +2736,6 @@ table.results.row-picker-table tr.rp-filters th {
   outline-offset: 2px;
 }
 
-.block-head .link-btn.on {
+.req-tabs-end .link-btn.on {
   color: var(--accent-fg);
 }
