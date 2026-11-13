@@ -1866,9 +1866,12 @@ button.unfilled-dot:hover {
   font-size: var(--fs-xs);
 }
 
-/* Batch pane inside the response column */
+/* Batch pane inside the response column. The flat pane has no card around it, so it brings its own 12px inset
+   (the same as the bands above it). */
 .batch-main .batch {
   min-height: 0;
+  padding: 12px;
+  box-sizing: border-box;
 }
 
 /* Stack by the room the Requests area has, not the window, since a side panel can take 320px of it. */
