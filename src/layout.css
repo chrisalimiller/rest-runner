@@ -3472,15 +3472,6 @@ select:focus-visible,
 }
 
 /* ---------- Requests: collapsible collections sidebar ---------- */
-.sidebar-toggle {
-  flex: none;
-}
-
-.sidebar-toggle.on {
-  color: var(--text);
-  background: var(--btn-bg);
-}
-
 .requests-sidebar {
   flex: none;
   width: 260px;

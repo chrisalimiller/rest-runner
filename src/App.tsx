@@ -15,7 +15,7 @@ import { EarlierSendsSelect } from "./components/request/EarlierSendsSelect";
 import { RequestsSidebar, type SidebarTab } from "./components/request/RequestsSidebar";
 import { useCollapsed } from "./components/shell/useCollapsed";
 import { useViewportWidth } from "./components/useViewportWidth";
-import { SidebarIcon } from "./components/shell/Icons";
+import { publishRequestsSidebar } from "./lib/requestsSidebar";
 import { allNodeIds, filterCollections } from "./lib/collectionFilter";
 import { RunExplorer } from "./components/RunExplorer";
 import { MOD_KEY, TopBar } from "./components/shell/TopBar";
@@ -302,6 +302,11 @@ export default function App({ active = true, shell, command }: Props) {
   const toggleSidebarRef = useRef(toggleSidebar);
   toggleSidebarRef.current = toggleSidebar;
   const closeOverlay = () => setOverlayOpen(false);
+  // The toggle itself lives in the status bar, which reads this.
+  useEffect(() => {
+    publishRequestsSidebar({ open: sideOpen, toggle: () => toggleSidebarRef.current() });
+  }, [sideOpen]);
+  useEffect(() => () => publishRequestsSidebar(null), []);
   const [renamingName, setRenamingName] = useState(false);
   const [split, setSplit] = useState<number>(() => {
     const v = load<number>(SPLIT_KEY, 0.55);
@@ -1214,18 +1219,6 @@ export default function App({ active = true, shell, command }: Props) {
         mode="requests"
         onQuickOpen={shell.onQuickOpen}
         searchPlaceholder="Jump to a request, example, run or history…"
-        leading={
-          <button
-            className={`icon-btn sidebar-toggle ${sideOpen ? "on" : ""}`}
-            onClick={toggleSidebar}
-            aria-pressed={sideOpen}
-            aria-label="Collections sidebar"
-            title={`${sideOpen ? "Hide" : "Show"} the collections sidebar (${MOD_KEY} B)`}
-            aria-keyshortcuts="Control+B Meta+B"
-          >
-            <SidebarIcon />
-          </button>
-        }
         switcher={switcher}
         environments={environments}
         activeEnvId={activeEnvId}
