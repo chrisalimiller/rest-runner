@@ -9,7 +9,7 @@
   <a href="docs/shortcuts.md">Shortcuts</a>
 </p>
 
-<p align="center"><img src="docs/images/requests.png" alt="The Requests screen: the request editor with its Params, Auth, Headers, Body and Scripts tabs on the left, the response on the right, and the section bar along the bottom" width="860"></p>
+<p align="center"><img src="docs/images/requests.png" alt="The Requests screen: the collections sidebar on the left, the open request tabs above the request editor, the response with colored brackets on the right, and the section bar along the bottom" width="860"></p>
 
 ## One app, four jobs
 
