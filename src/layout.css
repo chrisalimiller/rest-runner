@@ -394,6 +394,21 @@ body.dragging-split {
   min-width: 0;
 }
 
+/* With no switcher, the search sits in the middle of the bar (the compact icon too). The brand and the right-hand
+   controls stay in the flow, so the fit measuring still counts everything. */
+.topbar.centered-search > .quick-open-field {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  flex: none;
+  width: clamp(200px, 38vw, 460px);
+}
+
+.topbar.centered-search > .quick-open-field.compact {
+  width: auto;
+}
+
 /* Last measured fit level 1: the request switcher drops its folder path. */
 .topbar[data-fit-crumbs="off"] .switcher-crumb {
   display: none;
@@ -887,6 +902,50 @@ body.dragging-split {
 .request-crumb .crumb-seg:hover {
   background: var(--bg-hover);
   color: var(--text);
+}
+
+.request-crumb .crumb-cur {
+  gap: 2px;
+}
+
+.request-crumb .crumb-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: text;
+}
+
+.request-crumb .crumb-pencil {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--r-xs);
+  color: var(--muted);
+  opacity: 0;
+}
+
+.request-crumb .crumb-cur:hover .crumb-pencil,
+.request-crumb .crumb-pencil:focus-visible {
+  opacity: 1;
+}
+
+.request-crumb .crumb-pencil:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.request-crumb .crumb-rename {
+  min-width: 140px;
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--accent);
+  border-radius: var(--r-xs);
+  background: var(--bg-inset);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
 }
 
 .request-crumb .crumb-sep {

@@ -8,7 +8,6 @@ import { CurlImportDialog, type CurlImportChoice } from "./components/request/Cu
 import { RequestEditor } from "./components/request/RequestEditor";
 import { RequestCrumb } from "./components/request/RequestCrumb";
 import { UnsavedBar } from "./components/request/UnsavedBar";
-import { RequestSwitcher } from "./components/request/RequestSwitcher";
 import { RequestTabBar, showTabBar } from "./components/request/RequestTabBar";
 import { ResponsePane } from "./components/ResponsePane";
 import { EarlierSendsSelect } from "./components/request/EarlierSendsSelect";
@@ -288,7 +287,6 @@ export default function App({ active = true, shell, command }: Props) {
   const certificateList = useCertificates();
   const [curlBanners, setCurlBanners] = useState<Record<string, CurlBannerState>>({});
   const [curlDialog, setCurlDialog] = useState<CurlDialogState | null>(null);
-  const [switcherOpen, setSwitcherOpen] = useState(false);
   // The collections sidebar: docked at the left when the window is wide, floating over the panes (with a scrim) when it is not.
   const [sideCollapsed, toggleSideCollapsed] = useCollapsed("rest-runner.requests-sidebar-collapsed");
   const viewportWidth = useViewportWidth();
@@ -297,11 +295,16 @@ export default function App({ active = true, shell, command }: Props) {
   const [sideTab, setSideTab] = useState<SidebarTab>("collections");
   const [sideQuery, setSideQuery] = useState("");
   const sideOpen = sideOverlay ? overlayOpen : !sideCollapsed;
-  const sideDocked = sideOpen && !sideOverlay;
   const toggleSidebar = () => (sideOverlay ? setOverlayOpen((o) => !o) : toggleSideCollapsed());
   const toggleSidebarRef = useRef(toggleSidebar);
   toggleSidebarRef.current = toggleSidebar;
   const closeOverlay = () => setOverlayOpen(false);
+  /** Opens the sidebar if it is closed (the floating one in a narrow window). */
+  const openSidebar = () => {
+    if (sideOpen) return;
+    if (sideOverlay) setOverlayOpen(true);
+    else toggleSideCollapsed();
+  };
   // The toggle itself lives in the status bar, which reads this.
   useEffect(() => {
     publishRequestsSidebar({ open: sideOpen, toggle: () => toggleSidebarRef.current() });
@@ -562,11 +565,10 @@ export default function App({ active = true, shell, command }: Props) {
     const found = locate(collections, t.def.id);
     if (found?.kind === "request" || found?.kind === "example") {
       expand(found.collection.id, ...found.path.map((f) => f.id), ...(found.kind === "example" ? [found.node.id] : []));
-      if (sideDocked) {
-        setSideTab("collections");
-        setSideQuery("");
-        scrollActiveIntoView();
-      } else setSwitcherOpen(true);
+      openSidebar();
+      setSideTab("collections");
+      setSideQuery("");
+      scrollActiveIntoView();
     } else notify(`${tabName(t)} is not saved in a collection yet.`);
   };
 
@@ -817,7 +819,6 @@ export default function App({ active = true, shell, command }: Props) {
         break;
       }
       case "add-example":
-        setSwitcherOpen(false);
         startExample(a.requestId);
         break;
       case "rename":
@@ -832,7 +833,6 @@ export default function App({ active = true, shell, command }: Props) {
       case "move": {
         const found = locate(collections, a.id);
         const name = found?.kind === "folder" ? found.folder.name : found?.kind === "request" ? found.node.request.name : "";
-        setSwitcherOpen(false);
         setDialog({ type: "move", id: a.id, name });
         break;
       }
@@ -945,7 +945,7 @@ export default function App({ active = true, shell, command }: Props) {
       } else if (a.type === "open-batch") openBatch();
       else if (a.type === "new-request") openNewTab();
       else if (a.type === "new-collection") {
-        setSwitcherOpen(true);
+        openSidebar();
         addCollection();
       } else if (a.type === "export-workspace") startExport();
       else if (a.type === "import-curl") openCurlDialog();
@@ -1091,10 +1091,7 @@ export default function App({ active = true, shell, command }: Props) {
     const found = locate(collections, def.id);
     if (found?.kind === "request" || found?.kind === "example") {
       expand(found.collection.id, ...found.path.map((f) => f.id), ...(found.kind === "example" ? [found.node.id] : []));
-      if (!sideOpen) {
-        if (sideOverlay) setOverlayOpen(true);
-        else toggleSideCollapsed();
-      }
+      openSidebar();
       setSideTab("collections");
       setSideQuery("");
       const ids = [found.collection.id, ...found.path.map((f) => f.id)];
@@ -1140,70 +1137,6 @@ export default function App({ active = true, shell, command }: Props) {
     />
   ) : null;
 
-  const switcher = (
-    <RequestSwitcher
-      crumbs={crumbs}
-      method={def.method}
-      name={def.name}
-      isExample={located?.kind === "example"}
-      unsaved={!savedVersion ? "Not saved" : isDirty ? "Unsaved changes" : null}
-      open={switcherOpen}
-      onOpenChange={setSwitcherOpen}
-      docked={sideDocked}
-      onReveal={() => revealActive()}
-      renaming={renamingName}
-      onRenamingChange={setRenamingName}
-      onRename={(name) => {
-        // A saved request is renamed where it is saved too, like renaming it in the tree.
-        if (locate(collections, def.id)) {
-          setCollections((c) => rename(c, def.id, name));
-          applyTabs((s) => ({ ...s, tabs: s.tabs.map((t) => (t.def.id === def.id ? { ...t, def: { ...t.def, name } } : t)) }));
-        } else patch({ name });
-      }}
-    >
-      <div className="popover-head">
-        <span className="section-title">Collections</span>
-        <span className="sidebar-actions">
-          <button className="link-btn" onClick={addCollection} title="Add a collection">
-            New
-          </button>
-          <button className="link-btn" onClick={openImportDialog} title="Import collections and environments from Postman, Insomnia, Bruno, .env or REST Runner files">
-            Import…
-          </button>
-          <button className="link-btn" onClick={startExport} title="Export collections, environments, test suites, flows and tools to one file">
-            Export workspace…
-          </button>
-        </span>
-      </div>
-      <div className="popover-new-row">
-        <button
-          className="primary-outline popover-new"
-          onClick={() => {
-            openDef(newRequest(), true);
-            setSwitcherOpen(false);
-          }}
-        >
-          + New request
-        </button>
-        <button
-          className="secondary popover-new"
-          title="Create a request from a pasted curl command"
-          onClick={() => {
-            const dest = activeDest();
-            openCurlDialog({ dest, saveTicked: dest !== null });
-            setSwitcherOpen(false);
-          }}
-        >
-          From cURL…
-        </button>
-      </div>
-      {collections.length === 0 && <p className="muted small pad">Click Save in the footer to keep a request in a collection.</p>}
-      <div className="tree-scroll">
-        {renderTree(collections, expanded, () => setSwitcherOpen(false))}
-      </div>
-    </RequestSwitcher>
-  );
-
   return (
     <VariablesProvider
       environments={environments}
@@ -1219,7 +1152,6 @@ export default function App({ active = true, shell, command }: Props) {
         mode="requests"
         onQuickOpen={shell.onQuickOpen}
         searchPlaceholder="Jump to a request, example, run or history…"
-        switcher={switcher}
         environments={environments}
         activeEnvId={activeEnvId}
         onEnvChange={setActiveEnvId}
@@ -1292,7 +1224,21 @@ export default function App({ active = true, shell, command }: Props) {
         style={{ "--split-a": `${split * 100}fr`, "--split-b": `${(1 - split) * 100}fr` } as React.CSSProperties}
       >
         <section className="request-col" id="request-panel" role="tabpanel" aria-label="Request">
-          <RequestCrumb crumbs={crumbs} name={def.name} unsaved={!savedVersion ? "Not saved" : isDirty ? "Unsaved changes" : null} onReveal={(i) => revealActive(i)} />
+          <RequestCrumb
+            crumbs={crumbs}
+            name={def.name}
+            unsaved={!savedVersion ? "Not saved" : isDirty ? "Unsaved changes" : null}
+            onReveal={(i) => revealActive(i)}
+            renaming={renamingName}
+            onRenamingChange={setRenamingName}
+            onRename={(name) => {
+              // A saved request is renamed where it is saved too, like renaming it in the tree.
+              if (locate(collections, def.id)) {
+                setCollections((c) => rename(c, def.id, name));
+                applyTabs((st) => ({ ...st, tabs: st.tabs.map((t) => (t.def.id === def.id ? { ...t, def: { ...t.def, name } } : t)) }));
+              } else patch({ name });
+            }}
+          />
           <RequestEditor
             key={activeId}
             def={def}

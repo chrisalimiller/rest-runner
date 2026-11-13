@@ -149,7 +149,7 @@ The left column of Requests holds your collections, folders and requests (with t
 - **Collections** is the same tree that used to open from the request switcher: click a request to preview it, double-click (or **Open in new tab**) to keep it, right-click or the row's ⋯ button for the row menu. **Filter requests** narrows the tree by request name or URL and opens every branch that matches. **+ New request** and **From cURL…** are at the bottom; **New collection**, **Import…** and **Export workspace…** are in the ⋯ menu at the top.
 - **History** lists your latest sends of any request (name, status, how long ago) and **Filter history** narrows them. Click one to load it with its response as a sample, the same as Quick open.
 - **Show or hide it** with the sidebar button at the left of the top bar or `Mod + B`. The choice is remembered. It belongs to Requests; Testing, Flows and Tools keep their own lists.
-- **The top-bar switcher** keeps showing the open request. While the sidebar is open it only shows the path (no chevron or popover), and clicking it reveals the request in the tree; double-click or `F2` still renames. With the sidebar hidden it works as before and opens the collections popover.
+- **The path above the URL bar** shows where the open request is saved. Clicking a collection or folder in it opens the sidebar (if it is hidden) at that spot and briefly highlights the row; double-click the name or press `F2` to rename.
 - **Narrow windows** (under 1100 px wide): the sidebar floats over the panes with a dimmed backdrop instead of pushing them, and closes when you open a request, press Escape or click the backdrop.
 
 ## The response viewer
