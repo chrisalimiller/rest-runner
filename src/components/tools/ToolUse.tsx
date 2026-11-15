@@ -131,6 +131,7 @@ export function ToolUse({ tool, state, findRequest, environment, problems, activ
         )}
       </div>
       <div className="tool-scroll">
+        {!onlyInputs && !hasAny && !state.viewing && <p className="muted tool-idle-line">Look up to fill these in.</p>}
         {onlyInputs ? (
           <p className="muted tool-empty-board">This tool only has inputs. Add blocks for the answers in Build mode.</p>
         ) : (

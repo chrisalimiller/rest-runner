@@ -19,7 +19,7 @@
 .build-actions .send,
 .build-actions .secondary {
   height: 30px;
-  padding: 0 14px;
+  padding: 0 16px;
 }
 
 .build-dirty {
@@ -41,7 +41,7 @@
 
 .build-sample .cancel {
   height: 30px;
-  padding: 0 14px;
+  padding: 0 16px;
 }
 
 .build-sample-note {
@@ -59,8 +59,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 10px 16px 6px;
+  gap: 8px;
+  padding: 12px 16px 6px;
 }
 
 .build-col-head h3 {
@@ -101,7 +101,7 @@
 }
 
 .call-group {
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .call-group h4 {
@@ -263,7 +263,7 @@ button.call-request:hover {
 .call-options-chev {
   display: inline-flex;
   transform: rotate(-90deg);
-  transition: transform var(--dur-fast);
+  transition: transform var(--dur-fast) var(--ease-out);
 }
 
 .call-options-chev.open {
@@ -290,8 +290,8 @@ button.call-request:hover {
 }
 
 .build-cycle {
-  margin: 10px 0 0;
-  padding: 8px 10px;
+  margin: 8px 0 0;
+  padding: 8px 12px;
   border: 1px solid var(--bad);
   border-radius: var(--r-md);
   background: var(--bad-subtle);
@@ -314,7 +314,7 @@ button.call-request:hover {
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   box-shadow: 0 10px 28px var(--shadow-lg);
-  animation: add-request-in 160ms var(--ease-out);
+  animation: add-request-in var(--dur-base) var(--ease-out);
 }
 
 @keyframes add-request-in {
@@ -375,7 +375,7 @@ button.call-request:hover {
 }
 
 .add-request-none {
-  padding: 10px 8px;
+  padding: 12px 8px;
 }
 
 .add-request-group {
@@ -391,7 +391,7 @@ button.call-request:hover {
 }
 
 .add-request-list > li:first-child .add-request-group {
-  padding-top: 3px;
+  padding-top: 4px;
 }
 
 .add-request-row {
@@ -457,7 +457,7 @@ button.call-request:hover {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   padding: 0 8px;
   font-size: var(--fs-xs);
   font-weight: 500;
@@ -470,7 +470,7 @@ button.call-request:hover {
 .add-request-pill.ok {
   background: var(--ok-subtle);
   color: var(--ok);
-  animation: add-request-in 160ms var(--ease-out);
+  animation: add-request-in var(--dur-base) var(--ease-out);
 }
 
 .add-request-foot {
@@ -488,7 +488,7 @@ button.call-request:hover {
 .add-request-foot span {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
 }
 
 .add-request-foot .push {
@@ -516,7 +516,7 @@ button.call-request:hover {
 .build-empty kbd,
 .build-page kbd {
   font-family: var(--mono);
-  padding: 0 5px;
+  padding: 0 4px;
   border: 1px solid var(--border);
   border-radius: var(--r-xs);
   background: var(--bg-soft);
@@ -525,7 +525,7 @@ button.call-request:hover {
 .build-gap {
   height: 12px;
   border-radius: var(--r-sm);
-  transition: background var(--dur-fast), height var(--dur-fast);
+  transition: background var(--dur-fast) var(--ease-out), height var(--dur-fast) var(--ease-out);
 }
 
 .build-gap.armed {
@@ -594,18 +594,18 @@ button.call-request:hover {
 }
 
 .build-block.drop-before::before {
-  left: -7px;
+  left: -9px; /* centred in the 12px row gap: 1px border + 6px - 2px half the bar */
 }
 
 .build-block.drop-after::after {
-  right: -7px;
+  right: -9px;
 }
 
 .build-chrome {
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 3px 4px 3px 2px;
+  padding: 4px 4px 4px 2px;
   border-bottom: 1px solid var(--border-muted);
   background: var(--bg-soft);
   border-radius: var(--r-md) var(--r-md) 0 0;
@@ -668,7 +668,7 @@ button.call-request:hover {
 .build-more {
   display: inline-flex;
   opacity: 0;
-  transition: opacity var(--dur-fast);
+  transition: opacity var(--dur-fast) var(--ease-out);
 }
 
 .build-block:hover .build-more,
@@ -744,7 +744,7 @@ button.call-request:hover {
 
 .add-block-bar .secondary {
   height: 32px;
-  padding: 0 14px;
+  padding: 0 16px;
 }
 
 .add-block-list {
@@ -764,7 +764,7 @@ button.call-request:hover {
   width: 100%;
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 8px;
   padding: 6px 8px;
   text-align: left;
   background: none;
@@ -896,13 +896,13 @@ button.call-request:hover {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 14px 16px;
+  padding: 16px 16px;
 }
 
 .cd-pane {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .cd-lead {
@@ -937,7 +937,7 @@ button.call-request:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 12px 16px;
   border-top: 1px solid var(--border-muted);
 }
 
@@ -950,7 +950,7 @@ button.call-request:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 12px 16px;
   border-top: 1px solid var(--border-muted);
 }
 
@@ -966,8 +966,8 @@ button.call-request:hover {
 .cd-calls label {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
+  gap: 8px;
+  padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   cursor: pointer;
@@ -985,7 +985,7 @@ button.call-request:hover {
 .cd-tag {
   margin-left: auto;
   font-size: var(--fs-xs);
-  padding: 1px 7px;
+  padding: 1px 8px;
   border-radius: var(--r-pill);
   background: var(--group-amber-bg);
   color: var(--group-amber-fg);
@@ -1013,8 +1013,8 @@ button.call-request:hover {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 10px;
+  gap: 8px;
+  padding: 6px 12px;
   text-align: left;
   background: none;
   border: 0;
@@ -1033,13 +1033,13 @@ button.call-request:hover {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .cd-map {
   border: 1px solid var(--border-muted);
   border-radius: var(--r-md);
-  padding: 10px 12px;
+  padding: 12px 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1048,7 +1048,7 @@ button.call-request:hover {
 .cd-map-head {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 8px;
 }
 
 .cd-ph {
@@ -1099,7 +1099,7 @@ button.call-request:hover {
 
 .cd-add-source {
   display: flex;
-  gap: 14px;
+  gap: 16px;
   flex-wrap: wrap;
 }
 
@@ -1114,7 +1114,7 @@ button.call-request:hover {
 .cd-fields {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-  gap: 18px;
+  gap: 16px;
   flex-direction: unset;
 }
 
@@ -1144,7 +1144,7 @@ button.call-request:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 3px 4px 3px 8px;
+  padding: 4px 4px 4px 8px;
   border: 1px solid var(--border-muted);
   border-radius: var(--r-sm);
 }
@@ -1227,7 +1227,7 @@ button.call-request:hover {
 .cd-colour-add {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
 }
 
 /* ---- sample JSON tree ---- */
@@ -1275,8 +1275,8 @@ button.call-request:hover {
   min-width: 0;
   display: flex;
   align-items: baseline;
-  gap: 10px;
-  padding: 3px 8px 3px 2px;
+  gap: 8px;
+  padding: 4px 8px 4px 2px;
   background: none;
   border: 0;
   text-align: left;
@@ -1329,13 +1329,13 @@ button.call-request:hover {
 .ts-body {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
 }
 
 .ts-section {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .ts-section h4 {
@@ -1353,13 +1353,13 @@ button.call-request:hover {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .ts-input {
   border: 1px solid var(--border-muted);
   border-radius: var(--r-md);
-  padding: 8px 10px;
+  padding: 8px 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1372,7 +1372,7 @@ button.call-request:hover {
   align-items: end;
 }
 
-@media (max-width: 1000px) {
+@media (max-width: 1099px) {
   .build-body {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
@@ -1391,7 +1391,9 @@ button.call-request:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .build-gap {
+  .build-gap,
+  .call-options-chev,
+  .build-more {
     transition: none;
   }
 }
@@ -1400,4 +1402,10 @@ button.call-request:hover {
 .secondary.build-save.dirty:not(:disabled) {
   border-color: var(--accent);
   color: var(--accent);
+}
+
+/* Digits that must not jitter: use-count pill, flyout footer counts. */
+.add-request-pill,
+.add-request-foot {
+  font-feature-settings: "tnum" 1;
 }

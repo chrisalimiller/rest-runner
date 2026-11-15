@@ -7,7 +7,7 @@ import { sendRequest } from "../../lib/http";
 import { saveTextFile } from "../../lib/saveFile";
 import { storedSecrets } from "../../lib/secrets";
 import { setSectionStatus } from "../../lib/sectionStatus";
-import { reinsert, removeById } from "../../lib/listUndo";
+import { omitIds, reinsert, removeById } from "../../lib/listUndo";
 import { isString, load, save } from "../../lib/storage";
 import { setLeaveGuard } from "../../lib/unsavedWork";
 import { createWorkerScriptRunner } from "../../lib/testing/scriptRunner";
@@ -72,6 +72,8 @@ export function ToolsApp({ active, shell, command }: Props) {
   useEffect(() => onSecretsHydrated(() => setEnvironments((cur) => mergeHydrated(cur, loadEnvironments()))), []);
   const [findRequest, setFindRequest] = useState<RequestLookup>(readRequests);
   const [recents, setRecents] = useState<LookupRecord[]>([]);
+  /** Lookup ids hidden by Clear history / Keep off whose Undo toast is still open. Reloads from the store skip them. */
+  const pendingRemoval = useRef<Set<string>>(new Set());
   const [notice, setNotice] = useState<string | null>(null);
   const registry = useMemo(() => new SessionRegistry(), []);
   // Build mode has its own sessions (sample inputs and Run with sample answers), so they never mix with Use mode's.
@@ -138,12 +140,17 @@ export function ToolsApp({ active, shell, command }: Props) {
    */
   const removeLookupsWithUndo = useCallback(
     (toolId: string, turnedOff: boolean) => {
-      void listLookups(toolId).then((list) => {
+      void listLookups(toolId).then((all) => {
+        const list = omitIds(all, pendingRemoval.current);
         if (list.length === 0) return;
+        const ids = list.map((r) => r.id);
+        for (const id of ids) pendingRemoval.current.add(id);
+        const release = () => ids.forEach((id) => pendingRemoval.current.delete(id));
         setRecents((r) => (r.length && r[0].toolId === toolId ? [] : r));
         toast.show({
           message: `Removed ${list.length} saved ${list.length === 1 ? "lookup" : "lookups"}${turnedOff ? "; this tool keeps none now" : ""}`,
           onUndo: () => {
+            release();
             if (turnedOff) {
               const on = (t: Tool): Tool => ({ ...t, settings: { ...t.settings, keepHistory: true } });
               setTools((l) => l.map((t) => (t.id === toolId ? on(t) : t)));
@@ -151,7 +158,7 @@ export function ToolsApp({ active, shell, command }: Props) {
             }
             if (toolRef.current?.id === toolId) setRecents(list);
           },
-          onExpire: () => void deleteLookups(list.map((r) => r.id)),
+          onExpire: () => void deleteLookups(ids).finally(release),
         });
       });
     },
@@ -199,7 +206,7 @@ export function ToolsApp({ active, shell, command }: Props) {
   const refreshRecents = useCallback((toolId: string) => {
     listLookups(toolId)
       .then((list) => {
-        if (toolRef.current?.id === toolId) setRecents(list);
+        if (toolRef.current?.id === toolId) setRecents(omitIds(list, pendingRemoval.current));
       })
       .catch(() => setRecents([]));
   }, []);
@@ -290,8 +297,9 @@ export function ToolsApp({ active, shell, command }: Props) {
     let on = true;
     setRecents([]);
     listLookups(toolId)
-      .then((list) => {
+      .then((all) => {
         if (!on) return;
+        const list = omitIds(all, pendingRemoval.current);
         setRecents(list);
         const s = registry.get(toolId);
         const st = s.getState();

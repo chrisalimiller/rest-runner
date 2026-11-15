@@ -1,5 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { reinsert, removeById } from "./listUndo";
+import { omitIds, reinsert, removeById } from "./listUndo";
+
+describe("omitIds", () => {
+  const list = [{ id: "a" }, { id: "b" }, { id: "c" }];
+
+  it("drops the hidden ids and keeps the order", () => {
+    expect(omitIds(list, new Set(["a", "c"]))).toEqual([{ id: "b" }]);
+  });
+
+  it("returns the same list when nothing is hidden", () => {
+    expect(omitIds(list, new Set())).toBe(list);
+  });
+});
 
 describe("removeById / reinsert", () => {
   const list = [{ id: "a" }, { id: "b" }, { id: "c" }];
