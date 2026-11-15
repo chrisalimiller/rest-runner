@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { formatMs } from "../../lib/earlierSends";
 import type { RequestLookup } from "../../lib/flows/flows";
 import { pendingRows, type SessionState } from "../../lib/tools/session";
 import type { CallResult, Tool, ToolBlock, ToolCall } from "../../lib/tools/types";
@@ -34,6 +35,10 @@ export interface BoardActions {
   onRunAction: (callId: string) => void;
   /** The coloured (production-marked) environment in use, when there is one. Action buttons say so and ask first. */
   guard?: { name: string; cssColor: string } | null;
+  /** Change the row picked in a pick-a-row call after the lookup finished; only the calls that read from it run again. Without this the picked row is read-only. */
+  onChangeRow?: (callId: string, index: number | null) => void;
+  /** A block's request is gone: switch to Build with this block selected so another request can be chosen. */
+  onChooseRequest?: (blockId: string) => void;
   /** Whether Retry on this call runs only that call (true) or the whole lookup (false). Default false. */
   retryAlone?: (callId: string) => boolean;
 }
@@ -125,23 +130,21 @@ export function BlockCard({ block, tool, state, findRequest, actions }: CardProp
     />
   );
 
-  const label = statusLabel(view);
+  const head = headerStatus(view);
+  const sent = line ? `${line.method} ${line.path}` : undefined;
   return (
     <section className={`tool-block tool-data state-${view.kind}`} data-block={block.type} data-state={view.kind} aria-busy={view.kind === "running" || view.kind === "waiting"}>
       <header className="tool-block-head">
-        <div className="tool-block-heading">
-          <h3 className="tool-block-title">{title}</h3>
-          {line && (
-            <span className="tool-block-request mono" title={`${line.method} ${line.path}`}>
-              <span className={`method m-${line.method.toLowerCase()}`}>{line.method}</span> {line.path}
-            </span>
-          )}
-        </div>
-        {label && <span className={`tool-block-status tone-${statusTone(view)}`}>{label}</span>}
+        <h3 className="tool-block-title">{title}</h3>
+        {head && (
+          <span className={`tool-block-status tone-${head.tone}${head.loud ? " loud" : ""}`} title={sent}>
+            {head.text}
+          </span>
+        )}
         {menu}
       </header>
       <div className="tool-block-body">
-        <BlockBody block={block} call={call} result={result} view={view} state={state} actions={actions} hasRequest={!!def} />
+        <BlockBody block={block} tool={tool} call={call} result={result} view={view} state={state} actions={actions} hasRequest={!!def} />
         {raw && result && (
           <div className="tool-raw">
             <BodyView body={rawResponseText(result)} />
@@ -150,6 +153,65 @@ export function BlockCard({ block, tool, state, findRequest, actions }: CardProp
       </div>
     </section>
   );
+}
+
+/**
+ * What the card header says about the call. The request line (method and URL) is not shown on the card: it is in the
+ * tooltip of this status, in ⋯ → Show raw response and in Open request. A 2xx is the normal case, so it shows only
+ * the time, faint; anything else says its status plainly.
+ */
+export function headerStatus(view: CallView): { text: string; tone: string; loud: boolean } | null {
+  if ((view.kind === "ok" || view.kind === "http-error") && view.status >= 200 && view.status < 300) {
+    return view.ms === undefined ? null : { text: formatMs(view.ms), tone: "faint", loud: false };
+  }
+  const text = statusLabel(view);
+  return text ? { text, tone: statusTone(view), loud: view.kind === "http-error" || view.kind === "network-error" } : null;
+}
+
+/** Where the arrow keys, Home and End move in a list of `count` rows, or null when the key does nothing. */
+export function nextRowIndex(key: string, current: number, count: number): number | null {
+  if (count <= 0) return null;
+  switch (key) {
+    case "ArrowDown":
+    case "ArrowRight":
+      return Math.min(count - 1, current + 1);
+    case "ArrowUp":
+    case "ArrowLeft":
+      return Math.max(0, current - 1);
+    case "Home":
+      return 0;
+    case "End":
+      return count - 1;
+    default:
+      return null;
+  }
+}
+
+/** The pick-a-row call this call is waiting on (directly or through other calls), when a pick is open. */
+export function pickBlocking(tool: Tool, call: ToolCall, state: SessionState): string | null {
+  if (state.pending.length === 0) return null;
+  const pending = new Set(state.pending.map((p) => p.callId));
+  const seen = new Set<string>();
+  const walk = (c: ToolCall): string | null => {
+    for (const m of Object.values(c.mappings)) {
+      const id = m?.call?.callId;
+      if (!id || seen.has(id)) continue;
+      seen.add(id);
+      if (pending.has(id)) return id;
+      const next = tool.calls.find((x) => x.id === id);
+      const found = next ? walk(next) : null;
+      if (found) return found;
+    }
+    return null;
+  };
+  return walk(call);
+}
+
+function focusPickTable(callId: string) {
+  const el = document.querySelector<HTMLElement>(`[data-pick-call="${CSS.escape(callId)}"]`);
+  if (!el) return;
+  el.scrollIntoView({ block: "center", behavior: "smooth" });
+  el.querySelector<HTMLElement>('[tabindex="0"]')?.focus({ preventScroll: true });
 }
 
 interface ActionProps {
@@ -224,6 +286,7 @@ function ActionResult({ result, view }: { result: CallResult; view: CallView }) 
 
 interface BodyProps {
   block: ToolBlock;
+  tool: Tool;
   call: ToolCall | undefined;
   result: CallResult | undefined;
   view: CallView;
@@ -232,13 +295,30 @@ interface BodyProps {
   hasRequest: boolean;
 }
 
-function BlockBody({ block, call, result, view, state, actions, hasRequest }: BodyProps) {
+function BlockBody({ block, tool, call, result, view, state, actions, hasRequest }: BodyProps) {
   if (!call) return <p className="muted small">{NEEDS_CALL.includes(block.type) ? "No request chosen for this block." : ""}</p>;
   switch (view.kind) {
     case "idle":
-      return <p className="muted small">Look up to fill this in.</p>;
+      return (
+        <p className="tool-idle" aria-label="Not looked up yet">
+          —
+        </p>
+      );
     case "waiting":
-    case "running":
+    case "running": {
+      const blocking = view.kind === "waiting" ? pickBlocking(tool, call, state) : null;
+      if (blocking) {
+        const table = tool.blocks.find((b) => b.type === "table" && b.callId === blocking);
+        const name = table?.title || tool.calls.find((c) => c.id === blocking)?.name || "the list";
+        return (
+          <p className="small tool-waiting-pick" role="status">
+            Waiting for a row in {name}.{" "}
+            <button type="button" className="link-btn" onClick={() => focusPickTable(blocking)}>
+              Go to the table
+            </button>
+          </p>
+        );
+      }
       return (
         <div className="tool-skeleton" role="status" aria-label={view.kind === "running" ? "Loading" : "Waiting for another call"}>
           <span />
@@ -246,10 +326,22 @@ function BlockBody({ block, call, result, view, state, actions, hasRequest }: Bo
           <span />
         </div>
       );
+    }
     case "stopped":
       return <p className="muted small">Stopped.</p>;
     case "skipped":
-      return <p className={`small ${view.missingRequest ? "tone-bad" : "tone-warn"}`}>{view.message}</p>;
+      return (
+        <div className="tool-problem">
+          <p className={`small tool-problem-text ${view.missingRequest ? "tone-bad" : "tone-warn"}`}>{view.message}</p>
+          {view.missingRequest && actions.onChooseRequest && (
+            <div className="tool-problem-actions">
+              <button type="button" className="secondary" onClick={() => actions.onChooseRequest?.(block.id)}>
+                Choose another request
+              </button>
+            </div>
+          )}
+        </div>
+      );
     case "network-error":
       return (
         <div className="tool-problem">
@@ -283,15 +375,16 @@ function BlockBody({ block, call, result, view, state, actions, hasRequest }: Bo
 }
 
 function RetryButton({ call, actions, disabled }: { call: ToolCall; actions: BoardActions; disabled: boolean }) {
+  const alone = actions.retryAlone?.(call.id) ?? false;
   return (
     <button
       type="button"
       className="secondary"
       onClick={() => actions.onRetry(call.id)}
       disabled={disabled}
-      title={actions.retryAlone?.(call.id) ? "Sends this call again" : "Runs the whole lookup again, so anything that depends on this call is refreshed too"}
+      title={alone ? "Sends this call again" : "Runs the whole lookup again, so anything that depends on this call is refreshed too"}
     >
-      Retry
+      {alone ? "Retry" : "Run lookup again"}
     </button>
   );
 }
@@ -348,44 +441,66 @@ function OkBody({ block, call, result, state, actions }: { block: ToolBlock; cal
 function TableBody({ block, call, result, state, actions }: { block: ToolBlock; call: ToolCall; result: CallResult | undefined; state: SessionState; actions: BoardActions }) {
   const t = tableView(block, call, result);
   const picking = pendingRows(state, call.id) !== null;
+  const canChange = !picking && !state.running && !!actions.onChangeRow && t.pickedIndex !== null;
+  const selectable = !!call.pickRow && (picking || canChange);
+  const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
+  const [focusAt, setFocusAt] = useState<number | null>(null);
   if (t.rows.length === 0) return <p className="muted small">No rows.</p>;
+  const choose = (ri: number) => {
+    if (picking) actions.onPick(call.id, ri);
+    else if (canChange && ri !== t.pickedIndex) actions.onChangeRow?.(call.id, ri);
+  };
+  const tabStop = focusAt ?? t.pickedIndex ?? 0;
+  const onKeyDown = (e: React.KeyboardEvent, ri: number) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      choose(ri);
+      return;
+    }
+    const to = nextRowIndex(e.key, ri, t.rows.length);
+    if (to === null) return;
+    e.preventDefault();
+    setFocusAt(to);
+    rowRefs.current[to]?.focus();
+  };
   return (
-    <div className="tool-table-wrap">
+    <div className="tool-table-wrap" data-pick-call={call.pickRow ? call.id : undefined}>
       {picking && <p className="small tool-pick-note">Pick a row. The calls that need it are waiting.</p>}
-      <table className="tool-table">
+      <table className={`tool-table${selectable ? " selectable" : ""}`} role={call.pickRow ? "radiogroup" : undefined} aria-label={call.pickRow ? `${block.title || call.name}: choose a row` : undefined}>
         <thead>
-          <tr>
+          <tr role={call.pickRow ? "presentation" : undefined}>
             {t.columns.map((c, i) => (
               <th key={i} scope="col">
                 {c}
               </th>
             ))}
-            {call.pickRow && <th scope="col" className="tool-pick-col" />}
           </tr>
         </thead>
         <tbody>
           {t.rows.map((row, ri) => (
-            <tr key={ri} className={t.pickedIndex === ri ? "picked" : undefined}>
+            <tr
+              key={ri}
+              ref={(el) => {
+                rowRefs.current[ri] = el;
+              }}
+              className={t.pickedIndex === ri ? "picked" : undefined}
+              role={call.pickRow ? "radio" : undefined}
+              aria-checked={call.pickRow ? t.pickedIndex === ri : undefined}
+              aria-disabled={call.pickRow && !selectable ? true : undefined}
+              tabIndex={selectable ? (ri === tabStop ? 0 : -1) : undefined}
+              onClick={selectable ? () => choose(ri) : undefined}
+              onFocus={selectable ? () => setFocusAt(ri) : undefined}
+              onKeyDown={selectable ? (e) => onKeyDown(e, ri) : undefined}
+            >
               {row.map((cell, ci) => (
                 <td key={ci}>{cell}</td>
               ))}
-              {call.pickRow && (
-                <td className="tool-pick-col">
-                  {picking ? (
-                    <button type="button" className="link-btn" onClick={() => actions.onPick(call.id, ri)}>
-                      Use this row
-                    </button>
-                  ) : t.pickedIndex === ri ? (
-                    <span className="muted small">Used</span>
-                  ) : null}
-                </td>
-              )}
             </tr>
           ))}
         </tbody>
       </table>
       {picking && (
-        <button type="button" className="link-btn small" onClick={() => actions.onPick(call.id, null)}>
+        <button type="button" className="secondary tool-pick-none" onClick={() => actions.onPick(call.id, null)}>
           Use none
         </button>
       )}
