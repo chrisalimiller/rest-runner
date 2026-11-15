@@ -336,6 +336,51 @@ describe("ToolSession.runAction and retryCall", () => {
   });
 });
 
+describe("ToolSession.changePick", () => {
+  // Plan reads the picked device's imei, so a changed row refreshes Plan and nothing else.
+  const pickTool = (): Tool => {
+    const t = sampleTool();
+    return {
+      ...t,
+      calls: t.calls.map((c) => (c.id === "c-devices" ? { ...c, pickRow: { listPath: "devices", labelPath: "model" } } : c.id === "c-plan" ? { ...c, mappings: { planId: { call: { callId: "c-devices", path: "$.imei" } } } } : c)),
+    };
+  };
+
+  async function pickedSession(s: ReturnType<typeof server>, tool: Tool) {
+    const session = new ToolSession("t");
+    const run = session.lookup(tool, depsOf(s.send), { subscriberId: "100234" });
+    await vi.waitFor(() => expect(pendingRows(session.getState(), "c-devices")).not.toBeNull());
+    session.choosePick("c-devices", 0);
+    await run;
+    return session;
+  }
+
+  it("keeps the new row and runs only the calls that read from the pick-a-row call", async () => {
+    const s = server();
+    const tool = pickTool();
+    const session = await pickedSession(s, tool);
+    const before = session.getState().results;
+    s.sent.length = 0;
+    await session.changePick(tool, "c-devices", 1, depsOf(s.send));
+    const after = session.getState();
+    expect(after.results["c-devices"]?.picked).toEqual({ index: 1 });
+    expect(after.results["c-subscriber"]).toBe(before["c-subscriber"]);
+    expect(after.results["c-account"]).toBe(before["c-account"]);
+    expect(after.results["c-plan"]).not.toBe(before["c-plan"]);
+    expect(after.sending).toEqual([]);
+    expect(s.sent).toHaveLength(1);
+    expect(s.sent[0]).toContain("3502");
+  });
+
+  it("clears the pick for null", async () => {
+    const s = server();
+    const tool = pickTool();
+    const session = await pickedSession(s, tool);
+    await session.changePick(tool, "c-devices", null, depsOf(s.send));
+    expect(session.getState().results["c-devices"]?.picked).toBeUndefined();
+  });
+});
+
 describe("canRetryAlone", () => {
   it("is false for a call others read from, a write call and a pick-a-row call", () => {
     const tool = sampleTool();

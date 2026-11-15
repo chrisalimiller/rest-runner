@@ -229,59 +229,54 @@
 
 .tool-block-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 10px;
-  margin-bottom: 8px;
-}
-
-.tool-block-heading {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  min-height: 24px;
+  margin-bottom: 6px;
 }
 
 .tool-block-title {
+  flex: 1;
+  min-width: 0;
   margin: 0;
   font-family: var(--display);
   font-size: var(--fs-md);
   font-weight: 600;
 }
 
-.tool-block-request {
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tool-block-request .method {
-  display: inline;
-  width: auto;
-  font-weight: 600;
-}
-
+/* The status is the quiet part of the header: a 2xx shows only its time, faint. Anything else is plain about it. */
 .tool-block-status {
   flex: none;
   font-size: var(--fs-xs);
   font-family: var(--mono);
-  padding-top: 2px;
+  font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+
+.tool-block-status.tone-faint {
+  color: var(--faint);
 }
 
 .tool-block-status.tone-accent {
   color: var(--accent-fg);
 }
 
+.tool-block-status.loud {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
 .tool-block-body {
   min-width: 0;
 }
 
-/* "Look up to fill this in", the loading bars and the answer take about the same room, so the page below does not jump while calls run. */
-.tool-data .tool-block-body {
-  min-height: 48px;
+.tool-idle {
+  color: var(--faint);
+  user-select: none;
+}
+
+.tool-waiting-pick {
+  color: var(--muted);
 }
 
 .tool-block-body p {
@@ -456,9 +451,40 @@
   font-weight: 500;
 }
 
-.tool-pick-col {
-  text-align: right;
-  white-space: nowrap;
+/* Rows that can be chosen behave like radio buttons: a ring marks the chosen row, another the one with the keyboard. */
+.tool-table.selectable tbody tr {
+  cursor: pointer;
+  outline: none;
+}
+
+.tool-table.selectable tbody tr:hover td {
+  background: var(--bg-hover);
+}
+
+.tool-table tbody tr[aria-checked="true"] td {
+  background: var(--bg-hover);
+  box-shadow: inset 0 1px 0 var(--accent), inset 0 -1px 0 var(--accent);
+}
+
+.tool-table tbody tr[aria-checked="true"] td:first-child {
+  box-shadow: inset 2px 0 0 var(--accent), inset 0 1px 0 var(--accent), inset 0 -1px 0 var(--accent);
+  padding-left: 8px;
+}
+
+.tool-table tbody tr:focus-visible td {
+  box-shadow: inset 0 1px 0 var(--accent-fg), inset 0 -1px 0 var(--accent-fg);
+}
+
+.tool-table tbody tr:focus-visible td:first-child {
+  box-shadow: var(--focus-ring-inset);
+  padding-left: 8px;
+}
+
+.tool-pick-none {
+  margin-top: 8px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--btn-border);
 }
 
 .tool-pick-note {

@@ -65,6 +65,8 @@ export function ToolsApp({ active, shell, command }: Props) {
   const [tools, setTools] = useState<Tool[]>(loadTools);
   const [openToolId, setOpenToolId] = useState<string | null>(() => load<string | null>(OPEN_TOOL_KEY, null, isString));
   const [mode, setMode] = useState<ToolsMode>(() => (load<string>(MODE_KEY, "use") === "build" ? "build" : "use"));
+  /** A block whose request is missing asked for Build with that block selected (see Choose another request). */
+  const [buildSelect, setBuildSelect] = useState<string | null>(null);
   const [environments, setEnvironments] = useState<Environment[]>(loadEnvironments);
   // The keychain can finish loading after first render: fill in secrets without losing edits.
   useEffect(() => onSecretsHydrated(() => setEnvironments((cur) => mergeHydrated(cur, loadEnvironments()))), []);
@@ -268,6 +270,11 @@ export function ToolsApp({ active, shell, command }: Props) {
     const env = loadEnvironments().find((e) => e.id === t.settings.environmentId) ?? null;
     await s.retryCall(t, callId, { findRequest: requests, envVars: environmentVars(env), environmentName: env?.name, send: sendRequest, scripts: scripts.run });
   };
+  /** A different row for a pick-a-row call: only the calls that read from it run again. */
+  const changeRow = async (s: ToolSession, t: Tool, callId: string, index: number | null) => {
+    const env = loadEnvironments().find((e) => e.id === t.settings.environmentId) ?? null;
+    await s.changePick(t, callId, index, { findRequest: readRequests(), envVars: environmentVars(env), environmentName: env?.name, send: sendRequest, scripts: scripts.run });
+  };
   const lookUpRef = useRef(lookUp);
   lookUpRef.current = lookUp;
 
@@ -306,6 +313,7 @@ export function ToolsApp({ active, shell, command }: Props) {
   };
   const switchMode = (m: ToolsMode) => {
     if (m === mode) return;
+    setBuildSelect(null);
     if (m === "use") guarded(() => setMode(m));
     else setMode(m);
   };
@@ -542,6 +550,7 @@ export function ToolsApp({ active, shell, command }: Props) {
             {mode === "build" ? (
               <ToolBuild
                 tool={draft ?? tool}
+                initialSelectedId={buildSelect}
                 dirty={dirty}
                 findRequest={findRequest}
                 environments={environments}
@@ -584,6 +593,11 @@ export function ToolsApp({ active, shell, command }: Props) {
                   onOpenRequest: shell.onOpenRequest,
                   onCopy: copy,
                   onPick: (callId, index) => session.choosePick(callId, index),
+                  onChangeRow: (callId, index) => void changeRow(session, tool, callId, index),
+                  onChooseRequest: (blockId) => {
+                    setBuildSelect(blockId);
+                    setMode("build");
+                  },
                 }}
               />
             )}

@@ -17,7 +17,7 @@ Use mode is the default when you open a tool.
 - **The header** holds the tool's name, its inputs in one row with **Look up** (like the URL bar and Send), and the status beside it. An Input block is not repeated on the Use page (it stays in Build). When a tool is opened, the first input is focused (or **Look up** when there are none), unless you are typing in another field.
 - **Look up** (or Enter in an input) sends the tool's lookup calls. Independent calls start together, at most 6 at a time. A call that needs a value from another call starts as soon as that call finishes. Opening a tool does not send anything: it shows its latest saved lookup, marked in an amber band "Saved lookup · 3 h ago · … · Nothing was sent", with **Look up** beside it to refresh (A tool can be set to look up when opened, see [Tool settings](#tool-settings).)
 - The status beside Look up counts the calls done. The top right of the header offers **Stop** while running, **Copy all** (each call's request and answer as text) and **Save as HTML**.
-- Each data block has a ⋯ menu: **Show raw response**, **Copy**, **Open request** (switches to Requests with the saved request open).
+- Each data block has a ⋯ menu: **Show raw response**, **Copy**, **Open request** (switches to Requests with the saved request open). The cards do not print the method and URL; hover the time or status in a block's header to see the request that was sent.
 - **The environment** is the one chosen in the top bar. Each tool keeps its own choice. Environments are edited in Requests mode. If it is marked with a colour (a production-style environment), **Look up** says **Look up on Prod** and the button gets the environment's outline.
 
 ### How a call ends (states)
@@ -26,16 +26,16 @@ There is no pass or fail; each block shows how its call ended.
 
 | State | What you see |
 | --- | --- |
-| Not looked up | "Look up to fill this in." |
-| Waiting | A grey placeholder: the call needs another call to finish first |
+| Not looked up | A quiet dash. Nothing is sent until you press Look up |
+| Waiting | A grey placeholder: the call needs another call to finish first. When it needs a row you have not picked yet: "Waiting for a row in Devices" with **Go to the table** |
 | Running | A moving placeholder and "Running" |
-| Done, status below 400 | The block's content, with the status and time in its header (`200 · 120 ms`) |
-| Done, status 400 or above | The status, the response body and **Retry** / **Open request** |
+| Done, status 2xx | The block's content, with only the time in faint type in its header (`120 ms`) |
+| Done, any other status | The status with the time in its header (`404 · 120 ms`), plus for 400 and above the response body and **Retry** / **Open request** |
 | No response | The reason (for example "connection refused") and **Retry** |
-| Skipped | Why: "Needs accountId from Subscriber" (a value is missing) or "Request missing" |
+| Skipped | Why: "Needs accountId from Subscriber" (a value is missing) or "Request missing", which also offers **Choose another request** (opens Build with that block selected) |
 | Stopped | "Stopped." |
 
-**Retry** sends just that call again when no other call reads its answer. When another call depends on it (or it is a pick-a-row call), Retry runs the whole lookup again, so what depends on it is refreshed too. The button's hover text says which.
+The button says what it reruns. **Retry** sends just that call again, when no other call reads its answer. **Run lookup again** appears when another call depends on it (or it is a pick-a-row call): the whole lookup runs again, so what depends on it is refreshed too.
 
 ### Placeholders and the order calls run
 
@@ -52,7 +52,7 @@ Calls that read from another call run after it; Build mode lists them as Input, 
 
 ### Pick a row
 
-When a call's response is a list (for example "the subscriber's devices"), tick **Ask me to pick a row** in Build mode. In Use mode the table block shows **Use this row** next to each row, and the calls that need a field of the chosen row wait until you pick; calls that do not need it carry on. **Use none** skips them. The chosen row is highlighted afterwards. Without a table block for that call, the first row is used.
+When a call's response is a list (for example "the subscriber's devices"), tick **Ask me to pick a row** in Build mode. In Use mode the table block's rows are a radio group: click a row, or move with the arrow keys (Home and End too) and press Enter or Space. The calls that need a field of the chosen row wait until you pick, and say "Waiting for a row in …" with a link that scrolls to the table; calls that do not need it carry on. **Use none** (one button under the table) skips them. The chosen row is highlighted afterwards, and you can choose a different one: only the calls that read from that row run again, and the rest of the page stays as it is. Without a table block for that call, the first row is used.
 
 ### Action buttons and the production confirm
 
