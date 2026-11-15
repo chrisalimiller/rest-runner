@@ -5,7 +5,9 @@ import { callJson } from "../../lib/tools/engine";
 import { listPickableRequests, type PickableRequest } from "../../lib/testing/requestSources";
 import type { CallResult, Tool, ToolCall } from "../../lib/tools/types";
 import { requestLine } from "../../lib/tools/view";
-import { TrashIcon } from "../shell/Icons";
+import { defaultIsWrite } from "../../lib/tools/tools";
+import { Collapse } from "../Collapse";
+import { ChevronDownIcon, TrashIcon } from "../shell/Icons";
 import { AddRequestFlyout, REQUEST_DRAG_TYPE } from "./AddRequestFlyout";
 
 export { REQUEST_DRAG_TYPE };
@@ -26,6 +28,8 @@ export function CallsColumn({ tool, findRequest, results, onChange, onEditInputs
   const [picking, setPicking] = useState(false);
   const [over, setOver] = useState(false);
   const addBtn = useRef<HTMLButtonElement>(null);
+  const stepOf = new Map<string, number>();
+  groups.groups.forEach((g, i) => g.calls.forEach((c) => stepOf.set(c.id, i + 1)));
   const counts = new Map<string, number>();
   for (const c of tool.calls) counts.set(c.requestId, (counts.get(c.requestId) ?? 0) + 1);
 
@@ -108,7 +112,7 @@ export function CallsColumn({ tool, findRequest, results, onChange, onEditInputs
             <h4>{g.label}</h4>
             <ul>
               {g.calls.map((c) => (
-                <CallCard key={c.id} tool={tool} call={c} findRequest={findRequest} result={results[c.id]} onChange={onChange} onFillIn={() => onFillIn(c.id)} onOpenRequest={onOpenRequest} inLoop={!groups.ok && groups.cycle.includes(c.id)} />
+                <CallCard key={c.id} stepOf={stepOf} tool={tool} call={c} findRequest={findRequest} result={results[c.id]} onChange={onChange} onFillIn={() => onFillIn(c.id)} onOpenRequest={onOpenRequest} inLoop={!groups.ok && groups.cycle.includes(c.id)} />
               ))}
             </ul>
           </section>
@@ -119,6 +123,7 @@ export function CallsColumn({ tool, findRequest, results, onChange, onEditInputs
 }
 
 interface CardProps {
+  stepOf: Map<string, number>;
   tool: Tool;
   call: ToolCall;
   findRequest: RequestLookup;
@@ -129,12 +134,16 @@ interface CardProps {
   inLoop: boolean;
 }
 
-function CallCard({ tool, call, findRequest, result, onChange, onFillIn, onOpenRequest, inLoop }: CardProps) {
+function CallCard({ stepOf, tool, call, findRequest, result, onChange, onFillIn, onOpenRequest, inLoop }: CardProps) {
   const def = findRequest(call.requestId);
   const line = requestLine(def);
   const needs = callNeeds(tool, call, findRequest);
   const gives = callGives(tool, call);
   const usedBy = tool.blocks.filter((b) => b.callId === call.id).length;
+  const [optionsOpen, setOptionsOpen] = useState(false);
+  // The options stay visible whenever either differs from its default, so the card never hides a state.
+  const nonDefault = !!call.pickRow || (def ? call.write !== defaultIsWrite(def.method) : call.write);
+  const showOptions = optionsOpen || nonDefault;
   const rowList = result?.state === "done" ? listPathOptions(callJson(result)) : [];
 
   const togglePick = (on: boolean) => {
@@ -171,8 +180,17 @@ function CallCard({ tool, call, findRequest, result, onChange, onFillIn, onOpenR
           <dt>Needs</dt>
           <dd>
             {needs.map((n) => (
-              <span key={n.placeholder} className={`call-chip from-${n.from[0].kind}`} title={n.from.map((f) => f.text).join(", then ")}>
-                {n.placeholder} <span className="muted">← {n.from.map((f) => f.text).join(" / ")}</span>
+              <span key={n.placeholder} className="call-chip" title={n.from.map((f) => f.text).join(", then ")}>
+                {n.placeholder}{" "}
+                <span className="muted">
+                  ←{" "}
+                  {n.from.map((f, i) => (
+                    <span key={i} className={f.text === "a removed call" ? "call-chip-missing" : undefined}>
+                      {i > 0 && " / "}
+                      <span className="call-chip-kind">{kindPrefix(f.kind, call.mappings[n.placeholder]?.call?.callId, stepOf)}</span> {f.text}
+                    </span>
+                  ))}
+                </span>
               </span>
             ))}
           </dd>
@@ -191,20 +209,30 @@ function CallCard({ tool, call, findRequest, result, onChange, onFillIn, onOpenR
         </dl>
       )}
       <div className="call-options">
-        <label className="check small" title="Write calls change data, so they run only from an Action button, never in Look up">
-          <input type="checkbox" checked={call.write} onChange={(e) => onChange(setCallWrite(tool, call.id, e.target.checked))} />
-          <span>Write call</span>
-        </label>
-        <label className="check small" title="When the response is a list, stop and ask which row to use">
-          <input type="checkbox" checked={!!call.pickRow} onChange={(e) => togglePick(e.target.checked)} />
-          <span>Ask me to pick a row</span>
-        </label>
+        <button type="button" className="link-btn small call-options-toggle" aria-expanded={showOptions} aria-controls={`opts-${call.id}`} disabled={nonDefault} onClick={() => setOptionsOpen(!optionsOpen)}>
+          <span className={`call-options-chev ${showOptions ? "open" : ""}`} aria-hidden="true">
+            <ChevronDownIcon size={10} />
+          </span>
+          Options
+        </button>
         {def && (
           <button type="button" className="link-btn small" onClick={onFillIn}>
             Fill in…
           </button>
         )}
       </div>
+      <Collapse open={showOptions}>
+        <div className="call-options-body" id={`opts-${call.id}`}>
+          <label className="check small" title="Write calls change data, so they run only from an Action button, never in Look up">
+            <input type="checkbox" checked={call.write} onChange={(e) => onChange(setCallWrite(tool, call.id, e.target.checked))} />
+            <span>Write call</span>
+          </label>
+          <label className="check small" title="When the response is a list, stop and ask which row to use">
+            <input type="checkbox" checked={!!call.pickRow} onChange={(e) => togglePick(e.target.checked)} />
+            <span>Ask me to pick a row</span>
+          </label>
+        </div>
+      </Collapse>
       {call.pickRow && (
         <div className="call-pick">
           <label className="field small">
@@ -225,4 +253,13 @@ function CallCard({ tool, call, findRequest, result, onChange, onFillIn, onOpenR
       {call.write && <p className="small muted">Runs only from an Action button.</p>}
     </li>
   );
+}
+
+/** The short mono tag before a value's source: input, step 1, env or fixed. */
+function kindPrefix(kind: string, sourceCallId: string | undefined, stepOf: Map<string, number>): string {
+  if (kind === "input") return "input";
+  if (kind === "fixed") return "fixed";
+  if (kind === "environment") return "env";
+  const n = sourceCallId ? stepOf.get(sourceCallId) : undefined;
+  return n ? `step ${n}` : "call";
 }

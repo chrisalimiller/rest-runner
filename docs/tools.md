@@ -14,9 +14,10 @@ Open it with the **Tools** tab in the status bar along the bottom of the window 
 
 Use mode is the default when you open a tool.
 
-- **Look up** (or Enter in an input) sends the tool's lookup calls. Independent calls start together, at most 6 at a time. A call that needs a value from another call starts as soon as that call finishes. Opening a tool does not send anything: it shows its latest saved lookup, marked "Saved lookup from … Nothing was sent." (A tool can be set to look up when opened, see [Tool settings](#tool-settings).)
-- The line above the blocks counts the calls done, offers **Stop** while running, **Copy all** (each call's request and answer as text) and **Save as HTML**.
-- Each data block has a ⋯ menu: **Show raw response**, **Copy**, **Open request** (switches to Requests with the saved request open).
+- **The header** holds the tool's name, its inputs in one row with **Look up** (like the URL bar and Send), and the status beside it. An Input block is not repeated on the Use page (it stays in Build). When a tool is opened, the first input is focused (or **Look up** when there are none), unless you are typing in another field.
+- **Look up** (or Enter in an input) sends the tool's lookup calls. Independent calls start together, at most 6 at a time. A call that needs a value from another call starts as soon as that call finishes. Opening a tool does not send anything: it shows its latest saved lookup, marked in an amber band "Saved lookup · 3 h ago · … · Nothing was sent", with **Look up** beside it to refresh (A tool can be set to look up when opened, see [Tool settings](#tool-settings).)
+- The status beside Look up counts the calls done. The top right of the header offers **Stop** while running, **Copy all** (each call's request and answer as text) and **Save as HTML**.
+- Each data block has a ⋯ menu: **Show raw response**, **Copy**, **Open request** (switches to Requests with the saved request open). The cards do not print the method and URL; hover the time or status in a block's header to see the request that was sent.
 - **The environment** is the one chosen in the top bar. Each tool keeps its own choice. Environments are edited in Requests mode. If it is marked with a colour (a production-style environment), **Look up** says **Look up on Prod** and the button gets the environment's outline.
 
 ### How a call ends (states)
@@ -25,16 +26,16 @@ There is no pass or fail; each block shows how its call ended.
 
 | State | What you see |
 | --- | --- |
-| Not looked up | "Look up to fill this in." |
-| Waiting | A grey placeholder: the call needs another call to finish first |
+| Not looked up | A quiet dash. Nothing is sent until you press Look up |
+| Waiting | A grey placeholder: the call needs another call to finish first. When it needs a row you have not picked yet: "Waiting for a row in Devices" with **Go to the table** |
 | Running | A moving placeholder and "Running" |
-| Done, status below 400 | The block's content, with the status and time in its header (`200 · 120 ms`) |
-| Done, status 400 or above | The status, the response body and **Retry** / **Open request** |
+| Done, status 2xx | The block's content, with only the time in faint type in its header (`120 ms`) |
+| Done, any other status | The status with the time in its header (`404 · 120 ms`), plus for 400 and above the response body and **Retry** / **Open request** |
 | No response | The reason (for example "connection refused") and **Retry** |
-| Skipped | Why: "Needs accountId from Subscriber" (a value is missing) or "Request missing" |
+| Skipped | Why: "Needs accountId from Subscriber" (a value is missing) or "Request missing", which also offers **Choose another request** (opens Build with that block selected) |
 | Stopped | "Stopped." |
 
-**Retry** sends just that call again when no other call reads its answer. When another call depends on it (or it is a pick-a-row call), Retry runs the whole lookup again, so what depends on it is refreshed too. The button's hover text says which.
+The button says what it reruns. **Retry** sends just that call again, when no other call reads its answer. **Run lookup again** appears when another call depends on it (or it is a pick-a-row call): the whole lookup runs again, so what depends on it is refreshed too.
 
 ### Placeholders and the order calls run
 
@@ -51,13 +52,13 @@ Calls that read from another call run after it; Build mode lists them as Input, 
 
 ### Pick a row
 
-When a call's response is a list (for example "the subscriber's devices"), tick **Ask me to pick a row** in Build mode. In Use mode the table block shows **Use this row** next to each row, and the calls that need a field of the chosen row wait until you pick; calls that do not need it carry on. **Use none** skips them. The chosen row is highlighted afterwards. Without a table block for that call, the first row is used.
+When a call's response is a list (for example "the subscriber's devices"), tick **Ask me to pick a row** in Build mode. In Use mode the table block's rows are a radio group: click a row, or move with the arrow keys (Home and End too) and press Enter or Space. The calls that need a field of the chosen row wait until you pick, and say "Waiting for a row in …" with a link that scrolls to the table; calls that do not need it carry on. **Use none** (one button under the table) skips them. The chosen row is highlighted afterwards, and you can choose a different one: only the calls that read from that row run again, and the rest of the page stays as it is. Without a table block for that call, the first row is used.
 
 ### Action buttons and the production confirm
 
 An **Action** block is a button that runs a **write** call (a POST, PUT, PATCH or DELETE request) with the values on screen: inputs and the answers of the last lookup. Write calls never run in Look up, only from their button. After pressing it, the block shows the status and response body, or the error.
 
-- On an environment **marked with a colour** (a production-style one) the button reads "… on Prod", and pressing it opens a confirm dialog that names the environment and the request. **Cancel** is focused. If you cancel, nothing is sent and the block says **Not confirmed**.
+- On an environment **marked with a colour** (a production-style one) the button reads "… on Prod", and pressing it opens a confirm dialog that names the environment and shows the request's method and URL. The confirm button is outlined in the environment's colour. **Cancel** is focused. If you cancel, nothing is sent and the block says **Not confirmed**.
 - The block can also have **Confirm text** (set in Build mode, in the block's last step). When it has, the dialog asks on any environment and shows that text.
 - The button is off while a lookup runs or while it is sending, and it needs the values its request uses: if a lookup has not filled them in, the block says what is missing ("Needs id from Subscriber").
 - An action's result stays until the next lookup starts.
@@ -74,8 +75,8 @@ The **{x}** Variables panel in Tools shows the tool's environment and the placeh
 
 Switch with **Build** next to the tool name. Build edits a draft; nothing is kept until **Save**. Leaving with unsaved changes (switching tools, section or closing the window) asks to **Save**, **Discard** or keep editing.
 
-- **Calls column (left):** the calls grouped as Input, Step 1, Step 2…, with what each call needs and gives. **Add request** opens a panel beside the column with a search box (name, folder or URL) and your saved requests and examples. Click one, or move with the arrow keys and press Enter, to add it; the panel stays open so you can add more, and shows how many times each request is already used. You can also drag a request from the panel into the Calls column. Esc closes it. Each call has a name, a **Write call** checkbox (on by default for POST, PUT, PATCH and DELETE requests) and **Ask me to pick a row** for lists.
-- **Block page (right):** rows of up to three blocks. Type `/` in the bar at the bottom ("Type / to add a block") and pick a block type from the list. Move a block by its handle or the arrow buttons; **Connect** opens the dialog that asks which request fills the block, which value fills each placeholder, which fields to show, and the label and format (text, number, money, date, yes/no).
+- **Calls column (left):** the calls grouped as Input, Step 1, Step 2…, with what each call needs and gives. **Add request** opens a panel beside the column with a search box (name, folder or URL) and your saved requests and examples. Click one, or move with the arrow keys and press Enter, to add it; the panel stays open so you can add more, and shows how many times each request is already used. You can also drag a request from the panel into the Calls column. Esc closes it. Each call shows its name, its method and URL, and what it needs (tagged `input`, `step 1`, `env` or `fixed`; a value with nowhere to come from shows in red). Under **Options** on each call are a **Write call** checkbox (on by default for POST, PUT, PATCH and DELETE requests) and **Ask me to pick a row** for lists; Options opens by itself when either differs from its default.
+- **Block page (right):** rows of up to three blocks. Type `/` in the bar at the bottom ("Type / to add a block") and pick a block type from the list. Each block always shows its handle and **Connect…**; its **⋯** menu (visible on hover, focus or selection) holds Move left/right/up/down, Duplicate and Delete. Move a block by dragging its handle, from that menu, or with **Alt + arrow keys** while the block is focused; **Connect** opens the dialog that asks which request fills the block, which value fills each placeholder, which fields to show, and the label and format (text, number, money, date, yes/no). Steps move with **Back** and **Next**; **Done** appears on the last step, and once the block is valid **Save and close** is offered on earlier steps. The connected request's method and URL show once, in the step bar.
 - **Run with sample** runs the lookup with the sample values typed in Build, so every block fills with a real answer and **Connect** can offer values to click. Sample runs are never saved to history, and write calls are not sent by Look up or Run with sample. Action buttons in Build can be pressed too; they use the sample answers and the same production confirm.
 - **Settings** (button in the Build header): see below.
 
@@ -87,16 +88,16 @@ Switch with **Build** next to the tool name. Build edits a draft; nothing is kep
 
 ## History and privacy
 
-Each tool keeps its **last 20 lookups**, listed under **Recent lookups** on the left. Click one to see its answers and the inputs it was made with; nothing is sent. Lookups are stored on your computer in the same database as saved test and flow runs. Response bodies are cut at 1 MB and secret environment values are masked with the same rules as other saved runs; the request is stored without its headers, so credentials do not end up in history.
+Each tool keeps its **last 20 lookups**, listed under **Recent lookups** on the left. Click one to see its answers (below 1100px wide, where the sidebar becomes a row at the top, open them from its **Recent** menu, which also has the switch and Clear history) and the inputs it was made with; nothing is sent. Lookups are stored on your computer in the same database as saved test and flow runs. Response bodies are cut at 1 MB and secret environment values are masked with the same rules as other saved runs; the request is stored without its headers, so credentials do not end up in history.
 
-- **Clear history** removes all of the open tool's saved lookups.
-- **Keep recent lookups** off is the keep-nothing switch: the tool stores no lookups, and the ones it has are removed. The answers on screen are still there until you leave the tool.
+- **Clear history** removes all of the open tool's saved lookups. A toast says "Removed N saved lookups" with **Undo**; the lookups are deleted for good when it goes away.
+- **Keep recent lookups** off is the keep-nothing switch (the sidebar says "Off: lookups aren't kept" under it): the tool stores no lookups, and the ones it has are removed once the Undo toast goes away. **Undo** restores them and turns the switch back on. The answers on screen are still there until you leave the tool.
 - Deleting a tool removes its lookups when the Undo toast goes away.
 
 ## Export and import
 
 - **Export** (in the Tools sidebar for all tools, or **Export tool** in the tool's ⋯ menu) writes a `.json` file with the saved tools **and the saved requests they use**, together with the collection and folder they sat in. Unsaved Build changes are not in the file.
-- **Import** reads such a file. A tool or saved request with the same id **replaces** the one you have; everything else is added, and requests go back into a collection and folder with the same names (made if missing). The notice says how many tools and requests were added or updated. Unsaved Build edits of a tool that was replaced are discarded, since they were made against the old version. Imports are checked, and anything that cannot be read as a tool is skipped.
+- **Import** reads such a file. A tool or saved request with the same id **replaces** the one you have; everything else is added, and requests go back into a collection and folder with the same names (made if missing). A toast stays up for a minute (or until dismissed) and says what changed, such as "Added 2 tools and 5 requests; updated 1 tool (Billing)"; replaced tools are named when there are three or fewer. Import is a button in the Tools, Flows and Testing sidebars, so the keyboard reaches it. Unsaved Build edits of a tool that was replaced are discarded, since they were made against the old version. Imports are checked, and anything that cannot be read as a tool is skipped.
 - **Export workspace…** includes tools, and importing a workspace file in the Import dialog lists its tools, and you choose which to bring in and what to do when a name already exists. Older workspace files without tools leave your tools alone.
 
 ## Used by tools

@@ -30,7 +30,7 @@ describe("tools file", () => {
     expect(r.replacedIds).toEqual([]);
     const folder = r.collections[0].items[0];
     expect(folder.kind === "folder" && (folder.items[0] as RequestNode).id).toBe("req-1");
-    expect(describeToolsImport("t.json", r.counts)).toBe("Imported t.json: tools: 1 added, 0 updated; saved requests: 1 added, 0 updated.");
+    expect(describeToolsImport("t.json", r.counts)).toBe("Added 1 tool and 1 request from t.json.");
   });
 
   it("replaces a tool and a request with the same id, and reports which tools were replaced", () => {
@@ -58,5 +58,14 @@ describe("tools file", () => {
   it("refuses other files and invalid JSON", () => {
     expect(() => importToolsFile("{", { tools: [], collections: [] })).toThrow(/not valid JSON/);
     expect(() => importToolsFile(JSON.stringify({ app: "rest-runner", kind: "flows" }), { tools: [], collections: [] })).toThrow(/tools file/);
+  });
+});
+
+describe("describeToolsImport wording", () => {
+  it("says what changed and names a few replaced tools", () => {
+    expect(describeToolsImport("t.json", { tools: [2, 1], requests: [5, 0] }, ["Billing"])).toBe("Added 2 tools and 5 requests; updated 1 tool (Billing) from t.json.");
+  });
+  it("leaves names out past three", () => {
+    expect(describeToolsImport("t.json", { tools: [0, 4], requests: [0, 0] }, ["a", "b", "c", "d"])).toBe("Updated 4 tools from t.json.");
   });
 });

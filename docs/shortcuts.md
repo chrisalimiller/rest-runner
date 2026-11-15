@@ -62,6 +62,7 @@ Quick open is also a command palette. Type `>` first (as in VS Code) to see only
 | `F2` | Rename the open request |
 | `Mod + B` | Show or hide the collections sidebar (Requests) |
 | `Shift + Alt + F` | Format the JSON body (in the body editor) |
+| `Alt + Arrow` | Move the focused block in Tools Build mode (also in the block's ⋯ menu) |
 | `Mod + Z` | Undo, including undoing the automatic format after pasting JSON. In Flows, outside text fields, it undoes the last canvas edit; `Mod + Shift + Z` redoes it |
 | `Tab` | Indent in the JSON and script editors |
 | `Space`, `↑ / ↓`, `Space` on a case's numbered circle | Pick up, move and drop a test case ([reordering](testing.md#reordering-cases)); `Esc` cancels |

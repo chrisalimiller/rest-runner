@@ -32,7 +32,7 @@
   z-index: 2;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .tool-tab-actions .notice {
@@ -52,7 +52,7 @@
 }
 
 .tool-head {
-  padding: 14px 56px 0 20px;
+  padding: 16px 56px 0 20px;
 }
 
 .tool-title h2 {
@@ -71,7 +71,7 @@
   align-items: flex-end;
   flex-wrap: wrap;
   gap: 12px;
-  padding: 14px 20px 12px;
+  padding: 16px 20px 12px;
 }
 
 .tool-input {
@@ -100,9 +100,11 @@
   max-width: 360px;
 }
 
+/* 40px like Send; the width is fixed so "Look up on Prod" does not widen it. */
 .tool-lookup {
-  height: 30px;
-  padding: 0 18px;
+  height: 40px;
+  min-width: 152px;
+  padding: 0 16px;
 }
 
 .tool-error {
@@ -111,26 +113,82 @@
   font-size: var(--fs-md);
 }
 
-.tool-status-line {
+/* Use mode header: title and actions, then inputs + Look up + status in one row (like the URL bar and Send). */
+.tool-use-head {
+  flex: none;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-muted);
+}
+
+.tool-head-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.tool-head-top .tool-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.tool-head-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 20px;
-  border-top: 1px solid var(--border-muted);
-  border-bottom: 1px solid var(--border-muted);
-  font-size: var(--fs-sm);
-  min-height: 44px;
+  gap: 8px;
   flex: none;
 }
 
-.tool-status-line .send,
-.tool-status-line .secondary {
+.tool-head-actions .send,
+.tool-head-actions .secondary {
   height: 28px;
   padding: 0 12px;
+  font-size: var(--fs-sm);
 }
 
-.tool-status-line .secondary {
+.tool-head-actions .secondary {
   border: 1px solid var(--btn-border);
+}
+
+.tool-use-bar {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 0 0;
+}
+
+.tool-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  flex: 1 1 240px;
+  min-width: 0;
+  min-height: 30px;
+  font-size: var(--fs-sm);
+}
+
+/* A saved lookup is not a fresh one: warn-tinted ring, as for an earlier send in Requests. */
+.tool-status.saved {
+  padding: 0 12px;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 55%, transparent);
+}
+
+.tool-status.saved strong {
+  font-weight: 600;
+}
+
+.tool-use-head .tool-error {
+  padding: 8px 0 0;
+}
+
+.tool-counts,
+.tool-status,
+.recent-toggle,
+.run-row .muted {
+  font-feature-settings: "tnum" 1;
 }
 
 .tool-counts {
@@ -151,15 +209,20 @@
   padding: 16px 20px 24px;
 }
 
+.tool-idle-line {
+  margin: 0 0 12px;
+  font-size: var(--fs-sm);
+}
+
 .tool-board {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
 .tool-row {
   display: grid;
-  gap: 14px;
+  gap: 16px;
   align-items: start;
 }
 
@@ -173,64 +236,59 @@
   background: var(--bg-soft);
   border: 1px solid var(--border-muted);
   border-radius: var(--r-md);
-  padding: 12px 14px;
+  padding: 12px 16px;
 }
 
 .tool-block-head {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
-.tool-block-heading {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  margin-bottom: 6px;
 }
 
 .tool-block-title {
+  flex: 1;
+  min-width: 0;
   margin: 0;
   font-family: var(--display);
   font-size: var(--fs-md);
   font-weight: 600;
 }
 
-.tool-block-request {
-  font-size: var(--fs-xs);
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.tool-block-request .method {
-  display: inline;
-  width: auto;
-  font-weight: 600;
-}
-
+/* The status is the quiet part of the header: a 2xx shows only its time, faint. Anything else is plain about it. */
 .tool-block-status {
   flex: none;
   font-size: var(--fs-xs);
   font-family: var(--mono);
-  padding-top: 2px;
+  font-feature-settings: "tnum" 1;
   white-space: nowrap;
+}
+
+.tool-block-status.tone-faint {
+  color: var(--faint);
 }
 
 .tool-block-status.tone-accent {
   color: var(--accent-fg);
 }
 
+.tool-block-status.loud {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+}
+
 .tool-block-body {
   min-width: 0;
 }
 
-/* "Look up to fill this in", the loading bars and the answer take about the same room, so the page below does not jump while calls run. */
-.tool-data .tool-block-body {
-  min-height: 48px;
+.tool-idle {
+  color: var(--faint);
+  user-select: none;
+}
+
+.tool-waiting-pick {
+  color: var(--muted);
 }
 
 .tool-block-body p {
@@ -264,7 +322,7 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
 }
 
 .tool-action .secondary {
@@ -289,7 +347,7 @@
 .tool-field {
   display: grid;
   grid-template-columns: minmax(80px, 38%) minmax(0, 1fr);
-  gap: 10px;
+  gap: 8px;
 }
 
 .tool-field dt {
@@ -313,7 +371,7 @@
   font-family: var(--display);
   font-size: var(--fs-display);
   font-weight: 600;
-  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 
 .tool-number-unit {
@@ -323,7 +381,7 @@
 
 .tool-badge {
   display: inline-block;
-  padding: 2px 10px;
+  padding: 2px 12px;
   border-radius: var(--r-pill);
   font-size: var(--fs-sm);
   font-weight: 600;
@@ -353,7 +411,7 @@
 }
 
 .tool-raw {
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 /* The highlighted JSON view sits inside the scrolling box, so its own frame draws no second border. */
@@ -391,9 +449,9 @@
 }
 
 .tool-table td {
-  padding: 5px 8px 5px 0;
+  padding: 4px 8px 4px 0;
   border-bottom: 1px solid var(--border-muted);
-  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 
 .tool-table tr:last-child td {
@@ -405,9 +463,40 @@
   font-weight: 500;
 }
 
-.tool-pick-col {
-  text-align: right;
-  white-space: nowrap;
+/* Rows that can be chosen behave like radio buttons: a ring marks the chosen row, another the one with the keyboard. */
+.tool-table.selectable tbody tr {
+  cursor: pointer;
+  outline: none;
+}
+
+.tool-table.selectable tbody tr:not([aria-checked="true"]):hover td {
+  background: color-mix(in srgb, var(--bg-hover) 50%, transparent);
+}
+
+/* Selected row pattern from DESIGN.md: accent stripe on the first cell, hover-tone ground. */
+.tool-table tbody tr[aria-checked="true"] td {
+  background: var(--bg-hover);
+}
+
+.tool-table tbody tr[aria-checked="true"] td:first-child {
+  box-shadow: inset 2px 0 0 var(--accent);
+  padding-left: 8px;
+}
+
+.tool-table tbody tr:focus-visible td:first-child {
+  box-shadow: var(--focus-ring-inset);
+  padding-left: 8px;
+}
+
+.tool-table tbody tr:focus-visible td {
+  background: var(--bg-hover);
+}
+
+.tool-pick-none {
+  margin-top: 8px;
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--btn-border);
 }
 
 .tool-pick-note {
@@ -449,7 +538,7 @@
 
 .tool-skeleton span {
   display: block;
-  height: 10px;
+  height: 8px;
   border-radius: var(--r-xs);
   background: var(--bg-hover);
   animation: tool-pulse 1.2s ease-in-out infinite;
@@ -477,8 +566,40 @@
   padding: 2px 8px 6px;
 }
 
+.tool-keep-hint {
+  margin: 0;
+  padding: 0 8px 6px 32px;
+}
+
+.tools-recent-menu {
+  position: relative;
+}
+
+.tools-recent-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 150;
+  width: min(320px, calc(100vw - 32px));
+  max-height: min(60vh, 420px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: 0 8px 24px var(--shadow-md);
+}
+
+.tools-recent-clear {
+  align-self: flex-start;
+  margin-top: 6px;
+}
+
 .tools-dev {
-  margin-top: 18px;
+  margin-top: 16px;
 }
 
 .tool-build-placeholder {
@@ -487,7 +608,8 @@
   text-align: center;
 }
 
-@media (max-width: 1000px) {
+/* Matches the app's sidebar-overlay breakpoint (SIDEBAR_OVERLAY_BELOW in App.tsx). */
+@media (max-width: 1099px) {
   .tools-layout {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
@@ -500,7 +622,7 @@
   .tools-layout > .runbook-nav-compact {
     display: flex;
     align-items: center;
-    gap: 10px;
+    gap: 8px;
     padding: 8px 16px;
     background: var(--bg-inset);
     border-bottom: 1px solid var(--border-muted);
@@ -516,4 +638,19 @@
   .tool-row {
     grid-template-columns: minmax(0, 1fr) !important;
   }
+}
+
+/* The request a confirm dialog is about: method pill and URL in mono ink. */
+.confirm-request {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0;
+  color: var(--text);
+  font-size: var(--fs-md);
+  overflow-wrap: anywhere;
+}
+
+.confirm-request .method {
+  width: auto;
 }

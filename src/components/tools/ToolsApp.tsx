@@ -7,14 +7,14 @@ import { sendRequest } from "../../lib/http";
 import { saveTextFile } from "../../lib/saveFile";
 import { storedSecrets } from "../../lib/secrets";
 import { setSectionStatus } from "../../lib/sectionStatus";
-import { reinsert, removeById } from "../../lib/listUndo";
+import { omitIds, reinsert, removeById } from "../../lib/listUndo";
 import { isString, load, save } from "../../lib/storage";
 import { setLeaveGuard } from "../../lib/unsavedWork";
 import { createWorkerScriptRunner } from "../../lib/testing/scriptRunner";
 import { listPickableRequests } from "../../lib/testing/requestSources";
 import { isDirty, saveBlockers, tidyTool } from "../../lib/tools/builder";
 import { canRetryAlone } from "../../lib/tools/engine";
-import { clearLookups, listLookups } from "../../lib/tools/lookupStore";
+import { clearLookups, deleteLookups, listLookups } from "../../lib/tools/lookupStore";
 import { sampleCollection, sampleTool, SAMPLE_COLLECTION_NAME } from "../../lib/tools/sample";
 import { SessionRegistry, type ToolSession } from "../../lib/tools/session";
 import { snapshotFileName, toToolSnapshot } from "../../lib/tools/snapshot";
@@ -65,11 +65,15 @@ export function ToolsApp({ active, shell, command }: Props) {
   const [tools, setTools] = useState<Tool[]>(loadTools);
   const [openToolId, setOpenToolId] = useState<string | null>(() => load<string | null>(OPEN_TOOL_KEY, null, isString));
   const [mode, setMode] = useState<ToolsMode>(() => (load<string>(MODE_KEY, "use") === "build" ? "build" : "use"));
+  /** A block whose request is missing asked for Build with that block selected (see Choose another request). */
+  const [buildSelect, setBuildSelect] = useState<string | null>(null);
   const [environments, setEnvironments] = useState<Environment[]>(loadEnvironments);
   // The keychain can finish loading after first render: fill in secrets without losing edits.
   useEffect(() => onSecretsHydrated(() => setEnvironments((cur) => mergeHydrated(cur, loadEnvironments()))), []);
   const [findRequest, setFindRequest] = useState<RequestLookup>(readRequests);
   const [recents, setRecents] = useState<LookupRecord[]>([]);
+  /** Lookup ids hidden by Clear history / Keep off whose Undo toast is still open. Reloads from the store skip them. */
+  const pendingRemoval = useRef<Set<string>>(new Set());
   const [notice, setNotice] = useState<string | null>(null);
   const registry = useMemo(() => new SessionRegistry(), []);
   // Build mode has its own sessions (sample inputs and Run with sample answers), so they never mix with Use mode's.
@@ -130,16 +134,46 @@ export function ToolsApp({ active, shell, command }: Props) {
   const lookingUp = runningIds.length > 0;
   useEffect(() => setSectionStatus("tools", { running: lookingUp }), [lookingUp]);
 
-  const updateTool = useCallback((next: Tool) => {
-    setTools((list) => {
-      const before = list.find((t) => t.id === next.id);
-      // Turning "keep recent lookups" off removes what was kept.
-      if (before?.settings.keepHistory && !next.settings.keepHistory) {
-        void clearLookups(next.id).then(() => setRecents((r) => (r.length && r[0].toolId === next.id ? [] : r)));
-      }
-      return list.map((t) => (t.id === next.id ? next : t));
-    });
-  }, []);
+  /**
+   * Hides a tool's saved lookups with an Undo toast; they are removed when the toast expires.
+   * `turnedOff`: the keep-lookups switch was just turned off, so Undo turns it back on.
+   */
+  const removeLookupsWithUndo = useCallback(
+    (toolId: string, turnedOff: boolean) => {
+      void listLookups(toolId).then((all) => {
+        const list = omitIds(all, pendingRemoval.current);
+        if (list.length === 0) return;
+        const ids = list.map((r) => r.id);
+        for (const id of ids) pendingRemoval.current.add(id);
+        const release = () => ids.forEach((id) => pendingRemoval.current.delete(id));
+        setRecents((r) => (r.length && r[0].toolId === toolId ? [] : r));
+        toast.show({
+          message: `Removed ${list.length} saved ${list.length === 1 ? "lookup" : "lookups"}${turnedOff ? "; this tool keeps none now" : ""}`,
+          onUndo: () => {
+            release();
+            if (turnedOff) {
+              const on = (t: Tool): Tool => ({ ...t, settings: { ...t.settings, keepHistory: true } });
+              setTools((l) => l.map((t) => (t.id === toolId ? on(t) : t)));
+              setDrafts((d) => (d[toolId] ? { ...d, [toolId]: on(d[toolId]) } : d));
+            }
+            if (toolRef.current?.id === toolId) setRecents(list);
+          },
+          onExpire: () => void deleteLookups(ids).finally(release),
+        });
+      });
+    },
+    [toast],
+  );
+
+  const updateTool = useCallback(
+    (next: Tool) => {
+      // Turning "keep recent lookups" off removes what was kept, after an Undo toast.
+      const before = toolsRef.current.find((t) => t.id === next.id);
+      if (before?.settings.keepHistory && !next.settings.keepHistory) removeLookupsWithUndo(next.id, true);
+      setTools((list) => list.map((t) => (t.id === next.id ? next : t)));
+    },
+    [removeLookupsWithUndo],
+  );
 
   /** Changes the draft (Build mode edits). The saved tool stays as it is until Save. */
   const editDraft = useCallback((next: Tool) => setDrafts((d) => ({ ...d, [next.id]: next })), []);
@@ -172,7 +206,7 @@ export function ToolsApp({ active, shell, command }: Props) {
   const refreshRecents = useCallback((toolId: string) => {
     listLookups(toolId)
       .then((list) => {
-        if (toolRef.current?.id === toolId) setRecents(list);
+        if (toolRef.current?.id === toolId) setRecents(omitIds(list, pendingRemoval.current));
       })
       .catch(() => setRecents([]));
   }, []);
@@ -243,6 +277,11 @@ export function ToolsApp({ active, shell, command }: Props) {
     const env = loadEnvironments().find((e) => e.id === t.settings.environmentId) ?? null;
     await s.retryCall(t, callId, { findRequest: requests, envVars: environmentVars(env), environmentName: env?.name, send: sendRequest, scripts: scripts.run });
   };
+  /** A different row for a pick-a-row call: only the calls that read from it run again. */
+  const changeRow = async (s: ToolSession, t: Tool, callId: string, index: number | null) => {
+    const env = loadEnvironments().find((e) => e.id === t.settings.environmentId) ?? null;
+    await s.changePick(t, callId, index, { findRequest: readRequests(), envVars: environmentVars(env), environmentName: env?.name, send: sendRequest, scripts: scripts.run });
+  };
   const lookUpRef = useRef(lookUp);
   lookUpRef.current = lookUp;
 
@@ -258,8 +297,9 @@ export function ToolsApp({ active, shell, command }: Props) {
     let on = true;
     setRecents([]);
     listLookups(toolId)
-      .then((list) => {
+      .then((all) => {
         if (!on) return;
+        const list = omitIds(all, pendingRemoval.current);
         setRecents(list);
         const s = registry.get(toolId);
         const st = s.getState();
@@ -281,6 +321,7 @@ export function ToolsApp({ active, shell, command }: Props) {
   };
   const switchMode = (m: ToolsMode) => {
     if (m === mode) return;
+    setBuildSelect(null);
     if (m === "use") guarded(() => setMode(m));
     else setMode(m);
   };
@@ -371,7 +412,9 @@ export function ToolsApp({ active, shell, command }: Props) {
       setTools(result.tools);
       result.replacedIds.forEach((id) => dropDraft(id));
       setFindRequest(() => readRequests());
-      setNotice(describeToolsImport(file.name, result.counts));
+      const replacedNames = result.replacedIds.map((id) => tools.find((t) => t.id === id)?.name || "(unnamed)");
+      // Stays on screen for a minute unless dismissed: it says what changed.
+      toast.show({ message: describeToolsImport(file.name, result.counts, replacedNames), ms: 60000 });
     } catch (e) {
       setNotice(`Could not import ${file.name}: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -495,8 +538,7 @@ export function ToolsApp({ active, shell, command }: Props) {
             })
           }
           onClearHistory={() => {
-            if (!tool) return;
-            void clearLookups(tool.id).then(() => setRecents([]));
+            if (tool) removeLookupsWithUndo(tool.id, false);
           }}
           onExport={() => void exportTools(tools)}
           onImport={(f) => void importTools(f)}
@@ -516,6 +558,7 @@ export function ToolsApp({ active, shell, command }: Props) {
             {mode === "build" ? (
               <ToolBuild
                 tool={draft ?? tool}
+                initialSelectedId={buildSelect}
                 dirty={dirty}
                 findRequest={findRequest}
                 environments={environments}
@@ -543,6 +586,7 @@ export function ToolsApp({ active, shell, command }: Props) {
                 findRequest={findRequest}
                 environment={environment}
                 problems={problems}
+                active={active}
                 onLookup={() => void lookUp(tool)}
                 onStop={() => session.stop()}
                 onCopyAll={() => copy(lookupAsText(tool, state.results, findRequest))}
@@ -557,6 +601,11 @@ export function ToolsApp({ active, shell, command }: Props) {
                   onOpenRequest: shell.onOpenRequest,
                   onCopy: copy,
                   onPick: (callId, index) => session.choosePick(callId, index),
+                  onChangeRow: (callId, index) => void changeRow(session, tool, callId, index),
+                  onChooseRequest: (blockId) => {
+                    setBuildSelect(blockId);
+                    setMode("build");
+                  },
                 }}
               />
             )}
@@ -567,7 +616,7 @@ export function ToolsApp({ active, shell, command }: Props) {
               <h2>Tools</h2>
               <p className="muted">A tool is a small lookup page. Type an ID, press Look up, and see the answers from several saved requests side by side, each filling in as it arrives.</p>
               {notice && <p className="small notice">{notice}</p>}
-              <button className="send" onClick={createTool}>
+              <button className="secondary" onClick={createTool}>
                 Create a tool
               </button>
               {import.meta.env.DEV && (

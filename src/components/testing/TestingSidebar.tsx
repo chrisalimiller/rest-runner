@@ -1,4 +1,5 @@
 import { whenLabel } from "../../lib/earlierSends";
+import { ImportButton } from "../shell/ImportButton";
 import type { TestRunSummary } from "../../lib/testing/testRun";
 import type { TestSuite } from "../../lib/testing/types";
 import { CollapseIcon } from "../shell/Icons";
@@ -21,21 +22,7 @@ interface Props {
 
 /** Suites and test runs on the left of Testing. Below 800px wide it turns into a select at the top. */
 export function TestingSidebar({ collapsed, onToggleCollapsed, suites, activeSuiteId, onOpenSuite, onNewSuite, onExport, onImport, runs, activeRunId, onOpenRun, runningSuiteId }: Props) {
-  const importLink = (
-    <label className="link-btn" title="Import test suites from a file">
-      Import
-      <input
-        type="file"
-        accept=".json,application/json"
-        hidden
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) onImport(f);
-          e.target.value = "";
-        }}
-      />
-    </label>
-  );
+  const importLink = <ImportButton title="Import test suites from a file" onImport={onImport} />;
 
   return (
     <>

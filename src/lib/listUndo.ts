@@ -12,3 +12,8 @@ export function reinsert<T extends { id: string }>(list: T[], item: T, index: nu
   const at = Math.min(Math.max(index, 0), list.length);
   return [...list.slice(0, at), item, ...list.slice(at)];
 }
+
+/** The list without the items whose ids are in `hidden` (removals still waiting out their Undo time). */
+export function omitIds<T extends { id: string }>(list: T[], hidden: ReadonlySet<string>): T[] {
+  return hidden.size === 0 ? list : list.filter((x) => !hidden.has(x.id));
+}

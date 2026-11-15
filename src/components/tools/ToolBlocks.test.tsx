@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { sampleFindRequest, sampleTool } from "../../lib/tools/sample";
 import type { SessionState } from "../../lib/tools/session";
 import type { CallResult } from "../../lib/tools/types";
-import { BlockCard, ToolBoard, blockRows, type BoardActions } from "./ToolBlocks";
+import { BlockCard, ToolBoard, blockRows, headerStatus, nextRowIndex, pickBlocking, type BoardActions } from "./ToolBlocks";
 import { InputControl } from "./InputControl";
 
 const tool = sampleTool();
@@ -19,22 +19,26 @@ function stateOf(results: CallResult[], extra: Partial<SessionState> = {}): Sess
   return { inputs: {}, results: Object.fromEntries(results.map((r) => [r.callId, r])), sending: [], writes: {}, writing: [], running: false, startedAt: null, viewing: null, recordId: null, pending: [], error: null, stopped: false, loaded: true, ...extra };
 }
 
-function card(blockId: string, state: SessionState, t = tool): string {
+function card(blockId: string, state: SessionState, t = tool, a: Partial<BoardActions> = {}): string {
   const block = t.blocks.find((b) => b.id === blockId)!;
-  return renderToStaticMarkup(<BlockCard block={block} tool={t} state={state} findRequest={findRequest} actions={actions} />);
+  return renderToStaticMarkup(<BlockCard block={block} tool={t} state={state} findRequest={findRequest} actions={{ ...actions, ...a }} />);
 }
 
 const subscriber = done("c-subscriber", { name: "Ada Lovelace", joined: "2021-03-14", autoPay: true, account: { id: "A-77", planId: "P-5" } });
 
 describe("block types", () => {
-  it("fields: label and value pairs, with the request line and status in the header", () => {
+  it("fields: label and value pairs, with only the time in the header and no request line", () => {
     const html = card("b-subscriber", stateOf([subscriber]));
     expect(html).toContain("Subscriber");
     expect(html).toContain("<dt>Name</dt><dd>Ada Lovelace</dd>");
     expect(html).toContain("<dt>Auto-pay</dt><dd>Yes</dd>");
-    expect(html).toContain("m-get");
-    expect(html).toContain("/subscribers/{{subscriberId}}");
-    expect(html).toContain("200 · 80 ms");
+    expect(html).not.toContain("m-get");
+    expect(html).not.toContain("tool-block-request");
+    expect(html).toContain("tone-faint");
+    expect(html).toContain(">80 ms<");
+    expect(html).not.toContain("200 · 80 ms");
+    // The request stays reachable: it is the tooltip of the status.
+    expect(html).toContain('title="GET /subscribers/{{subscriberId}}"');
     expect(html).toContain('data-state="ok"');
   });
 
@@ -126,7 +130,8 @@ describe("block types", () => {
 describe("block states", () => {
   it("before a lookup the block says to look up", () => {
     const html = card("b-subscriber", stateOf([]));
-    expect(html).toContain("Look up to fill this in.");
+    expect(html).not.toContain("Look up to fill this in");
+    expect(html).toContain("tool-idle");
   });
 
   it("waiting and running show a loading placeholder", () => {
@@ -145,7 +150,7 @@ describe("block states", () => {
   });
 
   it("a 4xx or 5xx shows the status and body in red with Retry, and Open request", () => {
-    const html = card("b-subscriber", stateOf([done("c-subscriber", { error: "no such subscriber" }, 404)]));
+    const html = card("b-subscriber", stateOf([done("c-subscriber", { error: "no such subscriber" }, 404)]), tool, { retryAlone: () => true });
     expect(html).toContain('data-state="http-error"');
     expect(html).toContain("tone-bad");
     expect(html).toContain("<strong>404</strong>");
@@ -153,6 +158,22 @@ describe("block states", () => {
     expect(html).toContain(">Retry<");
     expect(html).toContain(">Open request<");
     expect(html).not.toContain("Ada");
+    expect(html).toContain("404 · 80 ms");
+  });
+
+  it("Retry says what it reruns: Retry for one call, Run lookup again when dependants need the whole lookup", () => {
+    const state = stateOf([{ callId: "c-subscriber", name: "Subscriber", state: "network-error", error: "connection refused" }]);
+    expect(card("b-subscriber", state, tool, { retryAlone: () => true })).toContain(">Retry<");
+    const whole = card("b-subscriber", state, tool, { retryAlone: () => false });
+    expect(whole).toContain(">Run lookup again<");
+    expect(whole).not.toContain(">Retry<");
+  });
+
+  it("header status: 2xx shows only the time, everything else says its status", () => {
+    expect(headerStatus({ kind: "ok", status: 200, ms: 80 })).toMatchObject({ text: "80 ms", tone: "faint", loud: false });
+    expect(headerStatus({ kind: "http-error", status: 500, ms: 80 })).toMatchObject({ text: "500 · 80 ms", tone: "bad", loud: true });
+    expect(headerStatus({ kind: "ok", status: 304, ms: 80 })?.text).toBe("304 · 80 ms");
+    expect(headerStatus({ kind: "idle" })).toBeNull();
   });
 
   it("a skipped call shows the engine's message", () => {
@@ -168,10 +189,17 @@ describe("block states", () => {
     );
     expect(html).toContain("Request missing");
     expect(html).not.toContain("tool-block-request");
+    expect(html).not.toContain("Choose another request");
+  });
+
+  it("a missing request offers Choose another request when the page can switch to Build", () => {
+    const state = stateOf([{ callId: "c-account", name: "Account", state: "skipped", reason: "missing-request", message: "Request missing" }]);
+    const html = renderToStaticMarkup(<BlockCard block={tool.blocks.find((b) => b.id === "b-balance")!} tool={tool} state={state} findRequest={() => null} actions={{ ...actions, onChooseRequest: () => {} }} />);
+    expect(html).toContain(">Choose another request<");
   });
 
   it("a network error shows the text and Retry", () => {
-    const html = card("b-subscriber", stateOf([{ callId: "c-subscriber", name: "Subscriber", state: "network-error", error: "connection refused" }]));
+    const html = card("b-subscriber", stateOf([{ callId: "c-subscriber", name: "Subscriber", state: "network-error", error: "connection refused" }]), tool, { retryAlone: () => true });
     expect(html).toContain("connection refused");
     expect(html).toContain(">Retry<");
     expect(html).toContain(">No response<");
@@ -184,16 +212,53 @@ describe("block states", () => {
     expect(html).not.toContain("<dl");
   });
 
-  it("a pick-a-row table offers each row while the lookup waits for the choice", () => {
-    const t = { ...tool, calls: tool.calls.map((c) => (c.id === "c-devices" ? { ...c, pickRow: { listPath: "$.devices", labelPath: "$.model" } } : c)) };
-    const result = done("c-devices", { devices: [{ model: "Pixel 9", imei: "1" }, { model: "iPad", imei: "2" }] });
-    const waiting = card("b-devices", stateOf([result], { running: true, pending: [{ callId: "c-devices", rows: [{}, {}] }] }), t);
-    expect(waiting.match(/Use this row/g)).toHaveLength(2);
+  const pickTool = { ...tool, calls: tool.calls.map((c) => (c.id === "c-devices" ? { ...c, pickRow: { listPath: "$.devices", labelPath: "$.model" } } : c)) };
+  const devices = done("c-devices", { devices: [{ model: "Pixel 9", imei: "1" }, { model: "iPad", imei: "2" }] });
+
+  it("a pick-a-row table is a radio group while the lookup waits for the choice, with no per-row link", () => {
+    const waiting = card("b-devices", stateOf([devices], { running: true, pending: [{ callId: "c-devices", rows: [{}, {}] }] }), pickTool);
+    expect(waiting).not.toContain("Use this row");
+    expect(waiting.match(/role="radio"/g)).toHaveLength(2);
+    expect(waiting).toContain('role="radiogroup"');
+    expect(waiting.match(/tabindex="0"/g)).toHaveLength(1);
+    expect(waiting.match(/>Use none</g)).toHaveLength(1);
     expect(waiting).toContain("Pick a row");
-    const chosen = card("b-devices", stateOf([{ ...result, picked: { index: 1 } }]), t);
-    expect(chosen).not.toContain("Use this row");
-    expect(chosen).toContain('class="picked"');
-    expect(chosen).toContain("Used");
+  });
+
+  it("after the pick the chosen row is checked, and rows are selectable again only when the page can change the row", () => {
+    const state = stateOf([{ ...devices, picked: { index: 1 } }]);
+    const readOnly = card("b-devices", state, pickTool);
+    expect(readOnly).toContain('class="picked"');
+    expect(readOnly).toContain('aria-checked="true"');
+    expect(readOnly).not.toContain("Use none");
+    expect(readOnly).not.toContain("tabindex");
+    const changeable = card("b-devices", state, pickTool, { onChangeRow: () => {} });
+    expect(changeable).toContain('tabindex="0"');
+    expect(changeable).not.toContain("Use none");
+  });
+
+  it("row keys: arrows, Home and End move, other keys do nothing", () => {
+    expect(nextRowIndex("ArrowDown", 0, 3)).toBe(1);
+    expect(nextRowIndex("ArrowDown", 2, 3)).toBe(2);
+    expect(nextRowIndex("ArrowUp", 0, 3)).toBe(0);
+    expect(nextRowIndex("ArrowUp", 2, 3)).toBe(1);
+    expect(nextRowIndex("Home", 2, 3)).toBe(0);
+    expect(nextRowIndex("End", 0, 3)).toBe(2);
+    expect(nextRowIndex("a", 0, 3)).toBeNull();
+    expect(nextRowIndex("ArrowDown", 0, 0)).toBeNull();
+  });
+
+  it("calls that need the pick say they are waiting for a row in the table, with a link to it", () => {
+    const t = {
+      ...pickTool,
+      calls: pickTool.calls.map((c) => (c.id === "c-plan" ? { ...c, mappings: { planId: { call: { callId: "c-devices", path: "$.imei" } } } } : c)),
+    };
+    const state = stateOf([devices], { running: true, pending: [{ callId: "c-devices", rows: [{}, {}] }] });
+    const html = card("b-plan", state, t);
+    expect(html).toContain("Waiting for a row in");
+    expect(html).toContain(">Go to the table<");
+    expect(pickBlocking(t, t.calls.find((c) => c.id === "c-plan")!, state)).toBe("c-devices");
+    expect(pickBlocking(t, t.calls.find((c) => c.id === "c-account")!, state)).toBeNull();
   });
 });
 

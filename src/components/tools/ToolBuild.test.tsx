@@ -49,6 +49,8 @@ describe("Calls column", () => {
     expect(html).toContain("Subscriber › account.id");
     expect(html).toContain("Subscriber ID");
     expect(html).toContain("call-chip give");
+    expect(html).toContain("call-chip-kind");
+    expect(html).not.toContain("from-input");
   });
 
   it("marks write calls", () => {
@@ -85,14 +87,15 @@ describe("block page", () => {
   const render = (selectedId: string | null = null, t = sampleTool()) =>
     renderToStaticMarkup(<BlockPage tool={t} state={stateOf([subscriber])} findRequest={find} actions={actions} selectedId={selectedId} onSelect={noop} onConnect={noop} onBlocks={noop} onAdd={noop} onDuplicate={noop} onDelete={noop} />);
 
-  it("renders each block with a handle, move buttons, connect, duplicate and delete", () => {
+  it("renders each block with a handle, connect and a ⋯ menu for the rest", () => {
     const html = render();
     expect(html).toContain('draggable="true"');
-    expect(html).toContain("Move left: Subscriber");
-    expect(html).toContain("Move down: Subscriber");
     expect(html).toContain("Connect Subscriber");
-    expect(html).toContain("Duplicate Subscriber");
-    expect(html).toContain("Delete Subscriber");
+    expect(html).toContain("More actions: Subscriber");
+    // Moves, duplicate and delete sit in the closed menu, not on the block.
+    expect(html).not.toContain("Move left: Subscriber");
+    expect(html).not.toContain("Duplicate Subscriber");
+    expect(html).not.toContain("Delete Subscriber");
     // A real answer is in the preview.
     expect(html).toContain("<dd>Ada</dd>");
   });
@@ -100,12 +103,6 @@ describe("block page", () => {
   it("puts blocks of one row side by side", () => {
     const html = render();
     expect(html).toContain("repeat(2, minmax(0, 1fr))");
-  });
-
-  it("disables moves that cannot happen", () => {
-    const html = render();
-    const first = html.slice(html.indexOf("Move left: Look up"), html.indexOf("Move left: Look up") + 120);
-    expect(first).toContain("disabled");
   });
 
   it("marks the selected block", () => {
@@ -138,7 +135,17 @@ describe("Connect dialog", () => {
     expect(stepsFor(tool.blocks.find((b) => b.id === "b-suspend"))).toEqual(["request", "fill", "format"]);
     expect(stepsFor(undefined)).toEqual(["fill"]);
     const html = dialog("b-subscriber");
-    for (const s of ["Request", "Fill in", "Fields", "Format"]) expect(html).toContain(s);
+    for (const s of ["Request", "Values", "Fields", "Labels"]) expect(html).toContain(s);
+  });
+
+  it("shows Done only on the last step, with Next before it", () => {
+    const html = dialog("b-subscriber");
+    expect(html).toContain("Next");
+    expect(html).not.toMatch(/>Done</);
+    expect(html).not.toContain('class="send"');
+    const note = dialog("b-note");
+    expect(note).toMatch(/>Done</);
+    expect(note).not.toContain("Next");
   });
 
   it("step 1 lists the tool's calls with the chosen one checked", () => {

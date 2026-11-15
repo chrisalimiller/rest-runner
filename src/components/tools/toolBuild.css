@@ -19,7 +19,7 @@
 .build-actions .send,
 .build-actions .secondary {
   height: 30px;
-  padding: 0 14px;
+  padding: 0 16px;
 }
 
 .build-dirty {
@@ -41,7 +41,7 @@
 
 .build-sample .cancel {
   height: 30px;
-  padding: 0 14px;
+  padding: 0 16px;
 }
 
 .build-sample-note {
@@ -59,8 +59,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  padding: 10px 16px 6px;
+  gap: 8px;
+  padding: 12px 16px 6px;
 }
 
 .build-col-head h3 {
@@ -101,7 +101,7 @@
 }
 
 .call-group {
-  margin-top: 10px;
+  margin-top: 8px;
 }
 
 .call-group h4 {
@@ -134,10 +134,10 @@
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
-  padding: 8px 10px 9px;
+  padding: 8px 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .call-card.in-loop {
@@ -217,7 +217,7 @@ button.call-request:hover {
 .call-chip {
   display: inline-block;
   max-width: 100%;
-  padding: 1px 7px;
+  padding: 1px 8px;
   border-radius: var(--r-pill);
   background: var(--group-neutral-bg);
   color: var(--text-soft);
@@ -226,31 +226,55 @@ button.call-request:hover {
   white-space: nowrap;
 }
 
-.call-chip.from-call {
-  background: var(--group-blue-bg);
+.call-chip-kind {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  color: var(--muted);
 }
 
-.call-chip.from-input {
-  background: var(--group-green-bg);
-}
-
-.call-chip.from-environment {
-  background: var(--group-amber-bg);
-}
-
-.call-chip.give {
-  background: var(--group-purple-bg);
+/* The one place a chip uses colour: a value that has nowhere to come from. */
+.call-chip-missing,
+.call-chip-missing .call-chip-kind {
+  color: var(--danger);
 }
 
 .call-options {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 14px;
+  gap: 4px 16px;
 }
 
-.call-options .link-btn {
+.call-options .link-btn:last-child:not(:first-child) {
   margin-left: auto;
+}
+
+.call-options-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.call-options-toggle:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.call-options-chev {
+  display: inline-flex;
+  transform: rotate(-90deg);
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.call-options-chev.open {
+  transform: none;
+}
+
+.call-options-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 4px;
 }
 
 .check {
@@ -266,8 +290,8 @@ button.call-request:hover {
 }
 
 .build-cycle {
-  margin: 10px 0 0;
-  padding: 8px 10px;
+  margin: 8px 0 0;
+  padding: 8px 12px;
   border: 1px solid var(--bad);
   border-radius: var(--r-md);
   background: var(--bad-subtle);
@@ -275,7 +299,7 @@ button.call-request:hover {
 }
 
 .build-calls-empty {
-  margin: 14px 4px;
+  margin: 16px 4px;
 }
 
 /* The saved-request picker: a fixed layer to the right of the Calls column, over the block page. */
@@ -290,7 +314,7 @@ button.call-request:hover {
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   box-shadow: 0 10px 28px var(--shadow-lg);
-  animation: add-request-in 160ms var(--ease-out);
+  animation: add-request-in var(--dur-base) var(--ease-out);
 }
 
 @keyframes add-request-in {
@@ -326,7 +350,7 @@ button.call-request:hover {
 
 .add-request-field svg {
   position: absolute;
-  left: 18px;
+  left: 16px;
   top: 50%;
   margin-top: 2px;
   transform: translateY(-50%);
@@ -351,11 +375,11 @@ button.call-request:hover {
 }
 
 .add-request-none {
-  padding: 10px 8px;
+  padding: 12px 8px;
 }
 
 .add-request-group {
-  padding: 9px 8px 3px;
+  padding: 8px 8px 4px;
   font-size: var(--fs-xs);
   font-weight: 600;
   letter-spacing: 0.5px;
@@ -367,7 +391,7 @@ button.call-request:hover {
 }
 
 .add-request-list > li:first-child .add-request-group {
-  padding-top: 3px;
+  padding-top: 4px;
 }
 
 .add-request-row {
@@ -375,7 +399,7 @@ button.call-request:hover {
   align-items: flex-start;
   gap: 6px;
   min-width: 0;
-  padding: 5px 8px 6px 2px;
+  padding: 4px 8px 4px 2px;
   border-radius: var(--r-sm);
   cursor: pointer;
   user-select: none;
@@ -425,7 +449,7 @@ button.call-request:hover {
 }
 
 .add-request-url {
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 
@@ -433,12 +457,12 @@ button.call-request:hover {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  padding: 0 7px;
+  gap: 4px;
+  padding: 0 8px;
   font-size: var(--fs-xs);
   font-weight: 500;
   line-height: 18px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--bg-hover);
   color: var(--muted);
 }
@@ -446,7 +470,7 @@ button.call-request:hover {
 .add-request-pill.ok {
   background: var(--ok-subtle);
   color: var(--ok);
-  animation: add-request-in 160ms var(--ease-out);
+  animation: add-request-in var(--dur-base) var(--ease-out);
 }
 
 .add-request-foot {
@@ -455,7 +479,7 @@ button.call-request:hover {
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 12px;
-  padding: 7px 10px;
+  padding: 8px 12px;
   border-top: 1px solid var(--border-muted);
   font-size: var(--fs-xs);
   color: var(--muted);
@@ -464,7 +488,7 @@ button.call-request:hover {
 .add-request-foot span {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
 }
 
 .add-request-foot .push {
@@ -492,7 +516,7 @@ button.call-request:hover {
 .build-empty kbd,
 .build-page kbd {
   font-family: var(--mono);
-  padding: 0 5px;
+  padding: 0 4px;
   border: 1px solid var(--border);
   border-radius: var(--r-xs);
   background: var(--bg-soft);
@@ -501,7 +525,7 @@ button.call-request:hover {
 .build-gap {
   height: 12px;
   border-radius: var(--r-sm);
-  transition: background var(--dur-fast), height var(--dur-fast);
+  transition: background var(--dur-fast) var(--ease-out), height var(--dur-fast) var(--ease-out);
 }
 
 .build-gap.armed {
@@ -524,6 +548,7 @@ button.call-request:hover {
 }
 
 .build-row {
+  gap: 12px;
   align-items: stretch;
 }
 
@@ -563,24 +588,24 @@ button.call-request:hover {
   top: 0;
   bottom: 0;
   width: 4px;
-  border-radius: 2px;
+  border-radius: var(--r-xs);
   background: var(--accent);
   z-index: 3;
 }
 
 .build-block.drop-before::before {
-  left: -7px;
+  left: -9px; /* centred in the 12px row gap: 1px border + 6px - 2px half the bar */
 }
 
 .build-block.drop-after::after {
-  right: -7px;
+  right: -9px;
 }
 
 .build-chrome {
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 3px 4px 3px 2px;
+  padding: 4px 4px 4px 2px;
   border-bottom: 1px solid var(--border-muted);
   background: var(--bg-soft);
   border-radius: var(--r-md) var(--r-md) 0 0;
@@ -591,12 +616,20 @@ button.call-request:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  position: relative;
   width: 22px;
   height: 24px;
   color: var(--muted);
   cursor: grab;
   border-radius: var(--r-xs);
   user-select: none;
+}
+
+/* Visible size stays 22 by 24; the hit area is at least 24 by 24. */
+.build-handle::after {
+  content: "";
+  position: absolute;
+  inset: 0 -1px;
 }
 
 .build-handle:hover,
@@ -628,7 +661,27 @@ button.call-request:hover {
 }
 
 .build-chrome .icon-btn:disabled {
-  opacity: 0.3;
+  opacity: 0.5;
+}
+
+/* The ⋯ menu shows on hover, keyboard focus inside the block, or selection. It stays in the tab order. */
+.build-more {
+  display: inline-flex;
+  opacity: 0;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.build-block:hover .build-more,
+.build-block:focus-within .build-more,
+.build-block.selected .build-more,
+.build-more:has([aria-expanded="true"]) {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .build-more {
+    opacity: 1;
+  }
 }
 
 .build-connect {
@@ -638,7 +691,7 @@ button.call-request:hover {
   height: 24px;
   line-height: 1;
   white-space: nowrap;
-  padding: 0 10px;
+  padding: 0 8px;
   margin: 0 4px;
   font-size: var(--fs-sm);
 }
@@ -666,10 +719,6 @@ button.call-request:hover {
     padding: 0 6px;
     margin: 0 2px;
   }
-
-  .build-chrome .icon-btn {
-    width: 20px;
-  }
 }
 
 /* The preview is for looking at; its own buttons still work. */
@@ -695,7 +744,7 @@ button.call-request:hover {
 
 .add-block-bar .secondary {
   height: 32px;
-  padding: 0 14px;
+  padding: 0 16px;
 }
 
 .add-block-list {
@@ -715,7 +764,7 @@ button.call-request:hover {
   width: 100%;
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 8px;
   padding: 6px 8px;
   text-align: left;
   background: none;
@@ -743,20 +792,59 @@ button.call-request:hover {
 .modal.connect-dialog {
   width: min(920px, 94vw);
   height: min(660px, 90vh);
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
 }
 
+.modal.connect-dialog .modal-head,
+.modal.connect-dialog .cd-foot {
+  flex: none;
+}
+
+.cd-foot {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .cd-steps button {
+    padding: 8px;
+  }
+  .cd-request {
+    display: none;
+  }
+}
+
+/* Settings uses the standard modal size (860 by 560). */
 .modal.tool-settings-dialog {
-  width: min(720px, 94vw);
-  height: min(640px, 90vh);
+  width: min(860px, 94vw);
+  height: min(560px, 90vh);
+}
+
+.cd-stepbar {
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px 0;
+  border-bottom: 1px solid var(--border-muted);
+}
+
+.cd-request {
+  min-width: 0;
+  padding-bottom: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .cd-steps {
   list-style: none;
   margin: 0;
-  padding: 8px 16px 0;
+  padding: 0;
   display: flex;
   gap: 4px;
-  border-bottom: 1px solid var(--border-muted);
+  flex: none;
 }
 
 .cd-steps button {
@@ -808,13 +896,13 @@ button.call-request:hover {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 14px 16px;
+  padding: 16px 16px;
 }
 
 .cd-pane {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .cd-lead {
@@ -849,7 +937,7 @@ button.call-request:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 12px 16px;
   border-top: 1px solid var(--border-muted);
 }
 
@@ -862,7 +950,7 @@ button.call-request:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 16px;
+  padding: 12px 16px;
   border-top: 1px solid var(--border-muted);
 }
 
@@ -878,8 +966,8 @@ button.call-request:hover {
 .cd-calls label {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
+  gap: 8px;
+  padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: var(--r-md);
   cursor: pointer;
@@ -897,7 +985,7 @@ button.call-request:hover {
 .cd-tag {
   margin-left: auto;
   font-size: var(--fs-xs);
-  padding: 1px 7px;
+  padding: 1px 8px;
   border-radius: var(--r-pill);
   background: var(--group-amber-bg);
   color: var(--group-amber-fg);
@@ -914,8 +1002,6 @@ button.call-request:hover {
 }
 
 .cd-picker-list {
-  max-height: 260px;
-  overflow: auto;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -927,8 +1013,8 @@ button.call-request:hover {
   width: 100%;
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 6px 10px;
+  gap: 8px;
+  padding: 6px 12px;
   text-align: left;
   background: none;
   border: 0;
@@ -947,13 +1033,13 @@ button.call-request:hover {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .cd-map {
   border: 1px solid var(--border-muted);
   border-radius: var(--r-md);
-  padding: 10px 12px;
+  padding: 12px 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -962,7 +1048,7 @@ button.call-request:hover {
 .cd-map-head {
   display: flex;
   align-items: baseline;
-  gap: 10px;
+  gap: 8px;
 }
 
 .cd-ph {
@@ -1005,8 +1091,6 @@ button.call-request:hover {
 }
 
 .cd-inline-tree {
-  max-height: 220px;
-  overflow: auto;
   border: 1px solid var(--border-muted);
   border-radius: var(--r-sm);
   background: var(--bg-inset);
@@ -1015,7 +1099,7 @@ button.call-request:hover {
 
 .cd-add-source {
   display: flex;
-  gap: 14px;
+  gap: 16px;
   flex-wrap: wrap;
 }
 
@@ -1030,7 +1114,7 @@ button.call-request:hover {
 .cd-fields {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr);
-  gap: 18px;
+  gap: 16px;
   flex-direction: unset;
 }
 
@@ -1043,7 +1127,8 @@ button.call-request:hover {
 }
 
 .cd-fields-tree .json-tree {
-  max-height: 400px;
+  max-height: none;
+  overflow: visible;
 }
 
 .cd-picked {
@@ -1059,7 +1144,7 @@ button.call-request:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 3px 4px 3px 8px;
+  padding: 4px 4px 4px 8px;
   border: 1px solid var(--border-muted);
   border-radius: var(--r-sm);
 }
@@ -1142,7 +1227,7 @@ button.call-request:hover {
 .cd-colour-add {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
 }
 
 /* ---- sample JSON tree ---- */
@@ -1190,8 +1275,8 @@ button.call-request:hover {
   min-width: 0;
   display: flex;
   align-items: baseline;
-  gap: 10px;
-  padding: 3px 8px 3px 2px;
+  gap: 8px;
+  padding: 4px 8px 4px 2px;
   background: none;
   border: 0;
   text-align: left;
@@ -1244,13 +1329,13 @@ button.call-request:hover {
 .ts-body {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 16px;
 }
 
 .ts-section {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .ts-section h4 {
@@ -1268,13 +1353,13 @@ button.call-request:hover {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .ts-input {
   border: 1px solid var(--border-muted);
   border-radius: var(--r-md);
-  padding: 8px 10px;
+  padding: 8px 12px;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1287,7 +1372,7 @@ button.call-request:hover {
   align-items: end;
 }
 
-@media (max-width: 1000px) {
+@media (max-width: 1099px) {
   .build-body {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
@@ -1306,7 +1391,21 @@ button.call-request:hover {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .build-gap {
+  .build-gap,
+  .call-options-chev,
+  .build-more {
     transition: none;
   }
+}
+
+/* Save is secondary; with unsaved edits it takes the accent outline. */
+.secondary.build-save.dirty:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Digits that must not jitter: use-count pill, flyout footer counts. */
+.add-request-pill,
+.add-request-foot {
+  font-feature-settings: "tnum" 1;
 }

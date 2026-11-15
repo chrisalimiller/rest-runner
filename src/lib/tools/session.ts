@@ -2,9 +2,11 @@ import type { SendFn } from "../batch";
 import type { RequestLookup } from "../flows/flows";
 import type { ScriptRunner } from "../testing/scriptRunner";
 import type { Vars } from "../template";
+import { requestPlaceholders } from "../request";
 import type { Environment } from "../environments";
-import { resolveInputs, runLookup, runLookupCall, runWriteCall, ToolNotRunnableError, writeCallGuard } from "./engine";
+import { dependentCalls, resolveInputs, runLookup, runLookupCall, runWriteCall, ToolNotRunnableError, writeCallGuard } from "./engine";
 import { saveLookup } from "./lookupStore";
+import { orderCalls } from "./order";
 import type { CallResult, LookupRecord, Tool } from "./types";
 
 /**
@@ -161,6 +163,45 @@ export class ToolSession {
       return finish(result);
     } catch (e) {
       return finish({ callId, name, state: "network-error", error: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
+  /**
+   * Changes the row picked in a finished pick-a-row call (null for none) and runs again only the calls that read from it,
+   * directly or through other calls, in dependency order. Their old answers clear first so their blocks show loading.
+   * Not while a lookup runs. The saved lookup is not changed.
+   */
+  async changePick(tool: Tool, callId: string, index: number | null, deps: Omit<LookupDeps, "save">): Promise<void> {
+    const prev = this.state.results[callId];
+    if (this.state.running || !prev || prev.state !== "done") return;
+    const { picked: _old, ...rest } = prev;
+    const next: CallResult = index === null ? rest : { ...rest, picked: { index } };
+    const affected = new Set<string>();
+    const queue = [callId];
+    while (queue.length > 0) {
+      const id = queue.shift()!;
+      for (const c of dependentCalls(tool, id, deps.findRequest)) {
+        if (!affected.has(c.id) && !c.write) {
+          affected.add(c.id);
+          queue.push(c.id);
+        }
+      }
+    }
+    const order = orderCalls(tool.calls, (c) => {
+      const def = deps.findRequest(c.requestId);
+      return def ? requestPlaceholders(def) : null;
+    });
+    const sequence = order.ok ? order.order.filter((c) => affected.has(c.id)).map((c) => c.id) : [...affected];
+    const results = { ...this.state.results, [callId]: next };
+    for (const id of sequence) delete results[id];
+    this.set({ results, sending: [...this.state.sending, ...sequence] });
+    for (const id of sequence) {
+      try {
+        const r = await runLookupCall(tool, id, this.state.inputs, { findRequest: deps.findRequest, envVars: deps.envVars, send: deps.send, scripts: deps.scripts, prior: this.state.results });
+        this.set({ results: { ...this.state.results, [id]: r }, sending: this.state.sending.filter((x) => x !== id) });
+      } catch {
+        this.set({ sending: this.state.sending.filter((x) => x !== id) });
+      }
     }
   }
 

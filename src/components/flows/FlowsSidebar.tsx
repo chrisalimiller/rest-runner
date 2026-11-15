@@ -1,4 +1,5 @@
 import { triggerText } from "../../lib/flows/scheduleChip";
+import { ImportButton } from "../shell/ImportButton";
 import { END_LABELS } from "../../lib/flows/flowReport";
 import { whenLabel } from "../../lib/earlierSends";
 import type { Flow, FlowRunSummary } from "../../lib/flows/types";
@@ -31,21 +32,7 @@ const END_MARK = { passed: "✓", "passed-handled": "✓", failed: "✕", cancel
 
 /** Flows and recent flow runs on the left of Flows mode. Below 800px wide it turns into a select at the top. */
 export function FlowsSidebar({ collapsed, onToggleCollapsed, flows, activeFlowId, onOpenFlow, onNewFlow, onExport, onImport, runs, activeRunId, onOpenRun, runningFlowIds, scheduleInfo }: Props) {
-  const importLink = (
-    <label className="link-btn" title="Import flows from a file">
-      Import
-      <input
-        type="file"
-        accept=".json,application/json"
-        hidden
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) onImport(f);
-          e.target.value = "";
-        }}
-      />
-    </label>
-  );
+  const importLink = <ImportButton title="Import flows from a file" onImport={onImport} />;
 
   return (
     <>

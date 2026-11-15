@@ -17,6 +17,8 @@ import "./toolBuild.css";
 interface Props {
   /** The tool being edited: the draft, or the saved tool when nothing was changed. */
   tool: Tool;
+  /** Block to have selected when Build opens (from "Choose another request" on a card in Use mode). */
+  initialSelectedId?: string | null;
   dirty: boolean;
   findRequest: RequestLookup;
   environments: Environment[];
@@ -35,8 +37,8 @@ interface Props {
  * Run with sample runs the lookup with the sample inputs typed here, so every block fills with a real answer and
  * the Connect dialog can offer them to click.
  */
-export function ToolBuild({ tool, dirty, findRequest, environments, state, onChange, onSave, onDiscard, onRunSample, onStop, actions }: Props) {
-  const [selected, setSelected] = useState<string | null>(null);
+export function ToolBuild({ tool, initialSelectedId, dirty, findRequest, environments, state, onChange, onSave, onDiscard, onRunSample, onStop, actions }: Props) {
+  const [selected, setSelected] = useState<string | null>(initialSelectedId ?? null);
   const [connect, setConnect] = useState<ConnectTarget | null>(null);
   const [settings, setSettings] = useState<"inputs" | "settings" | null>(null);
 
@@ -76,7 +78,7 @@ export function ToolBuild({ tool, dirty, findRequest, environments, state, onCha
           <button type="button" className="secondary" onClick={onDiscard} disabled={!dirty}>
             Discard
           </button>
-          <button type="button" className="send" onClick={onSave} disabled={!dirty || blockers.length > 0} title={blockers[0]?.message ?? (dirty ? "Keep this tool" : "Nothing to save")}>
+          <button type="button" className={`secondary build-save ${dirty ? "dirty" : ""}`} onClick={onSave} disabled={!dirty || blockers.length > 0} title={blockers[0]?.message ?? (dirty ? "Keep this tool" : "Nothing to save")}>
             Save
           </button>
         </div>
