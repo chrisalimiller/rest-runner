@@ -134,10 +134,10 @@
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
-  padding: 8px 10px 9px;
+  padding: 8px 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
 }
 
 .call-card.in-loop {
@@ -217,7 +217,7 @@ button.call-request:hover {
 .call-chip {
   display: inline-block;
   max-width: 100%;
-  padding: 1px 7px;
+  padding: 1px 8px;
   border-radius: var(--r-pill);
   background: var(--group-neutral-bg);
   color: var(--text-soft);
@@ -226,31 +226,55 @@ button.call-request:hover {
   white-space: nowrap;
 }
 
-.call-chip.from-call {
-  background: var(--group-blue-bg);
+.call-chip-kind {
+  font-family: var(--mono);
+  font-size: var(--fs-xs);
+  color: var(--muted);
 }
 
-.call-chip.from-input {
-  background: var(--group-green-bg);
-}
-
-.call-chip.from-environment {
-  background: var(--group-amber-bg);
-}
-
-.call-chip.give {
-  background: var(--group-purple-bg);
+/* The one place a chip uses colour: a value that has nowhere to come from. */
+.call-chip-missing,
+.call-chip-missing .call-chip-kind {
+  color: var(--danger);
 }
 
 .call-options {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 14px;
+  gap: 4px 16px;
 }
 
-.call-options .link-btn {
+.call-options .link-btn:last-child:not(:first-child) {
   margin-left: auto;
+}
+
+.call-options-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.call-options-toggle:disabled {
+  opacity: 1;
+  cursor: default;
+}
+
+.call-options-chev {
+  display: inline-flex;
+  transform: rotate(-90deg);
+  transition: transform var(--dur-fast);
+}
+
+.call-options-chev.open {
+  transform: none;
+}
+
+.call-options-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 4px;
 }
 
 .check {
@@ -275,7 +299,7 @@ button.call-request:hover {
 }
 
 .build-calls-empty {
-  margin: 14px 4px;
+  margin: 16px 4px;
 }
 
 /* The saved-request picker: a fixed layer to the right of the Calls column, over the block page. */
@@ -326,7 +350,7 @@ button.call-request:hover {
 
 .add-request-field svg {
   position: absolute;
-  left: 18px;
+  left: 16px;
   top: 50%;
   margin-top: 2px;
   transform: translateY(-50%);
@@ -355,7 +379,7 @@ button.call-request:hover {
 }
 
 .add-request-group {
-  padding: 9px 8px 3px;
+  padding: 8px 8px 4px;
   font-size: var(--fs-xs);
   font-weight: 600;
   letter-spacing: 0.5px;
@@ -375,7 +399,7 @@ button.call-request:hover {
   align-items: flex-start;
   gap: 6px;
   min-width: 0;
-  padding: 5px 8px 6px 2px;
+  padding: 4px 8px 4px 2px;
   border-radius: var(--r-sm);
   cursor: pointer;
   user-select: none;
@@ -425,7 +449,7 @@ button.call-request:hover {
 }
 
 .add-request-url {
-  font-size: 10.5px;
+  font-size: var(--fs-xs);
   color: var(--muted);
 }
 
@@ -434,11 +458,11 @@ button.call-request:hover {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  padding: 0 7px;
+  padding: 0 8px;
   font-size: var(--fs-xs);
   font-weight: 500;
   line-height: 18px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--bg-hover);
   color: var(--muted);
 }
@@ -455,7 +479,7 @@ button.call-request:hover {
   flex-wrap: wrap;
   align-items: center;
   gap: 4px 12px;
-  padding: 7px 10px;
+  padding: 8px 12px;
   border-top: 1px solid var(--border-muted);
   font-size: var(--fs-xs);
   color: var(--muted);
@@ -524,6 +548,7 @@ button.call-request:hover {
 }
 
 .build-row {
+  gap: 12px;
   align-items: stretch;
 }
 
@@ -563,7 +588,7 @@ button.call-request:hover {
   top: 0;
   bottom: 0;
   width: 4px;
-  border-radius: 2px;
+  border-radius: var(--r-xs);
   background: var(--accent);
   z-index: 3;
 }
@@ -591,12 +616,20 @@ button.call-request:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  position: relative;
   width: 22px;
   height: 24px;
   color: var(--muted);
   cursor: grab;
   border-radius: var(--r-xs);
   user-select: none;
+}
+
+/* Visible size stays 22 by 24; the hit area is at least 24 by 24. */
+.build-handle::after {
+  content: "";
+  position: absolute;
+  inset: 0 -1px;
 }
 
 .build-handle:hover,
@@ -628,7 +661,27 @@ button.call-request:hover {
 }
 
 .build-chrome .icon-btn:disabled {
-  opacity: 0.3;
+  opacity: 0.5;
+}
+
+/* The ⋯ menu shows on hover, keyboard focus inside the block, or selection. It stays in the tab order. */
+.build-more {
+  display: inline-flex;
+  opacity: 0;
+  transition: opacity var(--dur-fast);
+}
+
+.build-block:hover .build-more,
+.build-block:focus-within .build-more,
+.build-block.selected .build-more,
+.build-more:has([aria-expanded="true"]) {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .build-more {
+    opacity: 1;
+  }
 }
 
 .build-connect {
@@ -638,7 +691,7 @@ button.call-request:hover {
   height: 24px;
   line-height: 1;
   white-space: nowrap;
-  padding: 0 10px;
+  padding: 0 8px;
   margin: 0 4px;
   font-size: var(--fs-sm);
 }
@@ -665,10 +718,6 @@ button.call-request:hover {
   .build-connect {
     padding: 0 6px;
     margin: 0 2px;
-  }
-
-  .build-chrome .icon-btn {
-    width: 20px;
   }
 }
 
