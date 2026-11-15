@@ -543,6 +543,7 @@ export function ToolsApp({ active, shell, command }: Props) {
                 findRequest={findRequest}
                 environment={environment}
                 problems={problems}
+                active={active}
                 onLookup={() => void lookUp(tool)}
                 onStop={() => session.stop()}
                 onCopyAll={() => copy(lookupAsText(tool, state.results, findRequest))}
