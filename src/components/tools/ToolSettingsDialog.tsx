@@ -75,8 +75,8 @@ export function ToolSettingsDialog({ tool, environments, onChange, onClose, focu
       </div>
       <div className="modal-foot">
         <span className="muted small">Edits join your unsaved changes. Save the tool to keep them.</span>
-        <button className="send" onClick={onClose}>
-          Done
+        <button className="secondary" onClick={onClose}>
+          Close
         </button>
       </div>
     </Modal>

@@ -32,7 +32,7 @@ export function UnsavedDialog({ toolName, blocked, onSave, onDiscard, onCancel }
         <button className="secondary" onClick={onDiscard}>
           Discard
         </button>
-        <button className="send" onClick={onSave} disabled={!!blocked}>
+        <button className="secondary" onClick={onSave} disabled={!!blocked}>
           Save
         </button>
       </div>

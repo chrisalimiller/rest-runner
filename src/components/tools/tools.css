@@ -100,8 +100,10 @@
   max-width: 360px;
 }
 
+/* 40px like Send; the width is fixed so "Look up on Prod" does not widen it. */
 .tool-lookup {
-  height: 30px;
+  height: 40px;
+  min-width: 152px;
   padding: 0 18px;
 }
 
@@ -516,4 +518,19 @@
   .tool-row {
     grid-template-columns: minmax(0, 1fr) !important;
   }
+}
+
+/* The request a confirm dialog is about: method pill and URL in mono ink. */
+.confirm-request {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0;
+  color: var(--text);
+  font-size: var(--fs-md);
+  overflow-wrap: anywhere;
+}
+
+.confirm-request .method {
+  width: auto;
 }

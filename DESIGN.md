@@ -181,7 +181,7 @@ Cool grey ground, one blue, one green, and a status rainbow that always carries 
 
 ### Primary
 - **Focus Blue** (dark `#2f81f7` fill, `#4493f8` as text/ring; light `#1f5fd0` for both): selection, focus ring, URL bar focus, links, the active-row inset stripe. `--accent-fg` is the readable text/ring form. Dark `#4493f8` is 6.1:1 on the canvas; light `#1f5fd0` is 4.95:1 on the canvas and 4.5:1 on inset.
-- **Send Green** (dark `#238636`, hover `#2ea043`; light `#1a7f37`, hover `#166b2e`): the Send button only, with white text (4.63:1 dark, 5.08:1 light). The Cancel state turns it to Danger Fill.
+- **Send Green** (dark `#238636`, hover `#2ea043`; light `#1a7f37`, hover `#166b2e`): actions that send requests now, and only those: Send, Look up, Run with sample and Run, with white text (4.63:1 dark, 5.08:1 light). Everything else (Save, New tool, Done and Close, dialog confirms) is secondary. The Cancel state turns it to Danger Fill.
 
 ### Secondary (brand)
 - **Brand Purple** (dark `#bc8cff`; light `#6f3fc9`): the mark's braces, the hyphen in `rest-runner`, the active section indicator on the status bar, the pinned-tab active ring, and the Start/Schedule flow nodes. 7.5:1 dark, 5.5:1 light on canvas.
@@ -316,6 +316,9 @@ Quiet and compact. Every interactive element has a hover, a keyboard focus ring 
 
 ### Modals, sheets, popovers, toasts
 - **Modal:** surface background, 1px ring plus the dialog shadow, 12px radius, up to 860 by 560, header with a Display 15px title and a muted bottom border, over `--scrim`.
+- **Large modal:** up to 920 by 660, for multi-step dialogs only (Connect). Every other dialog, Tool settings included, uses the standard 860 by 560.
+- **Guarded button:** a button that sends to a production-marked environment (`.send.guarded`, `.secondary.guarded`) is transparent with a 1px outline and text in the environment colour (`--guard`); hover adds a 14% wash. In Requests the Send keeps its filled environment colour. Look up (`.tool-lookup`) is 40px tall like Send with a fixed 152px minimum width, so "Look up on Prod" does not widen it.
+- **Mode switch (Tools):** the Use / Build segmented control in the top bar (`.tools-mode`, a `radiogroup`). Pill shape, inset ground, 26px segments; the selected segment takes the surface ground and `--text`, the other is muted. Leaving Build with unsaved edits asks first.
 - **Side sheet:** up to 420px, right-aligned, left border and a leftward shadow, over `--scrim-soft`.
 - **Popovers and menus:** surface, 8px radius (6px for `.menu`), 4px padding, items 6px radius.
 - **Toasts:** bottom-left, 16px from the edges, 8px radius, undo link in blue.
@@ -337,6 +340,7 @@ Quiet and compact. Every interactive element has a hover, a keyboard focus ring 
 - **Do** play exits for overlays with `useExitTransition` (a closing `data-state` on an inert copy) and use `Collapse` for small always-mounted content.
 - **Do** keep the brand mark at least 20px tall and the runner `--text` coloured.
 - **Do** use mono for data and tabular numerals for counts.
+- **Do** keep Send Green for actions that send requests now (Send, Look up, Run with sample, Run). Everything else uses secondary.
 
 ### Don't:
 - **Don't** use `--brand` for HTTP PATCH, or `--patch` for brand elements.
@@ -346,6 +350,7 @@ Quiet and compact. Every interactive element has a hover, a keyboard focus ring 
 - **Don't** use red for tab group labels; red means errors and Prod.
 - **Don't** hard-code hex in components. The only literals outside the token blocks are the select caret SVG (`#7d8590`) and the native window background in `theme.ts`.
 - **Don't** change a button's width when its label changes; Send stays 108px.
+- **Don't** use Send Green for Save, New tool, Done or dialog confirms; those are secondary.
 - **Don't** use `Collapse` for long lists; its children stay mounted.
 
 ### Known gaps (as shipped)
