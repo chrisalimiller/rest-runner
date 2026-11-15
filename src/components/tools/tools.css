@@ -528,6 +528,38 @@
   padding: 2px 8px 6px;
 }
 
+.tool-keep-hint {
+  margin: 0;
+  padding: 0 8px 6px 30px;
+}
+
+.tools-recent-menu {
+  position: relative;
+}
+
+.tools-recent-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 150;
+  width: min(320px, calc(100vw - 32px));
+  max-height: min(60vh, 420px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  background: var(--bg-overlay);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: 0 8px 24px var(--shadow-md);
+}
+
+.tools-recent-clear {
+  align-self: flex-start;
+  margin-top: 6px;
+}
+
 .tools-dev {
   margin-top: 18px;
 }
@@ -538,7 +570,8 @@
   text-align: center;
 }
 
-@media (max-width: 1000px) {
+/* Matches the app's sidebar-overlay breakpoint (SIDEBAR_OVERLAY_BELOW in App.tsx). */
+@media (max-width: 1099px) {
   .tools-layout {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: auto minmax(0, 1fr);
