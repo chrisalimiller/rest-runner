@@ -1,7 +1,9 @@
+import { useEffect, useRef, useState } from "react";
 import { whenLabel } from "../../lib/earlierSends";
 import type { LookupRecord, Tool } from "../../lib/tools/types";
 import { inputsSummary } from "../../lib/tools/view";
 import { CollapseIcon } from "../shell/Icons";
+import { ImportButton } from "../shell/ImportButton";
 
 interface Props {
   /** The list is folded to a thin rail; the choice is remembered. */
@@ -24,23 +26,57 @@ interface Props {
   onKeepHistory: (keep: boolean) => void;
 }
 
-/** Tools and the open tool's recent lookups on the left of Tools mode. Below 1000px wide it turns into a select at the top. */
+/** Tools and the open tool's recent lookups on the left of Tools mode. Below 1100px wide (where the Requests sidebar floats too) it turns into a row at the top, with Recent lookups in a menu. */
 export function ToolsSidebar({ collapsed, onToggleCollapsed, tools, activeToolId, onOpenTool, onNewTool, runningToolIds, recents, activeRecordId, onOpenRecord, onClearHistory, onExport, onImport, keepsHistory, onKeepHistory }: Props) {
-  const importLink = (
-    <label className="link-btn" title="Import tools from a file">
-      Import
-      <input
-        type="file"
-        accept=".json,application/json"
-        hidden
-        onChange={(e) => {
-          const f = e.target.files?.[0];
-          if (f) onImport(f);
-          e.target.value = "";
-        }}
-      />
-    </label>
+  const importLink = <ImportButton title="Import tools from a file" onImport={onImport} />;
+  const [recentOpen, setRecentOpen] = useState(false);
+  const recentBox = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!recentOpen) return;
+    const away = (e: MouseEvent) => {
+      if (!recentBox.current?.contains(e.target as Node)) setRecentOpen(false);
+    };
+    const esc = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setRecentOpen(false);
+        recentBox.current?.querySelector<HTMLButtonElement>(".recent-toggle")?.focus();
+      }
+    };
+    document.addEventListener("mousedown", away);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", away);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [recentOpen]);
+
+  const keepSwitch = (id: string) => (
+    <div className="tool-keep-wrap">
+      <label className="tool-keep small muted">
+        <input type="checkbox" checked={keepsHistory} onChange={(e) => onKeepHistory(e.target.checked)} aria-describedby={id} />
+        Keep recent lookups
+      </label>
+      <p className="tool-keep-hint small muted" id={id}>
+        {keepsHistory ? "The last 20 lookups are kept on this computer." : "Off: lookups aren't kept."}
+      </p>
+    </div>
   );
+  const recentRows = (after?: () => void) =>
+    recents.map((r) => (
+      <button
+        key={r.id}
+        className={`nav-row run-row ${activeRecordId === r.id ? "active" : ""}`}
+        aria-current={activeRecordId === r.id ? "true" : undefined}
+        onClick={() => {
+          onOpenRecord(r);
+          after?.();
+        }}
+        title={`${new Date(r.startedAt).toLocaleString()}${r.environmentName ? ` · ${r.environmentName}` : ""}`}
+      >
+        <span className="nav-row-name">{inputsSummary(r.inputs) || "(no inputs)"}</span>
+        <span className="muted">{whenLabel(r.startedAt)}</span>
+      </button>
+    ));
   const exportLink = (
     <button className="link-btn" onClick={onExport} title="Save every tool, with the saved requests they use, to a file">
       Export
@@ -62,6 +98,31 @@ export function ToolsSidebar({ collapsed, onToggleCollapsed, tools, activeToolId
         </button>
         {importLink}
         {tools.length > 0 && exportLink}
+        {activeToolId && (
+          <div className="tools-recent-menu" ref={recentBox}>
+            <button className="link-btn recent-toggle" aria-expanded={recentOpen} aria-haspopup="true" onClick={() => setRecentOpen((o) => !o)}>
+              Recent{recents.length > 0 ? ` (${recents.length})` : ""}
+            </button>
+            {recentOpen && (
+              <div className="tools-recent-panel" role="group" aria-label="Recent lookups">
+                {keepSwitch("tool-keep-hint-compact")}
+                {recents.length === 0 && <p className="muted small nav-empty">{keepsHistory ? "Lookups you run show up here." : "This tool keeps no history."}</p>}
+                {recentRows(() => setRecentOpen(false))}
+                {recents.length > 0 && (
+                  <button
+                    className="link-btn tools-recent-clear"
+                    onClick={() => {
+                      onClearHistory();
+                      setRecentOpen(false);
+                    }}
+                  >
+                    Clear history
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {collapsed && (
@@ -113,22 +174,8 @@ export function ToolsSidebar({ collapsed, onToggleCollapsed, tools, activeToolId
               )}
             </div>
             {recents.length === 0 && <p className="muted small nav-empty">{keepsHistory ? "Lookups you run show up here." : "This tool keeps no history."}</p>}
-            <label className="tool-keep small muted" title="Off: this tool keeps no recent lookups, and the ones it has are removed">
-              <input type="checkbox" checked={keepsHistory} onChange={(e) => onKeepHistory(e.target.checked)} />
-              Keep recent lookups
-            </label>
-            {recents.map((r) => (
-              <button
-                key={r.id}
-                className={`nav-row run-row ${activeRecordId === r.id ? "active" : ""}`}
-                aria-current={activeRecordId === r.id ? "true" : undefined}
-                onClick={() => onOpenRecord(r)}
-                title={`${new Date(r.startedAt).toLocaleString()}${r.environmentName ? ` · ${r.environmentName}` : ""}`}
-              >
-                <span className="nav-row-name">{inputsSummary(r.inputs) || "(no inputs)"}</span>
-                <span className="muted">{whenLabel(r.startedAt)}</span>
-              </button>
-            ))}
+            {keepSwitch("tool-keep-hint")}
+            {recentRows()}
           </div>
         )}
       </nav>

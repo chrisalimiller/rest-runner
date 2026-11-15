@@ -87,8 +87,11 @@ export function importToolsFile(text: string, current: { tools: Tool[]; collecti
   return mergeToolsAndRequests(data.tools, data.requests, current);
 }
 
-export function describeToolsImport(name: string, c: ToolsImport["counts"]): string {
-  const part = (label: string, [a, r]: [number, number]) => (a || r ? `${label}: ${a} added, ${r} updated` : null);
-  const parts = [part("tools", c.tools), part("saved requests", c.requests)].filter(Boolean);
-  return `Imported ${name}: ${parts.join("; ") || "nothing new"}.`;
+export function describeToolsImport(name: string, c: ToolsImport["counts"], replacedNames: string[] = []): string {
+  const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? "" : "s"}`;
+  const added = [c.tools[0] ? plural(c.tools[0], "tool") : "", c.requests[0] ? plural(c.requests[0], "request") : ""].filter(Boolean);
+  const updated = [c.tools[1] ? plural(c.tools[1], "tool") : "", c.requests[1] ? plural(c.requests[1], "request") : ""].filter(Boolean);
+  const names = c.tools[1] > 0 && replacedNames.length > 0 && replacedNames.length <= 3 ? ` (${replacedNames.join(", ")})` : "";
+  const parts = [added.length ? `Added ${added.join(" and ")}` : "", updated.length ? `${added.length ? "updated" : "Updated"} ${updated.join(" and ")}${names}` : ""].filter(Boolean);
+  return `${parts.join("; ") || "Nothing new"} from ${name}.`;
 }

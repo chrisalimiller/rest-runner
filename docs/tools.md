@@ -87,16 +87,16 @@ Switch with **Build** next to the tool name. Build edits a draft; nothing is kep
 
 ## History and privacy
 
-Each tool keeps its **last 20 lookups**, listed under **Recent lookups** on the left. Click one to see its answers and the inputs it was made with; nothing is sent. Lookups are stored on your computer in the same database as saved test and flow runs. Response bodies are cut at 1 MB and secret environment values are masked with the same rules as other saved runs; the request is stored without its headers, so credentials do not end up in history.
+Each tool keeps its **last 20 lookups**, listed under **Recent lookups** on the left. Click one to see its answers (below 1100px wide, where the sidebar becomes a row at the top, open them from its **Recent** menu, which also has the switch and Clear history) and the inputs it was made with; nothing is sent. Lookups are stored on your computer in the same database as saved test and flow runs. Response bodies are cut at 1 MB and secret environment values are masked with the same rules as other saved runs; the request is stored without its headers, so credentials do not end up in history.
 
-- **Clear history** removes all of the open tool's saved lookups.
-- **Keep recent lookups** off is the keep-nothing switch: the tool stores no lookups, and the ones it has are removed. The answers on screen are still there until you leave the tool.
+- **Clear history** removes all of the open tool's saved lookups. A toast says "Removed N saved lookups" with **Undo**; the lookups are deleted for good when it goes away.
+- **Keep recent lookups** off is the keep-nothing switch (the sidebar says "Off: lookups aren't kept" under it): the tool stores no lookups, and the ones it has are removed once the Undo toast goes away. **Undo** restores them and turns the switch back on. The answers on screen are still there until you leave the tool.
 - Deleting a tool removes its lookups when the Undo toast goes away.
 
 ## Export and import
 
 - **Export** (in the Tools sidebar for all tools, or **Export tool** in the tool's ⋯ menu) writes a `.json` file with the saved tools **and the saved requests they use**, together with the collection and folder they sat in. Unsaved Build changes are not in the file.
-- **Import** reads such a file. A tool or saved request with the same id **replaces** the one you have; everything else is added, and requests go back into a collection and folder with the same names (made if missing). The notice says how many tools and requests were added or updated. Unsaved Build edits of a tool that was replaced are discarded, since they were made against the old version. Imports are checked, and anything that cannot be read as a tool is skipped.
+- **Import** reads such a file. A tool or saved request with the same id **replaces** the one you have; everything else is added, and requests go back into a collection and folder with the same names (made if missing). A toast stays up for a minute (or until dismissed) and says what changed, such as "Added 2 tools and 5 requests; updated 1 tool (Billing)"; replaced tools are named when there are three or fewer. Import is a button in the Tools, Flows and Testing sidebars, so the keyboard reaches it. Unsaved Build edits of a tool that was replaced are discarded, since they were made against the old version. Imports are checked, and anything that cannot be read as a tool is skipped.
 - **Export workspace…** includes tools, and importing a workspace file in the Import dialog lists its tools, and you choose which to bring in and what to do when a name already exists. Older workspace files without tools leave your tools alone.
 
 ## Used by tools

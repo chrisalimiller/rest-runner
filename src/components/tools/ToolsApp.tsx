@@ -14,7 +14,7 @@ import { createWorkerScriptRunner } from "../../lib/testing/scriptRunner";
 import { listPickableRequests } from "../../lib/testing/requestSources";
 import { isDirty, saveBlockers, tidyTool } from "../../lib/tools/builder";
 import { canRetryAlone } from "../../lib/tools/engine";
-import { clearLookups, listLookups } from "../../lib/tools/lookupStore";
+import { clearLookups, deleteLookups, listLookups } from "../../lib/tools/lookupStore";
 import { sampleCollection, sampleTool, SAMPLE_COLLECTION_NAME } from "../../lib/tools/sample";
 import { SessionRegistry, type ToolSession } from "../../lib/tools/session";
 import { snapshotFileName, toToolSnapshot } from "../../lib/tools/snapshot";
@@ -130,16 +130,41 @@ export function ToolsApp({ active, shell, command }: Props) {
   const lookingUp = runningIds.length > 0;
   useEffect(() => setSectionStatus("tools", { running: lookingUp }), [lookingUp]);
 
-  const updateTool = useCallback((next: Tool) => {
-    setTools((list) => {
-      const before = list.find((t) => t.id === next.id);
-      // Turning "keep recent lookups" off removes what was kept.
-      if (before?.settings.keepHistory && !next.settings.keepHistory) {
-        void clearLookups(next.id).then(() => setRecents((r) => (r.length && r[0].toolId === next.id ? [] : r)));
-      }
-      return list.map((t) => (t.id === next.id ? next : t));
-    });
-  }, []);
+  /**
+   * Hides a tool's saved lookups with an Undo toast; they are removed when the toast expires.
+   * `turnedOff`: the keep-lookups switch was just turned off, so Undo turns it back on.
+   */
+  const removeLookupsWithUndo = useCallback(
+    (toolId: string, turnedOff: boolean) => {
+      void listLookups(toolId).then((list) => {
+        if (list.length === 0) return;
+        setRecents((r) => (r.length && r[0].toolId === toolId ? [] : r));
+        toast.show({
+          message: `Removed ${list.length} saved ${list.length === 1 ? "lookup" : "lookups"}${turnedOff ? "; this tool keeps none now" : ""}`,
+          onUndo: () => {
+            if (turnedOff) {
+              const on = (t: Tool): Tool => ({ ...t, settings: { ...t.settings, keepHistory: true } });
+              setTools((l) => l.map((t) => (t.id === toolId ? on(t) : t)));
+              setDrafts((d) => (d[toolId] ? { ...d, [toolId]: on(d[toolId]) } : d));
+            }
+            if (toolRef.current?.id === toolId) setRecents(list);
+          },
+          onExpire: () => void deleteLookups(list.map((r) => r.id)),
+        });
+      });
+    },
+    [toast],
+  );
+
+  const updateTool = useCallback(
+    (next: Tool) => {
+      // Turning "keep recent lookups" off removes what was kept, after an Undo toast.
+      const before = toolsRef.current.find((t) => t.id === next.id);
+      if (before?.settings.keepHistory && !next.settings.keepHistory) removeLookupsWithUndo(next.id, true);
+      setTools((list) => list.map((t) => (t.id === next.id ? next : t)));
+    },
+    [removeLookupsWithUndo],
+  );
 
   /** Changes the draft (Build mode edits). The saved tool stays as it is until Save. */
   const editDraft = useCallback((next: Tool) => setDrafts((d) => ({ ...d, [next.id]: next })), []);
@@ -371,7 +396,9 @@ export function ToolsApp({ active, shell, command }: Props) {
       setTools(result.tools);
       result.replacedIds.forEach((id) => dropDraft(id));
       setFindRequest(() => readRequests());
-      setNotice(describeToolsImport(file.name, result.counts));
+      const replacedNames = result.replacedIds.map((id) => tools.find((t) => t.id === id)?.name || "(unnamed)");
+      // Stays on screen for a minute unless dismissed: it says what changed.
+      toast.show({ message: describeToolsImport(file.name, result.counts, replacedNames), ms: 60000 });
     } catch (e) {
       setNotice(`Could not import ${file.name}: ${e instanceof Error ? e.message : String(e)}`);
     }
@@ -495,8 +522,7 @@ export function ToolsApp({ active, shell, command }: Props) {
             })
           }
           onClearHistory={() => {
-            if (!tool) return;
-            void clearLookups(tool.id).then(() => setRecents([]));
+            if (tool) removeLookupsWithUndo(tool.id, false);
           }}
           onExport={() => void exportTools(tools)}
           onImport={(f) => void importTools(f)}
