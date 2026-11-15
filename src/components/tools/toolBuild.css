@@ -743,6 +743,26 @@ button.call-request:hover {
 .modal.connect-dialog {
   width: min(920px, 94vw);
   height: min(660px, 90vh);
+  max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 16px);
+}
+
+.modal.connect-dialog .modal-head,
+.modal.connect-dialog .cd-foot {
+  flex: none;
+}
+
+.cd-foot {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 640px) {
+  .cd-steps button {
+    padding: 8px;
+  }
+  .cd-request {
+    display: none;
+  }
 }
 
 /* Settings uses the standard modal size (860 by 560). */
@@ -751,13 +771,31 @@ button.call-request:hover {
   height: min(560px, 90vh);
 }
 
+.cd-stepbar {
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 16px 0;
+  border-bottom: 1px solid var(--border-muted);
+}
+
+.cd-request {
+  min-width: 0;
+  padding-bottom: 8px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .cd-steps {
   list-style: none;
   margin: 0;
-  padding: 8px 16px 0;
+  padding: 0;
   display: flex;
   gap: 4px;
-  border-bottom: 1px solid var(--border-muted);
+  flex: none;
 }
 
 .cd-steps button {
@@ -915,8 +953,6 @@ button.call-request:hover {
 }
 
 .cd-picker-list {
-  max-height: 260px;
-  overflow: auto;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -1006,8 +1042,6 @@ button.call-request:hover {
 }
 
 .cd-inline-tree {
-  max-height: 220px;
-  overflow: auto;
   border: 1px solid var(--border-muted);
   border-radius: var(--r-sm);
   background: var(--bg-inset);
@@ -1044,7 +1078,8 @@ button.call-request:hover {
 }
 
 .cd-fields-tree .json-tree {
-  max-height: 400px;
+  max-height: none;
+  overflow: visible;
 }
 
 .cd-picked {

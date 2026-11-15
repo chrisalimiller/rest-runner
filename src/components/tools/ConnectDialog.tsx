@@ -50,9 +50,9 @@ type StepKey = "request" | "fill" | "fields" | "format" | "input" | "note";
 
 const STEP_TITLES: Record<StepKey, string> = {
   request: "Request",
-  fill: "Fill in",
+  fill: "Values",
   fields: "Fields",
-  format: "Format",
+  format: "Labels",
   input: "Input",
   note: "Note",
 };
@@ -103,6 +103,8 @@ export function ConnectDialog({ tool, target, findRequest, state, onRunSample, o
 
   const title = block ? `Connect ${blockLabel(block.type).toLowerCase()} block` : `Fill in ${call?.name ?? "call"}`;
   const needsCall = steps.includes("request") && !call;
+  const isLast = stepIndex === steps.length - 1;
+  const connected = step !== "request" && call ? requestLine(findRequest(call.requestId)) : null;
 
   return (
     <Modal label={title} onClose={onCancel} className="connect-dialog">
@@ -113,6 +115,7 @@ export function ConnectDialog({ tool, target, findRequest, state, onRunSample, o
         </button>
       </div>
       {steps.length > 1 && (
+        <div className="cd-stepbar">
         <ol className="cd-steps" aria-label="Steps">
           {steps.map((s, i) => (
             <li key={s} className={s === step ? "on" : i < stepIndex ? "past" : ""}>
@@ -123,6 +126,12 @@ export function ConnectDialog({ tool, target, findRequest, state, onRunSample, o
             </li>
           ))}
         </ol>
+        {connected && (
+          <span className="cd-request mono small muted" title={`${connected.method} ${connected.path}`}>
+            <span className={`method m-${connected.method.toLowerCase()}`}>{connected.method}</span> {connected.path}
+          </span>
+        )}
+        </div>
       )}
       <div className="cd-body">
         {step === "request" && block && <StepRequest work={work} setWork={setWork} block={block} setBlock={setBlock} findRequest={findRequest} />}
@@ -139,7 +148,12 @@ export function ConnectDialog({ tool, target, findRequest, state, onRunSample, o
             {blockers[0].message}
           </span>
         ) : (
-          <span className="muted small">Changes are kept when you press Done. Save the tool to keep them for good.</span>
+          <span className="muted small">Changes are kept when you finish.</span>
+        )}
+        {!isLast && blockers.length === 0 && !needsCall && (
+          <button type="button" className="link-btn small" onClick={done}>
+            Save and close
+          </button>
         )}
         <button className="secondary" onClick={onCancel}>
           Cancel
@@ -149,14 +163,15 @@ export function ConnectDialog({ tool, target, findRequest, state, onRunSample, o
             Back
           </button>
         )}
-        {stepIndex < steps.length - 1 && (
-          <button className="send" onClick={() => setStep(steps[stepIndex + 1])} disabled={needsCall}>
+        {!isLast ? (
+          <button className="primary-outline" onClick={() => setStep(steps[stepIndex + 1])} disabled={needsCall}>
             Next
           </button>
+        ) : (
+          <button className="primary-outline" onClick={done} disabled={blockers.length > 0}>
+            Done
+          </button>
         )}
-        <button className={stepIndex < steps.length - 1 ? "secondary" : "send"} onClick={done} disabled={blockers.length > 0}>
-          Done
-        </button>
       </div>
     </Modal>
   );
@@ -187,7 +202,7 @@ function StepRequest({ work, setWork, block, setBlock, findRequest }: WorkProps 
 
   return (
     <div className="cd-pane">
-      <p className="cd-lead">{action ? "Which write request does this button run?" : "Which request fills this block?"}</p>
+      <p className="cd-lead">{action ? "Which write request does this button send?" : "Which request fills this block?"}</p>
       {work.calls.length > 0 && (
         <ul className="cd-calls" role="radiogroup" aria-label="Requests in this tool">
           {work.calls.map((c) => {
@@ -282,9 +297,9 @@ function StepFill({ work, setWork, call, findRequest, state, onRunSample }: Work
   return (
     <div className="cd-pane">
       <p className="cd-lead">
-        Where does each value of <strong>{call.name}</strong> come from?
+        Where should each value in <strong>{call.name}</strong> come from?
       </p>
-      <p className="small muted">Sources are tried in this order: input, another request's field, fixed text. If none has a value, the environment's variable is used.</p>
+      <p className="small muted">Tried in order: input, another request, fixed text. If none has a value, the environment variable is used.</p>
       {placeholders.length === 0 && <p className="muted">This request has nothing to fill in.</p>}
       <ul className="cd-maps">
         {placeholders.map((p) => (
@@ -437,7 +452,7 @@ function StepFields({ work, setWork, block, setBlock, call, state, onRunSample, 
   return (
     <div className="cd-pane cd-fields">
       <div className="cd-fields-tree">
-        <p className="cd-lead">{table ? "Click the values to show as columns" : single ? "Click the value to show" : block.type === "json" ? "Click a part of the response, or the top for all of it" : "Click the values to show"}</p>
+        <p className="cd-lead">{table ? "Click values to use as columns" : single ? "Click the value to show" : block.type === "json" ? "Click a part of the response, or the top for all of it" : "Click the values to show"}</p>
         {table && <p className="small muted">Columns are read from each row of the list. This is the first row.</p>}
         {sample !== undefined ? (
           <JsonTree
@@ -468,8 +483,8 @@ function StepFields({ work, setWork, block, setBlock, call, state, onRunSample, 
           <p className="small muted">The response has no list to read rows from.</p>
         ) : (
           <div className="cd-sample-help">
-            <p className="small muted">No sample response yet. Run with sample to fetch real answers, then click the values you want.</p>
-            <button className="send" onClick={onRunSample}>
+            <p className="small muted">No sample response yet. Run with sample, then click the values you want.</p>
+            <button className="secondary" onClick={onRunSample}>
               Run with sample
             </button>
           </div>

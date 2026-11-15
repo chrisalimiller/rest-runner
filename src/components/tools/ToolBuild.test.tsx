@@ -138,7 +138,17 @@ describe("Connect dialog", () => {
     expect(stepsFor(tool.blocks.find((b) => b.id === "b-suspend"))).toEqual(["request", "fill", "format"]);
     expect(stepsFor(undefined)).toEqual(["fill"]);
     const html = dialog("b-subscriber");
-    for (const s of ["Request", "Fill in", "Fields", "Format"]) expect(html).toContain(s);
+    for (const s of ["Request", "Values", "Fields", "Labels"]) expect(html).toContain(s);
+  });
+
+  it("shows Done only on the last step, with Next before it", () => {
+    const html = dialog("b-subscriber");
+    expect(html).toContain("Next");
+    expect(html).not.toMatch(/>Done</);
+    expect(html).not.toContain('class="send"');
+    const note = dialog("b-note");
+    expect(note).toMatch(/>Done</);
+    expect(note).not.toContain("Next");
   });
 
   it("step 1 lists the tool's calls with the chosen one checked", () => {
