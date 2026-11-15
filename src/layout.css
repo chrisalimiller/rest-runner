@@ -3097,8 +3097,26 @@ select:focus-visible,
   margin-bottom: 4px;
 }
 
-/* The environment colour fills the whole button; text flips light/dark for contrast. */
+/* Guarded (sends to a production-marked environment): an outline in the environment colour, on Send-class and secondary buttons alike. */
 .send.guarded,
+.secondary.guarded {
+  background: transparent;
+  border: 1px solid var(--guard);
+  color: var(--guard);
+}
+
+.send.guarded:hover:not(:disabled),
+.secondary.guarded:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--guard) 14%, transparent);
+  border-color: var(--guard);
+}
+
+.send.guarded:active:not(:disabled),
+.secondary.guarded:active:not(:disabled) {
+  background: color-mix(in srgb, var(--guard) 24%, transparent);
+}
+
+/* In Requests the environment colour still fills the whole Send; text flips light/dark for contrast. */
 .url-row .send.guarded,
 .action-footer .send.guarded {
   background: var(--guard);
@@ -3106,11 +3124,13 @@ select:focus-visible,
   color: light-dark(var(--guard-fg-light), var(--guard-fg-dark));
 }
 
-.send.guarded:hover:not(:disabled) {
+.url-row .send.guarded:hover:not(:disabled),
+.action-footer .send.guarded:hover:not(:disabled) {
   background: color-mix(in srgb, var(--guard) 85%, light-dark(#000, #fff));
 }
 
-.send.guarded:active:not(:disabled) {
+.url-row .send.guarded:active:not(:disabled),
+.action-footer .send.guarded:active:not(:disabled) {
   background: color-mix(in srgb, var(--guard) 75%, light-dark(#000, #fff));
 }
 

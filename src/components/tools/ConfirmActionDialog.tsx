@@ -16,6 +16,8 @@ interface Props {
 
 /** Asked before an Action button sends to a production-marked environment (or when the block has confirm text). Cancel is the focused button. */
 export function ConfirmActionDialog({ action, request, guard, text, onConfirm, onCancel }: Props) {
+  const [method, ...rest] = request.split(" ");
+  const url = rest.join(" ");
   return (
     <Modal label="Confirm action" onClose={onCancel} className="small-modal">
       <div className="modal-head">
@@ -28,14 +30,17 @@ export function ConfirmActionDialog({ action, request, guard, text, onConfirm, o
             This sends to <strong>{guard.name}</strong>, which is marked as production.
           </p>
         )}
-        <p className="muted small mono">{request}</p>
+        <p className="confirm-request mono">
+          <span className={`method m-${method.toLowerCase()}`}>{method}</span>
+          <span className="confirm-url">{url}</span>
+        </p>
       </div>
       <div className="modal-foot">
         <button className="secondary" onClick={onCancel} autoFocus>
           Cancel
         </button>
         <span className="flex-gap" />
-        <button className={`send ${guard ? "guarded" : ""}`} style={guard ? ({ "--guard": guard.cssColor } as CSSProperties) : undefined} onClick={onConfirm}>
+        <button className={guard ? "secondary guarded" : "send"} style={guard ? ({ "--guard": guard.cssColor } as CSSProperties) : undefined} onClick={onConfirm}>
           {guard ? `${action} on ${guard.name}` : action}
         </button>
       </div>

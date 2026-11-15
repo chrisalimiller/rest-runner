@@ -745,9 +745,10 @@ button.call-request:hover {
   height: min(660px, 90vh);
 }
 
+/* Settings uses the standard modal size (860 by 560). */
 .modal.tool-settings-dialog {
-  width: min(720px, 94vw);
-  height: min(640px, 90vh);
+  width: min(860px, 94vw);
+  height: min(560px, 90vh);
 }
 
 .cd-steps {
@@ -1309,4 +1310,10 @@ button.call-request:hover {
   .build-gap {
     transition: none;
   }
+}
+
+/* Save is secondary; with unsaved edits it takes the accent outline. */
+.secondary.build-save.dirty:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
 }

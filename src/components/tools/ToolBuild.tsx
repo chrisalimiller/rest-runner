@@ -76,7 +76,7 @@ export function ToolBuild({ tool, dirty, findRequest, environments, state, onCha
           <button type="button" className="secondary" onClick={onDiscard} disabled={!dirty}>
             Discard
           </button>
-          <button type="button" className="send" onClick={onSave} disabled={!dirty || blockers.length > 0} title={blockers[0]?.message ?? (dirty ? "Keep this tool" : "Nothing to save")}>
+          <button type="button" className={`secondary build-save ${dirty ? "dirty" : ""}`} onClick={onSave} disabled={!dirty || blockers.length > 0} title={blockers[0]?.message ?? (dirty ? "Keep this tool" : "Nothing to save")}>
             Save
           </button>
         </div>

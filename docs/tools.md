@@ -57,7 +57,7 @@ When a call's response is a list (for example "the subscriber's devices"), tick 
 
 An **Action** block is a button that runs a **write** call (a POST, PUT, PATCH or DELETE request) with the values on screen: inputs and the answers of the last lookup. Write calls never run in Look up, only from their button. After pressing it, the block shows the status and response body, or the error.
 
-- On an environment **marked with a colour** (a production-style one) the button reads "… on Prod", and pressing it opens a confirm dialog that names the environment and the request. **Cancel** is focused. If you cancel, nothing is sent and the block says **Not confirmed**.
+- On an environment **marked with a colour** (a production-style one) the button reads "… on Prod", and pressing it opens a confirm dialog that names the environment and shows the request's method and URL. The confirm button is outlined in the environment's colour. **Cancel** is focused. If you cancel, nothing is sent and the block says **Not confirmed**.
 - The block can also have **Confirm text** (set in Build mode, in the block's last step). When it has, the dialog asks on any environment and shows that text.
 - The button is off while a lookup runs or while it is sending, and it needs the values its request uses: if a lookup has not filled them in, the block says what is missing ("Needs id from Subscriber").
 - An action's result stays until the next lookup starts.

@@ -567,7 +567,7 @@ export function ToolsApp({ active, shell, command }: Props) {
               <h2>Tools</h2>
               <p className="muted">A tool is a small lookup page. Type an ID, press Look up, and see the answers from several saved requests side by side, each filling in as it arrives.</p>
               {notice && <p className="small notice">{notice}</p>}
-              <button className="send" onClick={createTool}>
+              <button className="secondary" onClick={createTool}>
                 Create a tool
               </button>
               {import.meta.env.DEV && (
