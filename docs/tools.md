@@ -14,8 +14,9 @@ Open it with the **Tools** tab in the status bar along the bottom of the window 
 
 Use mode is the default when you open a tool.
 
-- **Look up** (or Enter in an input) sends the tool's lookup calls. Independent calls start together, at most 6 at a time. A call that needs a value from another call starts as soon as that call finishes. Opening a tool does not send anything: it shows its latest saved lookup, marked "Saved lookup from … Nothing was sent." (A tool can be set to look up when opened, see [Tool settings](#tool-settings).)
-- The line above the blocks counts the calls done, offers **Stop** while running, **Copy all** (each call's request and answer as text) and **Save as HTML**.
+- **The header** holds the tool's name, its inputs in one row with **Look up** (like the URL bar and Send), and the status beside it. An Input block is not repeated on the Use page (it stays in Build). When a tool is opened, the first input is focused (or **Look up** when there are none), unless you are typing in another field.
+- **Look up** (or Enter in an input) sends the tool's lookup calls. Independent calls start together, at most 6 at a time. A call that needs a value from another call starts as soon as that call finishes. Opening a tool does not send anything: it shows its latest saved lookup, marked in an amber band "Saved lookup · 3 h ago · … · Nothing was sent", with **Look up** beside it to refresh (A tool can be set to look up when opened, see [Tool settings](#tool-settings).)
+- The status beside Look up counts the calls done. The top right of the header offers **Stop** while running, **Copy all** (each call's request and answer as text) and **Save as HTML**.
 - Each data block has a ⋯ menu: **Show raw response**, **Copy**, **Open request** (switches to Requests with the saved request open).
 - **The environment** is the one chosen in the top bar. Each tool keeps its own choice. Environments are edited in Requests mode. If it is marked with a colour (a production-style environment), **Look up** says **Look up on Prod** and the button gets the environment's outline.
 

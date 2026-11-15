@@ -113,26 +113,75 @@
   font-size: var(--fs-md);
 }
 
-.tool-status-line {
+/* Use mode header: title and actions, then inputs + Look up + status in one row (like the URL bar and Send). */
+.tool-use-head {
+  flex: none;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border-muted);
+}
+
+.tool-head-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.tool-head-top .tool-title {
+  flex: 1;
+  min-width: 0;
+}
+
+.tool-head-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 8px 20px;
-  border-top: 1px solid var(--border-muted);
-  border-bottom: 1px solid var(--border-muted);
-  font-size: var(--fs-sm);
-  min-height: 44px;
+  gap: 8px;
   flex: none;
 }
 
-.tool-status-line .send,
-.tool-status-line .secondary {
+.tool-head-actions .send,
+.tool-head-actions .secondary {
   height: 28px;
   padding: 0 12px;
+  font-size: var(--fs-sm);
 }
 
-.tool-status-line .secondary {
+.tool-head-actions .secondary {
   border: 1px solid var(--btn-border);
+}
+
+.tool-use-bar {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 12px 0 0;
+}
+
+.tool-status {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  flex: 1 1 240px;
+  min-width: 0;
+  min-height: 30px;
+  font-size: var(--fs-sm);
+}
+
+/* A saved lookup is not a fresh one: warn-tinted ring, as for an earlier send in Requests. */
+.tool-status.saved {
+  padding: 0 12px;
+  border-radius: var(--r-md);
+  background: color-mix(in srgb, var(--warn) 10%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--warn) 55%, transparent);
+}
+
+.tool-status.saved strong {
+  font-weight: 600;
+}
+
+.tool-use-head .tool-error {
+  padding: 8px 0 0;
 }
 
 .tool-counts {
