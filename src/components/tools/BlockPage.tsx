@@ -5,6 +5,7 @@ import { blockLabel, filterBlockTypes, groupRows, moveBlock, rowHasRoom, stepBlo
 import type { SessionState } from "../../lib/tools/session";
 import type { BlockType, Tool, ToolBlock } from "../../lib/tools/types";
 import { TrashIcon } from "../shell/Icons";
+import { OverflowMenu, type MenuItem } from "../shell/OverflowMenu";
 import { BlockCard, type BoardActions } from "./ToolBlocks";
 
 /** What a dragged block carries. */
@@ -30,7 +31,7 @@ interface Drag {
   target: DropTarget | null;
 }
 
-/** The block page in Build mode: rows of up to three blocks. Blocks move by their handle (drag), or with the arrow buttons. */
+/** The block page in Build mode: rows of up to three blocks. Blocks move by their handle (drag), or with Alt + arrow keys. */
 export function BlockPage({ tool, state, findRequest, actions, selectedId, onSelect, onConnect, onBlocks, onAdd, onDuplicate, onDelete }: Props) {
   const rows = groupRows(tool.blocks);
   const [drag, setDrag] = useState<Drag | null>(null);
@@ -84,7 +85,7 @@ export function BlockPage({ tool, state, findRequest, actions, selectedId, onSel
     <div className={`build-page ${drag ? "dragging" : ""}`}>
       <div className="build-col-head">
         <h3>Page</h3>
-        <span className="muted small">Up to 3 blocks per row. Drag a block by its handle, or use its arrows.</span>
+        <span className="muted small">Up to 3 blocks per row. Drag a block by its handle, or press Alt + an arrow key on it.</span>
       </div>
       <div className="build-page-scroll" onClick={(e) => e.target === e.currentTarget && onSelect(null)}>
         {rows.length === 0 && !drag && (
@@ -172,10 +173,16 @@ interface BuildBlockProps {
 
 const STEP_LABELS: Record<BlockStep, string> = { up: "Move up", down: "Move down", left: "Move left", right: "Move right" };
 const STEP_GLYPHS: Record<BlockStep, string> = { up: "↑", down: "↓", left: "←", right: "→" };
+const STEP_KEYS: Record<string, BlockStep> = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" };
 
 function BuildBlock(p: BuildBlockProps) {
   const name = blockName(p.block);
   const ref = useRef<HTMLDivElement>(null);
+  const items: MenuItem[] = [
+    ...(["left", "right", "up", "down"] as BlockStep[]).map((s) => ({ label: STEP_LABELS[s], hint: `Alt ${STEP_GLYPHS[s]}`, disabled: !p.canStep[s], onSelect: () => p.onStep(s) })),
+    { label: "Duplicate", icon: <span aria-hidden="true">⧉</span>, separated: true, onSelect: p.onDuplicate },
+    { label: "Delete", icon: <TrashIcon />, danger: true, onSelect: p.onDelete },
+  ];
   return (
     <div
       ref={ref}
@@ -196,6 +203,9 @@ function BuildBlock(p: BuildBlockProps) {
           e.preventDefault();
           p.onSelect();
           p.onConnect();
+        } else if (e.altKey && STEP_KEYS[e.key]) {
+          e.preventDefault();
+          if (p.canStep[STEP_KEYS[e.key]]) p.onStep(STEP_KEYS[e.key]);
         } else if (e.key === "Delete" || e.key === "Backspace") {
           e.preventDefault();
           p.onDelete();
@@ -231,8 +241,7 @@ function BuildBlock(p: BuildBlockProps) {
           }}
           onDragEnd={p.onDragEnd}
           onKeyDown={(e) => {
-            const map: Record<string, BlockStep> = { ArrowUp: "up", ArrowDown: "down", ArrowLeft: "left", ArrowRight: "right" };
-            const s = map[e.key];
+            const s = STEP_KEYS[e.key];
             if (s) {
               e.preventDefault();
               if (p.canStep[s]) p.onStep(s);
@@ -243,20 +252,12 @@ function BuildBlock(p: BuildBlockProps) {
         </span>
         <span className="build-kind">{blockLabel(p.block.type)}</span>
         <span className="flex-gap" />
-        {(["left", "right", "up", "down"] as BlockStep[]).map((s) => (
-          <button key={s} type="button" className="icon-btn build-step" disabled={!p.canStep[s]} aria-label={`${STEP_LABELS[s]}: ${name}`} title={STEP_LABELS[s]} onClick={() => p.onStep(s)}>
-            {STEP_GLYPHS[s]}
-          </button>
-        ))}
         <button type="button" className="secondary build-connect" onClick={() => (p.onSelect(), p.onConnect())} aria-label={`Connect ${name}`}>
           Connect…
         </button>
-        <button type="button" className="icon-btn" onClick={p.onDuplicate} aria-label={`Duplicate ${name}`} title="Duplicate">
-          ⧉
-        </button>
-        <button type="button" className="icon-btn" onClick={p.onDelete} aria-label={`Delete ${name}`} title="Delete">
-          <TrashIcon />
-        </button>
+        <span className="build-more">
+          <OverflowMenu label={`More actions: ${name}`} items={items} />
+        </span>
       </div>
       <div className="build-block-body">
         <BlockCard block={p.block} tool={p.tool} state={p.state} findRequest={p.findRequest} actions={p.actions} />
