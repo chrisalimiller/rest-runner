@@ -49,7 +49,7 @@ function ToastView({ item, onDone }: { item: Item; onDone: (id: number, undone: 
   );
 }
 
-/** Messages with an optional Undo, shown bottom left for eight seconds. */
+/** Messages with an optional Undo, shown bottom right for eight seconds. */
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<Item[]>([]);
   const next = useRef(1);

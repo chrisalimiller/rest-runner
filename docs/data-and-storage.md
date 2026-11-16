@@ -113,7 +113,7 @@ From inside the app:
 - **Tools:** **Delete tool** in the tool's ⋯ menu (its recent lookups go when the Undo toast goes away). **Clear history** removes only the lookups.
 - **Batch runs, test runs and flow runs:** open one and use **Delete** (in the ⋯ menu for test and flow runs).
 
-Deleting any of these does not ask first. A toast at the bottom left offers **Undo** for 8 seconds. A saved run is only removed from storage when the toast goes away. In Flows, **Ctrl/Cmd + Z** also undoes edits to the canvas (see [Flows](flows.md#undo)).
+Deleting any of these does not ask first. A toast at the bottom right offers **Undo** for 8 seconds. A saved run is only removed from storage when the toast goes away. In Flows, **Ctrl/Cmd + Z** also undoes edits to the canvas (see [Flows](flows.md#undo)).
 
 To wipe everything, quit the app and delete its web view data folder. These are the usual locations. If a folder is not there, search for `com.chrisalimiller.restrunner`.
 

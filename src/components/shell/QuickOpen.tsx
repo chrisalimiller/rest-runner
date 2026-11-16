@@ -138,6 +138,9 @@ export function QuickOpen({ mode, onClose, onPick, onClearHistory, commands, ctx
             placeholder={
               (mode === "testing" ? "Jump to a suite, case or test run" : mode === "flows" ? "Jump to a flow, flow run, suite or case" : mode === "tools" ? "Jump to a tool, request, example or run" : "Jump to a request, example, run or history") + " · type > for commands"
             }
+            role="combobox"
+            aria-expanded="true"
+            aria-autocomplete="list"
             aria-label="Search"
             aria-controls="quick-open-list"
             aria-activedescendant={flat[active] ? `qo-${active}` : undefined}
@@ -145,7 +148,7 @@ export function QuickOpen({ mode, onClose, onPick, onClearHistory, commands, ctx
           />
           <kbd>Esc</kbd>
         </label>
-        <div className="quick-open-list" id="quick-open-list" role="listbox" ref={listRef}>
+        <div className="quick-open-list" id="quick-open-list" role="listbox" tabIndex={-1} ref={listRef}>
           {groups.length === 0 && <p className="muted small pad">{query ? "Nothing matches." : "Nothing saved yet."}</p>}
           {groups.map((g) => (
             <div key={g.kind} className="quick-open-group" role="group" aria-label={g.label}>
@@ -172,6 +175,8 @@ export function QuickOpen({ mode, onClose, onPick, onClearHistory, commands, ctx
                     id={`qo-${i}`}
                     data-index={i}
                     role="option"
+                    tabIndex={-1}
+                    onMouseDown={(e) => e.preventDefault()}
                     aria-selected={i === active}
                     className={`quick-open-item ${i === active ? "active" : ""}`}
                     onMouseMove={() => setActive(i)}

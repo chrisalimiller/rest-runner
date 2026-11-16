@@ -70,14 +70,26 @@ export function commandOnlyQuery(query: string): string | null {
   return q.startsWith(">") ? q.slice(1).trim() : null;
 }
 
-/** Commands-only mode: all of them with nothing typed, else fuzzy matches on title and keywords, best first. */
+/**
+ * Commands-only mode: all of them with nothing typed, else the ones whose title or keywords contain what was typed, best first.
+ * A title match beats a keyword match, and a title that starts with it beats one that only contains it. Scattered letters
+ * (">send" inside "Settings and about") do not count; only a short query (3 letters or fewer) may match as the initials of the title ("gt" for Go to Testing).
+ */
 function filterCommands(commands: QuickItem[], query: string): QuickItem[] {
   if (query === "") return commands;
+  const q = query.toLowerCase().replace(/\s+/g, "");
   return commands
     .map((item, order) => {
-      const t = fuzzyScore(query, item.title);
-      const k = fuzzyScore(query, item.keywords ?? "");
-      return { item, order, score: Math.max(t !== null ? t + 5 : -Infinity, k ?? -Infinity) };
+      const title = item.title.toLowerCase().replace(/\s+/g, "");
+      const words = (item.keywords ?? "").toLowerCase().split(/\s+/);
+      let score = -Infinity;
+      if (title.startsWith(q)) score = 100;
+      else if (item.title.toLowerCase().split(/\s+/).some((w) => w.startsWith(q))) score = 90;
+      else if (title.includes(q)) score = 70;
+      else if (words.some((w) => w === q)) score = 60;
+      else if (words.some((w) => w.startsWith(q))) score = 50;
+      else if (q.length <= 3 && item.title.toLowerCase().split(/\s+/).map((w) => w[0]).join("").startsWith(q)) score = 10;
+      return { item, order, score };
     })
     .filter((x) => x.score > -Infinity)
     .sort((a, b) => b.score - a.score || a.order - b.order)

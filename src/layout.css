@@ -409,6 +409,16 @@ body.dragging-split {
   width: auto;
 }
 
+/* Not enough room on both sides to centre it: it sits in the flow after the brand instead of over its neighbours. */
+.topbar.center-flow > .quick-open-field {
+  position: static;
+  transform: none;
+}
+
+.topbar.center-flow > .quick-open-field.compact {
+  width: auto;
+}
+
 /* Last measured fit level 1: the request switcher drops its folder path. */
 .topbar[data-fit-crumbs="off"] .switcher-crumb {
   display: none;
@@ -463,6 +473,11 @@ body.dragging-split {
 
 .topbar[data-fit-max] .switcher-name {
   min-width: 40px;
+}
+
+/* Tight bar (a side panel is open): the environment picker narrows too. */
+.topbar[data-fit-max] .env-picker-btn {
+  width: 104px;
 }
 
 /* The brand keeps its mark and drops its wordmark. */

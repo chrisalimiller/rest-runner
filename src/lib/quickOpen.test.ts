@@ -207,3 +207,26 @@ describe("command items", () => {
     expect(titles).toEqual(["Environment: None", "Environment: Staging"]);
   });
 });
+
+describe("command palette matching", () => {
+  const items: QuickItem[] = (
+    [
+      ["Settings and about…", "settings preferences about update upgrade"],
+      ["Import from cURL…", "curl paste import command"],
+      ["Send request", "run request send"],
+      ["Go to Testing", "switch go section mode testing"],
+      ["Export workspace…", "export save backup download file"],
+    ] as const
+  ).map(([title, keywords], i) => ({ kind: "command", id: `c${i}`, title, detail: "", keywords }));
+  const titles = (q: string) => searchQuickOpen(items, q, KIND_ORDER.requests).flatMap((g) => g.items.map((i) => i.title));
+
+  it(">send lists Send request and nothing unrelated", () => {
+    expect(titles(">send")).toEqual(["Send request"]);
+  });
+  it("puts title matches before keyword matches", () => {
+    expect(titles(">import")[0]).toBe("Import from cURL…");
+  });
+  it("still allows a short abbreviation of a title", () => {
+    expect(titles(">gt")).toEqual(["Go to Testing"]);
+  });
+});
