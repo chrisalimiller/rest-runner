@@ -495,19 +495,20 @@ function splitUrl(raw: string): { url: string; query: string } {
   return q < 0 ? { url: noFragment, query: "" } : { url: noFragment.slice(0, q), query: noFragment.slice(q + 1) };
 }
 
+/** "POST /post", "GET /api/v1/users", or "GET example.com" when the URL has no path. A long path keeps its end. */
 function nameFor(method: HttpMethod, url: string): string {
   const rest = url.replace(/^[a-z][a-z0-9+.-]*:\/\//i, "");
   const slash = rest.indexOf("/");
-  const host = slash < 0 ? rest : rest.slice(0, slash);
-  const segments = (slash < 0 ? "" : rest.slice(slash)).split("/").filter((s) => s !== "");
-  const last = segments[segments.length - 1];
-  let label = host;
-  if (last !== undefined) {
+  let label = slash < 0 ? rest : rest.slice(slash);
+  if (slash >= 0) {
+    label = label.replace(/[?#].*$/, "").replace(/\/+$/, "");
+    if (label === "") label = rest.slice(0, slash);
     try {
-      label = decodeURIComponent(last);
+      label = decodeURIComponent(label);
     } catch {
-      label = last;
+      /* keep the escaped path */
     }
+    if (label.length > 40) label = `…${label.slice(-39)}`;
   }
   return `${method} ${label || "request"}`;
 }

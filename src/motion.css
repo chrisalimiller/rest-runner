@@ -344,11 +344,6 @@
 }
 
 /* ---------- URL bar ---------- */
-/* Eases open when focused; UrlInput switches this off while typing so the height follows the text. */
-.url-field .url-input {
-  transition: height 120ms var(--ease-out);
-}
-
 /* ---------- Reduced motion ---------- */
 /* Fewer and gentler, not none: colour and opacity changes stay, travel goes. */
 @media (prefers-reduced-motion: reduce) {
@@ -360,8 +355,7 @@
   .sb-sidebar,
   .side-slot,
   .side-slot.open,
-  .tabs.slide.ul-ready::after,
-  .url-field .url-input {
+  .tabs.slide.ul-ready::after {
     transition: none;
   }
 

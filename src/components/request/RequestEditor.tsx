@@ -3,9 +3,8 @@ import { usePanelFade } from "../useTabMotion";
 import { findLiteralSecrets } from "../../lib/redactStorage";
 import { requestToCurl } from "../../lib/curl";
 import { findJsonProblem, formatJson } from "../../lib/jsonFormat";
-import { readableUrl } from "../../lib/quickOpen";
 import { unresolvedPlaceholders } from "../../lib/request";
-import { BODY_LABELS, loadEditorTab, resolvedUrl, rowCounts, splitPlaceholders, type DetailsTab } from "../../lib/requestSummary";
+import { BODY_LABELS, loadEditorTab, methodPatch, resolvedUrl, rowCounts, splitPlaceholders, type DetailsTab } from "../../lib/requestSummary";
 import { load, save } from "../../lib/storage";
 import type { Vars } from "../../lib/template";
 import { MethodSelect } from "../MethodSelect";
@@ -145,6 +144,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onConvertLitera
 
   const methodAllowsBody = def.method !== "GET" && def.method !== "HEAD";
   const panelId = useId();
+  const summaryId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const tabs: readonly DetailsTab[] = methodAllowsBody ? ["params", "auth", "headers", "body", "scripts"] : ["params", "auth", "headers", "scripts"];
   // GET and HEAD send no body, so a remembered Body tab shows Params instead.
@@ -244,7 +244,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onConvertLitera
       <div className="url-block">
         <div className="url-row">
           <div className="url-bar">
-            <MethodSelect value={def.method} options={HTTP_METHODS} onChange={(method) => onChange({ method })} aria-label="Method" />
+            <MethodSelect value={def.method} options={HTTP_METHODS} onChange={(method) => onChange(methodPatch(def, method))} aria-label="Method" />
             <UrlInput
               value={def.url}
               onChange={(e) => onChange({ url: e.target.value })}
@@ -252,11 +252,18 @@ export function RequestEditor({ def, onChange, envVars, envName, onConvertLitera
               spellCheck={false}
               onPasteCurl={onPasteCurl}
               aria-label="URL"
-              title={finalUrl ? readableUrl(finalUrl) : undefined}
+              vars={envVars}
+              aria-describedby={finalUrl ? summaryId : undefined}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.metaKey && !e.ctrlKey && onEnter) onEnter();
               }}
             />
+            {finalUrl && (
+              <div className="url-summary" id={summaryId} role="tooltip">
+                <span className="url-summary-label">Sends to</span>
+                <WithPlaceholders text={finalUrl} vars={{}} />
+              </div>
+            )}
             {unfilled.length > 0 &&
               (onOpenVariables ? (
                 <button className="unfilled-dot" onClick={onOpenVariables} title={`No value for ${unfilledNames}. Click to open Variables`} aria-label={`No value for ${unfilledNames}. Open Variables`}>
