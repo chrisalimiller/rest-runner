@@ -20,7 +20,7 @@ import {
 } from "@codemirror/view";
 import { tags as t } from "@lezer/highlight";
 import { useEffect, useRef } from "react";
-import { findJsonComments, findJsonProblem, formatJson } from "../lib/jsonFormat";
+import { findJsonComments, findJsonProblem, formatJson, isFormatShortcut } from "../lib/jsonFormat";
 import { bracketClass, findBrackets, type BracketLanguage, type BracketToken } from "../lib/rainbowBrackets";
 import { placeholderAt, placeholderPattern } from "../lib/requestSummary";
 import { useRainbowBrackets } from "./useRainbowBrackets";
@@ -243,7 +243,7 @@ interface Props {
   /** Python or Bash highlighting, for showing exported scripts. Long lines scroll instead of wrapping. */
   language?: ScriptViewLanguage;
   readOnly?: boolean;
-  /** Shows a line-number gutter (the request and response bodies; script editors leave it off). */
+  /** Shows a line-number gutter (request and response bodies, script editors). */
   lineNumbers?: boolean;
   /** Opens the variable card on {{placeholders}} (hover, and Ctrl/Cmd+I with the caret in one). Left out where there are no variables to show. */
   variableHover?: VariableHover;
@@ -335,6 +335,21 @@ export function CodeEditor({
   const modeCompartment = useRef(new Compartment());
   const rainbowCompartment = useRef(new Compartment());
   const rainbow = useRainbowBrackets();
+  /**
+   * Edits are passed on once per frame, not once per keystroke. Fast typing used to queue an app-wide update per key
+   * and could trip React's "Maximum update depth exceeded" guard. `unsent` holds the latest text until it is flushed.
+   */
+  const unsent = useRef<string | null>(null);
+  const frame = useRef(0);
+  const flush = () => {
+    cancelAnimationFrame(frame.current);
+    frame.current = 0;
+    const text = unsent.current;
+    unsent.current = null;
+    if (text !== null) onChangeRef.current?.(text);
+  };
+  const flushRef = useRef(flush);
+  flushRef.current = flush;
   const onViewRef = useRef(onView);
   onViewRef.current = onView;
 
@@ -374,14 +389,28 @@ export function CodeEditor({
         history(),
         closeBrackets(),
         keymap.of([
-          ...(isJs ? [] : [{ key: "Shift-Alt-f", run: formatEditorJson }]),
           ...closeBracketsKeymap,
           ...editorKeys,
           ...historyKeymap,
           indentWithTab,
         ]),
+        EditorView.domEventHandlers({
+          keydown(e, v) {
+            // Shortcuts such as Send and Save read the request, so hand over the latest text first.
+            if (e.metaKey || e.ctrlKey) flushRef.current();
+            if (isJs || !isFormatShortcut(e)) return false;
+            e.preventDefault();
+            formatEditorJson(v);
+            return true;
+          },
+          blur() {
+            flushRef.current();
+          },
+        }),
         EditorView.updateListener.of((u) => {
-          if (u.docChanged) onChangeRef.current?.(u.state.doc.toString());
+          if (!u.docChanged) return;
+          unsent.current = u.state.doc.toString();
+          if (!frame.current) frame.current = requestAnimationFrame(() => flushRef.current());
         }),
       );
     }
@@ -389,6 +418,7 @@ export function CodeEditor({
     view.current = new EditorView({ state: EditorState.create({ doc: value, extensions }), parent: host.current });
     onViewRef.current?.(view.current);
     return () => {
+      flushRef.current();
       onViewRef.current?.(null);
       view.current?.destroy();
       view.current = null;
@@ -400,6 +430,8 @@ export function CodeEditor({
   // Keep the editor in step when the value changes from outside (loading a saved request, Format button, new response).
   useEffect(() => {
     const v = view.current;
+    // Text typed since the last flush is newer than the value coming in.
+    if (unsent.current !== null) return;
     if (v && v.state.doc.toString() !== value) {
       v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: value } });
     }

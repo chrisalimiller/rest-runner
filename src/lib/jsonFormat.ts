@@ -291,3 +291,8 @@ export function formatJson(text: string, indent = "  "): string | null {
   }
   return out;
 }
+
+/** True for Shift+Alt+F by physical key: on a Mac, Option+Shift+F types "Ï", so the key name can't be matched. */
+export function isFormatShortcut(e: Pick<KeyboardEvent, "code" | "shiftKey" | "altKey" | "ctrlKey" | "metaKey">): boolean {
+  return e.code === "KeyF" && e.shiftKey && e.altKey && !e.ctrlKey && !e.metaKey;
+}

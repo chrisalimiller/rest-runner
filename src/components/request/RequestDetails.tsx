@@ -55,7 +55,7 @@ export function RequestTabs({ tabs, active, onTab, panelId, marks, warnings, end
           >
             {TAB_LABELS[t]}
             {marks[t] && (
-              <span className={`req-details-mark ${warnings?.[t] ? "warn" : ""}`} title={warnings?.[t]}>
+              <span className={`req-details-mark mark-${t} ${warnings?.[t] ? "warn" : ""}`} title={warnings?.[t]}>
                 {marks[t]}
               </span>
             )}
