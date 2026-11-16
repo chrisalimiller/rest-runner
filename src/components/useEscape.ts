@@ -15,8 +15,8 @@ export function useEscape(onEscape: () => void, active = true): void {
   // Taken while rendering: an `autoFocus` inside the overlay moves focus during the commit, before any effect runs.
   const opener = useRef<HTMLElement | null | undefined>(undefined);
   if (!active || opener.current === undefined) {
-    const el = typeof document === "undefined" ? null : document.activeElement;
-    opener.current = el instanceof HTMLElement && el !== document.body ? el : null;
+    const el = typeof document === "undefined" || typeof HTMLElement === "undefined" ? null : document.activeElement;
+    opener.current = el && el !== document.body ? (el as HTMLElement) : null;
   }
 
   useEffect(() => {
