@@ -59,7 +59,8 @@ describe("labels", () => {
 
   it("says when", () => {
     const at = (...a: [number, number, number, number, number, number?]) => new Date(...a).toISOString();
-    expect(whenLabel(at(2026, 9, 22, 13, 48, 25), now)).toBe("now");
+    expect(whenLabel(at(2026, 9, 22, 13, 48, 30), now)).toBe("now");
+    expect(whenLabel(at(2026, 9, 22, 13, 48, 25), now)).toBe("5s ago");
     expect(whenLabel(at(2026, 9, 22, 13, 48, 20), now)).toBe("10s ago");
     expect(whenLabel(at(2026, 9, 22, 13, 48, 0), now)).toBe("30s ago");
     expect(whenLabel(at(2026, 9, 22, 13, 44, 30), now)).toBe("4m ago");

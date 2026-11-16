@@ -2,7 +2,7 @@ import { currentMasker } from "../lib/secrets";
 import { useEffect, useRef, useState } from "react";
 import { formatMs, statusTone } from "../lib/earlierSends";
 import { prettyBody, splitBytes } from "../lib/format";
-import { CANCELLED } from "../lib/http";
+import { CANCELLED, isResponseLimitError, RESPONSE_LIMIT_HINT } from "../lib/http";
 import { BodyView } from "./BodyView";
 import { RainbowText } from "./RainbowText";
 import { useSlidingUnderline } from "./useTabMotion";
@@ -31,6 +31,13 @@ interface Props {
 }
 
 type Tab = "body" | "headers" | "request" | "scripts";
+
+/** What Copy puts on the clipboard: what is showing. Pretty and a beautified Raw view copy the indented JSON; plain Raw copies the body as received. */
+function copyText(raw: string, pretty: boolean, beautify: boolean): string {
+  if (!pretty && !beautify) return raw;
+  const p = prettyBody(raw);
+  return p.isJson ? p.text : raw;
+}
 
 function timeOfDay(iso: string): string {
   if (!iso) return "";
@@ -89,9 +96,28 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
     return () => clearInterval(t);
   }, [sending]);
 
+  // Read out by screen readers when a send finishes. The region is always mounted, so a change in its text is announced.
+  const counts = scriptTestCounts(scripts);
+  const failedCount = counts.total - counts.passed;
+  const failedChecks = !!outcome && !isSample && !!scripts && counts.failed && failedCount > 0;
+  const announce =
+    sending || !outcome || isSample
+      ? ""
+      : outcome.ok
+        ? `${[outcome.response.status, outcome.response.statusText].filter(Boolean).join(" ")}, ${outcome.response.durationMs} ms${failedChecks ? `, ${failedCount} ${failedCount === 1 ? "check" : "checks"} failed` : ""}`
+        : outcome.error === CANCELLED
+          ? "Request cancelled"
+          : `Request failed: ${isResponseLimitError(outcome.error) ? "the response was over the size limit" : outcome.error}`;
+  const live = (
+    <span className="visually-hidden" role="status" aria-live="polite">
+      {announce}
+    </span>
+  );
+
   if (sending) {
     return (
       <section className="response">
+        <>
         <Band>
           <span className="field-main">
             <span className="field-note">
@@ -106,6 +132,8 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
             <span />
           </div>
         </div>
+        </>
+        {live}
       </section>
     );
   }
@@ -113,6 +141,7 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
   if (!outcome) {
     return (
       <section className="response">
+        <>
         <Band>
           <span className="field-main">
             <span className="field-note muted">No response yet</span>
@@ -123,8 +152,12 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
         <div className="response-body state">
           <PlayIcon size={28} className="state-icon" />
           <p className="state-title">No response yet</p>
-          <p className="muted small">Press Send or {MOD_KEY} + Enter to see the response here.</p>
+          <p className="muted small">
+            Press Send or {MOD_KEY} + Enter to see the response here.{earlier ? " Earlier sends of this request are in the list above." : ""}
+          </p>
         </div>
+        </>
+        {live}
       </section>
     );
   }
@@ -144,6 +177,7 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
 
   return (
     <section className="response">
+      <>
       <Band viewing={isSample && !cancelled}>
         <span className="field-main">
           <span className={`status-tile tint-${tone}`} data-arrive={arrival}>
@@ -166,6 +200,11 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
             </span>
           )}
           {!isSample && outcome.sentAt && <span className="hero-meta">{timeOfDay(outcome.sentAt)}</span>}
+          {failedChecks && hasScripts && (
+            <button className="checks-chip" onClick={() => setTab("scripts")} title="Open the Scripts tab">
+              {failedCount === 1 ? "1 check failed" : `${failedCount} checks failed`}
+            </button>
+          )}
           {isSample && !cancelled && <span className="viewing-tag">{sampleLabel ?? "Sample response"}</span>}
         </span>
         {earlier}
@@ -216,7 +255,7 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
                 {beautify ? "Beautified" : "Beautify"}
               </button>
             )}
-            <button className="block-icon-btn" onClick={() => navigator.clipboard?.writeText(!pretty && beautify && body.isJson ? body.text : res.body)} aria-label="Copy response body" title="Copy response body">
+            <button className="block-icon-btn" onClick={() => navigator.clipboard?.writeText(copyText(res.body, pretty, beautify))} aria-label="Copy response body" title="Copy response body">
               <CopyIcon />
             </button>
           </div>
@@ -246,7 +285,7 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
                   </button>
                 </p>
               ) : (
-                <p className="small">{errorHint ?? "Check that the server is reachable from this computer, or switch environments."}</p>
+                <p className="small">{isResponseLimitError(outcome.ok ? "" : outcome.error) ? RESPONSE_LIMIT_HINT : errorHint ?? "Check that the server is reachable from this computer, or switch environments."}</p>
               )}
             </div>
           ))}
@@ -281,6 +320,8 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
           </pre>
         )}
       </div>
+      </>
+      {live}
     </section>
   );
 }

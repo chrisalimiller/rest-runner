@@ -154,14 +154,14 @@ The left column of Requests holds your collections, folders and requests (with t
 
 ## The response viewer
 
-The top of the response column is a status band built like the URL bar: a pill with the status code and text (tinted by the status), then time, size, the certificate if one was used and the time the request was sent. At its right end, **Latest ▾** (or for example **11m ago ▾**) opens a list of the earlier sends and batch runs of this request (see [History and earlier sends](#history-and-earlier-sends)). Looking at an earlier send rings the band in amber and tags it, for example "Sent 4m ago · 142 ms", so it is clear you are not looking at the latest response.
+The top of the response column is a status band built like the URL bar: a pill with the status code and text (tinted by the status), then time, size, the certificate if one was used and the time the request was sent. If a post-response check failed, a red **1 check failed** chip appears beside them (click it to open the Scripts tab); the status pill itself always shows the HTTP status. When a send finishes, the result (for example "200 OK, 22 ms" or the error) is also announced to screen readers. At its right end, **Latest ▾** (or for example **11m ago ▾**) opens a list of the earlier sends and batch runs of this request (see [History and earlier sends](#history-and-earlier-sends)). Looking at an earlier send rings the band in amber and tags it, for example "Sent 4m ago · 142 ms", so it is clear you are not looking at the latest response.
 
 Under the band is one row of tabs. Content type, **Pretty / Raw** and **Copy** sit at its right end while the Body tab is open:
 
-- **Body**: JSON is highlighted, with [rainbow brackets](#rainbow-brackets). **Raw** shows the body as received and **Pretty** re-indents JSON. In Raw, JSON bodies also get a **Beautify** button that indents the text while keeping it plain and selectable (click again to see it as received). **Copy** copies what is showing.
+- **Body**: JSON is highlighted, with [rainbow brackets](#rainbow-brackets). **Raw** shows the body as received and **Pretty** re-indents JSON. In Raw, JSON bodies also get a **Beautify** button that indents the text while keeping it plain and selectable (click again to see it as received). **Copy** copies what is showing: the indented text in Pretty (and in a Beautified Raw view), the body as received in plain Raw.
 - **Headers**: all response headers, with a count.
 - **Sent request**: the exact request that was sent, after placeholders, auth and default headers were applied.
-- **Scripts** (only when the request has scripts): see below. The label shows how many `rr.test` checks passed, for example `Scripts 2/3`, and the tab turns red if something failed.
+- **Scripts** (only when the request has scripts): see below. A badge next to the label shows how many `rr.test` checks passed, for example `Tests 2/3`, and the tab turns red if something failed.
 
 If no response comes back (server unreachable, DNS error, cancelled) you get an error box with the reason instead of a body. If the pre-request script failed, the box says the request was not sent and links to the script output.
 
@@ -179,10 +179,10 @@ Turn it off or on in **Settings > General > Rainbow brackets** (the info button 
 
 Every send is kept in history (the last 50). Each entry holds the request as sent, the status, time, the response (the body is cut at 32 KB), or the error, and what its scripts did.
 
-- Open **Quick open** and look in the **History** group to load one. Loading puts the request back in the editor and shows its response as a sample, labeled for example "Sent 4m ago · 142 ms".
-- At the right end of the response status band, the **earlier sends** picker (it reads **Latest ▾**, or the age of the send on screen, or "4 earlier" before you have sent anything this session) lists up to six sends and batch runs of the open request. A row reads for example `201 · 142 ms · 4m ago` (the time is "12s ago" or "4m ago" within the hour, then `13:41`, "Yesterday", or a short date), with `· Dev` added when that send used a different environment from the one selected now. Hover a row for the full time, the environment and what changed since the previous send of the request (for example "body changed"). Click a send to see it again, or a batch row to open that run in the [run explorer](batch-runs.md#the-run-explorer). Arrow keys, Enter and Escape work like in the method list.
+- Open **Quick open** and look in the **History** group to load one. Loading puts the request back in the editor and shows its response as a sample, labeled for example "Sent 4m ago · 142 ms". If that replaces unsaved edits in an open tab, the toast offers **Undo**, which puts the edits back. The same applies to picking an earlier send in the picker below. After a restart, each open tab shows its last send again from the history, labeled "Last sent …".
+- At the right end of the response status band, the **earlier sends** picker (it reads **Latest ▾**, or the age of the send on screen, or "4 earlier" before you have sent anything this session) lists up to six sends and batch runs of the open request. A row reads for example `201 · 142 ms · 4m ago` (the time is "now" under a second, then "12s ago" or "4m ago" within the hour, then `13:41`, "Yesterday", or a short date), with `· Dev` added when that send used a different environment from the one selected now. Hover a row for the full time, the environment and what changed since the previous send of the request (for example "body changed"). Click a send to see it again, or a batch row to open that run in the [run explorer](batch-runs.md#the-run-explorer). Arrow keys, Enter and Escape work like in the method list.
 - Entries saved by older versions of the app kept only a status. They load with a note that the body and headers were not kept. If local storage is full, responses are dropped from the oldest entries first so the newest stay.
-- **Clear history** is in Quick open, in the History group.
+- **Clear history** is in Quick open, in the History group, and as the command `>Clear history`. A toast offers **Undo**.
 
 Your open tabs, with their edits, are saved as you work and restored at launch.
 
@@ -205,7 +205,7 @@ The tabs bar is part of the Requests screen only. The Testing case editor and Fl
 
 ### Response size limits
 
-Responses are limited to 4 MiB of decoded body bytes per request, including each redirect hop in the desktop app. A response exceeding the limit fails rather than displaying or saving a partial success. Up to four responses are read at once. Use **Response size limit** on the **General** page of Settings (the info button in the top bar) to set a limit from 1 byte to 16 MiB. Memory use can be higher than the limit because decoded text and desktop IPC create copies. Batch and test results may retain multiple responses; use smaller batches when responses are large.
+Responses are limited to 4 MiB of decoded body bytes per request, including each redirect hop in the desktop app. A response exceeding the limit fails rather than displaying or saving a partial success; the error points you at the setting. Up to four responses are read at once. Use **Response size limit** on the **General** page of Settings (the info button in the top bar) to set a limit from 1 byte to 16 MiB. Memory use can be higher than the limit because decoded text and desktop IPC create copies. Batch and test results may retain multiple responses; use smaller batches when responses are large.
 
 ### Redirects and credentials
 
