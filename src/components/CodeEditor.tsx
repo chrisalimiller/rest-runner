@@ -340,13 +340,18 @@ export function CodeEditor({
    * and could trip React's "Maximum update depth exceeded" guard. `unsent` holds the latest text until it is flushed.
    */
   const unsent = useRef<string | null>(null);
+  /** Every text handed to onChange that the parent hasn't echoed back yet; an incoming value in this set is our own edit arriving late. */
+  const sent = useRef<string[]>([]);
   const frame = useRef(0);
   const flush = () => {
     cancelAnimationFrame(frame.current);
     frame.current = 0;
     const text = unsent.current;
     unsent.current = null;
-    if (text !== null) onChangeRef.current?.(text);
+    if (text === null) return;
+    sent.current.push(text);
+    if (sent.current.length > 50) sent.current.shift();
+    onChangeRef.current?.(text);
   };
   const flushRef = useRef(flush);
   flushRef.current = flush;
@@ -432,6 +437,14 @@ export function CodeEditor({
     const v = view.current;
     // Text typed since the last flush is newer than the value coming in.
     if (unsent.current !== null) return;
+    // The parent re-rendering with text this editor sent earlier is a late echo, not an outside change: applying it
+    // would overwrite newer typing and move the caret.
+    const echo = sent.current.indexOf(value);
+    if (echo !== -1) {
+      sent.current.splice(0, echo + 1);
+      return;
+    }
+    sent.current = [];
     if (v && v.state.doc.toString() !== value) {
       v.dispatch({ changes: { from: 0, to: v.state.doc.length, insert: value } });
     }
