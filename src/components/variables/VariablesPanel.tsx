@@ -41,6 +41,11 @@ export function showOwnVariables() {
   patchView({ filter: "request" });
 }
 
+/** Shows every variable, script variables included. Used by the "N script variables" link under the script editor. */
+export function showAllVariables() {
+  patchView({ filter: "all" });
+}
+
 function useView(): VariablesView {
   return useSyncExternalStore(
     (l) => {
@@ -107,7 +112,7 @@ function InlineValue({ value, secret, label, onSave }: { value: string; secret: 
     <span className="variables-value-wrap">
       <button
         className="variables-value mono"
-        title={waiting ? "Loading secret values from the keychain" : secret ? "Secret. Click to edit" : "Click to edit"}
+        title={waiting ? "Loading secret values from the keychain" : secret ? "Secret. Click to edit" : shown ? `${shown}\n\nClick to edit` : "Click to edit"}
         disabled={waiting}
         onClick={() => {
           setDraft(value);
@@ -257,13 +262,15 @@ export function VariablesPanel({ used, inputs, scope, showScript = true, api: gi
     () => (api ? variableIndex(api.environments, api.activeEnvId, api.scriptVars, state.filter === "request" ? used : null) : null),
     [api, state.filter, used],
   );
+  // Missing placeholders belong to the open request, so they show in All too.
+  const usedMissing = useMemo(() => (api ? variableIndex(api.environments, api.activeEnvId, api.scriptVars, used).missing : []), [api, used]);
   if (!api || !groups || !state.open || !slot) return null;
 
   const activeEnv = api.environments.find((e) => e.id === api.activeEnvId) ?? null;
   const needle = nameFilter.trim().toLowerCase();
   const match = (name: string) => needle === "" || name.toLowerCase().includes(needle);
   const narrow = (g: SidebarEnvGroup): SidebarEnvGroup => ({ ...g, rows: g.rows.filter((r) => match(r.name)) });
-  const missing = groups.missing.filter(match);
+  const missing = usedMissing.filter(match);
   const script = showScript ? groups.script.filter((r) => match(r.name)) : [];
   const active = groups.active ? narrow(groups.active) : null;
   const others = groups.others.map(narrow).filter((g) => g.rows.length > 0);

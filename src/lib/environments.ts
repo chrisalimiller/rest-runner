@@ -77,6 +77,17 @@ export function defaultEnvColor(name: string): EnvColor {
   return /^(prod|production|prd)$/i.test(name.trim()) ? "red" : "none";
 }
 
+/** Renames an environment. A name like Prod gives it the red default, but only while it has no colour of its own. */
+export function renameEnvironment(env: Environment, name: string): Environment {
+  const color = !env.color || env.color === "none" ? defaultEnvColor(name) : env.color;
+  return { ...env, name, color };
+}
+
+/** True when an environment looks like production (red, or named like it) but is not flagged, so nothing asks before sending. */
+export function looksUnprotected(env: Environment): boolean {
+  return env.isProduction !== true && (env.color === "red" || defaultEnvColor(env.name) === "red");
+}
+
 function isColor(x: unknown): x is EnvColor {
   return typeof x === "string" && (ENV_COLORS as string[]).includes(x);
 }

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from "react";
-import { ENV_COLORS, ENV_COLOR_VARS, newEnvironment, type Environment, type EnvColor } from "../lib/environments";
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { ENV_COLORS, ENV_COLOR_VARS, looksUnprotected, newEnvironment, renameEnvironment, type Environment, type EnvColor } from "../lib/environments";
 import { addMissingVar, buildMatrix, findDuplicateNames, joinRowNumbers, revealKey, setVarValue } from "../lib/envVars";
 import { filterEnvs } from "../lib/envPicker";
 import { openImportDialog } from "../lib/importDialog";
@@ -105,6 +105,21 @@ export function EnvironmentEditor({ environments, activeId, onChange, onClose, f
     });
   };
 
+  const swatches = useRef<HTMLDivElement>(null);
+  /** Roving radio group: arrows move and choose, Home and End jump to the ends. */
+  const onSwatchKey = (e: KeyboardEvent, env: Environment) => {
+    const keys: Record<string, number> = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
+    const at = Math.max(0, ENV_COLORS.indexOf(env.color ?? "none"));
+    let next: number;
+    if (e.key === "Home") next = 0;
+    else if (e.key === "End") next = ENV_COLORS.length - 1;
+    else if (keys[e.key]) next = (at + keys[e.key] + ENV_COLORS.length) % ENV_COLORS.length;
+    else return;
+    e.preventDefault();
+    update({ ...env, color: ENV_COLORS[next] });
+    requestAnimationFrame(() => swatches.current?.querySelector<HTMLElement>(`[data-color="${ENV_COLORS[next]}"]`)?.focus());
+  };
+
   const goToDuplicate = () => {
     const group = duplicates.groups[0];
     const last = group && selected?.vars[group.rows[group.rows.length - 1] - 1];
@@ -188,7 +203,7 @@ export function EnvironmentEditor({ environments, activeId, onChange, onClose, f
                     <label className="dlg-field-label" htmlFor="envdlg-name">
                       Name
                     </label>
-                    <input id="envdlg-name" type="text" value={selected.name} onChange={(e) => update({ ...selected, name: e.target.value })} />
+                    <input id="envdlg-name" type="text" value={selected.name} onChange={(e) => update(renameEnvironment(selected, e.target.value))} />
                     <button className="secondary" onClick={() => duplicate(selected)}>
                       Duplicate
                     </button>
@@ -200,13 +215,15 @@ export function EnvironmentEditor({ environments, activeId, onChange, onClose, f
                     <span className="dlg-field-label" id="envdlg-colour-label">
                       Colour
                     </span>
-                    <div className="envdlg-swatches" role="radiogroup" aria-labelledby="envdlg-colour-label">
+                    <div className="envdlg-swatches" role="radiogroup" aria-labelledby="envdlg-colour-label" ref={swatches} onKeyDown={(e) => onSwatchKey(e, selected)}>
                       {ENV_COLORS.map((c) => (
                         <button
                           key={c}
                           role="radio"
                           aria-checked={(selected.color ?? "none") === c}
                           aria-label={colorLabel(c)}
+                          data-color={c}
+                          tabIndex={(selected.color ?? "none") === c ? 0 : -1}
                           title={colorLabel(c)}
                           className={`env-swatch ${(selected.color ?? "none") === c ? "on" : ""} ${c === "none" ? "none" : ""}`}
                           style={c === "none" ? undefined : { background: ENV_COLOR_VARS[c as Exclude<EnvColor, "none">] }}
@@ -220,6 +237,7 @@ export function EnvironmentEditor({ environments, activeId, onChange, onClose, f
                     <input type="checkbox" checked={selected.isProduction === true} onChange={(e) => update({ ...selected, isProduction: e.target.checked })} />
                     <span>
                       Production environment <span className="dlg-hint">Asks before a send or batch run goes here (Settings, General). You set this yourself; the name is not checked.</span>
+                      {looksUnprotected(selected) && <span className="dlg-hint envdlg-suggest"> This one looks like production but will send without asking. Turn this on to be asked first.</span>}
                     </span>
                   </label>
                 </div>

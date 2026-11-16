@@ -28,8 +28,9 @@ export function SecretStatusBanner({ variant, hasSecrets }: Props) {
   const s = useSecretStatus();
   const panelOpen = useSidePanels().variables;
   const [, bump] = useState(0);
-  // The panel carries the same note, so the shell one steps aside while it is open.
-  if (variant === "shell" && panelOpen) return null;
+  // The dev-mode note is shown once, under the top bar. Real keychain problems are also in the panel, so the shell one steps aside while it is open.
+  if (s === "browser-fallback" && variant === "panel") return null;
+  if (variant === "shell" && panelOpen && s !== "browser-fallback") return null;
   if (!shouldShowBanner(s, hasSecrets, dismissed[variant])) return null;
   return (
     <div className={`secret-banner ${variant}`} role="status" aria-live="polite">

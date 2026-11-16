@@ -103,8 +103,8 @@ export function EnvPicker({ environments, activeId, onChange }: Props) {
       close();
     } else {
       const next = moveIndex(active, e.key, rows.length);
-      // Home and End stay with the text box so the caret can move.
-      if (next !== null && e.key !== "Home" && e.key !== "End") {
+      // Home and End jump to the first and last option, like in any list box.
+      if (next !== null) {
         e.preventDefault();
         setActive(next);
       }

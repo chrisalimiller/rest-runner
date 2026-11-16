@@ -2,6 +2,7 @@ import { emptyRow } from "../lib/defaults";
 import { revealKey, type DuplicateReport } from "../lib/envVars";
 import type { KeyValue } from "../lib/types";
 import { LockIcon } from "./shell/Icons";
+import { SecretValueInput } from "./SecretValueInput";
 import { RevealButton } from "./shell/RevealButton";
 import { useSecretInputsDisabled } from "./shell/SecretStatusBanner";
 
@@ -67,13 +68,14 @@ export function EnvVarsTable({ envId, rows, onChange, duplicates, revealed, onTo
                   </div>
                 </td>
                 <td>
-                  <input
+                  <SecretValueInput
                     value={row.value}
+                    secret={!!row.secret}
+                    shown={shown}
                     placeholder="Value"
                     data-row-value={row.id}
                     onChange={(e) => update(row.id, { value: e.target.value })}
                     spellCheck={false}
-                    type={row.secret && !shown ? "password" : "text"}
                     disabled={row.secret && waiting}
                     title={row.secret && waiting ? "Loading secret values from the keychain" : undefined}
                     autoComplete={row.secret ? "new-password" : undefined}

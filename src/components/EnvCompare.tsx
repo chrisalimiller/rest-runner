@@ -1,6 +1,7 @@
 import { buildMatrix, revealKey } from "../lib/envVars";
 import { ENV_COLOR_VARS, type Environment } from "../lib/environments";
 import { AlertIcon } from "./shell/Icons";
+import { SecretValueInput } from "./SecretValueInput";
 import { RevealButton } from "./shell/RevealButton";
 import { useSecretInputsDisabled } from "./shell/SecretStatusBanner";
 
@@ -70,9 +71,10 @@ export function EnvCompare({ environments, selectedId, onSelect, onEdit, onAdd, 
                 return (
                   <td key={env.id} className={sel}>
                     <div className="envdlg-cell">
-                      <input
+                      <SecretValueInput
                         value={cell.row.value}
-                        type={secret && !shown ? "password" : "text"}
+                        secret={secret}
+                        shown={shown}
                         disabled={secret && waiting}
                         autoComplete={secret ? "new-password" : undefined}
                         spellCheck={false}

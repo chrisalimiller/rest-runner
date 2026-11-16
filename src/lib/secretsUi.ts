@@ -68,6 +68,7 @@ export function keychainName(platform: string): string {
   return "your system keychain";
 }
 
-export function keychainNote(platform: string): string {
+export function keychainNote(platform: string, browser = false): string {
+  if (browser) return "Dev mode (in a browser): secret variable values are kept for this browser tab only. They are not saved to a keychain.";
   return `Secret variable values are stored in ${keychainName(platform)}.`;
 }

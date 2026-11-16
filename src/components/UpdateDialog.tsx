@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "./shell/Modal";
 import { keychainNote } from "../lib/secretsUi";
+import { isBrowserFallback } from "../lib/secretStore";
 import { AppearanceControl } from "./shell/AppearanceControl";
 import { isBusy } from "../lib/busyWork";
 import { canUpdate, checkForUpdate, installedVersion, type FoundUpdate } from "../lib/updater";
@@ -118,7 +119,7 @@ export function UpdateDialog({ onClose }: { onClose: () => void }) {
               <p id="response-limit-help" className="muted small">Largest decoded response body a request may return, up to {MAX_RESPONSE_LIMIT.toLocaleString("en-US")}. Larger responses fail instead of being shown. Default: {DEFAULT_RESPONSE_LIMIT.toLocaleString("en-US")}.</p>
               {limitError && <p role="alert" className="update-error">{limitError}</p>}
             </section>
-            <section className="settings-block"><strong>Secret storage</strong><p className="muted small">{keychainNote(typeof navigator === "undefined" ? "" : navigator.platform)}</p></section>
+            <section className="settings-block"><strong>Secret storage</strong><p className="muted small">{keychainNote(typeof navigator === "undefined" ? "" : navigator.platform, isBrowserFallback())}</p></section>
           </>}
           {page === "shortcuts" && <><h4>Keyboard shortcuts</h4><p className="settings-intro">Quick access to common actions.</p><ShortcutsList /></>}
           {page === "about" && <>
