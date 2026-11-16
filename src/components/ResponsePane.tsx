@@ -79,6 +79,20 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
   const [chosenTab, setTab] = useState<Tab>("body");
   const tabStrip = useRef<HTMLDivElement>(null);
   useSlidingUnderline(tabStrip, chosenTab);
+  const onTabKeys = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const tabs = [...e.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]:not(:disabled)')];
+    const i = tabs.indexOf(document.activeElement as HTMLButtonElement);
+    if (i < 0) return;
+    let to = -1;
+    if (e.key === "ArrowRight") to = (i + 1) % tabs.length;
+    else if (e.key === "ArrowLeft") to = (i - 1 + tabs.length) % tabs.length;
+    else if (e.key === "Home") to = 0;
+    else if (e.key === "End") to = tabs.length - 1;
+    if (to < 0) return;
+    e.preventDefault();
+    tabs[to].focus();
+    tabs[to].click();
+  };
   const [pretty, setPretty] = useState(true);
   const [beautify, setBeautify] = useState(false);
   const [now, setNow] = useState(Date.now());
@@ -211,16 +225,16 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
       </Band>
 
       <div className="req-tabs resp-tabs">
-        <div className="tabs slide" role="tablist" aria-label="Response parts" ref={tabStrip}>
-          <button role="tab" aria-selected={tab === "body"} className={tab === "body" ? "active" : ""} onClick={() => setTab("body")}>
+        <div className="tabs slide" role="tablist" aria-label="Response parts" ref={tabStrip} onKeyDown={onTabKeys}>
+          <button role="tab" aria-selected={tab === "body"} tabIndex={tab === "body" ? 0 : -1} className={tab === "body" ? "active" : ""} onClick={() => setTab("body")}>
             Body
           </button>
-          <button role="tab" aria-selected={tab === "headers"} className={tab === "headers" ? "active" : ""} onClick={() => setTab("headers")} disabled={!res || !!bodyNote}>
+          <button role="tab" aria-selected={tab === "headers"} tabIndex={tab === "headers" ? 0 : -1} className={tab === "headers" ? "active" : ""} onClick={() => setTab("headers")} disabled={!res || !!bodyNote}>
             Headers
             {res && <span className="req-details-mark">{res.headers.length}</span>}
           </button>
           {!isSample && (
-            <button role="tab" aria-selected={tab === "request"} className={tab === "request" ? "active" : ""} onClick={() => setTab("request")}>
+            <button role="tab" aria-selected={tab === "request"} tabIndex={tab === "request" ? 0 : -1} className={tab === "request" ? "active" : ""} onClick={() => setTab("request")}>
               {notSent ? "Request" : "Sent request"}
             </button>
           )}
@@ -228,6 +242,7 @@ export function ResponsePane({ outcome, sending, isSample = false, sampleLabel, 
             <button
               role="tab"
               aria-selected={tab === "scripts"}
+              tabIndex={tab === "scripts" ? 0 : -1}
               className={`${tab === "scripts" ? "active" : ""} ${scriptTestCounts(scripts).failed ? "has-failures" : ""}`}
               onClick={() => setTab("scripts")}
               title="Pre-request and post-response script output"

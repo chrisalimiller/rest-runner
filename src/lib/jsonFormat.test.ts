@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { findJsonProblem, formatJson, stripJsonComments } from "./jsonFormat";
+import { findJsonProblem, formatJson, isFormatShortcut, stripJsonComments } from "./jsonFormat";
 
 describe("findJsonProblem", () => {
   it("accepts valid JSON and placeholders as values or keys", () => {
@@ -81,5 +81,18 @@ describe("comments in JSON", () => {
   it("returns text without comments unchanged and does not format text with comments", () => {
     expect(stripJsonComments('{"a": 1}')).toBe('{"a": 1}');
     expect(formatJson(text)).toBeNull();
+  });
+});
+
+describe("isFormatShortcut", () => {
+  const base = { code: "KeyF", shiftKey: true, altKey: true, ctrlKey: false, metaKey: false };
+  it("goes by the physical key, so a Mac's Option+Shift+F (key \"Ï\") counts", () => {
+    expect(isFormatShortcut(base)).toBe(true);
+  });
+  it("needs Shift and Alt, and no Ctrl or Cmd", () => {
+    expect(isFormatShortcut({ ...base, shiftKey: false })).toBe(false);
+    expect(isFormatShortcut({ ...base, altKey: false })).toBe(false);
+    expect(isFormatShortcut({ ...base, metaKey: true })).toBe(false);
+    expect(isFormatShortcut({ ...base, code: "KeyG" })).toBe(false);
   });
 });

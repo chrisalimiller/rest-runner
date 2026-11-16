@@ -691,7 +691,7 @@ button:disabled {
   gap: 8px;
 }
 
-.field span {
+.field > span {
   color: var(--muted);
 }
 

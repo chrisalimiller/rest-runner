@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { newRequest } from "./defaults";
 import { prepareRequest } from "./request";
-import { authSummary, bodySummary, countsLabel, loadEditorTab, methodPatch, paramsText, requestSummaryLine, resolvedUrl, placeholderAt, rowCounts, splitPlaceholders } from "./requestSummary";
+import { authConfigured, authSummary, bodySummary, countsLabel, loadEditorTab, methodPatch, paramsText, requestSummaryLine, resolvedUrl, placeholderAt, rowCounts, splitPlaceholders } from "./requestSummary";
 import type { KeyValue, RequestDef } from "./types";
 
 const row = (key: string, value: string, enabled = true): KeyValue => ({ id: key + value, key, value, enabled });
@@ -123,5 +123,19 @@ describe("methodPatch", () => {
     expect(methodPatch({ ...newRequest(), method: "POST", bodyMode: "none" }, "PUT")).toEqual({ method: "PUT" });
     expect(methodPatch({ ...newRequest(), bodyMode: "text", body: "x" }, "POST")).toEqual({ method: "POST" });
     expect(methodPatch({ ...newRequest(), body: "x" }, "POST")).toEqual({ method: "POST" });
+  });
+});
+
+describe("authConfigured", () => {
+  it("is false for none and for a type with every field empty", () => {
+    expect(authConfigured({ type: "none" })).toBe(false);
+    expect(authConfigured({ type: "bearer", token: " " })).toBe(false);
+    expect(authConfigured({ type: "basic", username: "", password: "" })).toBe(false);
+    expect(authConfigured({ type: "apikey", key: "", value: "", addTo: "header" })).toBe(false);
+  });
+  it("is true once something is filled in", () => {
+    expect(authConfigured({ type: "bearer", token: "{{token}}" })).toBe(true);
+    expect(authConfigured({ type: "basic", username: "me", password: "" })).toBe(true);
+    expect(authConfigured({ type: "apikey", key: "X-Key", value: "", addTo: "query" })).toBe(true);
   });
 });

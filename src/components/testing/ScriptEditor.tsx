@@ -100,6 +100,7 @@ export function ScriptEditor({ phase, value, onChange, context = "case" }: Props
             value={value}
             onChange={onChange}
             javascript
+            lineNumbers
             completions={completions}
             findIssues={postmanIssues}
             onView={(v) => (editor.current = v)}

@@ -4,7 +4,7 @@ import { findLiteralSecrets } from "../../lib/redactStorage";
 import { requestToCurl } from "../../lib/curl";
 import { findJsonProblem, formatJson } from "../../lib/jsonFormat";
 import { unresolvedPlaceholders } from "../../lib/request";
-import { BODY_LABELS, loadEditorTab, methodPatch, resolvedUrl, rowCounts, splitPlaceholders, type DetailsTab } from "../../lib/requestSummary";
+import { authConfigured, BODY_LABELS, loadEditorTab, methodPatch, resolvedUrl, rowCounts, splitPlaceholders, type DetailsTab } from "../../lib/requestSummary";
 import { load, save } from "../../lib/storage";
 import type { Vars } from "../../lib/template";
 import { MethodSelect } from "../MethodSelect";
@@ -183,7 +183,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onConvertLitera
   const problem = def.bodyMode === "json" ? findJsonProblem(def.body) : null;
   const marks: Record<DetailsTab, string> = {
     params: rowCounts(def.params).on ? String(rowCounts(def.params).on) : "",
-    auth: def.auth.type !== "none" ? "•" : "",
+    auth: authConfigured(def.auth) ? "•" : "",
     headers: rowCounts(def.headers).on ? String(rowCounts(def.headers).on) : "",
     body: def.bodyMode !== "none" ? BODY_LABELS[def.bodyMode] : "",
     scripts: (def.preScript ?? "").trim() || (def.postScript ?? "").trim() ? "•" : "",
@@ -218,7 +218,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onConvertLitera
           </option>
         ))}
       </select>
-      {def.bodyMode === "json" && def.body.trim() !== "" && <span className={`json-status ${problem ? "bad" : "ok"}`}>{problem ? "Invalid JSON" : "Valid"}</span>}
+      {def.bodyMode === "json" && def.body.trim() !== "" && <span className={`json-status ${problem ? "bad" : "ok"}`} title={problem ? "Invalid JSON" : "Valid JSON"}><span className="json-status-text">{problem ? "Invalid JSON" : "Valid"}</span></span>}
       {def.bodyMode === "json" && (
         <button
           className="link-btn small"

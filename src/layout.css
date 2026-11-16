@@ -1223,6 +1223,7 @@ button.unfilled-dot:hover {
 
 /* One row of tabs under the URL row: Params, Auth, Headers, Body, Scripts, with the certificate chip at the right end. */
 .req-tabs {
+  container-type: inline-size;
   flex: none;
   box-sizing: border-box;
   height: 36px;
@@ -1236,8 +1237,8 @@ button.unfilled-dot:hover {
 }
 
 .req-tabs .tabs {
-  flex: 1 1 auto;
-  min-width: 0;
+  flex: none;
+  max-width: 100%;
   display: flex;
   flex-wrap: nowrap;
   overflow-x: auto;
@@ -1254,6 +1255,12 @@ button.unfilled-dot:hover {
   align-items: stretch;
 }
 
+/* The focus ring sits inside the tab: the strip clips anything drawn outside it. */
+.req-tabs .tabs button:focus-visible {
+  outline-offset: -2px;
+  border-radius: var(--r-sm);
+}
+
 .req-tabs .tabs button {
   flex: none;
   height: auto;
@@ -1264,12 +1271,55 @@ button.unfilled-dot:hover {
   white-space: nowrap;
 }
 
+/* Tab names never shrink; the right end gives way first (see the container queries below). */
 .req-tabs-end {
-  flex: none;
-  display: inline-flex;
+  flex: 1 1 0;
+  display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
   min-width: 0;
+  margin-left: auto;
+}
+
+.req-tabs-end > * {
+  flex: none;
+}
+
+.req-tabs-end > .block-head-type {
+  flex: 0 1 auto;
+}
+
+/* The body type is the select at the right end while the Body tab is open, so the tab drops its copy of it. */
+.req-tabs .tabs button.active .mark-body {
+  display: none;
+}
+
+@container (max-width: 700px) {
+  .req-tabs-end {
+    gap: 8px;
+  }
+  .req-tabs-end .json-status-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+  .req-tabs-end .json-status:not(:empty)::before {
+    margin-right: 0;
+  }
+  .req-tabs-end .block-head-type {
+    display: none;
+  }
+}
+
+@container (max-width: 560px) {
+  .req-tabs-end .body-mode-select {
+    max-width: 104px;
+    text-overflow: ellipsis;
+  }
 }
 
 /* Body: fills what is left of the column; the drawer floats over it. */
@@ -1315,6 +1365,11 @@ button.unfilled-dot:hover {
   min-height: 0;
   gap: 0;
   height: auto;
+}
+
+/* The floating Unsaved bar sits over the bottom of the column, so keep the last lines (a JSON error, the final row) above it. */
+.request-col:has(.unsaved-bar) .req-body-area {
+  padding-bottom: 54px;
 }
 
 .req-body-area .body-editor > .muted,

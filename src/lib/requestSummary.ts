@@ -63,6 +63,20 @@ export function authSummary(auth: AuthConfig): { label: string; value: string } 
   }
 }
 
+/** Whether the auth has anything filled in. A type chosen with every field empty sends nothing useful, so it is not flagged on the tab. */
+export function authConfigured(auth: AuthConfig): boolean {
+  switch (auth.type) {
+    case "bearer":
+      return auth.token.trim() !== "";
+    case "basic":
+      return auth.username.trim() !== "" || auth.password !== "";
+    case "apikey":
+      return auth.key.trim() !== "" || auth.value.trim() !== "";
+    default:
+      return false;
+  }
+}
+
 export const BODY_LABELS: Record<BodyMode, string> = {
   none: "None",
   json: "Raw JSON",
