@@ -261,10 +261,26 @@ export default function App({ active = true, shell, command }: Props) {
   const [tabs, setTabs] = useState<TabsState>(readTabs);
   /** Always the latest tabs, so handlers can read the result of the change they just made. */
   const tabsRef = useRef(tabs);
-  const [runtime, setRuntime] = useState<Record<string, TabRuntime>>({});
+  const [history, setHistory] = useState<HistoryEntry[]>(() => cleanHistory(load<unknown>(HISTORY_KEY, [])));
+  // After a restart each open tab shows its last send again, from the history, instead of an empty response.
+  const [runtime, setRuntime] = useState<Record<string, TabRuntime>>(() => {
+    const out: Record<string, TabRuntime> = {};
+    for (const t of tabs.tabs) {
+      const h = history.find((e) => e.def?.id === t.def.id);
+      if (!h) continue;
+      out[t.id] = {
+        ...INITIAL_RUNTIME,
+        shownHistoryId: h.id,
+        outcome: historyOutcome(h),
+        scriptRun: h.preScript || h.postScript ? { pre: h.preScript, post: h.postScript } : null,
+        outcomeIsSample: true,
+        sampleLabel: historyLabel(h).replace(/^Sent /, "Last sent "),
+      };
+    }
+    return out;
+  });
   const aborts = useRef(new Map<string, AbortController>());
   const [scriptVars, setScriptVars] = useState<Vars>(() => load<Vars>(SCRIPT_VARS_KEY, {}, isStringRecord));
-  const [history, setHistory] = useState<HistoryEntry[]>(() => cleanHistory(load<unknown>(HISTORY_KEY, [])));
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [openRun, setOpenRun] = useState<string | null>(null);
   const [collections, setCollections] = useState<Collection[]>(loadCollections);
@@ -764,6 +780,14 @@ export default function App({ active = true, shell, command }: Props) {
     return { id: next.activeId, isNew };
   };
 
+  /** Empties the history; the toast offers Undo, since there is no confirm step. */
+  const clearHistory = () => {
+    if (history.length === 0) return notify("History is already empty.");
+    const before = history;
+    setHistory([]);
+    toast.show({ message: `Cleared ${before.length} ${before.length === 1 ? "send" : "sends"} from history`, onUndo: () => setHistory(before) });
+  };
+
   const openDef = (d: RequestDef, permanent = false) => openTab(d, { permanent });
 
   const openExample = (ex: RequestExample, permanent = false) => {
@@ -772,6 +796,9 @@ export default function App({ active = true, shell, command }: Props) {
   };
 
   const openHistory = (h: HistoryEntry, permanent = false) => {
+    // Loading replaces the working copy of a tab that is already open. If that copy differs from the send being loaded, keep it so Undo can put it back.
+    const open = tabsRef.current.tabs.find((t) => t.def.id === h.def.id);
+    const kept = open && JSON.stringify(open.def) !== JSON.stringify(h.def) ? { tabId: open.id, def: structuredClone(open.def), runtime: runtime[open.id] } : null;
     const { id } = openTab(h.def, { permanent, load: true });
     patchRuntime(id, {
       shownHistoryId: h.id,
@@ -782,7 +809,15 @@ export default function App({ active = true, shell, command }: Props) {
       sampleLabel: historyLabel(h),
       pane: "response",
     });
-    notify(`Loaded the request as sent ${whenLabel(h.sentAt) === "now" ? "just now" : `at ${whenLabel(h.sentAt) || "an earlier time"}`}.`);
+    const message = `Loaded the request as sent ${whenLabel(h.sentAt) === "now" ? "just now" : `at ${whenLabel(h.sentAt) || "an earlier time"}`}.`;
+    if (!kept) return notify(message);
+    toast.show({
+      message,
+      onUndo: () => {
+        applyTabs((s) => updateTabDef(s, kept.tabId, () => kept.def));
+        if (kept.runtime) patchRuntime(kept.tabId, kept.runtime);
+      },
+    });
   };
 
   /** Loads the request a batch run was made from, and shows the Batch run pane. */
@@ -946,7 +981,7 @@ export default function App({ active = true, shell, command }: Props) {
   useEffect(() => {
     if (!command || lastCommand.current === command.nonce) return;
     lastCommand.current = command.nonce;
-    if (command.type === "clear-history") setHistory([]);
+    if (command.type === "clear-history") clearHistory();
     else if (command.type === "edit-environments") {
       setEnvironments(loadEnvironments());
       setFocusVarId(command.varId);
@@ -966,6 +1001,7 @@ export default function App({ active = true, shell, command }: Props) {
         openSidebar();
         addCollection();
       } else if (a.type === "export-workspace") startExport();
+      else if (a.type === "clear-history") clearHistory();
       else if (a.type === "import-curl") openCurlDialog();
       else if (a.type === "set-environment") {
         if (a.id === null || environments.some((e) => e.id === a.id)) setActiveEnvId(a.id);

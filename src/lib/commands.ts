@@ -35,6 +35,7 @@ export type RequestsAction =
   | { type: "new-request" }
   | { type: "new-collection" }
   | { type: "export-workspace" }
+  | { type: "clear-history" }
   | { type: "import-curl" }
   | { type: "set-environment"; id: string | null };
 
@@ -102,6 +103,7 @@ export function buildCommands(ctx: Pick<CommandCtx, "environments" | "activeEnvI
     { id: "new-tool", title: "New tool", keywords: "new create tool lookup page", group: "Request", enabled: always, run: (c) => c.actions.newTool() },
     { id: CURL_COMMAND_ID, title: "Import from cURL…", keywords: "curl paste import command", group: "Request", enabled: always, run: (c) => c.actions.requests({ type: "import-curl" }) },
     { id: "export-workspace", title: "Export workspace…", keywords: "export save backup download file", group: "Request", enabled: always, run: (c) => c.actions.requests({ type: "export-workspace" }) },
+    { id: "clear-history", title: "Clear history", keywords: "clear history delete remove sends", group: "Request", enabled: inRequests, run: (c) => c.actions.requests({ type: "clear-history" }) },
     ...(envs.length > 0
       ? [{ id: "switch-environment", title: "Switch environment…", keywords: "env environment change pick", group: "Environment", enabled: always, run: () => ({ query: ENV_MENU_QUERY }) } satisfies Command]
       : []),
