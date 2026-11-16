@@ -69,15 +69,27 @@
 
 .rtab-label {
   flex: none;
-  max-width: 160px;
+  display: flex;
+  max-width: 280px;
   overflow: hidden;
-  text-overflow: ellipsis;
   padding: 2px 10px;
   border-radius: var(--r-pill);
   font-size: var(--fs-xs);
   font-weight: 600;
   background: var(--group-neutral-bg);
   color: var(--group-neutral-fg);
+}
+
+/* A long label shortens its folder name first, so the collection that tells same-named folders apart stays readable. */
+.rtab-label-name {
+  min-width: 3ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rtab-label-suffix {
+  flex: none;
+  white-space: pre;
 }
 
 .rtab-label.tone-purple { background: var(--group-purple-bg); color: var(--group-purple-fg); }

@@ -59,9 +59,11 @@ export interface OpenOptions {
   preview: boolean;
   /** When a tab already holds this request, replace its working copy instead of keeping its edits (history, "load this request"). */
   load?: boolean;
+  /** Says whether a blank, unsaved tab may be replaced (it has never been sent). When it is the only tab, opening a request takes its place. */
+  mayReplaceBlank?: (t: RequestTab) => boolean;
 }
 
-export function openInTab(s: TabsState, def: RequestDef, { preview, load }: OpenOptions): TabsState {
+export function openInTab(s: TabsState, def: RequestDef, { preview, load, mayReplaceBlank }: OpenOptions): TabsState {
   const existing = s.tabs.find((t) => t.def.id === def.id);
   if (existing) {
     return {
@@ -71,6 +73,11 @@ export function openInTab(s: TabsState, def: RequestDef, { preview, load }: Open
     };
   }
   const copy = structuredClone(def);
+  const only = s.tabs.length === 1 ? s.tabs[0] : undefined;
+  if (only && !only.pinned && isBlankRequest(only.def) && mayReplaceBlank?.(only)) {
+    const next = makeTab(copy, { preview });
+    return { ...s, tabs: [next], activeId: next.id };
+  }
   const previewTab = preview ? s.tabs.find((t) => t.preview && !t.pinned) : undefined;
   if (previewTab) {
     // A new tab id, so anything kept per tab (responses, batch state) starts fresh.
@@ -248,6 +255,9 @@ export function goToTab(s: TabsState, order: string[], n: number): TabsState {
 export interface TabGroup {
   key: string;
   label: string;
+  /** The label split where a long one may be shortened: `name` shrinks first, `suffix` (the collection of a same-named folder) stays whole. */
+  name: string;
+  suffix: string;
   tone: GroupTone;
   tabs: RequestTab[];
 }
@@ -295,7 +305,7 @@ export function groupTabs(tabs: RequestTab[], collections: Collection[]): { pinn
   const groups = keys.map((key) => {
     const g = byKey.get(key)!;
     const clash = (labelCount.get(g.label) ?? 0) > 1 && g.folder;
-    return { key, label: clash ? `${g.label} · ${g.collection}` : g.label, tone: groupTone(key), tabs: g.tabs };
+    return { key, label: clash ? `${g.label} · ${g.collection}` : g.label, name: g.label, suffix: clash ? g.collection : "", tone: groupTone(key), tabs: g.tabs };
   });
   return { pinned, groups };
 }
@@ -312,6 +322,37 @@ export function tabMonogram(name: string, method: string): string {
   if (words.length === 0) return method.toUpperCase();
   const letters = words.length === 1 ? [...words[0]].slice(0, 3) : words.slice(0, 3).map((w) => [...w][0]);
   return letters.join("").toUpperCase();
+}
+
+/**
+ * Monograms for a row of pinned tabs, each different: when two names give the same letters, the later one tries
+ * the first letters of its first word, then of its last word, and as a last resort takes a number.
+ */
+export function pinMonograms(tabs: { id: string; name: string; method: string }[]): Map<string, string> {
+  const out = new Map<string, string>();
+  const used = new Set<string>();
+  for (const t of tabs) {
+    const words = t.name.split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+    const first = [...(words[0] ?? "")];
+    const last = [...(words[words.length - 1] ?? "")];
+    const candidates = [
+      tabMonogram(t.name, t.method),
+      first.slice(0, 3).join(""),
+      (first[0] ?? "") + last.slice(0, 2).join(""),
+      first.slice(0, 2).join("") + (last[0] ?? ""),
+      last.slice(0, 3).join(""),
+    ]
+      .map((c) => c.toUpperCase())
+      .filter((c) => c !== "");
+    let pick = candidates.find((c) => !used.has(c));
+    if (!pick) {
+      const base = (candidates[0] ?? t.method.toUpperCase()).slice(0, 2);
+      for (let n = 2; !pick; n++) if (!used.has(base + n)) pick = base + n;
+    }
+    used.add(pick);
+    out.set(t.id, pick);
+  }
+  return out;
 }
 
 // ---- Unsaved changes ----

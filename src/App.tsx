@@ -389,6 +389,8 @@ export default function App({ active = true, shell, command }: Props) {
   const openNewTab = () => {
     applyTabs(newTab);
     setOpenRun(null);
+    // Ready to type: the new tab's URL box takes focus once it has rendered.
+    window.setTimeout(() => document.querySelector<HTMLElement>(".requests-main .url-input")?.focus(), 0);
   };
   /** Closes a tab. Unsaved changes are not asked about: the toast offers Undo instead. */
   const closeTabById = (id: string) => {
@@ -753,7 +755,7 @@ export default function App({ active = true, shell, command }: Props) {
    */
   const openTab = (d: RequestDef, o: { permanent?: boolean; load?: boolean } = {}) => {
     const before = tabsRef.current;
-    const next = applyTabs((s) => openInTab(s, d, { preview: !o.permanent, load: o.load }));
+    const next = applyTabs((s) => openInTab(s, d, { preview: !o.permanent, load: o.load, mayReplaceBlank: (t) => !savedVersionOf(t.def, collections) && !runtime[t.id]?.outcome }));
     const isNew = !before.tabs.some((t) => t.id === next.activeId);
     if (isNew) setRuntime((r) => ({ ...r, [next.activeId]: INITIAL_RUNTIME }));
     else if (o.load)
@@ -793,7 +795,11 @@ export default function App({ active = true, shell, command }: Props) {
 
   /** Resolves a destination choice, creating a new collection if asked. */
   const resolveDest = (cols: Collection[], choice: DestinationChoice): { cols: Collection[]; dest: Destination } => {
-    if ("dest" in choice) return { cols, dest: choice.dest };
+    if ("dest" in choice) {
+      if (!choice.newFolder) return { cols, dest: choice.dest };
+      const f = newFolder(choice.newFolder);
+      return { cols: insertAt(cols, choice.dest, [f]), dest: { collectionId: choice.dest.collectionId, folderId: f.id } };
+    }
     const c = newCollection(choice.newCollection);
     return { cols: [...cols, c], dest: { collectionId: c.id, folderId: null } };
   };
@@ -1088,11 +1094,11 @@ export default function App({ active = true, shell, command }: Props) {
       onRenamingChange={setRenamingId}
       onOpenRequest={(node, permanent) => {
         openDef(node.request, permanent);
-        if (permanent) afterOpen();
+        afterOpen();
       }}
       onOpenExample={(_node, ex, permanent) => {
         openExample(ex, permanent);
-        if (permanent) afterOpen();
+        afterOpen();
       }}
       onAction={onTreeAction}
       toolsUsing={(ids) => toolsUsingRequests(loadTools(), ids).map((t) => t.name || "(unnamed)")}

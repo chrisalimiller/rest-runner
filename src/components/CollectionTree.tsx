@@ -131,7 +131,7 @@ export function CollectionTree(props: Props) {
               {renameInput(folder.id, folder.name)}
             </span>
           ) : (
-            <button className="tree-main" onClick={() => onToggle(folder.id)} title={folder.name}>
+            <button className="tree-main" onClick={() => onToggle(folder.id)} title={folder.name} aria-expanded={open}>
               <Chevron open={open} />
               <FolderIcon />
               <span className="tree-label">{folder.name}</span>
@@ -175,19 +175,20 @@ export function CollectionTree(props: Props) {
           <button
             className={`tree-toggle ${hasExamples ? "" : "invisible"}`}
             onClick={() => onToggle(node.id)}
-            aria-label={open ? "Hide examples" : "Show examples"}
+            aria-label={`Examples of ${r.name}`}
+            aria-expanded={hasExamples ? open : undefined}
             tabIndex={hasExamples ? 0 : -1}
           >
             <Chevron open={open} />
           </button>
           {renamingId === node.id ? (
             <span className="tree-main">
-              <span className={`method m-${r.method.toLowerCase()}`}>{r.method}</span>
+              <MethodTag method={r.method} />
               {renameInput(node.id, r.name)}
             </span>
           ) : (
             <button className="tree-main" onClick={() => props.onOpenRequest(node)} onDoubleClick={() => props.onOpenRequest(node, true)} title={r.url || r.name}>
-              <span className={`method m-${r.method.toLowerCase()}`}>{r.method}</span>
+              <MethodTag method={r.method} />
               <span className="tree-label">{r.name}</span>
               {hasExamples && <span className="tree-count">{node.examples.length}</span>}
             </button>
@@ -251,7 +252,7 @@ export function CollectionTree(props: Props) {
                     {renameInput(c.id, c.name)}
                   </span>
                 ) : (
-                  <button className="tree-main" onClick={() => onToggle(c.id)} title={c.name}>
+                  <button className="tree-main" onClick={() => onToggle(c.id)} title={c.name} aria-expanded={open}>
                     <Chevron open={open} />
                     <span className="tree-label">{c.name}</span>
                     <span className="tree-count">{countRequests(c.items)}</span>
@@ -283,6 +284,17 @@ export function CollectionTree(props: Props) {
         </div>
       )}
     </>
+  );
+}
+
+/** The method in the tree: DELETE and OPTIONS are shortened to fit the column; the full name stays in the tooltip and for screen readers. */
+function MethodTag({ method }: { method: string }) {
+  const short = method === "DELETE" ? "DEL" : method === "OPTIONS" ? "OPT" : method;
+  return (
+    <span className={`method m-${method.toLowerCase()}`} title={short === method ? undefined : method}>
+      <span aria-hidden={short !== method ? true : undefined}>{short}</span>
+      {short !== method && <span className="visually-hidden">{method}</span>}
+    </span>
   );
 }
 
@@ -331,6 +343,16 @@ function ExampleIcon() {
 function RenameInput({ initial, onDone }: { initial: string; onDone: (name: string | null) => void }) {
   const [value, setValue] = useState(initial);
   const done = useRef(false);
+  const input = useRef<HTMLInputElement>(null);
+  // Focus after the menu that started the rename has closed and handed focus back to its button (useEscape),
+  // otherwise that hand-back blurs this input and ends the rename at once.
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      input.current?.focus();
+      input.current?.select();
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, []);
   const finish = (name: string | null) => {
     if (done.current) return;
     done.current = true;
@@ -339,7 +361,7 @@ function RenameInput({ initial, onDone }: { initial: string; onDone: (name: stri
   return (
     <input
       className="tree-rename"
-      autoFocus
+      ref={input}
       value={value}
       onFocus={(e) => e.target.select()}
       onChange={(e) => setValue(e.target.value)}

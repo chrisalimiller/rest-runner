@@ -69,7 +69,7 @@ export function DestinationPicker({
         <select value={value} onChange={(e) => onChange(e.target.value)} size={Math.min(10, Math.max(4, destinations(collections).length + 1))}>
           {destinations(collections).map((d) => (
             <option key={destKey(d.dest)} value={destKey(d.dest)} disabled={!allow(d.dest)}>
-              {`${"   ".repeat(d.depth)}${d.depth === 0 ? "▸ " : ""}${d.label.split(" / ").pop()}`}
+              {d.depth === 0 ? `▸ ${d.label}` : d.label.replace(/ \/ /g, " › ")}
             </option>
           ))}
           <option value={NEW_COLLECTION}>+ New collection…</option>
@@ -85,7 +85,8 @@ export function DestinationPicker({
   );
 }
 
-export type DestinationChoice = { dest: Destination } | { newCollection: string };
+/** Where to put something. `newFolder` (Move only) creates a folder with that name inside `dest` and puts the item there. */
+export type DestinationChoice = { dest: Destination; newFolder?: string } | { newCollection: string };
 
 interface SaveProps {
   collections: Collection[];
@@ -148,6 +149,7 @@ export function MoveDialog({ collections, itemName, allow, onMove, onClose }: Mo
   const firstAllowed = destinations(collections).find((d) => allow(d.dest));
   const [target, setTarget] = useState(firstAllowed ? destKey(firstAllowed.dest) : NEW_COLLECTION);
   const [newName, setNewName] = useState("");
+  const [folderName, setFolderName] = useState("");
   const valid = target === NEW_COLLECTION ? newName.trim() !== "" : allow(parseKey(target));
   return (
     <SmallModal title={`Move "${itemName}"`} onClose={onClose}>
@@ -155,10 +157,18 @@ export function MoveDialog({ collections, itemName, allow, onMove, onClose }: Mo
         className="dialog-body"
         onSubmit={(e) => {
           e.preventDefault();
-          if (valid) onMove(target === NEW_COLLECTION ? { newCollection: newName.trim() } : { dest: parseKey(target) });
+          if (!valid) return;
+          if (target === NEW_COLLECTION) onMove({ newCollection: newName.trim() });
+          else onMove({ dest: parseKey(target), newFolder: folderName.trim() || undefined });
         }}
       >
         <DestinationPicker collections={collections} value={target} onChange={setTarget} newName={newName} onNewNameChange={setNewName} allow={allow} />
+        {target !== NEW_COLLECTION && (
+          <label className="field">
+            <span>New folder inside it (optional)</span>
+            <input value={folderName} onChange={(e) => setFolderName(e.target.value)} placeholder="Leave empty to move it straight there" />
+          </label>
+        )}
         <div className="dialog-actions">
           <button type="button" className="secondary" onClick={onClose}>
             Cancel

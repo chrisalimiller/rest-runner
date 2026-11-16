@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Collection } from "../../lib/collections";
-import { groupTabs, tabMonogram, type RequestTab } from "../../lib/requestTabs";
+import { groupTabs, pinMonograms, type RequestTab } from "../../lib/requestTabs";
 import { ChevronDownIcon } from "../shell/Icons";
 import { MOD_KEY } from "../shell/TopBar";
 import { useEscape } from "../useEscape";
@@ -48,6 +48,7 @@ export function RequestTabBar(props: Props) {
     for (const g of groupTabs(tabs.map((t) => ({ ...t, pinned: false })), collections).groups) for (const t of g.tabs) map.set(t.id, g.label);
     return map;
   }, [tabs, collections]);
+  const monograms = useMemo(() => pinMonograms(pinned.map((t) => ({ id: t.id, name: t.def.name, method: t.def.method }))), [pinned]);
   const order = useMemo(() => [...pinned, ...groups.flatMap((g) => g.tabs)], [pinned, groups]);
 
   const listRef = useRef<HTMLDivElement>(null);
@@ -81,10 +82,19 @@ export function RequestTabBar(props: Props) {
     };
   }, []);
   useEffect(() => {
-    const tab = listRef.current?.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(activeId)}"]`);
-    tab?.scrollIntoView?.({ inline: "nearest", block: "nearest" });
+    // Scroll the whole tab (label and ×) clear of the edge fades. Pinned tabs sit outside the scrolling part.
+    const el = scrollRef.current;
+    const tab = el?.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(activeId)}"]`)?.closest<HTMLElement>(".rtab-wrap");
+    if (!el || !tab) return;
+    const box = el.getBoundingClientRect();
+    const r = tab.getBoundingClientRect();
+    const EDGE = 32;
+    if (r.left < box.left + EDGE) el.scrollLeft += r.left - box.left - EDGE;
+    else if (r.right > box.right - EDGE) el.scrollLeft += r.right - box.right + EDGE;
   }, [activeId, tabs.length]);
 
+  const activeRef = useRef(activeId);
+  activeRef.current = activeId;
   const focusTab = (id: string) => listRef.current?.querySelector<HTMLElement>(`[data-tab-id="${CSS.escape(id)}"]`)?.focus();
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -100,6 +110,10 @@ export function RequestTabBar(props: Props) {
     else if (e.key === "Delete") {
       e.preventDefault();
       props.onClose(id);
+      // The focused tab is gone: hand focus to the tab that became active, not to the page body.
+      window.setTimeout(() => {
+        if (!target.isConnected) focusTab(activeRef.current);
+      }, 0);
       return;
     }
     if (to !== null) {
@@ -145,7 +159,7 @@ export function RequestTabBar(props: Props) {
       return (
         <div key={t.id} className={`rtab-wrap pinned ${active ? "on" : ""}`} role="presentation" {...wrapProps}>
           <button {...common} className={`rtab-pin m-${t.def.method.toLowerCase()}`} aria-label={`${name} (${t.def.method}, pinned)`} title={`${name} (${t.def.method}, pinned)`}>
-            {tabMonogram(t.def.name, t.def.method)}
+            {monograms.get(t.id)}
           </button>
           {busy ? <span className="rtab-pin-badge"><Spinner /></span> : dirty ? <span className="rtab-dot rtab-pin-badge" aria-hidden /> : null}
         </div>
@@ -181,7 +195,8 @@ export function RequestTabBar(props: Props) {
             <div key={g.key} className="rtab-group" role="presentation">
               {gi > 0 && <span className="rtab-divider" aria-hidden />}
               <span className={`rtab-label tone-${g.tone}`} aria-hidden="false" title={g.label}>
-                {g.label}
+                <span className="rtab-label-name">{g.name}</span>
+                {g.suffix && <span className="rtab-label-suffix"> · {g.suffix}</span>}
               </span>
               {g.tabs.map(renderTab)}
             </div>
