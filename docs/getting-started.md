@@ -44,7 +44,7 @@ The app is one window with a bar along the top and a status bar along the bottom
 | **Request path** (Requests mode, above the URL bar) | Shows where the open request is saved and whether it has unsaved changes. Click a collection or folder to open the sidebar there. Double-click the name, or press `F2`, to rename it. |
 | **Suite name** (Testing mode), **Flow name** (Flows mode) | The open suite or flow. Click it to switch to another one without opening the list on the left. |
 | **Quick open** (centered) | A search box that opens with Ctrl/Cmd + K. See [Quick open](shortcuts.md). |
-| **Environment switch** | One button per environment plus **None**. When the window is narrow (under 1200 px) or there are more than three environments, it becomes a drop-down that still shows the colour of the selected one. The pencil opens the environment editor (Requests mode only). |
+| **Environment switch** | A drop-down that shows the colour of the selected environment, with a search box, **None** and your environments. The pencil opens the environment editor (Requests mode only). |
 
 ### The status bar
 

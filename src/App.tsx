@@ -23,7 +23,7 @@ import { useToast } from "./components/shell/Toast";
 import { useCertificates } from "./components/CertificatesDialog";
 import { useDeferredDelete } from "./components/shell/useDeferredDelete";
 import { VariablesProvider } from "./components/variables/VariablesContext";
-import { showOwnVariables, VariablesPanel } from "./components/variables/VariablesPanel";
+import { showAllVariables, showOwnVariables, VariablesPanel } from "./components/variables/VariablesPanel";
 import type { ShellCommand, ShellProps } from "./Root";
 import {
   addExample,
@@ -938,8 +938,9 @@ export default function App({ active = true, shell, command }: Props) {
   };
 
   /** Opens the sidebar on the variables this request uses. */
-  const openVariables = useCallback(() => {
-    showOwnVariables();
+  const openVariables = useCallback((show?: string) => {
+    if (show === "all") showAllVariables();
+    else showOwnVariables();
     openSidePanel("variables");
   }, []);
 

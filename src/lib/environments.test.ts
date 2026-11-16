@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cleanEnvironments, defaultEnvColor, guardFor, guardStyle, newEnvironment, readableTextOn } from "./environments";
+import { cleanEnvironments, defaultEnvColor, guardFor, looksUnprotected, renameEnvironment, guardStyle, newEnvironment, readableTextOn } from "./environments";
 import { importWorkspaceFile } from "./workspace";
 
 describe("environment colours", () => {
@@ -58,5 +58,27 @@ describe("readableTextOn", () => {
   it("guardStyle gives the fill and per-theme text, and nothing without a colour", () => {
     expect(guardStyle(null)).toBeUndefined();
     expect(guardStyle(guardFor({ ...newEnvironment("Prod") }))).toEqual({ "--guard": "var(--danger)", "--guard-fg-dark": "#0d1117", "--guard-fg-light": "#ffffff" });
+  });
+});
+
+describe("renameEnvironment", () => {
+  it("gives the red default when renamed to Prod and the colour is still none", () => {
+    expect(renameEnvironment(newEnvironment("Environment 1"), "Production").color).toBe("red");
+    expect(renameEnvironment({ ...newEnvironment("x"), color: undefined }, "PRD").color).toBe("red");
+  });
+  it("keeps a colour the user chose", () => {
+    expect(renameEnvironment({ ...newEnvironment("x"), color: "blue" }, "Prod").color).toBe("blue");
+  });
+  it("leaves other names uncoloured", () => {
+    expect(renameEnvironment(newEnvironment("x"), "Staging").color).toBe("none");
+  });
+});
+
+describe("looksUnprotected", () => {
+  it("flags red or prod-named environments that are not marked production", () => {
+    expect(looksUnprotected({ ...newEnvironment("Live"), color: "red" })).toBe(true);
+    expect(looksUnprotected({ ...newEnvironment("Prod"), color: "none" })).toBe(true);
+    expect(looksUnprotected({ ...newEnvironment("Prod"), isProduction: true })).toBe(false);
+    expect(looksUnprotected(newEnvironment("Dev"))).toBe(false);
   });
 });

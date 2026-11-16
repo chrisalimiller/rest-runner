@@ -41,7 +41,8 @@ interface Props {
   /** Extra line under the script editor, e.g. how request scripts mix with a test case's. */
   scriptsNote?: string;
   /** Opens the Variables sidebar (the unfilled-placeholder dot and the Scripts tab link to it). */
-  onOpenVariables?: () => void;
+  /** Opens the Variables sidebar; "all" lists every variable (script variables included) instead of only the ones this request uses. */
+  onOpenVariables?: (show?: "all") => void;
   /** The Send button, shown at the right of the URL row. Left out where the request is not sent from here. */
   sendSlot?: React.ReactNode;
   /** Items at the top of the ⋯ menu next to Send (Save and the like). The URL and cURL items follow. Without them there is no ⋯ menu. */
@@ -93,7 +94,7 @@ function ScriptsPanel({ def, onChange, scriptVars, onOpenVariables, scriptsNote 
       {scriptVars && onOpenVariables && (
         <p className="small script-vars">
           <span className="muted">{varNames.length === 0 ? "No script variables yet." : `${varNames.length} script variable${varNames.length === 1 ? "" : "s"}.`}</span>{" "}
-          <button className="link-btn small" onClick={onOpenVariables}>
+          <button className="link-btn small" onClick={() => onOpenVariables("all")}>
             Open Variables
           </button>
         </p>
@@ -266,7 +267,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onConvertLitera
             )}
             {unfilled.length > 0 &&
               (onOpenVariables ? (
-                <button className="unfilled-dot" onClick={onOpenVariables} title={`No value for ${unfilledNames}. Click to open Variables`} aria-label={`No value for ${unfilledNames}. Open Variables`}>
+                <button className="unfilled-dot" onClick={() => onOpenVariables()} title={`No value for ${unfilledNames}. Click to open Variables`} aria-label={`No value for ${unfilledNames}. Open Variables`}>
                   <span className="unfilled-mark" aria-hidden />
                   {unfilled.length}
                 </button>
