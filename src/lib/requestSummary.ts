@@ -164,3 +164,10 @@ export function loadEditorTab(raw: unknown): DetailsTab {
   const r = raw !== null && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   return DETAILS_TABS.find((t) => t === r.tab) ?? "body";
 }
+
+/** Choosing POST, PUT or PATCH on a request that has no body yet starts it as Raw JSON, the common case; anything already set up is left alone. */
+export function methodPatch(def: RequestDef, method: RequestDef["method"]): Partial<RequestDef> {
+  const wantsBody = method === "POST" || method === "PUT" || method === "PATCH";
+  const untouched = def.bodyMode === "none" && def.body === "" && !def.formBody.some((r) => r.key.trim() !== "" || r.value !== "") && (def.method === "GET" || def.method === "HEAD" || def.method === "DELETE" || def.method === "OPTIONS");
+  return wantsBody && untouched ? { method, bodyMode: "json" } : { method };
+}

@@ -552,6 +552,8 @@ export default function App({ active = true, shell, command }: Props) {
   /** Pasting a curl command with focus outside any text field opens it as a request. */
   const handlePaste = useRef((_e: ClipboardEvent): void => {});
   handlePaste.current = (e) => {
+    // A field's own handler may have taken the paste already (and re-rendered, moving focus off the field).
+    if (e.defaultPrevented || (e.target instanceof HTMLElement && (e.target.isContentEditable || e.target.matches("input, textarea, select")))) return;
     if (!active || dialog !== null || showEnvEditor || document.querySelector('[role="dialog"]')) return;
     const el = document.activeElement;
     if (el instanceof HTMLElement && (el.isContentEditable || el.matches("input, textarea, select"))) return;

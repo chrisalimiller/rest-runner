@@ -1000,9 +1000,10 @@ body.dragging-split {
 .url-row .send {
   flex: none;
   height: 40px;
-  /* One size whatever the label ("Send", "Send to Prod", "⚠ Send"): only the text changes. */
-  width: 108px;
-  padding: 0 8px;
+  /* At least the width of plain "Send"; it grows to fit "Send to Staging" and the like, and the URL box gives way. */
+  min-width: 108px;
+  max-width: 260px;
+  padding: 0 14px;
   border: 0;
   border-radius: var(--r-lg);
   box-shadow: inset 0 0 0 1px var(--btn-border);
@@ -1031,8 +1032,10 @@ body.dragging-split {
 }
 
 .url-bar {
+  position: relative;
   flex: 1;
-  min-width: 0;
+  /* Wide enough to keep a few characters of the URL; Send takes the rest. */
+  min-width: 140px;
   display: flex;
   /* Grows when the focused URL wraps onto more lines; the controls stay on the first line. */
   align-items: flex-start;
@@ -3039,9 +3042,52 @@ details.case-try .call-detail {
   font-size: var(--fs-sm);
 }
 
-.ph.missing {
+/* No value: red, and a wavy underline so it does not rely on colour alone. */
+.ph.missing,
+.url-var.missing {
   color: var(--bad);
   background: var(--bad-subtle);
+  text-decoration: underline wavy;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.url-var.missing {
+  box-shadow: 0 0 0 1px var(--bad-subtle);
+}
+
+/* The resolved URL, shown under the URL box on hover. */
+.url-summary {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  padding: 6px 12px;
+  border-radius: var(--r-md);
+  background: var(--bg-elevated, var(--bg-soft));
+  box-shadow: inset 0 0 0 1px var(--border), 0 4px 12px rgba(0, 0, 0, 0.25);
+  font-family: var(--mono);
+  font-size: var(--fs-sm);
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--dur-fast) var(--ease-out);
+}
+
+.url-summary .url-summary-label {
+  display: block;
+  color: var(--muted);
+  font-family: var(--sans, inherit);
+  font-size: var(--fs-xs);
+}
+
+.url-bar:hover:not(:focus-within):not(:has(.hover-var)) .url-summary {
+  opacity: 1;
+  visibility: visible;
+  transition-delay: 400ms;
 }
 
 .kv-secret {
@@ -3281,13 +3327,6 @@ select:focus-visible,
   display: block;
   white-space: pre;
   will-change: transform;
-}
-
-/* Focused: the URL wraps (anywhere, as URLs have no spaces) and the box grows to fit. */
-.url-field.expanded .url-input,
-.url-field.expanded .url-mirror-text {
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
 }
 
 /* No padding, so the marked text lines up with the input's characters; the shadow gives the mark room instead. */
