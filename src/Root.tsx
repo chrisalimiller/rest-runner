@@ -11,6 +11,7 @@ import { buildCommands, type CommandActions, type CommandCtx, type RequestsActio
 import { ShortcutsDialog } from "./components/shell/ShortcutsDialog";
 import { loadEnvironments } from "./lib/environments";
 import { getThemePref, setThemePref } from "./lib/theme";
+import { getDensityPref, setDensityPref } from "./lib/density";
 import { toggleSidePanel, openSidePanel } from "./lib/sidePanels";
 import { isEditableTarget, matchesShortcut } from "./lib/shortcuts";
 import { CertificatesDialog } from "./components/CertificatesDialog";
@@ -168,6 +169,7 @@ export default function Root() {
     openImport: openImportDialog,
     openShortcuts: () => setShortcutsOpen(true),
     setTheme: setThemePref,
+    setDensity: setDensityPref,
   };
   const shell: ShellProps = {
     section,
@@ -196,6 +198,7 @@ export default function Root() {
       environments: loadEnvironments().map((e) => ({ id: e.id, name: e.name })),
       activeEnvId: load<string | null>("rest-runner.active-environment", null, isString),
       theme: getThemePref(),
+      density: getDensityPref(),
     };
     const ctx: CommandCtx = { section, ...base, actions: commandActions };
     return { commands: buildCommands(base), ctx };

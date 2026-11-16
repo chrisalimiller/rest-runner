@@ -9,6 +9,7 @@ import { initSecretStore } from "./lib/secretStore";
 import { runSecretsMigration } from "./lib/secretsMigration";
 import { installAutocorrectOff } from "./lib/disableAutocorrect";
 import { initTheme } from "./lib/theme";
+import { initDensity } from "./lib/density";
 import { showWindowWhenReady } from "./lib/showWindow";
 import { setupWindowChrome } from "./lib/windowChrome";
 import "./assets/fonts/red-hat-text/red-hat-text.css";
@@ -22,6 +23,7 @@ import "./motion.css";
 installStorageRedaction();
 installAutocorrectOff();
 initTheme();
+initDensity();
 setupWindowChrome();
 showWindowWhenReady();
 

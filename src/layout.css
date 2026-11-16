@@ -100,7 +100,7 @@
 kbd {
   font-family: var(--mono);
   font-size: var(--fs-xs);
-  line-height: 16px;
+  line-height: calc(16px * var(--ui-scale));
   padding: 0 5px;
   border: 1px solid var(--border);
   border-radius: var(--r-xs);
@@ -156,7 +156,7 @@ label.link-btn:focus-within {
 }
 
 .segmented button {
-  height: 26px;
+  height: calc(26px * var(--ui-scale));
   padding: 0 12px;
   border-radius: var(--r-sm);
   color: var(--muted);
@@ -216,7 +216,7 @@ body.dragging-split {
   flex-wrap: nowrap;
   align-items: center;
   gap: 16px;
-  height: 52px;
+  height: calc(52px * var(--ui-scale));
   padding: 10px 20px;
   background: var(--bg-inset);
   border-bottom: 1px solid var(--border-muted);
@@ -242,8 +242,8 @@ body.dragging-split {
 .win-controls button {
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: calc(30px * var(--ui-scale));
+  height: calc(30px * var(--ui-scale));
   border: 0;
   border-radius: var(--r-md);
   background: transparent;
@@ -317,7 +317,7 @@ body.dragging-split {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 32px;
+  height: calc(32px * var(--ui-scale));
   padding: 0 10px;
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
@@ -354,7 +354,7 @@ body.dragging-split {
 }
 
 .env-switch select {
-  height: 26px;
+  height: calc(26px * var(--ui-scale));
   border: 0;
   background: transparent;
   padding: 0 8px;
@@ -364,7 +364,7 @@ body.dragging-split {
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 26px;
+  height: calc(26px * var(--ui-scale));
   max-width: 180px;
   padding: 0 8px;
   border: 0;
@@ -452,7 +452,7 @@ body.dragging-split {
 
 .env-edit-btn {
   width: 28px;
-  height: 26px;
+  height: calc(26px * var(--ui-scale));
   border-radius: var(--r-sm);
   color: var(--muted);
   display: flex;
@@ -496,7 +496,7 @@ body.dragging-split {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 32px;
+  height: calc(32px * var(--ui-scale));
   padding: 0 2px 0 10px;
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
@@ -551,8 +551,8 @@ body.dragging-split {
 }
 
 .switcher-pencil {
-  width: 22px;
-  height: 22px;
+  width: calc(22px * var(--ui-scale));
+  height: calc(22px * var(--ui-scale));
   padding: 0;
   display: flex;
   align-items: center;
@@ -576,7 +576,7 @@ body.dragging-split {
 }
 
 .switcher-rename {
-  height: 24px;
+  height: calc(24px * var(--ui-scale));
   padding: 0 6px;
   font-weight: 600;
   min-width: 120px;
@@ -639,7 +639,7 @@ body.dragging-split {
   align-items: center;
   margin: 0;
   padding: 0;
-  line-height: 16px;
+  line-height: calc(16px * var(--ui-scale));
 }
 
 .popover-new {
@@ -691,7 +691,7 @@ body.dragging-split {
   align-items: center;
   gap: 10px;
   padding: 0 14px;
-  height: 48px;
+  height: calc(48px * var(--ui-scale));
   border-bottom: 1px solid var(--border-muted);
   color: var(--muted);
 }
@@ -742,7 +742,7 @@ body.dragging-split {
   align-items: center;
   gap: 10px;
   width: 100%;
-  height: 32px;
+  height: calc(32px * var(--ui-scale));
   padding: 0 8px;
   border-radius: var(--r-sm);
   text-align: left;
@@ -881,7 +881,7 @@ body.dragging-split {
   min-width: 0;
   box-sizing: border-box;
   /* The same 36px strip as the response side's switch, so the bands below line up. */
-  height: 36px;
+  height: calc(36px * var(--ui-scale));
   padding: 0 12px;
   border-bottom: 1px solid var(--border-muted);
   font-size: var(--fs-sm);
@@ -934,8 +934,8 @@ body.dragging-split {
   flex: none;
   display: inline-grid;
   place-items: center;
-  width: 20px;
-  height: 20px;
+  width: calc(20px * var(--ui-scale));
+  height: calc(20px * var(--ui-scale));
   border-radius: var(--r-xs);
   color: var(--muted);
   opacity: 0;
@@ -953,7 +953,7 @@ body.dragging-split {
 
 .request-crumb .crumb-rename {
   min-width: 140px;
-  height: 24px;
+  height: calc(24px * var(--ui-scale));
   padding: 0 6px;
   border: 1px solid var(--accent);
   border-radius: var(--r-xs);
@@ -1014,7 +1014,7 @@ body.dragging-split {
 
 .url-row .send {
   flex: none;
-  height: 40px;
+  height: calc(40px * var(--ui-scale));
   /* At least the width of plain "Send"; it grows to fit "Send to Staging" and the like, and the URL box gives way. */
   min-width: 108px;
   max-width: 260px;
@@ -1038,7 +1038,7 @@ body.dragging-split {
 }
 
 .url-row .overflow-btn {
-  height: 40px;
+  height: calc(40px * var(--ui-scale));
   width: 36px;
   border: 0;
   border-radius: var(--r-lg);
@@ -1054,7 +1054,7 @@ body.dragging-split {
   display: flex;
   /* Grows when the focused URL wraps onto more lines; the controls stay on the first line. */
   align-items: flex-start;
-  min-height: 40px;
+  min-height: calc(40px * var(--ui-scale));
   padding: 5px;
   border: 0;
   border-radius: var(--r-lg);
@@ -1070,7 +1070,7 @@ body.dragging-split {
 /* The method is a tinted pill inside the field. */
 .url-bar .method-select {
   width: 92px;
-  height: 30px;
+  height: calc(30px * var(--ui-scale));
   flex: none;
   border: 0;
   border-radius: var(--r-md);
@@ -1146,7 +1146,7 @@ body.dragging-split {
 }
 
 .body-mode-select {
-  height: 24px;
+  height: calc(24px * var(--ui-scale));
   padding: 0 10px;
   font-size: var(--fs-sm);
   border: 0;
@@ -1168,7 +1168,7 @@ body.dragging-split {
 
 .action-footer .send,
 .action-footer .secondary {
-  height: 36px;
+  height: calc(36px * var(--ui-scale));
   padding: 0 16px;
 }
 
@@ -1199,7 +1199,7 @@ body.dragging-split {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  height: 24px;
+  height: calc(24px * var(--ui-scale));
   margin: 3px 2px 0 0;
   padding: 0 10px 0 8px;
   font-size: var(--fs-xs);
@@ -1226,7 +1226,7 @@ button.unfilled-dot:hover {
   container-type: inline-size;
   flex: none;
   box-sizing: border-box;
-  height: 36px;
+  height: calc(36px * var(--ui-scale));
   display: flex;
   align-items: stretch;
   gap: 12px;
@@ -1347,8 +1347,8 @@ button.unfilled-dot:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: calc(26px * var(--ui-scale));
+  height: calc(26px * var(--ui-scale));
   padding: 0;
   border-radius: var(--r-md);
   background: transparent;
@@ -1518,7 +1518,7 @@ button.unfilled-dot:hover {
   display: flex;
   flex: none;
   box-sizing: border-box;
-  height: 36px;
+  height: calc(36px * var(--ui-scale));
   align-items: center;
   padding: 0 12px;
   border-bottom: 1px solid var(--border-muted);
@@ -1548,12 +1548,12 @@ button.unfilled-dot:hover {
 .resp-band {
   flex: none;
   box-sizing: border-box;
-  height: 60px;
+  height: calc(60px * var(--ui-scale));
   padding: 10px 12px;
 }
 
 .status-field {
-  height: 40px;
+  height: calc(40px * var(--ui-scale));
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -1592,7 +1592,7 @@ button.unfilled-dot:hover {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 30px;
+  height: calc(30px * var(--ui-scale));
   box-sizing: border-box;
   padding: 0 10px;
   border-radius: var(--r-md);
@@ -1659,7 +1659,7 @@ button.unfilled-dot:hover {
 
 .checks-chip {
   flex: none;
-  height: 22px;
+  height: calc(22px * var(--ui-scale));
   display: inline-flex;
   align-items: center;
   padding: 0 8px;
@@ -1675,7 +1675,7 @@ button.unfilled-dot:hover {
 
 .viewing-tag {
   flex: none;
-  height: 22px;
+  height: calc(22px * var(--ui-scale));
   display: inline-flex;
   align-items: center;
   padding: 0 8px;
@@ -1707,7 +1707,7 @@ button.unfilled-dot:hover {
 }
 
 .segmented.small button {
-  height: 22px;
+  height: calc(22px * var(--ui-scale));
   padding: 0 10px;
   font-size: var(--fs-xs);
 }
@@ -1857,7 +1857,7 @@ button.unfilled-dot:hover {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  height: 30px;
+  height: calc(30px * var(--ui-scale));
   box-sizing: border-box;
   padding: 0 8px 0 10px;
   border: 0;
@@ -1927,7 +1927,7 @@ button.unfilled-dot:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 30px;
+  height: calc(30px * var(--ui-scale));
   padding: 0 8px;
   border-radius: var(--r-xs);
   font-family: var(--mono);
@@ -2049,7 +2049,7 @@ button.unfilled-dot:hover {
   align-items: center;
   margin: 0;
   padding: 0;
-  line-height: 16px;
+  line-height: calc(16px * var(--ui-scale));
 }
 
 .nav-group-head .sidebar-actions .icon-btn {
@@ -2069,7 +2069,7 @@ button.unfilled-dot:hover {
   display: flex;
   align-items: center;
   gap: 8px;
-  height: 30px;
+  height: calc(30px * var(--ui-scale));
   padding: 0 8px;
   border-radius: var(--r-sm);
   color: var(--text-soft);
@@ -2163,7 +2163,7 @@ button.unfilled-dot:hover {
 
 .suite-head .send,
 .suite-head .secondary {
-  height: 32px;
+  height: calc(32px * var(--ui-scale));
   padding: 0 14px;
 }
 
@@ -2207,8 +2207,8 @@ button.unfilled-dot:hover {
 }
 
 .disc {
-  width: 26px;
-  height: 26px;
+  width: calc(26px * var(--ui-scale));
+  height: calc(26px * var(--ui-scale));
   border-radius: 50%;
   flex: none;
   display: flex;
@@ -2345,7 +2345,7 @@ body.dragging-case {
   align-items: center;
   gap: 8px 12px;
   padding: 0 14px;
-  min-height: 40px;
+  min-height: calc(40px * var(--ui-scale));
 }
 
 .case-card.open .case-card-head {
@@ -2361,7 +2361,7 @@ body.dragging-case {
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 12px;
-  min-height: 38px;
+  min-height: calc(38px * var(--ui-scale));
   text-align: left;
   color: inherit;
 }
@@ -2395,8 +2395,8 @@ body.dragging-case {
 }
 
 .square-btn {
-  width: 28px;
-  height: 28px;
+  width: calc(28px * var(--ui-scale));
+  height: calc(28px * var(--ui-scale));
   border: 1px solid var(--border);
   border-radius: var(--r-sm);
   color: var(--muted);
@@ -2412,7 +2412,7 @@ body.dragging-case {
 }
 
 .try-btn {
-  height: 28px;
+  height: calc(28px * var(--ui-scale));
   padding: 0 12px;
   font-size: var(--fs-sm);
   display: inline-flex;
@@ -2474,7 +2474,7 @@ body.dragging-case {
 }
 
 .case-tabs button {
-  height: 32px;
+  height: calc(32px * var(--ui-scale));
   padding: 0 10px;
   border-bottom: 2px solid transparent;
   margin-bottom: -1px;
@@ -2600,7 +2600,7 @@ details.case-try .call-detail {
 }
 
 .dashed-btn {
-  height: 30px;
+  height: calc(30px * var(--ui-scale));
   padding: 0 12px;
   border: 1px dashed var(--border);
   border-radius: var(--r-sm);
@@ -2764,7 +2764,7 @@ details.case-try .call-detail {
 
 .last-run-exports .secondary {
   flex: 1;
-  height: 30px;
+  height: calc(30px * var(--ui-scale));
   font-size: var(--fs-sm);
   padding: 0 8px;
 }
@@ -3065,8 +3065,8 @@ details.case-try .call-detail {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: calc(24px * var(--ui-scale));
+  height: calc(24px * var(--ui-scale));
   padding: 0;
   border: 0;
   border-radius: var(--r-sm);
@@ -3270,8 +3270,8 @@ select:focus-visible,
 
 .env-swatch {
   position: relative;
-  width: 18px;
-  height: 18px;
+  width: calc(18px * var(--ui-scale));
+  height: calc(18px * var(--ui-scale));
   padding: 0;
   border-radius: 50%;
   border: 2px solid transparent;
@@ -3384,12 +3384,12 @@ select:focus-visible,
   position: relative;
   display: block;
   width: 100%;
-  height: 30px;
+  height: calc(30px * var(--ui-scale));
   box-sizing: border-box;
   resize: none;
   overflow: hidden;
   white-space: pre;
-  line-height: 20px;
+  line-height: calc(20px * var(--ui-scale));
   color: transparent;
   caret-color: var(--text);
 }
@@ -3403,7 +3403,7 @@ select:focus-visible,
   position: absolute;
   inset: 0;
   padding: 5px 12px;
-  line-height: 20px;
+  line-height: calc(20px * var(--ui-scale));
   overflow: hidden;
   pointer-events: none;
   font-family: var(--mono);
@@ -3509,7 +3509,7 @@ select:focus-visible,
   align-items: center;
   gap: 6px;
   width: 168px;
-  height: 26px;
+  height: calc(26px * var(--ui-scale));
   padding: 0 8px;
   border: 0;
   border-radius: var(--r-sm);
@@ -3571,7 +3571,7 @@ select:focus-visible,
 
 .env-picker-group {
   padding: 6px 8px 2px;
-  font-size: 11px;
+  font-size: var(--fs-xs);
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -3613,7 +3613,7 @@ select:focus-visible,
   border-radius: 3px;
   border: 1px solid var(--error, #f85149);
   color: var(--error, #f85149);
-  font-size: 10px;
+  font-size: calc(var(--fs-xs) * 10 / 11);
   font-weight: 600;
   letter-spacing: 0.04em;
 }
@@ -3656,7 +3656,7 @@ select:focus-visible,
 }
 
 .unsaved-bar button {
-  height: 28px;
+  height: calc(28px * var(--ui-scale));
   padding: 0 12px;
 }
 
@@ -3711,7 +3711,7 @@ select:focus-visible,
 
 .requests-sidebar .side-head {
   flex: none;
-  height: 44px;
+  height: calc(44px * var(--ui-scale));
   display: flex;
   align-items: center;
   gap: 6px;
@@ -3724,7 +3724,7 @@ select:focus-visible,
 
 .side-search {
   flex: none;
-  height: 30px;
+  height: calc(30px * var(--ui-scale));
   box-sizing: border-box;
   display: flex;
   align-items: center;
@@ -3781,7 +3781,7 @@ select:focus-visible,
   align-items: center;
   gap: 8px;
   width: 100%;
-  height: 30px;
+  height: calc(30px * var(--ui-scale));
   padding: 0 8px;
   border: 0;
   border-radius: var(--r-xs);

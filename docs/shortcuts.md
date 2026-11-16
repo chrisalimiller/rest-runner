@@ -40,6 +40,7 @@ Quick open is also a command palette. Type `>` first (as in VS Code) to see only
 | **Toggle Variables panel** | Open or close the Variables side panel |
 | **Open Certificates** | Open the Certificates side panel |
 | **Appearance: System / Light / Dark** | Set the appearance (also in Settings, under General) |
+| **Display density: Compact / Default / Comfortable** | Set how tightly text and rows are packed (also in Settings, under General) |
 | **Keyboard shortcuts** | Open the list of shortcuts (also `?`) |
 | **Settings and about…** | Open settings, keyboard shortcuts and update information |
 

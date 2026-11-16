@@ -18,7 +18,7 @@
 
 .build-actions .send,
 .build-actions .secondary {
-  height: 30px;
+  height: calc(30px * var(--ui-scale));
   padding: 0 16px;
 }
 
@@ -40,7 +40,7 @@
 }
 
 .build-sample .cancel {
-  height: 30px;
+  height: calc(30px * var(--ui-scale));
   padding: 0 16px;
 }
 
@@ -71,7 +71,7 @@
 }
 
 .build-col-head .secondary {
-  height: 26px;
+  height: calc(26px * var(--ui-scale));
   padding: 0 12px;
 }
 
@@ -157,7 +157,7 @@
 .call-name {
   flex: 1;
   min-width: 0;
-  height: 26px;
+  height: calc(26px * var(--ui-scale));
   font-weight: 600;
   border-color: transparent;
   background: transparent;
@@ -361,7 +361,7 @@ button.call-request:hover {
 .add-request-field input {
   width: 100%;
   box-sizing: border-box;
-  height: 30px;
+  height: calc(30px * var(--ui-scale));
   padding-left: 28px;
 }
 
@@ -461,7 +461,7 @@ button.call-request:hover {
   padding: 0 8px;
   font-size: var(--fs-xs);
   font-weight: 500;
-  line-height: 18px;
+  line-height: calc(18px * var(--ui-scale));
   border-radius: var(--r-pill);
   background: var(--bg-hover);
   color: var(--muted);
@@ -529,7 +529,7 @@ button.call-request:hover {
 }
 
 .build-gap.armed {
-  height: 24px;
+  height: calc(24px * var(--ui-scale));
   border: 1px dashed var(--border);
   background: transparent;
 }
@@ -543,7 +543,7 @@ button.call-request:hover {
   display: block;
   text-align: center;
   font-size: var(--fs-xs);
-  line-height: 22px;
+  line-height: calc(22px * var(--ui-scale));
   color: var(--accent-fg);
 }
 
@@ -609,7 +609,7 @@ button.call-request:hover {
   border-bottom: 1px solid var(--border-muted);
   background: var(--bg-soft);
   border-radius: var(--r-md) var(--r-md) 0 0;
-  min-height: 30px;
+  min-height: calc(30px * var(--ui-scale));
 }
 
 .build-handle {
@@ -618,7 +618,7 @@ button.call-request:hover {
   justify-content: center;
   position: relative;
   width: 22px;
-  height: 24px;
+  height: calc(24px * var(--ui-scale));
   color: var(--muted);
   cursor: grab;
   border-radius: var(--r-xs);
@@ -652,8 +652,8 @@ button.call-request:hover {
 }
 
 .build-chrome .icon-btn {
-  width: 24px;
-  height: 24px;
+  width: calc(24px * var(--ui-scale));
+  height: calc(24px * var(--ui-scale));
   padding: 0;
   display: inline-flex;
   align-items: center;
@@ -688,7 +688,7 @@ button.call-request:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  height: 24px;
+  height: calc(24px * var(--ui-scale));
   line-height: 1;
   white-space: nowrap;
   padding: 0 8px;
@@ -738,12 +738,12 @@ button.call-request:hover {
 
 .add-block-bar input {
   flex: 1;
-  height: 32px;
+  height: calc(32px * var(--ui-scale));
   border-style: dashed;
 }
 
 .add-block-bar .secondary {
-  height: 32px;
+  height: calc(32px * var(--ui-scale));
   padding: 0 16px;
 }
 
@@ -880,8 +880,8 @@ button.call-request:hover {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 20px;
-  height: 20px;
+  width: calc(20px * var(--ui-scale));
+  height: calc(20px * var(--ui-scale));
   border-radius: var(--r-pill);
   background: var(--bg-hover);
   font-size: var(--fs-xs);
@@ -1259,7 +1259,7 @@ button.call-request:hover {
 .json-twisty {
   flex: none;
   width: 22px;
-  height: 24px;
+  height: calc(24px * var(--ui-scale));
   padding: 0;
   display: inline-flex;
   align-items: center;

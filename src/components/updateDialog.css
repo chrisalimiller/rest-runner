@@ -21,8 +21,10 @@
 .update-body h4 { margin: 0 0 5px; font-size: var(--fs-lg); }
 .update-body .settings-intro { margin: 0 0 24px; color: var(--muted); }
 .settings-block { border-top: 1px solid var(--border); padding: 18px 0; }
-.settings-block .appearance-control { margin: 0; }
-.settings-block .appearance-label { color: var(--text); font-size: var(--fs-md); font-weight: 600; }
+.settings-block .appearance-control,
+.settings-block .density-control { margin: 0; }
+.settings-block .appearance-label,
+.settings-block .density-label { color: var(--text); font-size: var(--fs-md); font-weight: 600; }
 .settings-block p { margin: 5px 0 0; }
 .settings-version { border: 1px solid var(--border); border-radius: var(--r-sm); padding: 16px; background: var(--bg-inset); }
 .settings-version p:last-child { margin-bottom: 0; }
@@ -75,5 +77,6 @@
   .settings-nav { flex: none; display: flex; overflow-x: auto; border-right: 0; border-bottom: 1px solid var(--border); padding: 8px; }
   .settings-nav button { width: auto; flex: none; white-space: nowrap; }
   .update-body { padding: 18px; }
-  .settings-block .appearance-control { flex-wrap: wrap; }
+  .settings-block .appearance-control,
+  .settings-block .density-control { flex-wrap: wrap; }
 }

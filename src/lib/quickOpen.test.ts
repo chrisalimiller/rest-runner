@@ -88,7 +88,7 @@ describe("tool items", () => {
     }
     expect(KIND_ORDER.tools[1]).toBe("tool");
     const newToolSpy = vi.fn();
-    const ctx: CommandCtx = { section: "requests", environments: [], activeEnvId: null, theme: "dark", actions: { newTool: newToolSpy } as never };
+    const ctx: CommandCtx = { section: "requests", environments: [], activeEnvId: null, theme: "dark", density: "default", actions: { newTool: newToolSpy } as never };
     const cmd = buildCommands(ctx).find((c) => c.id === "new-tool");
     expect(cmd?.title).toBe("New tool");
     cmd?.run(ctx);
@@ -155,6 +155,7 @@ const ctx: CommandCtx = {
   environments: [{ id: "e1", name: "Staging" }],
   activeEnvId: null,
   theme: "system",
+  density: "default",
   actions: {} as CommandCtx["actions"],
 };
 
