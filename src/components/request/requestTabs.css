@@ -1,7 +1,7 @@
 /* Open-request tabs, directly under the top bar. */
 .rtab-bar {
   flex: none;
-  height: 44px;
+  height: calc(44px * var(--ui-scale));
   display: flex;
   align-items: center;
   gap: 4px;
@@ -62,7 +62,7 @@
 .rtab-divider {
   flex: none;
   width: 1px;
-  height: 22px;
+  height: calc(22px * var(--ui-scale));
   margin: 0 4px;
   background: var(--border);
 }
@@ -104,7 +104,7 @@
   flex: none;
   display: flex;
   align-items: center;
-  height: 28px;
+  height: calc(28px * var(--ui-scale));
   max-width: 180px;
   border: 0;
   border-radius: var(--r-md);
@@ -177,8 +177,8 @@
 .rtab-slot {
   position: relative;
   flex: none;
-  width: 18px;
-  height: 18px;
+  width: calc(18px * var(--ui-scale));
+  height: calc(18px * var(--ui-scale));
   margin-left: 6px;
 }
 
@@ -281,8 +281,8 @@
 
 .rtab-add {
   flex: none;
-  width: 28px;
-  height: 28px;
+  width: calc(28px * var(--ui-scale));
+  height: calc(28px * var(--ui-scale));
   display: flex;
   align-items: center;
   justify-content: center;

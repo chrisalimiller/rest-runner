@@ -173,7 +173,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  min-height: 28px;
+  min-height: calc(28px * var(--ui-scale));
   padding: 2px 8px;
   border: 1.5px dashed var(--warn);
   border-radius: var(--r-xs);

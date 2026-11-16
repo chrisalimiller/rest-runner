@@ -231,7 +231,9 @@ Cool grey ground, one blue, one green, and a status rainbow that always carries 
 - **Code** (mono, 13px): URL field, key/value inputs, editors, status code, the status bar glyphs, the wordmark (600, 13px).
 
 ### Named Rules
-**The Scale-Only Rule.** Font sizes come from `--fs-xs/sm/md/lg/xl/display` (11/12/13/15/18/22). No other pixel font sizes exist in the stylesheets.
+**The Scale-Only Rule.** Font sizes come from `--fs-xs/sm/md/lg/xl/display` (11/12/13/15/18/22 at Default), or are derived from one with `calc()` (the Production badge is `calc(var(--fs-xs) * 10 / 11)`). No bare pixel font size appears in the app stylesheets or the CodeMirror theme; this is what lets Display density reach everything. The standalone export HTML (report, snapshot, test and flow reports) is exempt.
+
+**The Density Rule.** Settings > General > Display density (Compact, Default, Comfortable) sets `<html data-density>` (none for Default, applied by an inline script in `index.html` before first paint). `styles.css` turns it into two numbers: `--type-scale` multiplies every `--fs-*` token (Compact 0.96, Default 1, Comfortable 1.08, so the smallest text is 10.56px, 11px, 11.88px) and `--ui-scale` multiplies row and control heights and the matching widths of square icon buttons (Compact 0.9, Default 1, Comfortable 1.1). Write heights of roughly 18 to 60px as `calc(Npx * var(--ui-scale))`; at Default they are exactly Npx. Layout dimensions (columns, panes, dialog widths, 1px lines, radii) do not scale. The code editors use `--fs-sm` (12px at Default, which is what they always rendered; the Code line above describes the mono text elsewhere), and their line height is unitless so it follows the scale. The virtualised row picker keeps its fixed 30px rows (the row height is also a constant in `RowPicker.tsx`), so it does not scale.
 
 **The Data Is Mono Rule.** URLs, status codes, timings, variable names, counts on the status bar and code are mono. Names and prose are Red Hat.
 

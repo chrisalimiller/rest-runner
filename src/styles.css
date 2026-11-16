@@ -1,11 +1,17 @@
 /* GitHub dark (Primer) colors */
 :root {
-  --fs-xs: 11px;
-  --fs-sm: 12px;
-  --fs-md: 13px;
-  --fs-lg: 15px;
-  --fs-xl: 18px;
-  --fs-display: 22px;
+  /* Display density (Settings > General): <html data-density="compact|comfortable"> changes these two
+     numbers. --ui-scale multiplies row and control heights, --type-scale the text. Default is 1 and 1,
+     so the px values below are exactly what Default shows. Every font size must be one of the --fs-*
+     tokens (or derived from one), never a bare px value. */
+  --ui-scale: 1;
+  --type-scale: 1;
+  --fs-xs: calc(11px * var(--type-scale));
+  --fs-sm: calc(12px * var(--type-scale));
+  --fs-md: calc(13px * var(--type-scale));
+  --fs-lg: calc(15px * var(--type-scale));
+  --fs-xl: calc(18px * var(--type-scale));
+  --fs-display: calc(22px * var(--type-scale));
   --bg: #0d1117;
   --bg-soft: #161b22;
   --bg-inset: #010409;
@@ -2134,7 +2140,7 @@ select {
   display: flex;
   align-items: center;
   border-radius: var(--r-sm);
-  min-height: 28px;
+  min-height: calc(28px * var(--ui-scale));
 }
 
 .tree-row:hover,
@@ -2153,7 +2159,7 @@ select {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 4px 4px;
+  padding: calc(4px * var(--ui-scale)) 4px;
   text-align: left;
   color: var(--text);
 }
@@ -2180,7 +2186,7 @@ select {
   align-items: center;
   justify-content: center;
   width: 16px;
-  height: 20px;
+  height: calc(20px * var(--ui-scale));
   margin-left: 2px;
   color: var(--muted);
   flex: none;
@@ -2247,8 +2253,8 @@ select {
   align-items: center;
   justify-content: center;
   padding: 0;
-  width: 22px;
-  height: 22px;
+  width: calc(22px * var(--ui-scale));
+  height: calc(22px * var(--ui-scale));
   color: var(--muted);
   line-height: 1;
 }
@@ -2502,7 +2508,7 @@ table.results.row-picker-table th {
 
 /* Fixed row height: the picker only draws the rows in view and needs to know how tall each one is (ROW_H in RowPicker.tsx). */
 .row-picker-table tbody tr {
-  height: 30px;
+  height: calc(30px * var(--ui-scale));
 }
 
 .row-picker-table tbody td {
@@ -2579,7 +2585,7 @@ table.results.row-picker-table tr.rp-filters th {
 }
 
 .seg > button {
-  height: 24px;
+  height: calc(24px * var(--ui-scale));
   padding: 0 10px;
   border: 0;
   border-radius: var(--r-pill);
@@ -2599,7 +2605,7 @@ table.results.row-picker-table tr.rp-filters th {
 .seg-custom {
   display: inline-flex;
   align-items: center;
-  height: 24px;
+  height: calc(24px * var(--ui-scale));
   box-sizing: border-box;
   padding: 0 2px;
   border: 1px solid transparent;
@@ -2619,7 +2625,7 @@ table.results.row-picker-table tr.rp-filters th {
 .seg-custom input[type="number"],
 .seg-custom input[type="number"]:focus {
   width: 56px;
-  height: 22px;
+  height: calc(22px * var(--ui-scale));
   padding: 0;
   border: 0;
   box-shadow: none;
@@ -2634,12 +2640,12 @@ table.results.row-picker-table tr.rp-filters th {
 .seg-unit {
   color: var(--muted);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-sm);
 }
 
 .seg-custom .seg-step {
   width: 20px;
-  height: 22px;
+  height: calc(22px * var(--ui-scale));
   padding: 0;
   border: 0;
   border-radius: 50%;
@@ -2770,4 +2776,15 @@ table.results.row-picker-table tr.rp-filters th {
   color: var(--rb-err) !important;
   text-decoration: underline wavy var(--rb-err);
   text-underline-offset: 3px;
+}
+
+/* Display density. Set on <html> by src/lib/density.ts (and the early script in index.html).
+   Compact keeps the smallest text at 10.5px; Comfortable gives rows and text a little more room. */
+:root[data-density="compact"] {
+  --ui-scale: 0.9;
+  --type-scale: 0.96;
+}
+:root[data-density="comfortable"] {
+  --ui-scale: 1.1;
+  --type-scale: 1.08;
 }

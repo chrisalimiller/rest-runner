@@ -13,8 +13,9 @@ function makeCtx(over: Partial<CommandCtx> = {}) {
     openImport: vi.fn(),
     openShortcuts: vi.fn(),
     setTheme: vi.fn(),
+    setDensity: vi.fn(),
   };
-  const ctx: CommandCtx = { section: "requests", environments: [{ id: "e1", name: "Staging" }, { id: "e2", name: "" }], activeEnvId: "e1", theme: "dark", actions, ...over };
+  const ctx: CommandCtx = { section: "requests", environments: [{ id: "e1", name: "Staging" }, { id: "e2", name: "" }], activeEnvId: "e1", theme: "dark", density: "default", actions, ...over };
   return { ctx, actions, commands: buildCommands(ctx) };
 }
 
@@ -59,6 +60,8 @@ describe("command registry", () => {
     expect(actions.requests).toHaveBeenCalledWith({ type: "set-environment", id: null });
     by("theme:light").run(ctx);
     expect(actions.setTheme).toHaveBeenCalledWith("light");
+    by("density:compact").run(ctx);
+    expect(actions.setDensity).toHaveBeenCalledWith("compact");
     by("go-flows").run(ctx);
     expect(actions.setSection).toHaveBeenCalledWith("flows");
     by("toggle-variables").run(ctx);

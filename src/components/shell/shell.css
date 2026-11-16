@@ -1,6 +1,6 @@
 /* Height of the bar along the bottom of the window; toasts sit above it. */
 :root {
-  --statusbar-h: 40px;
+  --statusbar-h: calc(40px * var(--ui-scale));
 }
 
 .toast-region {
@@ -461,7 +461,8 @@
 }
 
 /* --- Appearance setting (AppearanceControl, shown in the About dialog) --- */
-.appearance-control {
+.appearance-control,
+.density-control {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -469,7 +470,8 @@
   margin-bottom: 14px;
 }
 
-.appearance-label {
+.appearance-label,
+.density-label {
   font-size: var(--fs-sm);
   color: var(--muted);
 }
@@ -519,7 +521,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 16px;
-  min-height: 28px;
+  min-height: calc(28px * var(--ui-scale));
 }
 
 .shortcuts-row dt {

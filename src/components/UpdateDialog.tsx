@@ -3,6 +3,7 @@ import { Modal } from "./shell/Modal";
 import { keychainNote } from "../lib/secretsUi";
 import { isBrowserFallback } from "../lib/secretStore";
 import { AppearanceControl } from "./shell/AppearanceControl";
+import { DensityControl } from "./shell/DensityControl";
 import { isBusy } from "../lib/busyWork";
 import { canUpdate, checkForUpdate, installedVersion, type FoundUpdate } from "../lib/updater";
 import { downloadPercent, plainNotes, releaseDate, versionLabel, type UpdateInfo, type UpdateState } from "../lib/updates";
@@ -96,6 +97,7 @@ export function UpdateDialog({ onClose }: { onClose: () => void }) {
           {page === "general" && <>
             <h4>General</h4><p className="settings-intro">Choose how the app looks and behaves.</p>
             <section className="settings-block"><AppearanceControl /></section>
+            <section className="settings-block"><DensityControl /></section>
             <section className="settings-block">
               <label className="update-setting">
                 <span>Confirm production requests</span>

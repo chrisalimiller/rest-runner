@@ -26,11 +26,11 @@
 }
 
 .flow-head .send {
-  height: 30px;
+  height: calc(30px * var(--ui-scale));
 }
 
 .flow-head .secondary {
-  height: 30px;
+  height: calc(30px * var(--ui-scale));
   padding: 0 12px;
   border: 1px solid var(--btn-border);
 }
@@ -141,7 +141,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 26px;
+  height: calc(26px * var(--ui-scale));
   padding: 0 10px;
   border: 1px solid var(--border);
   border-radius: var(--r-pill);
@@ -835,8 +835,8 @@ table.results.flow-report-steps td {
   position: absolute;
   right: -44px;
   top: -2px;
-  width: 20px;
-  height: 20px;
+  width: calc(20px * var(--ui-scale));
+  height: calc(20px * var(--ui-scale));
   padding: 0;
   display: flex;
   align-items: center;
