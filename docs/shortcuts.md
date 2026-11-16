@@ -23,7 +23,7 @@ The group for the mode you are in comes first. A **Commands** group comes last, 
 
 ## Commands
 
-Quick open is also a command palette. Type `>` first (as in VS Code) to see only commands; `>` alone lists all of them, `>dark` narrows them. Without the `>`, commands show up when your text is in a command's name or starts one of its keywords (two letters or more), and with nothing typed the first few are listed under the requests. The key for a command, where it has one, is shown at the right of its row. Commands that do not apply (Send request while you are in Testing, Go to the section you are already in) are hidden.
+Quick open is also a command palette. Type `>` first (as in VS Code) to see only commands; `>` alone lists all of them, `>dark` narrows them to commands whose name or keywords contain what you typed (`>send` finds Send request and nothing unrelated; best matches first). Without the `>`, commands show up when your text is in a command's name or starts one of its keywords (two letters or more), and with nothing typed the first few are listed under the requests. The key for a command, where it has one, is shown at the right of its row. Commands that do not apply (Send request while you are in Testing, Go to the section you are already in) are hidden.
 
 | Command | What it does |
 | --- | --- |
@@ -70,7 +70,8 @@ Quick open is also a command palette. Type `>` first (as in VS Code) to see only
 | `←` / `→` on the column divider | Move the divider (2% steps). Double-click the divider to reset it |
 | `←` `→` `↑` `↓`, `Home`, `End` on the environment switch | Choose another environment |
 | `↑` / `↓` in the run explorer | Previous or next call |
-| `Esc` | Close Quick open, menus and dialogs |
+| `Esc` | Close Quick open, menus and dialogs. Focus goes back to what you were on, or to the URL box if that is gone |
+| `Tab` (first stop in Requests) | **Skip to the URL box**: press Enter to jump past the top bar and sidebar. In Quick open, `↑` `↓` move through the results and `Tab` leaves the list |
 
 ### Tabs
 

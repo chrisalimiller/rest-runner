@@ -11,7 +11,7 @@ export function nextFocusIndex(count: number, current: number, shift: boolean): 
 }
 
 function visibleFocusables(root: HTMLElement): HTMLElement[] {
-  return [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.offsetParent !== null || el === document.activeElement);
+  return [...root.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => !el.matches('[tabindex="-1"]') && (el.offsetParent !== null || el === document.activeElement));
 }
 
 /**

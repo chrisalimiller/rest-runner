@@ -1,6 +1,7 @@
-.production-confirm {
+.modal.production-confirm {
   width: min(420px, 92vw);
   height: auto;
+  min-height: 0;
   max-height: 86vh;
   overflow: auto;
   border-top: 3px solid var(--danger-bg);

@@ -204,6 +204,18 @@ export default function Root() {
   return (
     <SidePanelSlotContext.Provider value={panelSlot}>
       <div className="app-shell">
+        {section === "requests" && (
+          <a
+            href="#request-url"
+            className="skip-link"
+            onClick={(e) => {
+              e.preventDefault();
+              document.querySelector<HTMLElement>(".root-section:not([hidden]) .url-input")?.focus();
+            }}
+          >
+            Skip to the URL box
+          </a>
+        )}
         <div className="app-body">
         <div className={`root-sections ${switched ? "switched" : ""}`}>
           <div className="root-section" hidden={section !== "requests"}>
