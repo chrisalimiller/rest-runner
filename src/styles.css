@@ -2171,6 +2171,7 @@ select {
 }
 
 .tree-row .method {
+  position: relative;
   width: 40px;
 }
 
@@ -2220,7 +2221,8 @@ select {
 
 .tree-count {
   font-size: var(--fs-xs);
-  color: var(--muted);
+  /* Mixed toward the text colour so the small badge keeps 4.5:1 on its tint in both themes. */
+  color: color-mix(in srgb, var(--muted) 45%, var(--text));
   background: color-mix(in srgb, var(--edge-muted) 15%, transparent);
   border-radius: var(--r-pill);
   padding: 0 6px;

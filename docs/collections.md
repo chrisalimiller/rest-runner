@@ -21,7 +21,9 @@ Right-click a row, or use its **⋯** button, for the actions:
 | A request | Add example, Duplicate, Rename, Move to…, Delete |
 | An example | Rename, Duplicate, Delete |
 
-Deleting a collection or folder asks first and removes everything inside it. Renaming happens inline. Ids are unique across the whole tree, and a request can only be moved somewhere that makes sense (you cannot move a folder into itself).
+Deleting a collection or folder removes everything inside it without asking first. A message at the bottom offers **Undo** for 8 seconds, and open tabs that showed deleted requests stay open as unsaved requests (Undo makes them saved again). If a [tool](tools.md) uses something you are deleting, a dialog asks first. **New collection** and **New folder** add the row and start an inline rename at once, with the name selected: type the name and press Enter (Escape keeps the default name). Renaming also happens inline. In the tree, DELETE and OPTIONS are shown as DEL and OPT to fit the column (hover for the full method).
+
+**Move to…** lists every collection and folder with its full path (for example "QA Second › Trouble Ticket"), so same-named folders in different collections can be told apart. Type a name under **New folder inside it** to create a folder in the chosen place and move the item into it. Ids are unique across the whole tree, and a request can only be moved somewhere that makes sense (you cannot move a folder into itself).
 
 If you had requests saved before collections existed, they were moved into a collection called **My requests** the first time you opened the new version.
 

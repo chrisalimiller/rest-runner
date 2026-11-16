@@ -20,6 +20,7 @@ import {
   newTab,
   openInTab,
   pin,
+  pinMonograms,
   promote,
   reopenClosed,
   serializeTabs,
@@ -314,6 +315,8 @@ describe("groupTabs", () => {
     s = openInTab(s, pick(ids.other), { preview: false });
     const labels = groupTabs(s.tabs, cols).groups.map((g) => g.label);
     expect(labels).toEqual(["Trouble Ticket · NaaP E-Bonding", "Trouble Ticket · Trouble Ticket"]);
+    const parts = groupTabs(s.tabs, cols).groups.map((g) => [g.name, g.suffix]);
+    expect(parts).toEqual([["Trouble Ticket", "NaaP E-Bonding"], ["Trouble Ticket", "Trouble Ticket"]]);
   });
 
   it("uses the collection for a request at its root", () => {
@@ -558,5 +561,34 @@ describe("pasted cURL", () => {
     expect(r.closed).toEqual([]);
     const only = initialTabs();
     expect(names(discardTab(only, only.activeId))).toEqual(["Untitled request"]);
+  });
+});
+
+describe("openInTab replacing a blank tab", () => {
+  it("replaces a lone untouched Untitled tab when allowed", () => {
+    const s = openInTab(initialTabs(), req("A"), { preview: false, mayReplaceBlank: () => true });
+    expect(names(s)).toEqual(["A"]);
+    expect(s.activeId).toBe(s.tabs[0].id);
+  });
+
+  it("keeps it when it was sent, edited, or is not the only tab", () => {
+    expect(names(openInTab(initialTabs(), req("A"), { preview: false, mayReplaceBlank: () => false }))).toEqual(["Untitled request", "A"]);
+    expect(names(openInTab(initialTabs(req("Untitled request", { url: "x" })), req("A"), { preview: false, mayReplaceBlank: () => true }))).toHaveLength(2);
+    const two = withTabs(req("Untitled request"), req("B"));
+    expect(names(openInTab(two, req("C"), { preview: false, mayReplaceBlank: () => true }))).toHaveLength(3);
+  });
+});
+
+describe("pinMonograms", () => {
+  const pins = (...n: string[]) => [...pinMonograms(n.map((name, i) => ({ id: String(i), name, method: "GET" }))).values()];
+
+  it("gives pins with the same initials different letters", () => {
+    expect(pins("Status 404", "Status 500")).toEqual(["STA", "S50"]);
+    expect(pins("Get ticket", "Get token")).toEqual(["GT", "GET"]);
+  });
+
+  it("numbers identical names", () => {
+    const m = pins("Same name", "Same name", "Same name");
+    expect(new Set(m).size).toBe(3);
   });
 });
