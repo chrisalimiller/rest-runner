@@ -120,12 +120,15 @@ export function WithPlaceholders({ text, vars }: { text: string; vars?: Vars }) 
   );
 }
 
-function useDebounced<T>(value: T, ms: number): T {
-  const [v, setV] = useState(value);
+function useDebounced<A, B>(a: A, b: B, ms: number): { def: A; envVars: B } {
+  const [v, setV] = useState({ def: a, envVars: b });
+  // Keyed on the two values themselves (not a fresh object each render), so the timer only runs after a real change.
   useEffect(() => {
-    const t = setTimeout(() => setV(value), ms);
+    if (v.def === a && v.envVars === b) return;
+    const t = setTimeout(() => setV({ def: a, envVars: b }), ms);
     return () => clearTimeout(t);
-  }, [value, ms]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [a, b, ms]);
   return v;
 }
 
@@ -162,7 +165,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onConvertLitera
   }, [curlOpen]);
 
   const certificates = useCertificates();
-  const urlInputs = useDebounced({ def, envVars }, 150);
+  const urlInputs = useDebounced(def, envVars, 150);
   const finalUrl = resolvedUrl(urlInputs.def, urlInputs.envVars);
   const unfilled = unresolvedPlaceholders(urlInputs.def, urlInputs.envVars);
   const unfilledNames = unfilled.map((n) => `{{${n}}}`).join(", ");

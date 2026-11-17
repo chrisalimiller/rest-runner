@@ -29,6 +29,7 @@ import {
   addExample,
   canMove,
   cleanCollections,
+  countRequests,
   existingExpanded,
   destinations,
   duplicate,
@@ -213,6 +214,7 @@ type Dialog =
   | { type: "move"; id: string; name: string }
   /** Deleting something tools use: asks first, naming the tools. */
   | { type: "delete-used"; action: Extract<TreeAction, { type: "delete" }>; tools: string[] }
+  | { type: "delete-many"; action: Extract<TreeAction, { type: "delete" }>; kind: "folder" | "collection"; count: number }
   | { type: "example"; requestId: string; requestName: string; exampleName: string; base: RequestDef; response: SampleResponse | null; responseLabel: string | null };
 
 function sampleOutcome(example: RequestExample, response: SampleResponse, envVars: Record<string, string>): SendOutcome {
@@ -636,11 +638,14 @@ export default function App({ active = true, shell, command }: Props) {
   useEffect(() => {
     save(TABS_KEY, serializeTabs(tabs));
   }, [tabs]);
+  // Only which tabs exist matters below, not their edits: keyed on the ids so typing in a request doesn't run it.
+  const tabIdsKey = `${tabs.tabs.map((t) => t.id).join(",")}|${tabs.closed.map((t) => t.id).join(",")}`;
   useEffect(() => {
     // A tab that is gone (closed, or a preview replaced) stops its send and drops its response. Closed tabs keep theirs for Undo.
-    const open = new Set(tabs.tabs.map((t) => t.id));
+    const current = tabsRef.current;
+    const open = new Set(current.tabs.map((t) => t.id));
     for (const [id, controller] of aborts.current) if (!open.has(id)) controller.abort();
-    const keep = new Set([...open, ...tabs.closed.map((t) => t.id)]);
+    const keep = new Set([...open, ...current.closed.map((t) => t.id)]);
     setRuntime((r) => {
       const stale = Object.keys(r).filter((id) => !keep.has(id));
       if (stale.length === 0) return r;
@@ -648,7 +653,7 @@ export default function App({ active = true, shell, command }: Props) {
       for (const id of stale) delete next[id];
       return next;
     });
-  }, [tabs]);
+  }, [tabIdsKey]);
   useEffect(() => {
     // Responses make history larger; if storage is full, drop the oldest responses until it fits.
     fitHistory(history, (h) => save(HISTORY_KEY, h));
@@ -895,16 +900,32 @@ export default function App({ active = true, shell, command }: Props) {
         setDialog({ type: "move", id: a.id, name });
         break;
       }
-      case "delete": {
-        const used = toolsUsingRequests(loadTools(), idsRemovedBy(collections, a.id));
-        if (used.length > 0) {
-          setDialog({ type: "delete-used", action: a, tools: used.map((t) => t.name || "(unnamed)") });
-          break;
-        }
-        deleteNow(a);
+      case "delete":
+        requestDelete(a);
         break;
+    }
+  };
+
+  /**
+   * Deleting a folder or collection that holds more than one request asks first; then a request a tool uses warns;
+   * then it goes (with Undo either way).
+   */
+  const requestDelete = (a: Extract<TreeAction, { type: "delete" }>, countConfirmed = false) => {
+    if (!countConfirmed) {
+      const found = locate(collections, a.id);
+      const items = found?.kind === "folder" ? found.folder.items : found?.kind === "collection" ? found.collection.items : null;
+      const count = items ? countRequests(items) : 0;
+      if (found && (found.kind === "folder" || found.kind === "collection") && count > 1) {
+        setDialog({ type: "delete-many", action: a, kind: found.kind, count });
+        return;
       }
     }
+    const used = toolsUsingRequests(loadTools(), idsRemovedBy(collections, a.id));
+    if (used.length > 0) {
+      setDialog({ type: "delete-used", action: a, tools: used.map((t) => t.name || "(unnamed)") });
+      return;
+    }
+    deleteNow(a);
   };
 
   const deleteNow = (a: Extract<TreeAction, { type: "delete" }>) => {
@@ -1487,6 +1508,34 @@ export default function App({ active = true, shell, command }: Props) {
             notify(`Saved "${name}".`);
           }}
         />
+      )}
+      {dialog?.type === "delete-many" && (
+        <Modal label={`Delete ${dialog.kind}`} onClose={() => setDialog(null)} className="small-modal">
+          <div className="modal-head">
+            <h3>Delete {dialog.action.label}?</h3>
+          </div>
+          <div className="dialog-body">
+            <p>
+              This {dialog.kind} and the {dialog.count} requests in it will be deleted. You can undo it from the message that appears for a few seconds.
+            </p>
+          </div>
+          <div className="modal-foot">
+            <button className="secondary" onClick={() => setDialog(null)} autoFocus>
+              Cancel
+            </button>
+            <span className="flex-gap" />
+            <button
+              className="secondary danger"
+              onClick={() => {
+                const a = dialog.action;
+                setDialog(null);
+                requestDelete(a, true);
+              }}
+            >
+              Delete {dialog.count} requests
+            </button>
+          </div>
+        </Modal>
       )}
       {dialog?.type === "delete-used" && (
         <Modal label="Delete request used by tools" onClose={() => setDialog(null)} className="small-modal">

@@ -39,6 +39,7 @@ export const MOD_KEY = isMac ? "⌘" : "Ctrl";
  */
 function useCenterFits(ref: RefObject<HTMLElement | null>, enabled: boolean): boolean {
   const [fits, setFits] = useState(true);
+  const fitsRef = useRef(true);
   const measure = () => {
     const header = ref.current;
     if (!header || !enabled || header.clientWidth === 0) return;
@@ -52,7 +53,10 @@ function useCenterFits(ref: RefObject<HTMLElement | null>, enabled: boolean): bo
     const right = (parseFloat(style.paddingRight) || 0) + sum(kids.slice(at + 1));
     const half = (header.clientWidth - kids[at].offsetWidth) / 2;
     const ok = Math.max(left, right) <= half;
-    setFits((was) => (was === ok ? was : ok));
+    // Runs after every render: only set state on a real change, or each keystroke queues an update.
+    if (ok === fitsRef.current) return;
+    fitsRef.current = ok;
+    setFits(ok);
   };
   useLayoutEffect(measure);
   useLayoutEffect(() => {
