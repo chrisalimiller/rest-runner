@@ -89,6 +89,14 @@ function filterCommands(commands: QuickItem[], query: string): QuickItem[] {
       else if (words.some((w) => w === q)) score = 60;
       else if (words.some((w) => w.startsWith(q))) score = 50;
       else if (q.length <= 3 && item.title.toLowerCase().split(/\s+/).map((w) => w[0]).join("").startsWith(q)) score = 10;
+      else {
+        // Several words (">env staging", ">density comfortable"): each must start a word of the title or a keyword.
+        const tokens = query.toLowerCase().replace(/[:…]/g, " ").split(/\s+/).filter(Boolean);
+        const titleWords = item.title.toLowerCase().replace(/[:…]/g, " ").split(/\s+/).filter(Boolean);
+        if (tokens.length > 1 && tokens.every((t) => titleWords.some((w) => w.startsWith(t)) || words.some((w) => w.startsWith(t)))) {
+          score = 40 + tokens.filter((t) => titleWords.some((w) => w.startsWith(t))).length;
+        }
+      }
       return { item, order, score };
     })
     .filter((x) => x.score > -Infinity)

@@ -217,6 +217,10 @@ describe("command palette matching", () => {
       ["Send request", "run request send"],
       ["Go to Testing", "switch go section mode testing"],
       ["Export workspace…", "export save backup download file"],
+      ["Clear history", "clear history delete remove sent"],
+      ["Environment: Staging", "env environment switch"],
+      ["Environment: None", "env environment switch"],
+      ["Display density: Comfortable", "display density compact comfortable spacing size text rows"],
     ] as const
   ).map(([title, keywords], i) => ({ kind: "command", id: `c${i}`, title, detail: "", keywords }));
   const titles = (q: string) => searchQuickOpen(items, q, KIND_ORDER.requests).flatMap((g) => g.items.map((i) => i.title));
@@ -229,5 +233,11 @@ describe("command palette matching", () => {
   });
   it("still allows a short abbreviation of a title", () => {
     expect(titles(">gt")).toEqual(["Go to Testing"]);
+  });
+  it("matches several words one by one", () => {
+    expect(titles(">env staging")).toEqual(["Environment: Staging"]);
+    expect(titles(">environment staging")).toEqual(["Environment: Staging"]);
+    expect(titles(">density comfortable")).toEqual(["Display density: Comfortable"]);
+    expect(titles(">env: staging")).toEqual(["Environment: Staging"]);
   });
 });
