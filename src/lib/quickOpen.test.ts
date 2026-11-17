@@ -88,7 +88,7 @@ describe("tool items", () => {
     }
     expect(KIND_ORDER.tools[1]).toBe("tool");
     const newToolSpy = vi.fn();
-    const ctx: CommandCtx = { section: "requests", environments: [], activeEnvId: null, theme: "dark", actions: { newTool: newToolSpy } as never };
+    const ctx: CommandCtx = { section: "requests", environments: [], activeEnvId: null, theme: "dark", density: "default", actions: { newTool: newToolSpy } as never };
     const cmd = buildCommands(ctx).find((c) => c.id === "new-tool");
     expect(cmd?.title).toBe("New tool");
     cmd?.run(ctx);
@@ -155,6 +155,7 @@ const ctx: CommandCtx = {
   environments: [{ id: "e1", name: "Staging" }],
   activeEnvId: null,
   theme: "system",
+  density: "default",
   actions: {} as CommandCtx["actions"],
 };
 
@@ -205,5 +206,38 @@ describe("command items", () => {
   it("find environments by name after the Environment: prefix", () => {
     const titles = searchQuickOpen(items, ">Environment: ", KIND_ORDER.requests)[0].items.map((i) => i.title);
     expect(titles).toEqual(["Environment: None", "Environment: Staging"]);
+  });
+});
+
+describe("command palette matching", () => {
+  const items: QuickItem[] = (
+    [
+      ["Settings and about…", "settings preferences about update upgrade"],
+      ["Import from cURL…", "curl paste import command"],
+      ["Send request", "run request send"],
+      ["Go to Testing", "switch go section mode testing"],
+      ["Export workspace…", "export save backup download file"],
+      ["Clear history", "clear history delete remove sent"],
+      ["Environment: Staging", "env environment switch"],
+      ["Environment: None", "env environment switch"],
+      ["Display density: Comfortable", "display density compact comfortable spacing size text rows"],
+    ] as const
+  ).map(([title, keywords], i) => ({ kind: "command", id: `c${i}`, title, detail: "", keywords }));
+  const titles = (q: string) => searchQuickOpen(items, q, KIND_ORDER.requests).flatMap((g) => g.items.map((i) => i.title));
+
+  it(">send lists Send request and nothing unrelated", () => {
+    expect(titles(">send")).toEqual(["Send request"]);
+  });
+  it("puts title matches before keyword matches", () => {
+    expect(titles(">import")[0]).toBe("Import from cURL…");
+  });
+  it("still allows a short abbreviation of a title", () => {
+    expect(titles(">gt")).toEqual(["Go to Testing"]);
+  });
+  it("matches several words one by one", () => {
+    expect(titles(">env staging")).toEqual(["Environment: Staging"]);
+    expect(titles(">environment staging")).toEqual(["Environment: Staging"]);
+    expect(titles(">density comfortable")).toEqual(["Display density: Comfortable"]);
+    expect(titles(">env: staging")).toEqual(["Environment: Staging"]);
   });
 });

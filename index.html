@@ -16,6 +16,14 @@
         document.documentElement.dataset.theme = "dark";
       }
     </script>
+    <script>
+      // Sets the display density before the page paints. Keep in step with src/lib/density.ts
+      // (key "rest-runner.density", stored as JSON: "compact" | "default" | "comfortable"); density.test.ts checks this.
+      try {
+        var n = JSON.parse(localStorage.getItem("rest-runner.density"));
+        if (n === "compact" || n === "comfortable") document.documentElement.dataset.density = n;
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

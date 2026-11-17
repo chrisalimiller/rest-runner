@@ -36,14 +36,14 @@ function pad(n: number): string {
 }
 
 /**
- * "now" under 10 seconds, "12s ago" / "4m ago" under an hour, "13:41" earlier today,
+ * "now" under a second, "12s ago" / "4m ago" under an hour, "13:41" earlier today,
  * "Yesterday", then a short date ("Oct 20"). Sends a few minutes apart read differently.
  */
 export function whenLabel(iso: string, now: Date = new Date()): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return "";
   const age = now.getTime() - d.getTime();
-  if (age >= 0 && age < 10_000) return "now";
+  if (age >= 0 && age < 1_000) return "now";
   if (age >= 0 && age < 60_000) return `${Math.floor(age / 1000)}s ago`;
   if (age >= 0 && age < 3_600_000) return `${Math.floor(age / 60_000)}m ago`;
   if (d.toDateString() === now.toDateString()) return `${pad(d.getHours())}:${pad(d.getMinutes())}`;

@@ -90,7 +90,7 @@
 
 .tool-input input,
 .tool-input select {
-  height: 30px;
+  height: calc(30px * var(--ui-scale));
   min-width: 220px;
 }
 
@@ -102,7 +102,7 @@
 
 /* 40px like Send; the width is fixed so "Look up on Prod" does not widen it. */
 .tool-lookup {
-  height: 40px;
+  height: calc(40px * var(--ui-scale));
   min-width: 152px;
   padding: 0 16px;
 }
@@ -140,7 +140,7 @@
 
 .tool-head-actions .send,
 .tool-head-actions .secondary {
-  height: 28px;
+  height: calc(28px * var(--ui-scale));
   padding: 0 12px;
   font-size: var(--fs-sm);
 }
@@ -164,7 +164,7 @@
   gap: 4px 12px;
   flex: 1 1 240px;
   min-width: 0;
-  min-height: 30px;
+  min-height: calc(30px * var(--ui-scale));
   font-size: var(--fs-sm);
 }
 
@@ -243,7 +243,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  min-height: 24px;
+  min-height: calc(24px * var(--ui-scale));
   margin-bottom: 6px;
 }
 
@@ -494,7 +494,7 @@
 
 .tool-pick-none {
   margin-top: 8px;
-  height: 28px;
+  height: calc(28px * var(--ui-scale));
   padding: 0 12px;
   border: 1px solid var(--btn-border);
 }
@@ -520,7 +520,7 @@
 }
 
 .tool-problem-actions .secondary {
-  height: 28px;
+  height: calc(28px * var(--ui-scale));
   padding: 0 12px;
   border: 1px solid var(--btn-border);
 }

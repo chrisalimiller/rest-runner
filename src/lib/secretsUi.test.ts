@@ -73,5 +73,7 @@ describe("keychainNote", () => {
     expect(keychainNote("MacIntel")).toContain("macOS Keychain");
     expect(keychainNote("Win32")).toContain("Windows Credential Manager");
     expect(keychainNote("Linux x86_64")).toContain("system keychain");
+    expect(keychainNote("MacIntel", true)).not.toContain("Keychain");
+    expect(keychainNote("MacIntel", true)).toContain("browser tab");
   });
 });

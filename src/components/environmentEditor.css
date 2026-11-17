@@ -1,5 +1,25 @@
 /* Environments dialog. Shared pieces (layout, pills, banners, table, segmented, reveal) live in dlg.css. */
 
+/* Grow with the window so many variable rows show; the body scrolls if the window is short. */
+.modal.dlg-modal.envdlg {
+  height: min(900px, 88vh);
+  max-height: 88vh;
+}
+
+/* The table always keeps room for a few rows, even with a banner above it. */
+.envdlg .dlg-scroll {
+  min-height: 168px;
+}
+
+.envdlg .dlg-section.grow {
+  flex-shrink: 0;
+  min-height: 300px;
+}
+
+.envdlg-suggest {
+  color: var(--warn);
+}
+
 .envdlg-search {
   flex: none;
   position: relative;
@@ -153,7 +173,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  min-height: 28px;
+  min-height: calc(28px * var(--ui-scale));
   padding: 2px 8px;
   border: 1.5px dashed var(--warn);
   border-radius: var(--r-xs);

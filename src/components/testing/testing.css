@@ -597,7 +597,7 @@ table.results.test-results .url-cell,
 
 .grid-cell {
   min-width: 52px;
-  height: 24px;
+  height: calc(24px * var(--ui-scale));
   padding: 0 8px;
   border: 1px solid transparent;
   border-radius: var(--r-sm);

@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Modal } from "./shell/Modal";
 import { keychainNote } from "../lib/secretsUi";
+import { isBrowserFallback } from "../lib/secretStore";
 import { AppearanceControl } from "./shell/AppearanceControl";
+import { DensityControl } from "./shell/DensityControl";
 import { isBusy } from "../lib/busyWork";
 import { canUpdate, checkForUpdate, installedVersion, type FoundUpdate } from "../lib/updater";
 import { downloadPercent, plainNotes, releaseDate, versionLabel, type UpdateInfo, type UpdateState } from "../lib/updates";
@@ -95,6 +97,7 @@ export function UpdateDialog({ onClose }: { onClose: () => void }) {
           {page === "general" && <>
             <h4>General</h4><p className="settings-intro">Choose how the app looks and behaves.</p>
             <section className="settings-block"><AppearanceControl /></section>
+            <section className="settings-block"><DensityControl /></section>
             <section className="settings-block">
               <label className="update-setting">
                 <span>Confirm production requests</span>
@@ -118,7 +121,7 @@ export function UpdateDialog({ onClose }: { onClose: () => void }) {
               <p id="response-limit-help" className="muted small">Largest decoded response body a request may return, up to {MAX_RESPONSE_LIMIT.toLocaleString("en-US")}. Larger responses fail instead of being shown. Default: {DEFAULT_RESPONSE_LIMIT.toLocaleString("en-US")}.</p>
               {limitError && <p role="alert" className="update-error">{limitError}</p>}
             </section>
-            <section className="settings-block"><strong>Secret storage</strong><p className="muted small">{keychainNote(typeof navigator === "undefined" ? "" : navigator.platform)}</p></section>
+            <section className="settings-block"><strong>Secret storage</strong><p className="muted small">{keychainNote(typeof navigator === "undefined" ? "" : navigator.platform, isBrowserFallback())}</p></section>
           </>}
           {page === "shortcuts" && <><h4>Keyboard shortcuts</h4><p className="settings-intro">Quick access to common actions.</p><ShortcutsList /></>}
           {page === "about" && <>

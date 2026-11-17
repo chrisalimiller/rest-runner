@@ -202,3 +202,12 @@ function hostOf(url: string): string {
     return url;
   }
 }
+
+/** True for the error a response over the size limit fails with (from Rust or the browser fallback). */
+export function isResponseLimitError(error: string): boolean {
+  return /^Response exceeded \d+ bytes$/.test(error);
+}
+
+/** The advice under a response-size-limit error. */
+export const RESPONSE_LIMIT_HINT =
+  "The response was larger than the size limit, so it was not kept. To allow bigger responses, raise Settings › General › Response size limit.";

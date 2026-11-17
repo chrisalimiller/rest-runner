@@ -47,7 +47,7 @@ describe("Chrome and Edge Copy as cURL", () => {
     expect(c.def.auth).toEqual({ type: "bearer", token: "abc.def.ghi" });
     expect(filled(c.def.headers).map(([k, v]) => [k.toLowerCase(), v])).toContainEqual(["cookie", "session=abc123; theme=dark"]);
     expect(filled(c.def.headers).some(([k]) => k === "authorization")).toBe(false);
-    expect(c.def.name).toBe("GET items");
+    expect(c.def.name).toBe("GET /v1/items");
   });
 
   it.each([
@@ -369,9 +369,10 @@ describe("the request that comes out", () => {
       expect(rows).toHaveLength(1);
       expect(rows[0].key).toBe("");
     }
-    expect(c.def.name).toBe("POST 42");
+    expect(c.def.name).toBe("POST /v1/orders/42");
     expect(one("curl https://api.test/").def.name).toBe("GET api.test");
-    expect(one("curl https://api.test/a%20b").def.name).toBe("GET a b");
-    expect(one("curl {{baseUrl}}/items").def.name).toBe("GET items");
+    expect(one("curl https://api.test/a%20b").def.name).toBe("GET /a b");
+    expect(one("curl https://x.test/post -X POST").def.name).toBe("POST /post");
+    expect(one("curl {{baseUrl}}/items").def.name).toBe("GET /items");
   });
 });

@@ -3,9 +3,8 @@ import { usePanelFade } from "../useTabMotion";
 import { findLiteralSecrets } from "../../lib/redactStorage";
 import { requestToCurl } from "../../lib/curl";
 import { findJsonProblem, formatJson } from "../../lib/jsonFormat";
-import { readableUrl } from "../../lib/quickOpen";
 import { unresolvedPlaceholders } from "../../lib/request";
-import { BODY_LABELS, loadEditorTab, resolvedUrl, rowCounts, splitPlaceholders, type DetailsTab } from "../../lib/requestSummary";
+import { authConfigured, BODY_LABELS, loadEditorTab, methodPatch, resolvedUrl, rowCounts, splitPlaceholders, type DetailsTab } from "../../lib/requestSummary";
 import { load, save } from "../../lib/storage";
 import type { Vars } from "../../lib/template";
 import { MethodSelect } from "../MethodSelect";
@@ -42,7 +41,8 @@ interface Props {
   /** Extra line under the script editor, e.g. how request scripts mix with a test case's. */
   scriptsNote?: string;
   /** Opens the Variables sidebar (the unfilled-placeholder dot and the Scripts tab link to it). */
-  onOpenVariables?: () => void;
+  /** Opens the Variables sidebar; "all" lists every variable (script variables included) instead of only the ones this request uses. */
+  onOpenVariables?: (show?: "all") => void;
   /** The Send button, shown at the right of the URL row. Left out where the request is not sent from here. */
   sendSlot?: React.ReactNode;
   /** Items at the top of the ⋯ menu next to Send (Save and the like). The URL and cURL items follow. Without them there is no ⋯ menu. */
@@ -94,7 +94,7 @@ function ScriptsPanel({ def, onChange, scriptVars, onOpenVariables, scriptsNote 
       {scriptVars && onOpenVariables && (
         <p className="small script-vars">
           <span className="muted">{varNames.length === 0 ? "No script variables yet." : `${varNames.length} script variable${varNames.length === 1 ? "" : "s"}.`}</span>{" "}
-          <button className="link-btn small" onClick={onOpenVariables}>
+          <button className="link-btn small" onClick={() => onOpenVariables("all")}>
             Open Variables
           </button>
         </p>
@@ -120,12 +120,15 @@ export function WithPlaceholders({ text, vars }: { text: string; vars?: Vars }) 
   );
 }
 
-function useDebounced<T>(value: T, ms: number): T {
-  const [v, setV] = useState(value);
+function useDebounced<A, B>(a: A, b: B, ms: number): { def: A; envVars: B } {
+  const [v, setV] = useState({ def: a, envVars: b });
+  // Keyed on the two values themselves (not a fresh object each render), so the timer only runs after a real change.
   useEffect(() => {
-    const t = setTimeout(() => setV(value), ms);
+    if (v.def === a && v.envVars === b) return;
+    const t = setTimeout(() => setV({ def: a, envVars: b }), ms);
     return () => clearTimeout(t);
-  }, [value, ms]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [a, b, ms]);
   return v;
 }
 
@@ -145,6 +148,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onConvertLitera
 
   const methodAllowsBody = def.method !== "GET" && def.method !== "HEAD";
   const panelId = useId();
+  const summaryId = useId();
   const panelRef = useRef<HTMLDivElement>(null);
   const tabs: readonly DetailsTab[] = methodAllowsBody ? ["params", "auth", "headers", "body", "scripts"] : ["params", "auth", "headers", "scripts"];
   // GET and HEAD send no body, so a remembered Body tab shows Params instead.
@@ -161,7 +165,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onConvertLitera
   }, [curlOpen]);
 
   const certificates = useCertificates();
-  const urlInputs = useDebounced({ def, envVars }, 150);
+  const urlInputs = useDebounced(def, envVars, 150);
   const finalUrl = resolvedUrl(urlInputs.def, urlInputs.envVars);
   const unfilled = unresolvedPlaceholders(urlInputs.def, urlInputs.envVars);
   const unfilledNames = unfilled.map((n) => `{{${n}}}`).join(", ");
@@ -182,7 +186,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onConvertLitera
   const problem = def.bodyMode === "json" ? findJsonProblem(def.body) : null;
   const marks: Record<DetailsTab, string> = {
     params: rowCounts(def.params).on ? String(rowCounts(def.params).on) : "",
-    auth: def.auth.type !== "none" ? "•" : "",
+    auth: authConfigured(def.auth) ? "•" : "",
     headers: rowCounts(def.headers).on ? String(rowCounts(def.headers).on) : "",
     body: def.bodyMode !== "none" ? BODY_LABELS[def.bodyMode] : "",
     scripts: (def.preScript ?? "").trim() || (def.postScript ?? "").trim() ? "•" : "",
@@ -217,7 +221,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onConvertLitera
           </option>
         ))}
       </select>
-      {def.bodyMode === "json" && def.body.trim() !== "" && <span className={`json-status ${problem ? "bad" : "ok"}`}>{problem ? "Invalid JSON" : "Valid"}</span>}
+      {def.bodyMode === "json" && def.body.trim() !== "" && <span className={`json-status ${problem ? "bad" : "ok"}`} title={problem ? "Invalid JSON" : "Valid JSON"}><span className="json-status-text">{problem ? "Invalid JSON" : "Valid"}</span></span>}
       {def.bodyMode === "json" && (
         <button
           className="link-btn small"
@@ -244,7 +248,7 @@ export function RequestEditor({ def, onChange, envVars, envName, onConvertLitera
       <div className="url-block">
         <div className="url-row">
           <div className="url-bar">
-            <MethodSelect value={def.method} options={HTTP_METHODS} onChange={(method) => onChange({ method })} aria-label="Method" />
+            <MethodSelect value={def.method} options={HTTP_METHODS} onChange={(method) => onChange(methodPatch(def, method))} aria-label="Method" />
             <UrlInput
               value={def.url}
               onChange={(e) => onChange({ url: e.target.value })}
@@ -252,14 +256,21 @@ export function RequestEditor({ def, onChange, envVars, envName, onConvertLitera
               spellCheck={false}
               onPasteCurl={onPasteCurl}
               aria-label="URL"
-              title={finalUrl ? readableUrl(finalUrl) : undefined}
+              vars={envVars}
+              aria-describedby={finalUrl ? summaryId : undefined}
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !e.metaKey && !e.ctrlKey && onEnter) onEnter();
               }}
             />
+            {finalUrl && (
+              <div className="url-summary" id={summaryId} role="tooltip">
+                <span className="url-summary-label">Sends to</span>
+                <WithPlaceholders text={finalUrl} vars={{}} />
+              </div>
+            )}
             {unfilled.length > 0 &&
               (onOpenVariables ? (
-                <button className="unfilled-dot" onClick={onOpenVariables} title={`No value for ${unfilledNames}. Click to open Variables`} aria-label={`No value for ${unfilledNames}. Open Variables`}>
+                <button className="unfilled-dot" onClick={() => onOpenVariables()} title={`No value for ${unfilledNames}. Click to open Variables`} aria-label={`No value for ${unfilledNames}. Open Variables`}>
                   <span className="unfilled-mark" aria-hidden />
                   {unfilled.length}
                 </button>

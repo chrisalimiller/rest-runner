@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { newRequest } from "./defaults";
 import { prepareRequest } from "./request";
-import { authSummary, bodySummary, countsLabel, loadEditorTab, paramsText, requestSummaryLine, resolvedUrl, placeholderAt, rowCounts, splitPlaceholders } from "./requestSummary";
+import { authConfigured, authSummary, bodySummary, countsLabel, loadEditorTab, methodPatch, paramsText, requestSummaryLine, resolvedUrl, placeholderAt, rowCounts, splitPlaceholders } from "./requestSummary";
 import type { KeyValue, RequestDef } from "./types";
 
 const row = (key: string, value: string, enabled = true): KeyValue => ({ id: key + value, key, value, enabled });
@@ -109,5 +109,33 @@ describe("placeholderAt", () => {
   it("returns null outside any placeholder", () => {
     expect(placeholderAt(text, 0)).toBeNull();
     expect(placeholderAt("plain text", 3)).toBeNull();
+  });
+});
+
+describe("methodPatch", () => {
+  it("starts an empty GET as Raw JSON when it becomes POST, PUT or PATCH", () => {
+    const def = newRequest();
+    expect(methodPatch(def, "POST")).toEqual({ method: "POST", bodyMode: "json" });
+    expect(methodPatch(def, "PATCH")).toEqual({ method: "PATCH", bodyMode: "json" });
+    expect(methodPatch(def, "DELETE")).toEqual({ method: "DELETE" });
+  });
+  it("leaves a request that already has a body choice alone", () => {
+    expect(methodPatch({ ...newRequest(), method: "POST", bodyMode: "none" }, "PUT")).toEqual({ method: "PUT" });
+    expect(methodPatch({ ...newRequest(), bodyMode: "text", body: "x" }, "POST")).toEqual({ method: "POST" });
+    expect(methodPatch({ ...newRequest(), body: "x" }, "POST")).toEqual({ method: "POST" });
+  });
+});
+
+describe("authConfigured", () => {
+  it("is false for none and for a type with every field empty", () => {
+    expect(authConfigured({ type: "none" })).toBe(false);
+    expect(authConfigured({ type: "bearer", token: " " })).toBe(false);
+    expect(authConfigured({ type: "basic", username: "", password: "" })).toBe(false);
+    expect(authConfigured({ type: "apikey", key: "", value: "", addTo: "header" })).toBe(false);
+  });
+  it("is true once something is filled in", () => {
+    expect(authConfigured({ type: "bearer", token: "{{token}}" })).toBe(true);
+    expect(authConfigured({ type: "basic", username: "me", password: "" })).toBe(true);
+    expect(authConfigured({ type: "apikey", key: "X-Key", value: "", addTo: "query" })).toBe(true);
   });
 });

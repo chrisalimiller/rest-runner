@@ -63,6 +63,20 @@ export function authSummary(auth: AuthConfig): { label: string; value: string } 
   }
 }
 
+/** Whether the auth has anything filled in. A type chosen with every field empty sends nothing useful, so it is not flagged on the tab. */
+export function authConfigured(auth: AuthConfig): boolean {
+  switch (auth.type) {
+    case "bearer":
+      return auth.token.trim() !== "";
+    case "basic":
+      return auth.username.trim() !== "" || auth.password !== "";
+    case "apikey":
+      return auth.key.trim() !== "" || auth.value.trim() !== "";
+    default:
+      return false;
+  }
+}
+
 export const BODY_LABELS: Record<BodyMode, string> = {
   none: "None",
   json: "Raw JSON",
@@ -163,4 +177,11 @@ export const DETAILS_TABS: readonly DetailsTab[] = ["params", "auth", "headers",
 export function loadEditorTab(raw: unknown): DetailsTab {
   const r = raw !== null && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
   return DETAILS_TABS.find((t) => t === r.tab) ?? "body";
+}
+
+/** Choosing POST, PUT or PATCH on a request that has no body yet starts it as Raw JSON, the common case; anything already set up is left alone. */
+export function methodPatch(def: RequestDef, method: RequestDef["method"]): Partial<RequestDef> {
+  const wantsBody = method === "POST" || method === "PUT" || method === "PATCH";
+  const untouched = def.bodyMode === "none" && def.body === "" && !def.formBody.some((r) => r.key.trim() !== "" || r.value !== "") && (def.method === "GET" || def.method === "HEAD" || def.method === "DELETE" || def.method === "OPTIONS");
+  return wantsBody && untouched ? { method, bodyMode: "json" } : { method };
 }

@@ -1,4 +1,5 @@
 import type { Mode } from "../components/shell/TopBar";
+import type { DensityPref } from "./density";
 import type { ThemePref } from "./theme";
 import { CURL_COMMAND_ID, IMPORT_COMMAND_ID, UPDATES_COMMAND_ID, type QuickItem } from "./quickOpen";
 import { shortcutKeys } from "./shortcuts";
@@ -27,6 +28,7 @@ export interface CommandActions {
   openImport: () => void;
   openShortcuts: () => void;
   setTheme: (pref: ThemePref) => void;
+  setDensity: (pref: DensityPref) => void;
 }
 
 export type RequestsAction =
@@ -35,6 +37,7 @@ export type RequestsAction =
   | { type: "new-request" }
   | { type: "new-collection" }
   | { type: "export-workspace" }
+  | { type: "clear-history" }
   | { type: "import-curl" }
   | { type: "set-environment"; id: string | null };
 
@@ -43,6 +46,7 @@ export interface CommandCtx {
   environments: { id: string; name: string }[];
   activeEnvId: string | null;
   theme: ThemePref;
+  density: DensityPref;
   actions: CommandActions;
 }
 
@@ -73,7 +77,9 @@ const inRequests = (ctx: CommandCtx) => ctx.section === "requests";
 
 const THEME_LABELS: Record<ThemePref, string> = { system: "System", light: "Light", dark: "Dark" };
 
-export function buildCommands(ctx: Pick<CommandCtx, "environments" | "activeEnvId" | "theme">): Command[] {
+const DENSITY_LABELS: Record<DensityPref, string> = { compact: "Compact", default: "Default", comfortable: "Comfortable" };
+
+export function buildCommands(ctx: Pick<CommandCtx, "environments" | "activeEnvId" | "theme" | "density">): Command[] {
   const section = (id: string, mode: Mode, title: string): Command => ({
     id,
     title,
@@ -102,6 +108,7 @@ export function buildCommands(ctx: Pick<CommandCtx, "environments" | "activeEnvI
     { id: "new-tool", title: "New tool", keywords: "new create tool lookup page", group: "Request", enabled: always, run: (c) => c.actions.newTool() },
     { id: CURL_COMMAND_ID, title: "Import from cURL…", keywords: "curl paste import command", group: "Request", enabled: always, run: (c) => c.actions.requests({ type: "import-curl" }) },
     { id: "export-workspace", title: "Export workspace…", keywords: "export save backup download file", group: "Request", enabled: always, run: (c) => c.actions.requests({ type: "export-workspace" }) },
+    { id: "clear-history", title: "Clear history", keywords: "clear history delete remove sent", group: "Request", enabled: inRequests, run: (c) => c.actions.requests({ type: "clear-history" }) },
     ...(envs.length > 0
       ? [{ id: "switch-environment", title: "Switch environment…", keywords: "env environment change pick", group: "Environment", enabled: always, run: () => ({ query: ENV_MENU_QUERY }) } satisfies Command]
       : []),
@@ -127,6 +134,17 @@ export function buildCommands(ctx: Pick<CommandCtx, "environments" | "activeEnvI
         detail: ctx.theme === pref ? "Current" : undefined,
         enabled: always,
         run: (c) => c.actions.setTheme(pref),
+      }),
+    ),
+    ...(["compact", "default", "comfortable"] as DensityPref[]).map(
+      (pref): Command => ({
+        id: `density:${pref}`,
+        title: `Display density: ${DENSITY_LABELS[pref]}`,
+        keywords: "display density compact comfortable spacing size text rows",
+        group: "View",
+        detail: ctx.density === pref ? "Current" : undefined,
+        enabled: always,
+        run: (c) => c.actions.setDensity(pref),
       }),
     ),
     { id: SHORTCUTS_COMMAND_ID, title: "Keyboard shortcuts", keywords: "keys hotkeys help cheat sheet shortcuts", shortcut: shortcutKeys("keyboard-shortcuts"), group: "App", enabled: always, run: (c) => c.actions.openShortcuts() },

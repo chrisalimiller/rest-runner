@@ -12,12 +12,18 @@ const stack: symbol[] = [];
 export function useEscape(onEscape: () => void, active = true): void {
   const callback = useRef(onEscape);
   callback.current = onEscape;
+  // Taken while rendering: an `autoFocus` inside the overlay moves focus during the commit, before any effect runs.
+  const opener = useRef<HTMLElement | null | undefined>(undefined);
+  if (!active || opener.current === undefined) {
+    const el = typeof document === "undefined" || typeof HTMLElement === "undefined" ? null : document.activeElement;
+    opener.current = el && el !== document.body ? (el as HTMLElement) : null;
+  }
 
   useEffect(() => {
     if (!active) return;
     const id = Symbol("overlay");
     stack.push(id);
-    const before = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const before = opener.current;
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== "Escape" || e.defaultPrevented || e.isComposing) return;
@@ -31,7 +37,9 @@ export function useEscape(onEscape: () => void, active = true): void {
       window.removeEventListener("keydown", onKey);
       const i = stack.lastIndexOf(id);
       if (i >= 0) stack.splice(i, 1);
+      // Back to the opener; if it is gone or never existed (a shortcut opened it), the URL box.
       if (before && before.isConnected) before.focus();
+      else if (!document.activeElement || document.activeElement === document.body) document.querySelector<HTMLElement>(".url-input")?.focus({ preventScroll: true });
     };
   }, [active]);
 }

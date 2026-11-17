@@ -23,12 +23,13 @@ import { useToast } from "./components/shell/Toast";
 import { useCertificates } from "./components/CertificatesDialog";
 import { useDeferredDelete } from "./components/shell/useDeferredDelete";
 import { VariablesProvider } from "./components/variables/VariablesContext";
-import { showOwnVariables, VariablesPanel } from "./components/variables/VariablesPanel";
+import { showAllVariables, showOwnVariables, VariablesPanel } from "./components/variables/VariablesPanel";
 import type { ShellCommand, ShellProps } from "./Root";
 import {
   addExample,
   canMove,
   cleanCollections,
+  countRequests,
   existingExpanded,
   destinations,
   duplicate,
@@ -213,6 +214,7 @@ type Dialog =
   | { type: "move"; id: string; name: string }
   /** Deleting something tools use: asks first, naming the tools. */
   | { type: "delete-used"; action: Extract<TreeAction, { type: "delete" }>; tools: string[] }
+  | { type: "delete-many"; action: Extract<TreeAction, { type: "delete" }>; kind: "folder" | "collection"; count: number }
   | { type: "example"; requestId: string; requestName: string; exampleName: string; base: RequestDef; response: SampleResponse | null; responseLabel: string | null };
 
 function sampleOutcome(example: RequestExample, response: SampleResponse, envVars: Record<string, string>): SendOutcome {
@@ -261,10 +263,26 @@ export default function App({ active = true, shell, command }: Props) {
   const [tabs, setTabs] = useState<TabsState>(readTabs);
   /** Always the latest tabs, so handlers can read the result of the change they just made. */
   const tabsRef = useRef(tabs);
-  const [runtime, setRuntime] = useState<Record<string, TabRuntime>>({});
+  const [history, setHistory] = useState<HistoryEntry[]>(() => cleanHistory(load<unknown>(HISTORY_KEY, [])));
+  // After a restart each open tab shows its last send again, from the history, instead of an empty response.
+  const [runtime, setRuntime] = useState<Record<string, TabRuntime>>(() => {
+    const out: Record<string, TabRuntime> = {};
+    for (const t of tabs.tabs) {
+      const h = history.find((e) => e.def?.id === t.def.id);
+      if (!h) continue;
+      out[t.id] = {
+        ...INITIAL_RUNTIME,
+        shownHistoryId: h.id,
+        outcome: historyOutcome(h),
+        scriptRun: h.preScript || h.postScript ? { pre: h.preScript, post: h.postScript } : null,
+        outcomeIsSample: true,
+        sampleLabel: historyLabel(h).replace(/^Sent /, "Last sent "),
+      };
+    }
+    return out;
+  });
   const aborts = useRef(new Map<string, AbortController>());
   const [scriptVars, setScriptVars] = useState<Vars>(() => load<Vars>(SCRIPT_VARS_KEY, {}, isStringRecord));
-  const [history, setHistory] = useState<HistoryEntry[]>(() => cleanHistory(load<unknown>(HISTORY_KEY, [])));
   const [runs, setRuns] = useState<RunSummary[]>([]);
   const [openRun, setOpenRun] = useState<string | null>(null);
   const [collections, setCollections] = useState<Collection[]>(loadCollections);
@@ -389,6 +407,8 @@ export default function App({ active = true, shell, command }: Props) {
   const openNewTab = () => {
     applyTabs(newTab);
     setOpenRun(null);
+    // Ready to type: the new tab's URL box takes focus once it has rendered.
+    window.setTimeout(() => document.querySelector<HTMLElement>(".requests-main .url-input")?.focus(), 0);
   };
   /** Closes a tab. Unsaved changes are not asked about: the toast offers Undo instead. */
   const closeTabById = (id: string) => {
@@ -552,6 +572,8 @@ export default function App({ active = true, shell, command }: Props) {
   /** Pasting a curl command with focus outside any text field opens it as a request. */
   const handlePaste = useRef((_e: ClipboardEvent): void => {});
   handlePaste.current = (e) => {
+    // A field's own handler may have taken the paste already (and re-rendered, moving focus off the field).
+    if (e.defaultPrevented || (e.target instanceof HTMLElement && (e.target.isContentEditable || e.target.matches("input, textarea, select")))) return;
     if (!active || dialog !== null || showEnvEditor || document.querySelector('[role="dialog"]')) return;
     const el = document.activeElement;
     if (el instanceof HTMLElement && (el.isContentEditable || el.matches("input, textarea, select"))) return;
@@ -616,11 +638,14 @@ export default function App({ active = true, shell, command }: Props) {
   useEffect(() => {
     save(TABS_KEY, serializeTabs(tabs));
   }, [tabs]);
+  // Only which tabs exist matters below, not their edits: keyed on the ids so typing in a request doesn't run it.
+  const tabIdsKey = `${tabs.tabs.map((t) => t.id).join(",")}|${tabs.closed.map((t) => t.id).join(",")}`;
   useEffect(() => {
     // A tab that is gone (closed, or a preview replaced) stops its send and drops its response. Closed tabs keep theirs for Undo.
-    const open = new Set(tabs.tabs.map((t) => t.id));
+    const current = tabsRef.current;
+    const open = new Set(current.tabs.map((t) => t.id));
     for (const [id, controller] of aborts.current) if (!open.has(id)) controller.abort();
-    const keep = new Set([...open, ...tabs.closed.map((t) => t.id)]);
+    const keep = new Set([...open, ...current.closed.map((t) => t.id)]);
     setRuntime((r) => {
       const stale = Object.keys(r).filter((id) => !keep.has(id));
       if (stale.length === 0) return r;
@@ -628,7 +653,7 @@ export default function App({ active = true, shell, command }: Props) {
       for (const id of stale) delete next[id];
       return next;
     });
-  }, [tabs]);
+  }, [tabIdsKey]);
   useEffect(() => {
     // Responses make history larger; if storage is full, drop the oldest responses until it fits.
     fitHistory(history, (h) => save(HISTORY_KEY, h));
@@ -753,13 +778,21 @@ export default function App({ active = true, shell, command }: Props) {
    */
   const openTab = (d: RequestDef, o: { permanent?: boolean; load?: boolean } = {}) => {
     const before = tabsRef.current;
-    const next = applyTabs((s) => openInTab(s, d, { preview: !o.permanent, load: o.load }));
+    const next = applyTabs((s) => openInTab(s, d, { preview: !o.permanent, load: o.load, mayReplaceBlank: (t) => !savedVersionOf(t.def, collections) && !runtime[t.id]?.outcome }));
     const isNew = !before.tabs.some((t) => t.id === next.activeId);
     if (isNew) setRuntime((r) => ({ ...r, [next.activeId]: INITIAL_RUNTIME }));
     else if (o.load)
       patchRuntime(next.activeId, { outcome: null, scriptRun: null, scriptVarsAfter: undefined, outcomeIsSample: false, sampleLabel: undefined, shownHistoryId: null });
     setOpenRun(null);
     return { id: next.activeId, isNew };
+  };
+
+  /** Empties the history; the toast offers Undo, since there is no confirm step. */
+  const clearHistory = () => {
+    if (history.length === 0) return notify("History is already empty.");
+    const before = history;
+    setHistory([]);
+    toast.show({ message: `Cleared ${before.length} ${before.length === 1 ? "send" : "sends"} from history`, onUndo: () => setHistory(before) });
   };
 
   const openDef = (d: RequestDef, permanent = false) => openTab(d, { permanent });
@@ -770,6 +803,9 @@ export default function App({ active = true, shell, command }: Props) {
   };
 
   const openHistory = (h: HistoryEntry, permanent = false) => {
+    // Loading replaces the working copy of a tab that is already open. If that copy differs from the send being loaded, keep it so Undo can put it back.
+    const open = tabsRef.current.tabs.find((t) => t.def.id === h.def.id);
+    const kept = open && JSON.stringify(open.def) !== JSON.stringify(h.def) ? { tabId: open.id, def: structuredClone(open.def), runtime: runtime[open.id] } : null;
     const { id } = openTab(h.def, { permanent, load: true });
     patchRuntime(id, {
       shownHistoryId: h.id,
@@ -780,7 +816,15 @@ export default function App({ active = true, shell, command }: Props) {
       sampleLabel: historyLabel(h),
       pane: "response",
     });
-    notify(`Loaded the request as sent ${whenLabel(h.sentAt) === "now" ? "just now" : `at ${whenLabel(h.sentAt) || "an earlier time"}`}.`);
+    const message = `Loaded the request as sent ${whenLabel(h.sentAt) === "now" ? "just now" : `at ${whenLabel(h.sentAt) || "an earlier time"}`}.`;
+    if (!kept) return notify(message);
+    toast.show({
+      message,
+      onUndo: () => {
+        applyTabs((s) => updateTabDef(s, kept.tabId, () => kept.def));
+        if (kept.runtime) patchRuntime(kept.tabId, kept.runtime);
+      },
+    });
   };
 
   /** Loads the request a batch run was made from, and shows the Batch run pane. */
@@ -793,7 +837,11 @@ export default function App({ active = true, shell, command }: Props) {
 
   /** Resolves a destination choice, creating a new collection if asked. */
   const resolveDest = (cols: Collection[], choice: DestinationChoice): { cols: Collection[]; dest: Destination } => {
-    if ("dest" in choice) return { cols, dest: choice.dest };
+    if ("dest" in choice) {
+      if (!choice.newFolder) return { cols, dest: choice.dest };
+      const f = newFolder(choice.newFolder);
+      return { cols: insertAt(cols, choice.dest, [f]), dest: { collectionId: choice.dest.collectionId, folderId: f.id } };
+    }
     const c = newCollection(choice.newCollection);
     return { cols: [...cols, c], dest: { collectionId: c.id, folderId: null } };
   };
@@ -852,16 +900,32 @@ export default function App({ active = true, shell, command }: Props) {
         setDialog({ type: "move", id: a.id, name });
         break;
       }
-      case "delete": {
-        const used = toolsUsingRequests(loadTools(), idsRemovedBy(collections, a.id));
-        if (used.length > 0) {
-          setDialog({ type: "delete-used", action: a, tools: used.map((t) => t.name || "(unnamed)") });
-          break;
-        }
-        deleteNow(a);
+      case "delete":
+        requestDelete(a);
         break;
+    }
+  };
+
+  /**
+   * Deleting a folder or collection that holds more than one request asks first; then a request a tool uses warns;
+   * then it goes (with Undo either way).
+   */
+  const requestDelete = (a: Extract<TreeAction, { type: "delete" }>, countConfirmed = false) => {
+    if (!countConfirmed) {
+      const found = locate(collections, a.id);
+      const items = found?.kind === "folder" ? found.folder.items : found?.kind === "collection" ? found.collection.items : null;
+      const count = items ? countRequests(items) : 0;
+      if (found && (found.kind === "folder" || found.kind === "collection") && count > 1) {
+        setDialog({ type: "delete-many", action: a, kind: found.kind, count });
+        return;
       }
     }
+    const used = toolsUsingRequests(loadTools(), idsRemovedBy(collections, a.id));
+    if (used.length > 0) {
+      setDialog({ type: "delete-used", action: a, tools: used.map((t) => t.name || "(unnamed)") });
+      return;
+    }
+    deleteNow(a);
   };
 
   const deleteNow = (a: Extract<TreeAction, { type: "delete" }>) => {
@@ -901,8 +965,9 @@ export default function App({ active = true, shell, command }: Props) {
   };
 
   /** Opens the sidebar on the variables this request uses. */
-  const openVariables = useCallback(() => {
-    showOwnVariables();
+  const openVariables = useCallback((show?: string) => {
+    if (show === "all") showAllVariables();
+    else showOwnVariables();
     openSidePanel("variables");
   }, []);
 
@@ -944,7 +1009,7 @@ export default function App({ active = true, shell, command }: Props) {
   useEffect(() => {
     if (!command || lastCommand.current === command.nonce) return;
     lastCommand.current = command.nonce;
-    if (command.type === "clear-history") setHistory([]);
+    if (command.type === "clear-history") clearHistory();
     else if (command.type === "edit-environments") {
       setEnvironments(loadEnvironments());
       setFocusVarId(command.varId);
@@ -964,6 +1029,7 @@ export default function App({ active = true, shell, command }: Props) {
         openSidebar();
         addCollection();
       } else if (a.type === "export-workspace") startExport();
+      else if (a.type === "clear-history") clearHistory();
       else if (a.type === "import-curl") openCurlDialog();
       else if (a.type === "set-environment") {
         if (a.id === null || environments.some((e) => e.id === a.id)) setActiveEnvId(a.id);
@@ -1088,11 +1154,11 @@ export default function App({ active = true, shell, command }: Props) {
       onRenamingChange={setRenamingId}
       onOpenRequest={(node, permanent) => {
         openDef(node.request, permanent);
-        if (permanent) afterOpen();
+        afterOpen();
       }}
       onOpenExample={(_node, ex, permanent) => {
         openExample(ex, permanent);
-        if (permanent) afterOpen();
+        afterOpen();
       }}
       onAction={onTreeAction}
       toolsUsing={(ids) => toolsUsingRequests(loadTools(), ids).map((t) => t.name || "(unnamed)")}
@@ -1442,6 +1508,34 @@ export default function App({ active = true, shell, command }: Props) {
             notify(`Saved "${name}".`);
           }}
         />
+      )}
+      {dialog?.type === "delete-many" && (
+        <Modal label={`Delete ${dialog.kind}`} onClose={() => setDialog(null)} className="small-modal">
+          <div className="modal-head">
+            <h3>Delete {dialog.action.label}?</h3>
+          </div>
+          <div className="dialog-body">
+            <p>
+              This {dialog.kind} and the {dialog.count} requests in it will be deleted. You can undo it from the message that appears for a few seconds.
+            </p>
+          </div>
+          <div className="modal-foot">
+            <button className="secondary" onClick={() => setDialog(null)} autoFocus>
+              Cancel
+            </button>
+            <span className="flex-gap" />
+            <button
+              className="secondary danger"
+              onClick={() => {
+                const a = dialog.action;
+                setDialog(null);
+                requestDelete(a, true);
+              }}
+            >
+              Delete {dialog.count} requests
+            </button>
+          </div>
+        </Modal>
       )}
       {dialog?.type === "delete-used" && (
         <Modal label="Delete request used by tools" onClose={() => setDialog(null)} className="small-modal">

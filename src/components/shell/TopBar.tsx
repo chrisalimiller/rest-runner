@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useLayoutEffect, useRef, useState, type RefObject } from "react";
 import { type Environment } from "../../lib/environments";
 import { BrandLockup } from "../BrandMark";
 import { customWindowControls, overlayTitleBar } from "../../lib/windowChrome";
@@ -33,6 +33,43 @@ export const MODE_LABELS: Record<Mode, string> = { requests: "Requests", testing
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 export const MOD_KEY = isMac ? "⌘" : "Ctrl";
 
+/**
+ * Whether a centred search box has room to sit in the middle of the bar. It does when the parts on each side
+ * end before it starts; otherwise it falls back to the normal flow, so it never overlaps the brand or the environment box.
+ */
+function useCenterFits(ref: RefObject<HTMLElement | null>, enabled: boolean): boolean {
+  const [fits, setFits] = useState(true);
+  const fitsRef = useRef(true);
+  const measure = () => {
+    const header = ref.current;
+    if (!header || !enabled || header.clientWidth === 0) return;
+    const style = getComputedStyle(header);
+    const gap = parseFloat(style.columnGap) || 0;
+    const kids = Array.from(header.children).filter((c) => !c.classList.contains("topbar-gap")) as HTMLElement[];
+    const at = kids.findIndex((k) => k.classList.contains("quick-open-field"));
+    if (at < 0) return;
+    const sum = (list: HTMLElement[]) => list.reduce((n, k) => n + k.offsetWidth, 0) + gap * list.length;
+    const left = (parseFloat(style.paddingLeft) || 0) + sum(kids.slice(0, at));
+    const right = (parseFloat(style.paddingRight) || 0) + sum(kids.slice(at + 1));
+    const half = (header.clientWidth - kids[at].offsetWidth) / 2;
+    const ok = Math.max(left, right) <= half;
+    // Runs after every render: only set state on a real change, or each keystroke queues an update.
+    if (ok === fitsRef.current) return;
+    fitsRef.current = ok;
+    setFits(ok);
+  };
+  useLayoutEffect(measure);
+  useLayoutEffect(() => {
+    const header = ref.current;
+    if (!header || typeof ResizeObserver === "undefined") return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(header);
+    return () => ro.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
+  return fits;
+}
+
 /** The one bar at the top of each section: brand, switcher, quick open, environment. Sections and tools live in the status bar. */
 export function TopBar(props: Props) {
   const width = useViewportWidth();
@@ -40,11 +77,12 @@ export function TopBar(props: Props) {
   const fit = useTopBarFit(headerRef, `${props.mode}|${props.environments.length}`);
   // The width rule is the minimum; the measured level can only collapse more.
   const rule = topBarLayout(width, props.environments.length);
+  const centered = useCenterFits(headerRef, !props.switcher);
   const layout = { compactSearch: rule.compactSearch || fit >= 2, envDropdown: rule.envDropdown || fit >= 3 };
   return (
     // With the macOS overlay title bar, empty parts of the top bar drag the window; buttons and fields still click.
     <header
-      className={`topbar ${props.switcher ? "" : "centered-search"}`}
+      className={`topbar ${props.switcher ? "" : centered ? "centered-search" : "centered-search center-flow"}`}
       ref={headerRef}
       data-fit-crumbs={fit >= 1 ? "off" : undefined}
       data-fit-max={fit >= 3 ? "" : undefined}
