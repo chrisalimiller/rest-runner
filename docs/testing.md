@@ -157,7 +157,7 @@ A run that a flow started (a **Run suite** step) is saved here too, as its own c
 
 ## Scheduling a suite
 
-Open the suite's **⋯** menu and choose **Schedule…**. REST Runner opens the flow that runs this suite on a schedule: a Schedule step wired to a Run suite step. If there is none yet it makes one named "<suite name> schedule" (Weekdays at 07:30) and **switches it off**, so nothing runs by surprise. Turn it on and pick the days and time in Flows. Choosing **Schedule…** again opens the same flow. Scheduled runs only happen while the app is open. See [Schedules](flows.md#schedules).
+Open the suite's **⋯** menu and choose **Schedule…**. REST Runner opens the flow that runs this suite on a schedule: a Schedule step wired to a Run suite step. If there is none yet it makes one named "<suite name> schedule" (Weekdays at 07:30) and **switches it off**, so nothing runs by surprise. The new schedule pins the environment selected in Flows at that moment; change it in the Schedule step's settings. Turn it on and pick the days and time in Flows. Choosing **Schedule…** again opens the same flow. Scheduled runs only happen while the app is open. See [Schedules](flows.md#schedules).
 
 ## Exporting suites
 
