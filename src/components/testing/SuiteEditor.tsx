@@ -15,6 +15,9 @@ import { OverflowMenu } from "../shell/OverflowMenu";
 import { useToast } from "../shell/Toast";
 import { reinsert, removeById } from "../../lib/listUndo";
 import { dropIndex, moveItem, reorderAnnouncement } from "../../lib/reorder";
+import { flowsUsing, usedByLabel } from "../../lib/flows/usedBy";
+import type { Flow } from "../../lib/flows/types";
+import { sameRequest } from "../../lib/testing/requestSame";
 import { CaseEditor } from "./CaseEditor";
 import { RequestPicker } from "./RequestPicker";
 
@@ -51,6 +54,9 @@ interface Props {
   /** The selected environment has a colour: Run suite is outlined and says where it runs. */
   guard?: { color: "green" | "blue" | "amber" | "red"; cssColor: string; runSuite: string } | null;
   notice: string | null;
+  /** Saved flows, to say which ones use this suite and its cases. */
+  flows: Flow[];
+  onOpenFlow: (flowId: string, nodeId: string) => void;
 }
 
 /** A case's path for the collapsed card: the URL without its {{baseUrl}} or host. */
@@ -74,6 +80,7 @@ export function SuiteEditor(props: Props) {
   // Re-read saved requests when a different case opens, to pick up edits made in Requests mode.
   const sources = useMemo(() => listPickableRequests(), [openCaseId]);
 
+  const suiteUses = useMemo(() => flowsUsing(props.flows, suite.id), [props.flows, suite.id]);
   const setCases = (cases: TestCase[]) => onChange({ ...suite, cases });
   const updateCase = (tc: TestCase) => setCases(suite.cases.map((c) => (c.id === tc.id ? tc : c)));
   const move = (index: number, by: number) => setCases(moveItem(suite.cases, index, index + by));
@@ -180,6 +187,15 @@ export function SuiteEditor(props: Props) {
           ) : (
             <span className="muted small">{summary}</span>
           )}
+          {suiteUses.length > 0 && (
+            <OverflowMenu
+              label={`Flows that run this suite`}
+              triggerClass="link-btn small used-by"
+              triggerTitle="Flows with a Run suite step for this suite"
+              trigger={<>Used by {suiteUses.length} {suiteUses.length === 1 ? "flow" : "flows"} ▾</>}
+              items={suiteUses.map((u) => ({ label: u.flowName, icon: "→", onSelect: () => props.onOpenFlow(u.flowId, u.nodeId) }))}
+            />
+          )}
           <input
             className="suite-description"
             value={suite.description}
@@ -280,8 +296,9 @@ export function SuiteEditor(props: Props) {
                         if (!taken) return;
                         setCases(taken.list);
                         onOpenCase(null);
+                        const uses = flowsUsing(props.flows, suite.id, c.id);
                         toast.show({
-                          message: `Deleted "${c.name}"`,
+                          message: `Deleted "${c.name}"${uses.length ? `. ${usedByLabel(uses)}` : ""}`,
                           onUndo: () => {
                             const cur = propsRef.current.suite;
                             propsRef.current.onChange({ ...cur, cases: reinsert(cur.cases, taken.item, taken.index) });
@@ -296,6 +313,9 @@ export function SuiteEditor(props: Props) {
                       latest={latest}
                       sourceName={source?.path.join(" › ")}
                       onRefreshFromSource={source ? () => updateCase({ ...c, request: { ...structuredClone(source.request), id: c.request.id } }) : undefined}
+                      sourceChanged={!!source && !sameRequest(c.request, source.request)}
+                      usedBy={flowsUsing(props.flows, suite.id, c.id)}
+                      onOpenFlow={props.onOpenFlow}
                       envVars={props.envVars}
                       envName={props.envName}
                       locked={props.running}

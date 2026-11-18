@@ -52,6 +52,8 @@ export type ShellCommand =
   | { type: "action"; nonce: number; action: RequestsAction }
   /** Flows: read flows from storage, open one, and select a step (its settings open). */
   | { type: "open-flow"; nonce: number; flowId: string; nodeId?: string }
+  /** Testing: open a suite, and one of its cases when `caseId` is given. */
+  | { type: "open-suite"; nonce: number; suiteId: string; caseId?: string }
   /** Testing: test runs were saved elsewhere (a flow's Run suite step), so read the list again. */
   | { type: "runs-changed"; nonce: number };
 
@@ -190,6 +192,10 @@ export default function Root() {
       setSection("flows");
       send("flows", { type: "open-flow", nonce: Date.now(), flowId, nodeId });
     },
+    onOpenSuite: (suiteId, caseId) => {
+      setSection("testing");
+      send("testing", { type: "open-suite", nonce: Date.now(), suiteId, caseId });
+    },
     onOpenFlowRun: (id) => {
       setSection("flows");
       send("flows", { type: "open", item: { kind: "flow-run", id, title: "", detail: "" }, nonce: Date.now(), permanent: true });
@@ -316,6 +322,8 @@ export interface ShellProps {
   onOpenRequest: (id: string) => void;
   /** Switches to Flows, reads flows from storage, opens one and selects a step. */
   onOpenFlow: (flowId: string, nodeId?: string) => void;
+  /** Switches to Testing and opens a suite, and one of its cases when given. */
+  onOpenSuite: (suiteId: string, caseId?: string) => void;
   /** Switches to Flows and opens a saved flow run's report. */
   onOpenFlowRun: (runId: string) => void;
   /** A mode wrote saved data that another mode holds in memory (Flows importing suites or requests). */

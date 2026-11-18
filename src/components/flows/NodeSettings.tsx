@@ -30,6 +30,10 @@ interface Props {
   onChange: (node: FlowNode) => void;
   onDelete: () => void;
   onClose: () => void;
+  /** Run suite / Run case steps: switch to Testing with this suite (and case) open. */
+  onOpenSuite?: (suiteId: string, caseId?: string) => void;
+  /** Run request steps: switch to Requests with this saved request open. */
+  onOpenRequest?: (requestId: string) => void;
   /** The flow is running: show the settings but do not let them change. */
   locked?: boolean;
 }
@@ -334,7 +338,7 @@ function ScheduleEditor({ node, state, environments, switchEnvId, onChange }: { 
 const MAX_LOOP_CSV = 2 * 1024 * 1024;
 
 /** Settings for the selected node, in the right-hand panel. */
-export function NodeSettings({ node, items, problems, scheduleState, environments, switchEnvId, lastCall, onChange, onDelete, onClose, locked = false }: Props) {
+export function NodeSettings({ node, items, problems, scheduleState, environments, switchEnvId, lastCall, onChange, onDelete, onClose, onOpenSuite, onOpenRequest, locked = false }: Props) {
   useEscape(onClose);
   const mine = problems.filter((p) => p.nodeId === node.id);
   const autoLabel = nodeLabel({ ...node, label: "" }, items.suites, items.findRequest);
@@ -404,6 +408,11 @@ export function NodeSettings({ node, items, problems, scheduleState, environment
           </select>
         </label>
       )}
+      {(node.type === "run-case" || node.type === "run-suite") && suite && onOpenSuite && (
+        <button className="link-btn small open-link" onClick={() => onOpenSuite?.(suite.id, node.type === "run-case" && suite.cases.some((c) => c.id === node.caseId) ? node.caseId : undefined)}>
+          Open in Testing
+        </button>
+      )}
       {node.type === "run-case" && <p className="muted small">Runs once with its scripts and assertions, using the suite's run settings. Edits to the case in Testing apply here too.</p>}
       {node.type === "run-suite" && <p className="muted small">Runs the whole suite as Run suite does in Testing: its run order, repeat and CSV data. Passes when every case passes.</p>}
 
@@ -419,6 +428,12 @@ export function NodeSettings({ node, items, problems, scheduleState, environment
             {node.httpErrorsFail !== false ? ", and the status is below 400." : ". With the switch off, a 4xx/5xx alone does not fail it."}
           </p>
         </>
+      )}
+
+      {node.type === "run-request" && node.requestId && onOpenRequest && items.requests.some((r) => r.id === node.requestId) && (
+        <button className="link-btn small open-link" onClick={() => onOpenRequest?.(node.requestId)}>
+          Open in Requests
+        </button>
       )}
 
       {node.type === "run-request" && <ChecksEditor assertions={node.assertions ?? []} lastCall={lastCall} onChange={(assertions) => onChange({ ...node, assertions })} />}
