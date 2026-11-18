@@ -137,7 +137,7 @@ The suite header reads **Running · iteration 3 of 12** (or **Running · 2 of 5*
 
 ## Reports
 
-When a run ends it is saved (the last 50 runs are kept, as Test runs in the sidebar, with the passed and failed counts). The **Last run** panel shows the latest run of the open suite: cases passed, a pass/fail bar, iterations, checks, average time, 95th percentile, and the failures **grouped by case and check**, most frequent first, for example "Get ticket · Response time < 250 ms · 8 of 12 rows · worst 371 ms". Click a group to open the report filtered to that case and check. A case that failed without a check (a script error, or no response) appears as "Not sent", "No response" or "Failed". In the report, **Failures first** (on by default for runs that used CSV data) lists failed rows before passed ones, and a chip shows the case and check filter. **Export HTML** and **Export CSV** are in the panel.
+When a run ends it is saved (the last 50 runs are kept, scheduled and flow-started runs included, as Test runs in the sidebar, with the passed and failed counts). The **Last run** panel shows the latest run of the open suite: cases passed, a pass/fail bar, iterations, checks, average time, 95th percentile, and the failures **grouped by case and check**, most frequent first, for example "Get ticket · Response time < 250 ms · 8 of 12 rows · worst 371 ms". Click a group to open the report filtered to that case and check. A case that failed without a check (a script error, or no response) appears as "Not sent", "No response" or "Failed". In the report, **Failures first** (on by default for runs that used CSV data) lists failed rows before passed ones, and a chip shows the case and check filter. **Export HTML** and **Export CSV** are in the panel.
 
 Opening a run (from the sidebar, the panel, or Quick open) shows the full report. For a run that used a CSV file, switch **List / Grid** above the results: the grid has one row per CSV row and one column per case, each cell green or red with its status code, failures first when that is on. Click a cell to open that result.
 
@@ -152,6 +152,12 @@ The **HTML report** is a self-contained file with the same content, filters (All
 `iteration`, `csv_row`, `repeat`, `case_number`, `case`, `result`, `checks_passed`, `checks_total`, `failed_checks`, `all_checks`, `status`, `duration_ms`, `started_at`, `method`, `url`, `request_headers`, `request_body`, `response_headers`, `response_body`, `error`, `script_output`, `notes`, then a `var:<column>` column per CSV column.
 
 Response bodies over 1 MB are cut to 1 MB in saved runs.
+
+A run that a flow started (a **Run suite** step) is saved here too, as its own copy. The Test runs list and the **Last run** panel mark it "via flow Nightly regression", with a clock (⏱) when a schedule started it, and show the environment it used. The report header shows the same, with an **Open flow run** link. Deleting the flow run does not delete the copy in Testing, and the other way round. Scheduled runs share the same 50-run limit as the runs you start here.
+
+## Scheduling a suite
+
+Open the suite's **⋯** menu and choose **Schedule…**. REST Runner opens the flow that runs this suite on a schedule: a Schedule step wired to a Run suite step. If there is none yet it makes one named "<suite name> schedule" (Weekdays at 07:30) and **switches it off**, so nothing runs by surprise. Turn it on and pick the days and time in Flows. Choosing **Schedule…** again opens the same flow. Scheduled runs only happen while the app is open. See [Schedules](flows.md#schedules).
 
 ## Exporting suites
 

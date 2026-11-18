@@ -10,7 +10,7 @@ import type { TestRun } from "../../lib/testing/testRun";
 import type { CaseResult, RunMode, TestCase, TestSuite } from "../../lib/testing/types";
 import { detectVarSets } from "../../lib/testing/varsDetect";
 import { WithPlaceholders } from "../request/RequestEditor";
-import { CheckIcon, CopyIcon, CrossIcon, PlayFilledIcon, SlidersIcon, TrashIcon } from "../shell/Icons";
+import { CheckIcon, CopyIcon, ClockIcon, CrossIcon, PlayFilledIcon, SlidersIcon, TrashIcon } from "../shell/Icons";
 import { OverflowMenu } from "../shell/OverflowMenu";
 import { useToast } from "../shell/Toast";
 import { reinsert, removeById } from "../../lib/listUndo";
@@ -29,6 +29,8 @@ interface Props {
   onChange: (suite: TestSuite) => void;
   onDelete: () => void;
   onDuplicate: () => void;
+  /** Opens (or makes) the flow that runs this suite on a schedule. */
+  onSchedule: () => void;
   openCaseId: string | null;
   onOpenCase: (id: string | null) => void;
   onOpenSettings: () => void;
@@ -200,6 +202,7 @@ export function SuiteEditor(props: Props) {
           label="Suite actions"
           items={[
             { label: "Duplicate suite", icon: <CopyIcon />, onSelect: props.onDuplicate },
+            { label: "Schedule…", icon: <ClockIcon />, onSelect: props.onSchedule, title: "Run this suite at set times, from a flow in Flows" },
             { label: "Delete suite", icon: <TrashIcon />, onSelect: props.onDelete, danger: true, disabled: props.running, title: props.running ? "Stop the run first" : undefined, separated: true },
           ]}
         />

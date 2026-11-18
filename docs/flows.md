@@ -49,7 +49,7 @@ Different flows can run at the same time (for example, a scheduled flow while yo
 | **Start** | Where a run begins when you press Run. A flow has at most one. | next |
 | **Schedule** | Starts the flow on a timer while the app is open. See [Schedules](#schedules). Nothing can be wired into it. | next |
 | **Run case** | Runs one case from a suite, with its scripts and assertions, using that suite's run settings (for example "4xx/5xx fail the case" and the script time limit). It runs once and does not use the suite's CSV. | passed, failed |
-| **Run suite** | Runs a whole suite exactly like **Run suite** in Testing: its run order, repeat count and CSV data. It passes when every case in every iteration passes. | passed, failed |
+| **Run suite** | Runs a whole suite exactly like **Run suite** in Testing: its run order, repeat count and CSV data. It passes when every case in every iteration passes. Its report is also saved to Test runs in Testing, marked "via flow …". | passed, failed |
 | **Run request** | Runs a saved request (or saved example) with its pre-request and post-response scripts. It passes when a response comes back, every `rr.test` in its scripts passes, and the status is below 400. Each Run request step has a **4xx/5xx counts as failed** checkbox in its settings (on by default); turn it off for a step where an error response is expected and you check it yourself. The card shows the status code of its last response. | passed, failed |
 | **If** | Checks a condition and goes down **true** or **false**. See [Conditions](#conditions). | true, false |
 | **Parallel** | Starts every step wired to **branches** at the same time. See [Parallel and Join](#parallel-and-join). | branches (any number of wires) |

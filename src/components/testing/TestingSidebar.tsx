@@ -1,6 +1,6 @@
 import { whenLabel } from "../../lib/earlierSends";
 import { ImportButton } from "../shell/ImportButton";
-import type { TestRunSummary } from "../../lib/testing/testRun";
+import { sourceLabel, type TestRunSummary } from "../../lib/testing/testRun";
 import type { TestSuite } from "../../lib/testing/types";
 import { CollapseIcon } from "../shell/Icons";
 
@@ -48,7 +48,7 @@ export function TestingSidebar({ collapsed, onToggleCollapsed, suites, activeSui
             <optgroup label="Test runs">
               {runs.map((r) => (
                 <option key={r.id} value={`run:${r.id}`}>
-                  {r.suiteName} · {whenLabel(r.startedAt)} · {r.passed} passed{r.failed ? `, ${r.failed} failed` : ""}
+                  {r.source ? `${sourceLabel(r.source)} · ` : ""}{r.suiteName} · {whenLabel(r.startedAt)} · {r.passed} passed{r.failed ? `, ${r.failed} failed` : ""}
                 </option>
               ))}
             </optgroup>
@@ -111,9 +111,9 @@ ${s.description}` : s.name}
               key={r.id}
               className={`nav-row run-row ${activeRunId === r.id ? "active" : ""}`}
               onClick={() => onOpenRun(r.id)}
-              title={`${r.suiteName}${r.csvName ? `\n${r.csvName}` : ""}`}
+              title={`${r.suiteName}${r.csvName ? `\n${r.csvName}` : ""}${r.source ? `\n${sourceLabel(r.source)}` : ""}`}
             >
-              <span className="nav-row-name">{r.suiteName}</span>
+              <span className="nav-row-name">{r.source && r.source.trigger !== "manual" ? "⏱ " : ""}{r.suiteName}</span>
               <span className="muted">{whenLabel(r.startedAt)}</span>
               <span className="mono tone-ok">{r.passed}</span>
               {r.failed > 0 && <span className="mono tone-bad">{r.failed}✕</span>}
