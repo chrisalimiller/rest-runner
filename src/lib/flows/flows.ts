@@ -35,13 +35,14 @@ export function newFlow(name = "New flow"): Flow {
 }
 
 /** A node of the given type with empty settings. */
-export function newNode(type: FlowNodeType, position: FlowPosition = { x: 0, y: 0 }): FlowNode {
+export function newNode(type: FlowNodeType, position: FlowPosition = { x: 0, y: 0 }, environmentId?: string | null): FlowNode {
   const base = { id: newId(), position };
   switch (type) {
     case "start":
       return { ...base, type };
     case "schedule":
-      return { ...base, type, schedule: { ...DEFAULT_SCHEDULE }, enabled: true };
+      // A new schedule pins the environment selected in Flows now (when given), so it keeps running there.
+      return { ...base, type, schedule: { ...DEFAULT_SCHEDULE }, enabled: true, ...(environmentId !== undefined ? { environmentId } : {}) };
     case "run-case":
       return { ...base, type, suiteId: "", caseId: "", retry: { ...NO_RETRY } };
     case "run-suite":
@@ -169,7 +170,13 @@ function cleanNode(v: unknown): FlowNode | null {
     case "start":
       return { ...base, type };
     case "schedule":
-      return { ...base, type, schedule: cleanSchedule(n.schedule), enabled: n.enabled !== false };
+      return {
+        ...base,
+        type,
+        schedule: cleanSchedule(n.schedule),
+        enabled: n.enabled !== false,
+        ...(n.environmentId === null || typeof n.environmentId === "string" ? { environmentId: n.environmentId } : {}),
+      };
     case "run-case":
       return { ...base, type, suiteId: str(n.suiteId), caseId: str(n.caseId), retry: cleanRetry(n.retry) };
     case "run-suite":
@@ -281,10 +288,10 @@ export function freeSpotRightOf(flow: Flow, from: FlowPosition): FlowPosition {
  * step has an input and an output is given, wires it from that output. An output that already has a
  * wire (and takes only one) is rewired to the new step. Returns the flow unchanged when the step is missing.
  */
-export function addStepAfter(flow: Flow, nodeId: string, output: FlowOutput | null, type: FlowNodeType): { flow: Flow; node: FlowNode | null } {
+export function addStepAfter(flow: Flow, nodeId: string, output: FlowOutput | null, type: FlowNodeType, environmentId?: string | null): { flow: Flow; node: FlowNode | null } {
   const from = flow.nodes.find((n) => n.id === nodeId);
   if (!from) return { flow, node: null };
-  const node = newNode(type, freeSpotRightOf(flow, from.position));
+  const node = newNode(type, freeSpotRightOf(flow, from.position), environmentId);
   let edges = flow.edges;
   if (output && canFollow(type) && NODE_OUTPUTS[from.type].includes(output)) {
     const multi = MULTI_WIRE_OUTPUTS.includes(output);
@@ -297,11 +304,11 @@ export function addStepAfter(flow: Flow, nodeId: string, output: FlowOutput | nu
  * Adding from the palette by click: next to the selected step wired from its first free output, or
  * (with nothing selected) next to the last step that is not a note.
  */
-export function addStepFromPalette(flow: Flow, selectedId: string | null, type: FlowNodeType): { flow: Flow; node: FlowNode | null } {
+export function addStepFromPalette(flow: Flow, selectedId: string | null, type: FlowNodeType, environmentId?: string | null): { flow: Flow; node: FlowNode | null } {
   const anchor = (selectedId && flow.nodes.find((n) => n.id === selectedId)) || [...flow.nodes].reverse().find((n) => n.type !== "note") || null;
   if (!anchor) {
-    const node = newNode(type, { x: 80, y: 160 });
+    const node = newNode(type, { x: 80, y: 160 }, environmentId);
     return { flow: { ...flow, nodes: [...flow.nodes, node] }, node };
   }
-  return addStepAfter(flow, anchor.id, firstFreeOutput(flow, anchor.id), type);
+  return addStepAfter(flow, anchor.id, firstFreeOutput(flow, anchor.id), type, environmentId);
 }

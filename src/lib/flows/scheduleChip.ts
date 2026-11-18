@@ -1,4 +1,6 @@
+import type { Environment } from "../environments";
 import { describeSchedule, nextDueAfter } from "./schedule";
+import { scheduleEnvironment, scheduleEnvironmentText } from "./scheduleEnv";
 import type { Flow, FlowRunSummary } from "./types";
 
 export interface ScheduleChip {
@@ -8,6 +10,10 @@ export interface ScheduleChip {
   label: string;
   /** "next 09:00", "next tomorrow 09:00" or "off"; empty when no next time can be worked out. */
   next: string;
+  /** The environment it runs in: its name, "No environment", "Flows switch" or "Environment deleted". */
+  environment: string;
+  /** The environment itself, for its colour dot; null when none applies. */
+  env: Environment | null;
   /** How many Schedule steps the flow has (the chip shows the first). */
   count: number;
 }
@@ -21,7 +27,7 @@ function sameDay(a: Date, b: Date): boolean {
 }
 
 /** The flow's schedule as one line for its header, or null when it has no Schedule step. */
-export function scheduleChip(flow: Flow, now: Date): ScheduleChip | null {
+export function scheduleChip(flow: Flow, now: Date, environments: Environment[] = [], switchId: string | null = null): ScheduleChip | null {
   const nodes = flow.nodes.filter((n): n is Extract<typeof n, { type: "schedule" }> => n.type === "schedule");
   if (nodes.length === 0) return null;
   const node = nodes.find((n) => n.enabled) ?? nodes[0];
@@ -32,7 +38,8 @@ export function scheduleChip(flow: Flow, now: Date): ScheduleChip | null {
     const tomorrow = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
     next = sameDay(due, now) ? `next ${clock(due)}` : sameDay(due, tomorrow) ? `next tomorrow ${clock(due)}` : `next ${due.toLocaleDateString(undefined, { weekday: "short" })} ${clock(due)}`;
   }
-  return { nodeId: node.id, enabled: node.enabled, label: describeSchedule(node.schedule), next, count: nodes.length };
+  const resolved = scheduleEnvironment(node, environments, switchId);
+  return { nodeId: node.id, enabled: node.enabled, label: describeSchedule(node.schedule), next, environment: scheduleEnvironmentText(resolved), env: resolved.env, count: nodes.length };
 }
 
 /** What starts a run, for lists: "Scheduled · Daily at 09:00", or null for the Run button. */

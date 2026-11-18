@@ -1,9 +1,10 @@
 import { setBusy } from "../../lib/busyWork";
 import { setSectionStatus } from "../../lib/sectionStatus";
 import { scheduleChip } from "../../lib/flows/scheduleChip";
+import { scheduleEnvironment, scheduleEnvironmentText } from "../../lib/flows/scheduleEnv";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cleanCollections } from "../../lib/collections";
-import { environmentVars, guardFor, guardStyle, loadEnvironments, mergeHydrated, onSecretsHydrated, saveEnvironments, type Environment } from "../../lib/environments";
+import { ENV_COLOR_VARS, environmentVars, guardFor, guardStyle, loadEnvironments, mergeHydrated, onSecretsHydrated, saveEnvironments, type Environment } from "../../lib/environments";
 import { SectionVariablesPanel } from "../variables/SectionVariablesPanel";
 import { flowPlaceholders } from "../../lib/usedVariables";
 
@@ -165,7 +166,7 @@ export function FlowsApp({ active, shell, command }: Props) {
     saveEnvironments(envs);
   }, []);
   const usedNames = useMemo(() => (flow ? flowPlaceholders(flow, items) : []), [flow, items]);
-  const problems = useMemo(() => (flow && !readOnly ? validateFlow(flow, items.suites, items.findRequest) : []), [flow, items, readOnly]);
+  const problems = useMemo(() => (flow && !readOnly ? validateFlow(flow, items.suites, items.findRequest, { environmentIds: environments.map((e) => e.id) }) : []), [flow, items, readOnly, environments]);
   // A run deleted with Undo pending is already gone from the Last run panel.
   const latestRunId = flow && !readOnly ? (runs.find((r) => r.flowId === flow.id && !runDelete.hidden.has(r.id))?.id ?? null) : null;
   const liveRun = flow ? (lives[flow.id] ?? null) : null;
@@ -247,7 +248,9 @@ export function FlowsApp({ active, shell, command }: Props) {
     setItems(fresh);
     // Read environments now: a scheduled run can start while another mode is open.
     const envs = loadEnvironments();
-    const runEnv = envs.find((e) => e.id === envIdRef.current) ?? null;
+    // A Schedule step that pins an environment runs in it; a manual Run, or a step that pins none, uses the top-bar switch.
+    const entry = entryNodeId ? f.nodes.find((n) => n.id === entryNodeId) : undefined;
+    const runEnv = entry?.type === "schedule" ? scheduleEnvironment(entry, envs, envIdRef.current).env : (envs.find((e) => e.id === envIdRef.current) ?? null);
     const controller = new AbortController();
     aborts.current.set(f.id, controller);
     // The run panel takes the right-hand side; a step picked while it runs shows read-only settings.
@@ -327,9 +330,11 @@ export function FlowsApp({ active, shell, command }: Props) {
             } else if (d.action === "skip") {
               next[n.id] = { ...state, key, handledDue: d.due, skipped: { due: d.due, reason: d.reason } };
             } else {
-              const blocked = hasErrors(validateFlow(f, fresh.suites, fresh.findRequest, { entryNodeId: n.id }));
+              const envs = loadEnvironments();
+              const blocked = hasErrors(validateFlow(f, fresh.suites, fresh.findRequest, { entryNodeId: n.id, environmentIds: envs.map((e) => e.id) }));
+              const reason = scheduleEnvironment(n, envs, envIdRef.current).missing ? "its environment was deleted" : "the flow has problems to fix";
               next[n.id] = blocked
-                ? { ...state, key, handledDue: d.due, skipped: { due: d.due, reason: "the flow has problems to fix" } }
+                ? { ...state, key, handledDue: d.due, skipped: { due: d.due, reason } }
                 : { ...state, key, handledDue: d.due, ranDue: d.due };
               if (!blocked) toRun.push([f, n.id]);
             }
@@ -351,24 +356,29 @@ export function FlowsApp({ active, shell, command }: Props) {
     const now = new Date();
     for (const f of flows) {
       let next: Date | null = null;
+      let nextEnv = "";
       let skipped: { due: string; reason: string } | undefined;
       for (const n of f.nodes) {
         if (n.type !== "schedule" || !n.enabled) continue;
         const due = nextDueAfter(n.schedule, now);
-        if (due && (!next || due < next)) next = due;
+        if (due && (!next || due < next)) {
+          next = due;
+          nextEnv = scheduleEnvironmentText(scheduleEnvironment(n, environments, envId));
+        }
         const s = schedules[n.id]?.skipped;
         if (s && (!skipped || s.due > skipped.due)) skipped = s;
       }
       if (next || skipped) {
         out[f.id] = {
           next: next ? timeLabel(next.toISOString()) : undefined,
+          environment: next ? nextEnv : undefined,
           skipped: skipped ? `Skipped the ${timeLabel(skipped.due)} run: ${skipped.reason}.` : undefined,
         };
       }
     }
     return out;
     // Recomputed when the scheduler state changes, which happens at least on every due time.
-  }, [flows, schedules]);
+  }, [flows, schedules, environments, envId]);
 
   const duplicateFlow = (source: Flow) => {
     const copy = { ...structuredClone(source), id: newId(), name: `${source.name} copy` };
@@ -484,7 +494,7 @@ export function FlowsApp({ active, shell, command }: Props) {
   useEffect(() => setBusy("flows", anyFlowRunning), [anyFlowRunning]);
   useEffect(() => setSectionStatus("flows", { running: anyFlowRunning }), [anyFlowRunning]);
   const warningCount = problems.filter((p) => p.level === "warning").length;
-  const chip = flow ? scheduleChip(flow, new Date()) : null;
+  const chip = flow ? scheduleChip(flow, new Date(), environments, envId) : null;
   const guard = guardFor(environments.find((e) => e.id === envId));
   const selected = flow && selectedId ? (flow.nodes.find((n) => n.id === selectedId) ?? null) : null;
   const labelFor = (id: string) => {
@@ -594,10 +604,12 @@ export function FlowsApp({ active, shell, command }: Props) {
                       </button>
                     )}
                     {chip && (
-                      <label className={`schedule-chip ${chip.enabled ? "on" : "off"}`} title={`${chip.label}${chip.count > 1 ? ` (first of ${chip.count} schedules)` : ""}. Runs only while the app is open.`}>
+                      <label className={`schedule-chip ${chip.enabled ? "on" : "off"}`} title={`${chip.label} · ${chip.environment}${chip.count > 1 ? ` (first of ${chip.count} schedules)` : ""}. Runs only while the app is open.`}>
                         <span aria-hidden>⏱</span>
                         <span className="schedule-text">
-                          {chip.label}
+                          {chip.label} ·{" "}
+                          {chip.env && chip.env.color && chip.env.color !== "none" && <span className="env-dot" style={{ background: ENV_COLOR_VARS[chip.env.color] }} aria-hidden />}
+                          {chip.environment}
                           {chip.next ? ` · ${chip.next}` : ""}
                         </span>
                         <input
@@ -656,6 +668,7 @@ export function FlowsApp({ active, shell, command }: Props) {
                 focusNodeId={focus?.id ?? null}
                 focusNonce={focus?.nonce ?? 0}
                 deselectNonce={deselectNonce}
+                environmentId={envId}
               />
             </main>
             {selected && !readOnly ? (
@@ -665,6 +678,8 @@ export function FlowsApp({ active, shell, command }: Props) {
                 items={items}
                 problems={problems}
                 scheduleState={selected.type === "schedule" ? schedules[selected.id] : undefined}
+                environments={environments}
+                switchEnvId={envId}
                 onChange={updateNode}
                 onDelete={() => deleteNode(selected.id)}
                 onClose={closeSettings}
