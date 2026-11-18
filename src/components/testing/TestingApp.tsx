@@ -17,6 +17,8 @@ import { planIterations, runCase, runUpTo, runSuite } from "../../lib/testing/ru
 import { useScriptRunner } from "../../lib/testing/useScriptRunner";
 import { cleanSuites, newSuite } from "../../lib/testing/suites";
 import { buildTestRun, type TestRunSummary } from "../../lib/testing/testRun";
+import { ensureScheduleFlow } from "../../lib/flows/suiteSchedule";
+import { loadFlows, saveFlows } from "../../lib/flows/flows";
 import { deleteTestRun, listTestRuns, saveTestRun } from "../../lib/testing/testRunStore";
 import { importSuitesFile, toSuitesFile } from "../../lib/testing/suiteFile";
 import type { CaseResult, TestCase, TestSuite } from "../../lib/testing/types";
@@ -310,12 +312,26 @@ export function TestingApp({ active, shell, command }: Props) {
     if (!command || lastCommand.current === command.nonce) return;
     lastCommand.current = command.nonce;
     if (command.type === "open") openItem(command.item);
+    if (command.type === "runs-changed") refreshRuns();
     if (command.type === "reload") {
       setSuites(cleanSuites(load(SUITES_KEY, [])));
       setEnvironments(loadEnvironments());
       setEnvId(load<string | null>(TEST_ENV_KEY, null, isString));
     }
   }, [command]);
+
+  /** Suite ⋯ › Schedule…: open the suite's schedule flow in Flows, making a switched-off one first when there is none. */
+  const scheduleSuite = (s: TestSuite) => {
+    const made = ensureScheduleFlow(loadFlows(), s);
+    if (made.created) {
+      if (!saveFlows(made.flows)) {
+        setNotice("Could not save the schedule: local storage is full.");
+        return;
+      }
+      toast.show({ message: `Made the flow "${made.flow.name}". It is switched off until you turn it on.` });
+    }
+    shell.onOpenFlow(made.flow.id, made.scheduleNodeId);
+  };
 
   const suiteLive = live && suite && live.suiteId === suite.id ? live : null;
 
@@ -373,6 +389,7 @@ export function TestingApp({ active, shell, command }: Props) {
               initialIndex={report.index}
               initialCheck={report.check}
               onBack={() => setOpenRunId(null)}
+              onOpenFlowRun={shell.onOpenFlowRun}
               onDelete={(id) => {
                 runDelete.request(id, "Deleted the test run");
                 setOpenRunId(null);
@@ -384,6 +401,7 @@ export function TestingApp({ active, shell, command }: Props) {
             <SuiteEditor
               suite={suite}
               onChange={updateSuite}
+              onSchedule={() => scheduleSuite(suite)}
               onDelete={() => {
                 const taken = removeById(suites, suite.id);
                 if (!taken) return;
