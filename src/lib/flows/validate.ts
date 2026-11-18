@@ -19,6 +19,8 @@ export interface ValidateOptions {
 
 /** Sources whose `property` must be filled in. */
 const NEEDS_PROPERTY = new Set(["header", "variable"]);
+/** Sources of a Run request check whose `property` must be filled in. */
+const NEEDS_ASSERTION_PROPERTY = new Set(["header", "json"]);
 
 function itemProblems(node: FlowNode, suites: TestSuite[], findRequest: RequestLookup): string[] {
   switch (node.type) {
@@ -89,6 +91,12 @@ export function validateFlow(flow: Flow, suites: TestSuite[], findRequest: Reque
 
   for (const node of flow.nodes) {
     for (const message of itemProblems(node, suites, findRequest)) problems.push({ level: "error", nodeId: node.id, message });
+    if (node.type === "run-request") {
+      for (const a of node.assertions ?? []) {
+        if (!a.enabled || !NEEDS_ASSERTION_PROPERTY.has(a.source) || a.property.trim() !== "") continue;
+        problems.push({ level: "warning", nodeId: node.id, message: a.source === "json" ? "A check has no JSON path, so it will fail. Enter one or turn the check off." : "A check has no header name, so it will fail. Enter one or turn the check off." });
+      }
+    }
     if (node.type === "run-case") {
       const tc = suites.find((s) => s.id === node.suiteId)?.cases.find((c) => c.id === node.caseId);
       if (tc && !tc.enabled) problems.push({ level: "warning", nodeId: node.id, message: `"${tc.name}" is turned off in its suite. The flow runs it anyway.` });

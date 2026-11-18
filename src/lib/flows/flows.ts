@@ -1,6 +1,7 @@
 import { newId } from "../ids";
 import { load, save } from "../storage";
 import { DEFAULT_SCHEDULE, describeSchedule, type Schedule } from "./schedule";
+import { cleanAssertions } from "../testing/suites";
 import { ASSERTION_OPS, type TestSuite } from "../testing/types";
 import type { RequestDef } from "../types";
 import {
@@ -175,7 +176,7 @@ function cleanNode(v: unknown): FlowNode | null {
     case "run-suite":
       return { ...base, type, suiteId: str(n.suiteId), retry: cleanRetry(n.retry) };
     case "run-request":
-      return { ...base, type, requestId: str(n.requestId), retry: cleanRetry(n.retry), httpErrorsFail: n.httpErrorsFail === false ? false : true };
+      return { ...base, type, requestId: str(n.requestId), retry: cleanRetry(n.retry), httpErrorsFail: n.httpErrorsFail === false ? false : true, ...(Array.isArray(n.assertions) && cleanAssertions(n.assertions).length ? { assertions: cleanAssertions(n.assertions) } : {}) };
     case "if":
       return { ...base, type, condition: cleanCondition(n.condition) };
     case "parallel":

@@ -64,6 +64,7 @@ export function StepNodeView({ data, selected }: NodeProps<StepRFNode>) {
   const { node, label, detail, status, runs, statusCode, problem, problemText, addable, hintAdd } = data;
   const actions = useContext(CanvasActions);
   const outputs = NODE_OUTPUTS[node.type];
+  const checkCount = node.type === "run-request" ? (node.assertions ?? []).filter((a) => a.enabled).length : 0;
   const retry = "retry" in node && node.retry.times > 0 ? node.retry.times : 0;
   // Zoomed far out, a card keeps only its colour and name, drawn big enough to read. 0 means normal size.
   const compactZoom = useStore((s) => (s.transform[2] < COMPACT_ZOOM ? Math.max(0.2, Math.round(s.transform[2] * 20) / 20) : 0));
@@ -103,6 +104,11 @@ export function StepNodeView({ data, selected }: NodeProps<StepRFNode>) {
         {runs !== undefined && runs > 1 && (
           <span className="flow-node-badge" title={`Ran ${runs} times in this run (a loop, a retry or a repeated branch)`}>
             {runs} runs
+          </span>
+        )}
+        {node.type === "run-request" && checkCount > 0 && (
+          <span className="flow-node-badge" title={`${checkCount} check${checkCount === 1 ? "" : "s"} on the response`}>
+            {checkCount} check{checkCount === 1 ? "" : "s"}
           </span>
         )}
         {node.type === "run-request" && statusCode !== undefined && (

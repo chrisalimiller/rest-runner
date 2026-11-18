@@ -105,6 +105,35 @@ describe("cleanFlows", () => {
   });
 });
 
+describe("Run request checks", () => {
+  const stepWith = (assertions: unknown): Flow => {
+    const f = newFlow("F");
+    return { ...f, nodes: [...f.nodes, { ...newNode("run-request"), requestId: "r", assertions } as FlowNode] };
+  };
+  const good = { id: "a1", enabled: true, source: "json", property: "$.id", op: "eq", expected: "1" };
+
+  it("keeps checks and drops ones that cannot be used", () => {
+    const [clean] = cleanFlows([stepWith([good, { id: "a2", source: "status", op: "nonsense" }, null])]);
+    expect(clean.nodes[1]).toMatchObject({ assertions: [good] });
+  });
+
+  it("loads a step without the field as having none", () => {
+    const [clean] = cleanFlows([stepWith(undefined)]);
+    expect("assertions" in clean.nodes[1]).toBe(false);
+    expect(newNode("run-request")).not.toHaveProperty("assertions");
+  });
+
+  it("warns, not errors, on a check with no JSON path or header name", () => {
+    const req = { ...newRequest(), id: "r" };
+    const flow = stepWith([{ ...good, property: "" }, { ...good, id: "a3", source: "header", property: " ", op: "eq" }]);
+    const problems = validateFlow(flow, [], (id) => (id === "r" ? req : null)).filter((p) => p.nodeId === flow.nodes[1].id && /check/.test(p.message));
+    expect(problems).toHaveLength(2);
+    expect(problems.every((p) => p.level === "warning")).toBe(true);
+    const filled = validateFlow(stepWith([good]), [], (id) => (id === "r" ? req : null));
+    expect(filled.some((p) => /check/.test(p.message))).toBe(false);
+  });
+});
+
 describe("Run request switch", () => {
   const raw = (extra: object) => {
     const f = newFlow("F");

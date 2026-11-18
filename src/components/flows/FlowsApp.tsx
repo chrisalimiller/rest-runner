@@ -22,6 +22,7 @@ import { newId } from "../../lib/ids";
 import { saveTextFile } from "../../lib/saveFile";
 import { isPlainObject, isString, load, save } from "../../lib/storage";
 import { useScriptRunner } from "../../lib/testing/useScriptRunner";
+import type { CaseResult } from "../../lib/testing/types";
 import type { ShellCommand, ShellProps } from "../../Root";
 import { CopyIcon, TrashIcon } from "../shell/Icons";
 import { OverflowMenu } from "../shell/OverflowMenu";
@@ -80,6 +81,12 @@ function runStateOf(view: FlowRunView | null): Map<string, NodeRunState> {
   for (const s of [...view.steps].sort((a, b) => a.index - b.index)) map.set(s.nodeId, { status: s.status, runs: (map.get(s.nodeId)?.runs ?? 0) + 1, statusCode: stepStatusCode(s) });
   if (view.running) for (const id of view.runningNodeIds) map.set(id, { status: "running", runs: map.get(id)?.runs ?? 0 });
   return map;
+}
+
+/** The call a Run request step made the last time it ran in the shown run. */
+function lastCallOf(view: FlowRunView | null, nodeId: string): CaseResult | null {
+  const steps = (view?.steps ?? []).filter((s) => s.nodeId === nodeId).sort((a, b) => b.index - a.index);
+  return steps[0]?.child?.results[0] ?? null;
 }
 
 function timeLabel(iso: string): string {
@@ -665,6 +672,7 @@ export function FlowsApp({ active, shell, command }: Props) {
                 items={items}
                 problems={problems}
                 scheduleState={selected.type === "schedule" ? schedules[selected.id] : undefined}
+                lastCall={selected.type === "run-request" ? lastCallOf(shownRun, selected.id) : undefined}
                 onChange={updateNode}
                 onDelete={() => deleteNode(selected.id)}
                 onClose={closeSettings}

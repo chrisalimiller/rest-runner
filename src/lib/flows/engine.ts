@@ -5,7 +5,7 @@ import { applyTemplate, type Vars } from "../template";
 import { planIterations, runCase, runSuite } from "../testing/runner";
 import type { ScriptRunner } from "../testing/scriptRunner";
 import { buildTestRun, type TestRun } from "../testing/testRun";
-import { DEFAULT_SUITE_OPTIONS, type CaseResult, type SuiteRunEnd, type TestCase, type TestSuite } from "../testing/types";
+import { DEFAULT_SUITE_OPTIONS, type Assertion, type CaseResult, type SuiteRunEnd, type TestCase, type TestSuite } from "../testing/types";
 import type { RequestDef, ResponseResult } from "../types";
 import { evaluateCondition } from "./conditions";
 import { formatMs, nodeLabel, type RequestLookup } from "./flows";
@@ -194,9 +194,9 @@ async function trySuite(e: Engine, lane: Lane, suite: TestSuite): Promise<TryRes
   return { passed, cancelled: end === "cancelled", child, lastResponse: lastResponseOf(results), reason: passed ? undefined : firstFailure(results, end) };
 }
 
-/** A saved request as a case with no assertions or scripts of its own; the request's own scripts still run. */
-function requestCase(def: RequestDef): TestCase {
-  return { id: def.id, name: def.name, enabled: true, request: structuredClone(def), preScript: "", postScript: "", assertions: [] };
+/** A saved request as a case with the step's checks and no scripts of its own; the request's own scripts still run. */
+function requestCase(def: RequestDef, assertions: Assertion[]): TestCase {
+  return { id: def.id, name: def.name, enabled: true, request: structuredClone(def), preScript: "", postScript: "", assertions: structuredClone(assertions) };
 }
 
 function requestSuite(def: RequestDef, tc: TestCase, httpErrorsFail: boolean): TestSuite {
@@ -214,7 +214,7 @@ async function tryRunNode(e: Engine, lane: Lane, node: RunNode): Promise<TryResu
     return tryCase(e, lane, suite, tc);
   }
   const def = e.ctx.findRequest(node.requestId)!;
-  const tc = requestCase(def);
+  const tc = requestCase(def, node.assertions ?? []);
   // A 4xx/5xx fails the step unless the step's switch was turned off. Older flows have no switch and count as on.
   return tryCase(e, lane, requestSuite(def, tc, node.httpErrorsFail !== false), tc);
 }
