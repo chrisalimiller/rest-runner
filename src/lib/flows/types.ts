@@ -1,7 +1,7 @@
 import type { Vars } from "../template";
 import type { Schedule } from "./schedule";
 import type { TestRun } from "../testing/testRun";
-import type { Assertion, AssertionOp, AssertionSource, Check } from "../testing/types";
+import { NO_RETRY, type Assertion, type AssertionOp, type AssertionSource, type Attempt, type Check, type RetrySettings } from "../testing/types";
 
 /** The name of a node's output, which is also the handle a wire leaves from. */
 export type FlowOutput = "next" | "passed" | "failed" | "true" | "false" | "branches" | "row" | "done";
@@ -14,13 +14,8 @@ export interface FlowPosition {
   y: number;
 }
 
-/** Try a Run step again when it fails: up to `times` more tries, waiting `delayMs` before each. */
-export interface RetrySettings {
-  times: number;
-  delayMs: number;
-}
-
-export const NO_RETRY: RetrySettings = { times: 0, delayMs: 1000 };
+export { NO_RETRY };
+export type { RetrySettings };
 
 /**
  * What an If node checks.
@@ -178,14 +173,7 @@ export interface Flow {
   edges: FlowEdge[];
 }
 
-/** One try of a Run step. */
-export interface Attempt {
-  passed: boolean;
-  startedAt: string;
-  durationMs: number;
-  /** The first failed check, or why the step could not run. */
-  reason?: string;
-}
+export type { Attempt };
 
 /**
  * passed / failed: Run steps, Join, and Loop over CSV.

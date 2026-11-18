@@ -45,3 +45,13 @@ describe("buildGrid", () => {
     expect(buildGrid({ results: [result(0, 0, false, null)] }).rows[0].cells[0]?.label).toBe("—");
   });
 });
+
+describe("buildGrid with setup and teardown", () => {
+  it("gives them their own rows at the top and bottom", () => {
+    const setup = { ...result(-1, 0, true, 200), rowIndex: null, phase: "before" as const };
+    const down = { ...result(2, 3, true, 200), rowIndex: null, phase: "after" as const };
+    const g = buildGrid({ results: [down, result(0, 1, true, 200), result(1, 1, false, 500), setup] });
+    expect(g.rows.map((r) => r.title)).toEqual(["Setup", "Row 2 · x1", "Row 1 · x0", "Teardown"]);
+    expect(g.rows[0].phase).toBe("before");
+  });
+});

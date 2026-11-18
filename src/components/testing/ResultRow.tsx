@@ -1,4 +1,5 @@
 import { statusClass } from "../../lib/format";
+import { iterationText } from "../../lib/testing/caseStatus";
 import { requestMs } from "../../lib/testing/testRun";
 import type { CaseResult } from "../../lib/testing/types";
 
@@ -16,7 +17,7 @@ export function ResultRow({ result: r, selected, onSelect }: { result: CaseResul
   return (
     <tr className={`${selected ? "selected" : ""} ${r.passed ? "" : "failed"}`} onClick={onSelect}>
       <td title={r.rowIndex !== null ? `CSV row ${r.rowIndex + 1}${r.repeatIndex ? `, repeat ${r.repeatIndex + 1}` : ""}` : undefined}>
-        {r.iteration + 1}
+        {iterationText(r)}
         {r.notes.length > 0 && (
           <span className="note-dot" title={r.notes.join("\n")}>
             {" "}

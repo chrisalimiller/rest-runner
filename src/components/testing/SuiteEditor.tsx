@@ -1,5 +1,5 @@
 import { guardStyle } from "../../lib/environments";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { parseCsv } from "../../lib/csv";
 import type { Vars } from "../../lib/template";
 import { checkCounts, failureLine, latestCaseResult } from "../../lib/testing/caseStatus";
@@ -15,6 +15,7 @@ import { OverflowMenu } from "../shell/OverflowMenu";
 import { useToast } from "../shell/Toast";
 import { reinsert, removeById } from "../../lib/listUndo";
 import { dropIndex, moveItem, reorderAnnouncement } from "../../lib/reorder";
+import { caseRuns, splitCases, type CaseSlot } from "../../lib/testing/plan";
 import { CaseEditor } from "./CaseEditor";
 import { RequestPicker } from "./RequestPicker";
 
@@ -57,6 +58,8 @@ function shortPath(url: string): string {
   return path || url;
 }
 
+const GROUP_TITLES = { before: "Setup · runs once before the rows", each: "Every row", after: "Teardown · runs once after the rows" } as const;
+
 type Disc = "passed" | "failed" | "skipped" | "running" | "none";
 
 
@@ -74,7 +77,22 @@ export function SuiteEditor(props: Props) {
 
   const setCases = (cases: TestCase[]) => onChange({ ...suite, cases });
   const updateCase = (tc: TestCase) => setCases(suite.cases.map((c) => (c.id === tc.id ? tc : c)));
-  const move = (index: number, by: number) => setCases(moveItem(suite.cases, index, index + by));
+  // The runbook shows setup cases first, the normal list, then teardown. Reordering stays inside one group;
+  // the Runs control on a case moves it to another group.
+  const groups = splitCases(suite.cases);
+  const grouped = groups.before.length > 0 || groups.after.length > 0;
+  const displayed = [...groups.before, ...groups.each, ...groups.after];
+  /** The group (in display order) that holds a case. */
+  const groupOf = (cases: TestCase[], id: string): CaseSlot[] => {
+    const g = splitCases(cases);
+    return [g.before, g.each, g.after].find((list) => list.some((s) => s.testCase.id === id)) ?? [];
+  };
+  const move = (id: string, by: number) => {
+    const group = groupOf(suite.cases, id);
+    const at = group.findIndex((s) => s.testCase.id === id);
+    const to = group[at + by];
+    if (at >= 0 && to) setCases(moveItem(suite.cases, group[at].caseIndex, to.caseIndex));
+  };
 
   // Reordering by dragging a case's disc (pointer) or with Space and the arrow keys.
   const [lifted, setLifted] = useState<{ id: string; how: "pointer" | "keyboard"; original: TestCase[] } | null>(null);
@@ -82,23 +100,26 @@ export function SuiteEditor(props: Props) {
   const stepsRef = useRef<HTMLDivElement>(null);
   const liftedId = lifted?.id;
   const liftedHow = lifted?.how;
-  /** Moves a case to a position (0-based). Returns where it ended up. */
-  const moveCaseTo = (id: string, to: number): number => {
+  /** Moves a case to a position (0-based) inside its own group. */
+  const moveCaseTo = (id: string, to: number) => {
     const cur = propsRef.current.suite;
-    const from = cur.cases.findIndex((c) => c.id === id);
-    const next = moveItem(cur.cases, from, to);
+    const group = groupOf(cur.cases, id);
+    const from = group.findIndex((s) => s.testCase.id === id);
+    const target = group[Math.max(0, Math.min(group.length - 1, to))];
+    if (from < 0 || !target) return;
+    const next = moveItem(cur.cases, group[from].caseIndex, target.caseIndex);
     if (next !== cur.cases) propsRef.current.onChange({ ...cur, cases: next });
-    return next.findIndex((c) => c.id === id);
   };
   const say = (id: string, phase: Parameters<typeof reorderAnnouncement>[1]) => {
-    const cases = propsRef.current.suite.cases;
-    const i = cases.findIndex((c) => c.id === id);
-    if (i >= 0) setAnnouncement(reorderAnnouncement(cases[i].name || `Case ${i + 1}`, phase, i + 1, cases.length));
+    const group = groupOf(propsRef.current.suite.cases, id);
+    const i = group.findIndex((s) => s.testCase.id === id);
+    if (i >= 0) setAnnouncement(reorderAnnouncement(group[i].testCase.name || `Case ${i + 1}`, phase, i + 1, group.length));
   };
   useEffect(() => {
     if (!liftedId || liftedHow !== "pointer") return;
     const onMove = (e: PointerEvent) => {
-      const els = [...(stepsRef.current?.querySelectorAll<HTMLElement>("[data-case-id]") ?? [])];
+      const ids = new Set(groupOf(propsRef.current.suite.cases, liftedId).map((s) => s.testCase.id));
+      const els = [...(stepsRef.current?.querySelectorAll<HTMLElement>("[data-case-id]") ?? [])].filter((el) => ids.has(el.dataset.caseId ?? ""));
       const middles = els.map((el) => {
         const r = el.getBoundingClientRect();
         return r.top + r.height / 2;
@@ -125,7 +146,8 @@ export function SuiteEditor(props: Props) {
 
   const onHandleKey = (e: React.KeyboardEvent, c: TestCase) => {
     const cases = propsRef.current.suite.cases;
-    const i = cases.findIndex((x) => x.id === c.id);
+    const group = groupOf(cases, c.id);
+    const i = group.findIndex((x) => x.testCase.id === c.id);
     if (e.key === " " || e.key === "Enter") {
       e.preventDefault();
       if (lifted?.id === c.id) {
@@ -145,7 +167,7 @@ export function SuiteEditor(props: Props) {
         e.preventDefault();
         propsRef.current.onChange({ ...propsRef.current.suite, cases: lifted.original });
         setLifted(null);
-        setAnnouncement(reorderAnnouncement(c.name || `Case ${i + 1}`, "cancel", lifted.original.findIndex((x) => x.id === c.id) + 1, lifted.original.length));
+        setAnnouncement(reorderAnnouncement(c.name || `Case ${i + 1}`, "cancel", i + 1, group.length));
       }
     }
   };
@@ -157,6 +179,7 @@ export function SuiteEditor(props: Props) {
 
   const summary = [
     `${suite.cases.length} case${suite.cases.length === 1 ? "" : "s"} (${enabledCount} on)`,
+    groups.before.length || groups.after.length ? [groups.before.length ? `${groups.before.length} setup` : "", groups.after.length ? `${groups.after.length} teardown` : ""].filter(Boolean).join(", ") : null,
     MODE_LABELS[suite.options.mode],
     suite.data ? `${suite.data.name}, ${rows} row${rows === 1 ? "" : "s"}` : "no CSV",
     suite.options.repeat > 1 ? `repeat ${suite.options.repeat}×` : null,
@@ -227,20 +250,26 @@ export function SuiteEditor(props: Props) {
             {announcement}
           </div>
           {suite.cases.length === 0 && <p className="muted pad">No cases yet. Add saved requests, or start a blank case.</p>}
-          {suite.cases.map((c, i) => {
+          {displayed.map(({ testCase: c, caseIndex: i }, di) => {
+            const phase = caseRuns(c);
+            const group = groups[phase];
+            const groupAt = group.findIndex((s) => s.testCase.id === c.id);
+            const title = grouped && (di === 0 || caseRuns(displayed[di - 1].testCase) !== phase) ? GROUP_TITLES[phase] : null;
             const latest = latestCaseResult(c.id, props.tryResults[c.id], props.latestRun);
             const disc: Disc = !c.enabled ? "skipped" : props.running ? "running" : latest ? (latest.passed ? "passed" : "failed") : "none";
             const tally = disc === "running" && props.live ? caseTally(props.live.results, c.id) : undefined;
             const open = openCaseId === c.id;
             const source = c.sourceRequestId ? sources.find((r) => r.id === c.sourceRequestId) : undefined;
             return (
-              <section key={c.id} className={`step ${lifted?.id === c.id ? "lifted" : ""}`} data-case-id={c.id} aria-label={`Case ${i + 1}: ${c.name}`}>
+              <Fragment key={c.id}>
+              {title && <h3 className="step-group-title section-title">{title}</h3>}
+              <section className={`step ${lifted?.id === c.id ? "lifted" : ""}`} data-case-id={c.id} aria-label={`Case ${di + 1}: ${c.name}`}>
                 <div className="step-rail">
                   <button
                     type="button"
                     className="step-handle"
                     aria-roledescription="draggable case"
-                    aria-label={`Reorder case ${i + 1}: ${c.name}`}
+                    aria-label={`Reorder case ${di + 1}: ${c.name}`}
                     title="Drag to reorder, or press Space, then the arrow keys"
                     aria-pressed={lifted?.id === c.id}
                     onPointerDown={(e) => {
@@ -252,7 +281,7 @@ export function SuiteEditor(props: Props) {
                     onKeyDown={(e) => onHandleKey(e, c)}
                     onBlur={() => lifted?.id === c.id && lifted.how === "keyboard" && setLifted(null)}
                   >
-                    <StatusDisc disc={disc} n={i + 1} tally={tally} />
+                    <StatusDisc disc={disc} n={di + 1} tally={tally} />
                   </button>
                   <span className="step-line" />
                 </div>
@@ -261,10 +290,11 @@ export function SuiteEditor(props: Props) {
                     <CaseEditor
                       key={c.id}
                       testCase={c}
-                      index={i}
-                      count={suite.cases.length}
+                      index={groupAt}
+                      count={group.length}
+                      first={di === 0}
                       onChange={updateCase}
-                      onMove={(by) => move(i, by)}
+                      onMove={(by) => move(c.id, by)}
                       onDuplicate={() => {
                         const copy = duplicateCase(c);
                         const cases = [...suite.cases];
@@ -302,6 +332,7 @@ export function SuiteEditor(props: Props) {
                   )}
                 </div>
               </section>
+              </Fragment>
             );
           })}
 
@@ -386,6 +417,8 @@ function CaseSummary({ testCase: c, latest, locked, onOpen, onToggle }: { testCa
             <WithPlaceholders text={shortPath(c.request.url)} />
           </span>
           <span className="flex-gap" />
+          {c.runs === "before" || c.runs === "after" ? <span className="small muted">{c.runs === "before" ? "once before" : "once after"}</span> : null}
+          {(c.retry?.times ?? 0) > 0 && <span className="small muted" title={`Tries again up to ${c.retry?.times} time${c.retry?.times === 1 ? "" : "s"} when it fails`}>↻ {c.retry?.times}</span>}
           {!c.enabled ? (
             <span className="small muted">Skipped</span>
           ) : (

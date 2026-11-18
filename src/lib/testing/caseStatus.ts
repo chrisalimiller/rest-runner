@@ -40,8 +40,14 @@ export function checkCounts(result: CaseResult): { passed: number; total: number
   return { passed: result.checks.filter((c) => c.passed).length, total: result.checks.length };
 }
 
+/** The iteration number a result is listed under: "Setup" or "Teardown" for those cases, else 1, 2, 3... */
+export function iterationText(result: Pick<CaseResult, "phase" | "iteration">): string {
+  return result.phase === "before" ? "Setup" : result.phase === "after" ? "Teardown" : String(result.iteration + 1);
+}
+
 /** "row 17" for a CSV row, "iteration 3" for a repeat, or "" for a single pass. */
 export function whereLabel(result: CaseResult): string {
+  if (result.phase) return result.phase === "before" ? "setup" : "teardown";
   if (result.rowIndex !== null) return `row ${result.rowIndex + 1}`;
   return result.iteration > 0 ? `iteration ${result.iteration + 1}` : "";
 }
@@ -89,7 +95,7 @@ export interface FailureItem {
 export function runFailures(run: TestRun, limit = 50): FailureItem[] {
   const out: FailureItem[] = [];
   run.results.forEach((r, index) => {
-    if (!r.passed && out.length < limit) out.push({ index, where: r.rowIndex !== null ? `row ${r.rowIndex + 1}` : `iter ${r.iteration + 1}`, caseId: r.caseId, caseName: r.caseName, reason: failureReason(r) });
+    if (!r.passed && out.length < limit) out.push({ index, where: r.phase ? (r.phase === "before" ? "setup" : "teardown") : r.rowIndex !== null ? `row ${r.rowIndex + 1}` : `iter ${r.iteration + 1}`, caseId: r.caseId, caseName: r.caseName, reason: failureReason(r) });
   });
   return out;
 }

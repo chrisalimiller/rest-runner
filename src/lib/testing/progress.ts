@@ -20,6 +20,6 @@ export function caseTally(results: CaseResult[], caseId: string): CaseTally {
 export function runningLabel(results: CaseResult[], iterations: number, planned: number): string {
   if (iterations <= 1) return `Running · ${results.length} of ${planned}`;
   let latest = 0;
-  for (const r of results) latest = Math.max(latest, r.iteration);
+  for (const r of results) if (!r.phase) latest = Math.max(latest, r.iteration);
   return `Running · iteration ${Math.min(iterations, latest + 1)} of ${iterations}`;
 }

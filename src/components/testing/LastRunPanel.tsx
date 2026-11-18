@@ -22,7 +22,7 @@ const SHOWN_GROUPS = 6;
 function groupSummary(g: FailureGroup, total: number, csv: boolean): string {
   const unit = csv ? "row" : "iteration";
   const n = g.rows.length;
-  const where = total > 1 ? `${n} of ${total} ${unit}s` : g.count > 1 ? `${g.count} times` : "once";
+  const where = n === 0 ? (g.count > 1 ? `${g.count} times` : "once") : total > 1 ? `${n} of ${total} ${unit}s` : g.count > 1 ? `${g.count} times` : "once";
   return [where, g.worstActual ? `worst ${g.worstActual}` : ""].filter(Boolean).join(" · ");
 }
 
@@ -87,7 +87,7 @@ export function LastRunPanel({ live, run, onOpenReport }: Props) {
         <span className="pass" style={{ width: `${passPct}%` }} />
         <span className="fail" style={{ width: `${total ? 100 - passPct : 0}%` }} />
       </div>
-      {run.end !== "completed" && <p className="small warning">{run.end === "cancelled" ? "Stopped before the end." : "Stopped after a failure."}</p>}
+      {run.end !== "completed" && <p className="small warning">{run.end === "cancelled" ? "Stopped before the end." : run.results.some((r) => r.phase === "before" && !r.passed) ? "Setup failed, so the rows were not run." : "Stopped after a failure."}</p>}
       <div className="stat-grid">
         <div className="mini-stat">
           <span>Iterations</span>

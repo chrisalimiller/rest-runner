@@ -2,7 +2,7 @@ import { CsvPreview } from "../CsvPreview";
 import { useMemo, useRef, useState } from "react";
 import { checkCsvFile, parseCsv } from "../../lib/csv";
 import { requestPlaceholders } from "../../lib/request";
-import { clampRepeat, MAX_REPEAT, planEstimate } from "../../lib/testing/plan";
+import { clampRepeat, MAX_REPEAT, plannedCases, planEstimate, splitCases } from "../../lib/testing/plan";
 import { planIterations } from "../../lib/testing/runner";
 import type { RunMode, SuiteRunOptions, TestSuite } from "../../lib/testing/types";
 
@@ -33,6 +33,7 @@ export function SuiteSettings({ suite, onChange, envVarNames }: Props) {
 
   const csv = useMemo(() => (suite.data ? parseCsv(suite.data.text) : null), [suite.data]);
   const enabled = suite.cases.filter((c) => c.enabled);
+  const split = splitCases(suite.cases, true);
   const iterations = planIterations(csv?.rows ?? null, o.repeat).length;
 
   const used = useMemo(() => [...new Set(enabled.flatMap((c) => requestPlaceholders(c.request)))].sort(), [enabled]);
@@ -103,7 +104,7 @@ export function SuiteSettings({ suite, onChange, envVarNames }: Props) {
       </div>
 
       <p className="plan-estimate" role="status">
-        {planEstimate(csv ? csv.rows.length : null, enabled.length, o.repeat).text}
+        {planEstimate(csv ? csv.rows.length : null, split.each.length, o.repeat, split.before.length, split.after.length).text}
       </p>
 
       <h3>Data (CSV)</h3>
@@ -164,8 +165,9 @@ export function SuiteSettings({ suite, onChange, envVarNames }: Props) {
       )}
 
       <p className="small summary-line">
-        Next run: {enabled.length} case{enabled.length === 1 ? "" : "s"} × {iterations} iteration{iterations === 1 ? "" : "s"} ={" "}
-        <b>{enabled.length * iterations} requests</b>.
+        Next run: {split.each.length} case{split.each.length === 1 ? "" : "s"} × {iterations} iteration{iterations === 1 ? "" : "s"}
+        {split.before.length + split.after.length > 0 ? ` + ${split.before.length + split.after.length} once` : ""} ={" "}
+        <b>{plannedCases(suite.cases, iterations)} requests</b>.
       </p>
     </div>
   );

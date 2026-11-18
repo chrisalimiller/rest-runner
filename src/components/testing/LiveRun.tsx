@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { iterationText } from "../../lib/testing/caseStatus";
 import type { CaseResult, SuiteRunEnd } from "../../lib/testing/types";
 import { CaseResultView } from "./CaseResultView";
 import { ResultRow } from "./ResultRow";
@@ -64,7 +65,7 @@ export function LiveRun({ live, onOpenReport, compact = false }: { live: LiveRun
               <li key={i} className={r.passed ? "ok" : "bad"}>
                 <span className="check-mark">{r.passed ? "✓" : "✕"}</span>
                 <span className="live-recent-name">{r.caseName}</span>
-                <span className="muted mono">{r.iteration + 1}</span>
+                <span className="muted mono">{iterationText(r)}</span>
               </li>
             ))}
           </ul>

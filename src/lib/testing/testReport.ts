@@ -1,6 +1,7 @@
 import { redactReport } from "../secrets";
 import { certificateLabel } from "../certificates";
 import { CALL_COLUMNS, callCells, csvFile, reportBody, type CsvOptions } from "../reportCsv";
+import { iterationText } from "./caseStatus";
 import { describeMode } from "./describe";
 import { caseStats, iterationsLabel, requestMs, testRunTimes, type TestRun } from "./testRun";
 import type { CaseResult, ScriptOutput } from "./types";
@@ -50,7 +51,7 @@ export function groupFailures(results: CaseResult[]): FailureGroup[] {
       }
       g.count += 1;
       const row = r.rowIndex ?? r.iteration;
-      if (!g.rows.includes(row)) g.rows.push(row);
+      if (!r.phase && !g.rows.includes(row)) g.rows.push(row);
       if (e.actual) g.actuals.push(e.actual);
     }
   });
@@ -79,6 +80,7 @@ export function scriptLog(r: CaseResult): string {
 }
 
 function iterationLabel(r: CaseResult): string {
+  if (r.phase) return iterationText(r);
   return r.rowIndex === null ? `${r.iteration + 1}` : `${r.iteration + 1} (row ${r.rowIndex + 1}${r.repeatIndex ? `, repeat ${r.repeatIndex + 1}` : ""})`;
 }
 
@@ -108,7 +110,7 @@ export function toTestCsvReport(run: TestRun, options?: CsvOptions): string {
   for (const r of run.results) {
     const failed = r.checks.filter((c) => !c.passed);
     rows.push([
-      r.iteration + 1,
+      iterationText(r),
       r.rowIndex === null ? "" : r.rowIndex + 1,
       r.repeatIndex + 1,
       r.caseIndex + 1,
@@ -224,7 +226,7 @@ export function toTestHtmlReport(run: TestRun, options?: { secrets?: readonly st
       const passedChecks = r.checks.filter((c) => c.passed).length;
       const search = `${r.caseName} ${statusText(r)} ${o?.request.url ?? ""} ${Object.values(r.vars).join(" ")} ${r.checks.map((c) => c.name).join(" ")}`.toLowerCase();
       return `<details class="call ${r.passed ? "passed" : "failed"}" data-search="${esc(search)}" data-case="${esc(r.caseId)}">
-<summary><span class="row">#${r.iteration + 1}</span><span class="mark ${r.passed ? "ok" : "bad"}">${r.passed ? "✓" : "✕"}</span><span class="case">${esc(r.caseName)}</span><span class="status ${statusClass(r)}">${esc(statusText(r))}</span><span class="checks ${passedChecks === r.checks.length ? "" : "bad"}">${passedChecks}/${r.checks.length} checks</span><span class="ms">${requestMs(r)} ms</span>${r.notes.length ? `<span class="note-flag" title="Has notes">●</span>` : ""}</summary>
+<summary><span class="row">${r.phase ? esc(iterationText(r)) : `#${r.iteration + 1}`}</span><span class="mark ${r.passed ? "ok" : "bad"}">${r.passed ? "✓" : "✕"}</span><span class="case">${esc(r.caseName)}</span><span class="status ${statusClass(r)}">${esc(statusText(r))}</span><span class="checks ${passedChecks === r.checks.length ? "" : "bad"}">${passedChecks}/${r.checks.length} checks</span><span class="ms">${requestMs(r)} ms</span>${r.notes.length ? `<span class="note-flag" title="Has notes">●</span>` : ""}</summary>
 <div class="call-body">
 ${caseBodyHtml(r)}
 </div>

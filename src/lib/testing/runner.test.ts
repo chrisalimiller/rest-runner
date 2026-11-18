@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { MAX_REPEAT } from "./plan";
 import type { SendFn } from "../batch";
 import type { PreparedRequest, SendOutcome } from "../types";
-import { planIterations, runSuite, runUpTo } from "./runner";
+import { planIterations, runCase, runSuite, runUpTo } from "./runner";
 import { inlineScriptRunner } from "./scriptTestHelper";
 import { newAssertion, newSuite, newTestCase } from "./suites";
 import { buildTestRun, caseStats } from "./testRun";
@@ -267,5 +267,132 @@ describe("case notes", () => {
 
   it("caps repeats at MAX_REPEAT", () => {
     expect(planIterations(null, 5000)).toHaveLength(MAX_REPEAT);
+  });
+});
+
+describe("setup and teardown cases", () => {
+  const login = () => makeCase("Login", "https://{{host}}/login", { runs: "before", postScript: `rr.vars.set("token", "t-123")` });
+  const item = () => makeCase("Item", "https://{{host}}/items/{{id}}?auth={{token}}");
+  const rows = [{ id: "1" }, { id: "2" }, { id: "3" }];
+
+  it("sends setup once and every row sees what it set", async () => {
+    const server = fakeServer(() => ({ status: 200 }));
+    const { results, end } = await run(suiteOf([login(), item()]), server.send, rows);
+    expect(end).toBe("completed");
+    expect(server.sent.filter((r) => r.url.endsWith("/login"))).toHaveLength(1);
+    expect(server.sent.filter((r) => r.url.includes("/items/")).map((r) => r.url)).toEqual([
+      "https://api.test/items/1?auth=t-123",
+      "https://api.test/items/2?auth=t-123",
+      "https://api.test/items/3?auth=t-123",
+    ]);
+    const setup = results.find((r) => r.caseName === "Login")!;
+    expect(setup.phase).toBe("before");
+    expect(setup.rowIndex).toBeNull();
+  });
+
+  it("seeds every iteration in parallel-iterations mode", async () => {
+    const server = fakeServer(() => ({ status: 200 }));
+    await run(suiteOf([login(), item()], { mode: "parallel-iterations", concurrency: 3 }), server.send, rows);
+    expect(server.sent.filter((r) => r.url.endsWith("/login"))).toHaveLength(1);
+    expect(server.sent.filter((r) => r.url.includes("auth=t-123"))).toHaveLength(3);
+  });
+
+  it("seeds every iteration in parallel-cases mode", async () => {
+    const server = fakeServer(() => ({ status: 200 }));
+    await run(suiteOf([login(), item()], { mode: "parallel-cases" }), server.send, rows);
+    expect(server.sent.filter((r) => r.url.includes("auth=t-123"))).toHaveLength(3);
+  });
+
+  it("skips the rows and teardown when setup fails", async () => {
+    const server = fakeServer((req) => (req.url.endsWith("/login") ? { status: 500 } : { status: 200 }));
+    const down = makeCase("Cleanup", "https://{{host}}/cleanup", { runs: "after" });
+    const { results, end } = await run(suiteOf([login(), item(), down]), server.send, rows);
+    expect(end).toBe("stopped-on-failure");
+    expect(server.sent.map((r) => r.url)).toEqual(["https://api.test/login"]);
+    expect(results).toHaveLength(1);
+    const input = { id: "x", suite: suiteOf([login(), item(), down]), columns: ["id"], iterations: 3, startedAt: "a", finishedAt: "b", end, results };
+    const built = buildTestRun(input);
+    expect(built.log.some((l) => /Setup failed/.test(l.message))).toBe(true);
+    expect(built.plannedCases).toBe(1 + 1 + 3);
+  });
+
+  it("runs teardown once after all rows, even when rows failed, starting from the setup variables", async () => {
+    const server = fakeServer((req) => (req.url.includes("/items/") ? { status: 500 } : { status: 200 }));
+    const down = makeCase("Logout", "https://{{host}}/logout?auth={{token}}", { runs: "after" });
+    const { results, end } = await run(suiteOf([login(), item(), down]), server.send, rows);
+    expect(end).toBe("completed");
+    const urls = server.sent.map((r) => r.url);
+    expect(urls[urls.length - 1]).toBe("https://api.test/logout?auth=t-123");
+    expect(urls.filter((u) => u.includes("/logout"))).toHaveLength(1);
+    const last = results[results.length - 1];
+    expect(last.phase).toBe("after");
+    expect(last.rowIndex).toBeNull();
+    expect(buildTestRun({ id: "x", suite: suiteOf([login(), item(), down]), columns: ["id"], iterations: 3, startedAt: "a", finishedAt: "b", end, results }).results.map((r) => r.caseName)).toEqual(["Login", "Item", "Item", "Item", "Logout"]);
+  });
+
+  it("does not run teardown when the run was stopped", async () => {
+    const server = fakeServer(() => ({ status: 200 }), 20);
+    const controller = new AbortController();
+    const down = makeCase("Logout", "https://{{host}}/logout", { runs: "after" });
+    const promise = run(suiteOf([login(), item(), down]), server.send, rows, controller.signal);
+    setTimeout(() => controller.abort(), 30);
+    const { end } = await promise;
+    expect(end).toBe("cancelled");
+    expect(server.sent.some((r) => r.url.endsWith("/logout"))).toBe(false);
+  });
+
+  it("runs setup once with no CSV, and old cases without the field run for every row", async () => {
+    const server = fakeServer(() => ({ status: 200 }));
+    const plain = makeCase("Plain", "https://{{host}}/p/{{id}}");
+    expect("runs" in plain).toBe(false);
+    await run(suiteOf([plain]), server.send, rows);
+    expect(server.sent).toHaveLength(3);
+    const again = fakeServer(() => ({ status: 200 }));
+    await run(suiteOf([login(), item()]), again.send, null);
+    expect(again.sent).toHaveLength(2);
+  });
+
+  it("Try up to here runs the setup case above the target, then skips teardown cases", async () => {
+    const server = fakeServer(() => ({ status: 200 }));
+    const down = makeCase("Logout", "https://{{host}}/logout", { runs: "after" });
+    const suite = suiteOf([item(), down, login()]);
+    const results = await runUpTo(suite, 0, { rows: null, envVars: { host: "api.test" }, send: server.send, scripts: inlineScriptRunner, signal: new AbortController().signal });
+    expect(results.map((r) => r.caseName)).toEqual(["Login", "Item"]);
+    expect(server.sent[1].url).toBe("https://api.test/items/{{id}}?auth=t-123");
+  });
+});
+
+describe("case retry", () => {
+  it("passes on the second try and puts the variables back before each try", async () => {
+    let calls = 0;
+    const server = fakeServer(() => (++calls < 2 ? { status: 503 } : { status: 200 }));
+    const tc = makeCase("Flaky", "https://{{host}}/f?n={{n}}", {
+      preScript: `rr.vars.set("n", String(Number(rr.vars.get("n") || "0") + 1))`,
+      retry: { times: 2, delayMs: 0 },
+    });
+    const { results } = await run(suiteOf([tc]), server.send);
+    expect(results).toHaveLength(1);
+    expect(results[0].passed).toBe(true);
+    expect(results[0].attempts).toHaveLength(2);
+    expect(results[0].notes).toContain("Passed on try 2 of 3.");
+    // n was restored before the second try, so both tries counted from 0.
+    expect(server.sent.map((r) => r.url)).toEqual(["https://api.test/f?n=1", "https://api.test/f?n=1"]);
+  });
+
+  it("keeps the last try and says it failed all tries", async () => {
+    const server = fakeServer(() => ({ status: 500 }));
+    const tc = makeCase("Bad", "https://{{host}}/b", { retry: { times: 2, delayMs: 0 } });
+    const { results } = await run(suiteOf([tc]), server.send);
+    expect(server.sent).toHaveLength(3);
+    expect(results[0].passed).toBe(false);
+    expect(results[0].notes).toContain("Failed all 3 tries.");
+  });
+
+  it("sends once and adds no note without retry settings", async () => {
+    const server = fakeServer(() => ({ status: 500 }));
+    const tc = makeCase("Once", "https://x/");
+    const result = await runCase({ testCase: tc, caseIndex: 0, iter: planIterations(null, 1)[0], runVars: {} }, DEFAULT_SUITE_OPTIONS, { envVars: {}, send: server.send, scripts: inlineScriptRunner, signal: new AbortController().signal });
+    expect(server.sent).toHaveLength(1);
+    expect(result?.attempts).toBeUndefined();
   });
 });
