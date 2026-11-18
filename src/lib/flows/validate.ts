@@ -15,6 +15,8 @@ export interface FlowProblem {
 export interface ValidateOptions {
   /** The node a run starts from. Missing means the Start node. */
   entryNodeId?: string;
+  /** Ids of the environments that exist. When given, a Schedule step pinned to another id is an error. */
+  environmentIds?: string[];
 }
 
 /** Sources whose `property` must be filled in. */
@@ -22,7 +24,7 @@ const NEEDS_PROPERTY = new Set(["header", "variable"]);
 /** Sources of a Run request check whose `property` must be filled in. */
 const NEEDS_ASSERTION_PROPERTY = new Set(["header", "json"]);
 
-function itemProblems(node: FlowNode, suites: TestSuite[], findRequest: RequestLookup): string[] {
+function itemProblems(node: FlowNode, suites: TestSuite[], findRequest: RequestLookup, environmentIds?: string[]): string[] {
   switch (node.type) {
     case "run-case": {
       if (!node.suiteId || !node.caseId) return ["Pick a test case to run."];
@@ -51,7 +53,11 @@ function itemProblems(node: FlowNode, suites: TestSuite[], findRequest: RequestL
       return node.name.trim() === "" ? ["Enter a variable name."] : [];
     case "schedule": {
       const problem = scheduleProblem(node.schedule);
-      return problem ? [problem] : [];
+      const out = problem ? [problem] : [];
+      if (environmentIds && typeof node.environmentId === "string" && !environmentIds.includes(node.environmentId)) {
+        out.push("Its environment was deleted. Pick another environment.");
+      }
+      return out;
     }
     case "loop": {
       if (!node.data) return ["Load a CSV file for the loop to go through."];
@@ -90,7 +96,7 @@ export function validateFlow(flow: Flow, suites: TestSuite[], findRequest: Reque
   }
 
   for (const node of flow.nodes) {
-    for (const message of itemProblems(node, suites, findRequest)) problems.push({ level: "error", nodeId: node.id, message });
+    for (const message of itemProblems(node, suites, findRequest, options.environmentIds)) problems.push({ level: "error", nodeId: node.id, message });
     if (node.type === "run-request") {
       for (const a of node.assertions ?? []) {
         if (!a.enabled || !NEEDS_ASSERTION_PROPERTY.has(a.source) || a.property.trim() !== "") continue;

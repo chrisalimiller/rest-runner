@@ -12,6 +12,9 @@ import { assertionResults, type AssertionResult } from "../../lib/testing/caseSt
 import type { CaseResult } from "../../lib/testing/types";
 import { AssertionEditor } from "../testing/AssertionEditor";
 import { useEscape } from "../useEscape";
+import { EnvPicker } from "../shell/EnvPicker";
+import type { Environment } from "../../lib/environments";
+import { scheduleEnvironment, scheduleEnvironmentText } from "../../lib/flows/scheduleEnv";
 
 interface Props {
   node: FlowNode;
@@ -19,6 +22,9 @@ interface Props {
   problems: FlowProblem[];
   /** What the scheduler remembers about this Schedule step, if it is one. */
   scheduleState?: ScheduleState;
+  /** Environments to pick from, and the one the Flows top bar shows (what an unpinned schedule follows). */
+  environments: Environment[];
+  switchEnvId: string | null;
   /** Run request steps: the call this step made in the run being shown, for the Last result column. */
   lastCall?: CaseResult | null;
   onChange: (node: FlowNode) => void;
@@ -244,7 +250,8 @@ function when(iso: string): string {
 /** Monday first, as most calendars show it. */
 const WEEK_ORDER = [1, 2, 3, 4, 5, 6, 0];
 
-function ScheduleEditor({ node, state, onChange }: { node: ScheduleNode; state?: ScheduleState; onChange: (n: FlowNode) => void }) {
+function ScheduleEditor({ node, state, environments, switchEnvId, onChange }: { node: ScheduleNode; state?: ScheduleState; environments: Environment[]; switchEnvId: string | null; onChange: (n: FlowNode) => void }) {
+  const resolved = scheduleEnvironment(node, environments, switchEnvId);
   const s = node.schedule;
   const set = (schedule: Schedule) => onChange({ ...node, schedule });
   const time = s.kind === "interval" ? "09:00" : s.time;
@@ -273,6 +280,19 @@ function ScheduleEditor({ node, state, onChange }: { node: ScheduleNode; state?:
           <option value="weekdays">On chosen days</option>
         </select>
       </label>
+      <div className="flow-field">
+        <span>Environment</span>
+        <EnvPicker environments={environments} activeId={resolved.env?.id ?? null} onChange={(id) => onChange({ ...node, environmentId: id })} />
+      </div>
+      {resolved.follows && <p className="muted small">Uses the Flows switch ({scheduleEnvironmentText({ ...resolved, follows: false })}). Pick an environment to pin this schedule to it.</p>}
+      {!resolved.follows && !resolved.missing && (
+        <p className="muted small">
+          Always runs in this environment, whatever the Flows switch shows.{" "}
+          <button type="button" className="link-btn" onClick={() => onChange({ ...node, environmentId: undefined })}>
+            Use the Flows switch
+          </button>
+        </p>
+      )}
       {s.kind === "interval" && <NumberField label="Every" value={s.minutes} min={1} onChange={(minutes) => set({ ...s, minutes })} suffix="minutes" />}
       {s.kind !== "interval" && (
         <label className="flow-field">
@@ -304,7 +324,7 @@ function ScheduleEditor({ node, state, onChange }: { node: ScheduleNode; state?:
       )}
       <p className="muted small">
         {s.kind === "interval" ? "Counts from midnight, so every 15 minutes means :00, :15, :30 and :45. " : ""}
-        Uses this computer's time and the environment picked in the top bar. Runs only while REST Runner is open; a run missed while it was closed, or one that comes due while the flow is still running, is skipped and noted here.
+        Uses this computer's time. Runs only while REST Runner is open; a run missed while it was closed, or one that comes due while the flow is still running, is skipped and noted here.
       </p>
     </fieldset>
   );
@@ -314,7 +334,7 @@ function ScheduleEditor({ node, state, onChange }: { node: ScheduleNode; state?:
 const MAX_LOOP_CSV = 2 * 1024 * 1024;
 
 /** Settings for the selected node, in the right-hand panel. */
-export function NodeSettings({ node, items, problems, scheduleState, lastCall, onChange, onDelete, onClose, locked = false }: Props) {
+export function NodeSettings({ node, items, problems, scheduleState, environments, switchEnvId, lastCall, onChange, onDelete, onClose, locked = false }: Props) {
   useEscape(onClose);
   const mine = problems.filter((p) => p.nodeId === node.id);
   const autoLabel = nodeLabel({ ...node, label: "" }, items.suites, items.findRequest);
@@ -351,7 +371,7 @@ export function NodeSettings({ node, items, problems, scheduleState, lastCall, o
       )}
 
       {node.type === "start" && <p className="muted small">A run begins here when you press Run. A flow has one Start.</p>}
-      {node.type === "schedule" && <ScheduleEditor node={node} state={scheduleState} onChange={onChange} />}
+      {node.type === "schedule" && <ScheduleEditor node={node} state={scheduleState} environments={environments} switchEnvId={switchEnvId} onChange={onChange} />}
 
       {(node.type === "run-case" || node.type === "run-suite") && (
         <label className="flow-field">

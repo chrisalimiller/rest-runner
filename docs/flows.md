@@ -1,6 +1,6 @@
 # Flows
 
-A **flow** chains your saved work into one run. You place **steps** (nodes) on a canvas and wire them together. Each step runs a test case, a whole suite or a saved request, or controls what happens next. A flow runs inside the open app, when you press **Run** or when one of its [schedules](#schedules) comes due, with the environment selected in the Flows top bar.
+A **flow** chains your saved work into one run. You place **steps** (nodes) on a canvas and wire them together. Each step runs a test case, a whole suite or a saved request, or controls what happens next. A flow runs inside the open app, when you press **Run** or when one of its [schedules](#schedules) comes due. Run uses the environment selected in the Flows top bar; each schedule uses the environment pinned on its Schedule step.
 
 ## The Flows window
 
@@ -152,11 +152,12 @@ In its settings, pick:
 - **Every day** at a time.
 - **On chosen days** at a time, for example Monday to Friday at 07:30.
 
-The flow's header shows the first schedule as a chip, for example **⏱ Daily at 09:00 · next 09:00**, with an on/off switch, so you can pause it without selecting the step. Untick **Run on this schedule** (or use the switch) to pause it without deleting it; the step shows **off**. Times are the computer's local time. Scheduled runs use the environment selected in the Flows top bar at the time they start.
+The flow's header shows the first schedule as a chip, for example **⏱ Daily at 09:00 · next 09:00**, with an on/off switch, so you can pause it without selecting the step. Untick **Run on this schedule** (or use the switch) to pause it without deleting it; the step shows **off**. Times are the computer's local time. 
+**Environment.** Each Schedule step pins its own environment, picked in its settings (**No environment** is allowed). A new Schedule step starts with the environment selected in the Flows top bar at the moment you add it, and keeps it when you switch environments later, so a nightly run keeps hitting the environment you meant. The chip shows it with its colour, for example **⏱ Mon, Tue, Wed, Thu, Fri at 07:30 · Local**, and the flow list names it under **Next**. The flow run's summary and report show the environment actually used. The **Run** button always uses the Flows top bar. Schedules saved before this existed have no pinned environment; they show **Flows switch** and follow the top bar until you pick one. If a pinned environment is deleted, the Schedule step shows an error until you pick another, and its runs are skipped, with that reason noted.
 
 - A run that came due **while the app was closed** is skipped. It does not run when you open the app.
 - A run that comes due **while the same flow is still running** is skipped.
-- A run that comes due while the flow **has an error to fix** (for example a deleted case) is skipped.
+- A run that comes due while the flow **has an error to fix** (for example a deleted case or a deleted environment) is skipped.
 
 Each skip is noted in the Schedule step's settings and under the flow in the list, with the reason. The step's settings also show the next run and the last one. A scheduled run is saved under **Flow runs** like any other, marked with a ⏱ and **Scheduled · Daily at 09:00** in the list and in the report header.
 
@@ -164,7 +165,7 @@ Each skip is noted in the Schedule step's settings and under the flow in the lis
 
 **Export** in the Flows list saves every flow to one JSON file; **Export** above the canvas saves only the open flow. The file also carries the suites and saved requests the flows run, so it works on another computer.
 
-**Import** reads such a file. A flow, suite or saved request with the same id as one you have replaces it; everything else is added. Saved requests go back into a collection and folders with the same names, made if they are missing. The message after the import says how many of each were added and updated. Imported schedules are turned off, including when an existing flow is replaced. Review the flow and its selected environment, then enable each schedule locally. Schedule history is not in the file.
+**Import** reads such a file. A flow, suite or saved request with the same id as one you have replaces it; everything else is added. Saved requests go back into a collection and folders with the same names, made if they are missing. The message after the import says how many of each were added and updated. Imported schedules are turned off, including when an existing flow is replaced. Review the flow, then enable each schedule locally. A schedule keeps the environment it pinned; if no environment with that id exists on this computer, the step shows an error until you pick a local one. Schedule history is not in the file.
 
 ## Quick open
 

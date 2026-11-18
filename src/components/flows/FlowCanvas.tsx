@@ -96,6 +96,8 @@ interface Props {
   readOnly: boolean;
   /** Changes each time the selection should be cleared from outside (settings panel closed). */
   deselectNonce: number;
+  /** The environment selected in Flows; a new Schedule step pins it. */
+  environmentId: string | null;
 }
 
 type RFNode = Node<StepData>;
@@ -136,12 +138,14 @@ const EDGE_CLASS: Record<FlowOutput, string> = {
   done: "e-next",
 };
 
-function Canvas({ flow, items, problems, runState, animatedEdges, onChange, onSelect, focusNodeId, focusNonce, readOnly, deselectNonce }: Props) {
+function Canvas({ flow, items, problems, runState, animatedEdges, onChange, onSelect, focusNodeId, focusNonce, readOnly, deselectNonce, environmentId }: Props) {
   const colorMode = useResolvedColorMode();
   const rf = useReactFlow();
   const wrapRef = useRef<HTMLDivElement>(null);
   const flowRef = useRef(flow);
   flowRef.current = flow;
+  const environmentIdRef = useRef(environmentId);
+  environmentIdRef.current = environmentId;
   const [rfNodes, setRfNodes] = useState<RFNode[]>([]);
   const rfNodesRef = useRef(rfNodes);
   rfNodesRef.current = rfNodes;
@@ -282,7 +286,7 @@ function Canvas({ flow, items, problems, runState, animatedEdges, onChange, onSe
       let y = Math.round(position.y);
       const x = Math.round(position.x);
       while (taken.some((n) => Math.abs(n.position.x - x) < 200 && Math.abs(n.position.y - y) < 80)) y += 90;
-      const node = newNode(type, { x, y });
+      const node = newNode(type, { x, y }, environmentIdRef.current);
       update((f) => ({ ...f, nodes: [...f.nodes, node] }));
       setRfNodes((list) => list.map((n) => ({ ...n, selected: false })));
       onSelect(node.id);
@@ -315,7 +319,7 @@ function Canvas({ flow, items, problems, runState, animatedEdges, onChange, onSe
   const addFromPalette = useCallback(
     (type: FlowNodeType) => {
       const selectedId = rfNodesRef.current.find((n) => n.selected)?.id ?? null;
-      const { flow: next, node } = addStepFromPalette(flowRef.current, selectedId, type);
+      const { flow: next, node } = addStepFromPalette(flowRef.current, selectedId, type, environmentIdRef.current);
       if (!node) return;
       onChange(next);
       selectNew(node.id);
@@ -326,7 +330,7 @@ function Canvas({ flow, items, problems, runState, animatedEdges, onChange, onSe
   const [picker, setPicker] = useState<{ nodeId: string; output: FlowOutput; x: number; y: number } | null>(null);
   const pickStep = (type: FlowNodeType) => {
     if (!picker) return;
-    const { flow: next, node } = addStepAfter(flowRef.current, picker.nodeId, picker.output, type);
+    const { flow: next, node } = addStepAfter(flowRef.current, picker.nodeId, picker.output, type, environmentIdRef.current);
     setPicker(null);
     if (!node) return;
     onChange(next);
