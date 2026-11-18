@@ -38,6 +38,13 @@ export function duplicateCase(tc: TestCase): TestCase {
   };
 }
 
+/** Keeps the checks that can be used, fills in anything missing from each, and drops the rest. */
+export function cleanAssertions(input: unknown): Assertion[] {
+  return (Array.isArray(input) ? input : [])
+    .filter((a): a is Assertion => !!a && typeof a === "object" && ASSERTION_OPS.includes((a as Assertion).op))
+    .map((a) => ({ ...newAssertion(), ...a }));
+}
+
 /** Fills in anything missing from suites loaded from storage or an import, and drops what cannot be used. */
 export function cleanSuites(input: unknown): TestSuite[] {
   if (!Array.isArray(input)) return [];
@@ -59,9 +66,7 @@ export function cleanSuites(input: unknown): TestSuite[] {
           sourceRequestId: c.sourceRequestId,
           preScript: typeof c.preScript === "string" ? c.preScript : "",
           postScript: typeof c.postScript === "string" ? c.postScript : "",
-          assertions: (Array.isArray(c.assertions) ? c.assertions : [])
-            .filter((a) => !!a && ASSERTION_OPS.includes(a.op))
-            .map((a) => ({ ...newAssertion(), ...a })),
+          assertions: cleanAssertions(c.assertions),
         })),
     }));
 }
