@@ -155,6 +155,42 @@ describe("runFlow", () => {
     expect(run.end).toBe("failed");
   });
 
+  it("fails a Run request step whose check fails on a 200, and leaves by failed", async () => {
+    const server = fakeServer(() => ({ status: 200, body: '{"name":"Bob"}' }));
+    const req = savedRequest("User", "https://{{host}}/user");
+    const check = newAssertion({ source: "json", property: "$.name", op: "eq", expected: "Alice" });
+    const a = { ...runRequestNode(req), assertions: [check] } as FlowNode;
+    const after = savedRequest("After", "https://{{host}}/after");
+    const b = runRequestNode(after);
+    const run = await runFlow(flowOf([a, b], [[a, "failed", b]]), ctxOf(server.send, [], [req, after]));
+    expect(run.stepList[1].status).toBe("failed");
+    expect(run.stepList[1].output).toBe("failed");
+    expect(run.stepList[1].child?.results[0].checks.some((c) => !c.passed)).toBe(true);
+    expect(run.stepList[1].notes.join(" ")).toMatch(/\$\.name/);
+    expect(run.end).toBe("passed-handled");
+  });
+
+  it("passes a Run request step when its checks pass, and lets a status check replace the 4xx/5xx rule", async () => {
+    const ok = fakeServer(() => ({ status: 200, body: '{"name":"Alice"}' }));
+    const req = savedRequest("User", "https://{{host}}/user");
+    const good = { ...runRequestNode(req), assertions: [newAssertion({ source: "json", property: "$.name", op: "eq", expected: "Alice" })] } as FlowNode;
+    expect((await runFlow(flowOf([good], []), ctxOf(ok.send, [], [req]))).stepList[1].status).toBe("passed");
+
+    const missing = fakeServer(() => ({ status: 404 }));
+    const expects404 = { ...runRequestNode(req), assertions: [newAssertion({ source: "status", op: "eq", expected: "404" })] } as FlowNode;
+    expect((await runFlow(flowOf([expects404], []), ctxOf(missing.send, [], [req]))).stepList[1].status).toBe("passed");
+  });
+
+  it("runs a Run request step saved without checks as before", async () => {
+    const server = fakeServer(() => ({ status: 200 }));
+    const req = savedRequest("Old", "https://{{host}}/a");
+    const old = runRequestNode(req);
+    expect("assertions" in old).toBe(false);
+    const run = await runFlow(flowOf([old], []), ctxOf(server.send, [], [req]));
+    expect(run.stepList[1].status).toBe("passed");
+    expect(run.stepList[1].child?.results[0].checks.every((c) => c.passed)).toBe(true);
+  });
+
   it("ends failed, not passed-handled, when a failure had no failed wire", async () => {
     const server = fakeServer(() => ({ status: 500 }));
     const req = savedRequest("Bad", "https://{{host}}/a");
