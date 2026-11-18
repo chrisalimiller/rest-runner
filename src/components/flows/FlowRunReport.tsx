@@ -41,7 +41,11 @@ function StepDetail({ step, onOpenChild }: { step: FlowStep; onOpenChild: () => 
       <p className="muted small">
         {NODE_TYPE_LABELS[step.nodeType]}
         {stepWhere(step) ? ` · ${stepWhere(step)}` : ""} · started {new Date(step.startedAt).toLocaleTimeString()} · {formatDuration(step.durationMs)}
-        {step.output ? ` · left by "${step.output}"` : ""}
+        {step.status === "failed" && step.nextNodeId === null && step.nodeType === "loop"
+          ? " · stopped: a row failed"
+          : step.output
+            ? ` · left by "${step.output}"`
+            : ""}
       </p>
       {step.notes.length > 0 && (
         <ul className="flow-report-notes small">

@@ -7,7 +7,7 @@ import { DEFAULT_SUITE_OPTIONS, type TestSuite } from "../testing/types";
 import { parseRecords } from "../csv";
 import { CALL_COLUMNS } from "../reportCsv";
 import { runFlow } from "./engine";
-import { END_LABELS, endTone, flowReportFileName, orderedSteps, singleCall, stepResultLabel, stepStatusCode, toFlowCsvReport, toFlowHtmlReport, variableRows } from "./flowReport";
+import { END_LABELS, endTone, stepOutputName, flowReportFileName, orderedSteps, singleCall, stepResultLabel, stepStatusCode, toFlowCsvReport, toFlowHtmlReport, variableRows } from "./flowReport";
 import { newEdge, newFlow, newNode } from "./flows";
 import type { Flow, FlowNode, FlowRun } from "./types";
 
@@ -134,6 +134,24 @@ describe("run results", () => {
     expect(stepResultLabel(step)).toMatch(/ · 500$/);
     expect(toFlowHtmlReport(run)).toContain(`· 500</span>`);
   });
+});
+
+it("labels a loop that stopped on a failed row as failed, not as its done output", async () => {
+  const run = await sampleRun();
+  const failedLoop = { ...orderedSteps(run)[1], nodeType: "loop" as const, status: "failed" as const, output: "done" as const, nextNodeId: null, label: "Each row" };
+  expect(stepOutputName(failedLoop)).toBeUndefined();
+  expect(stepResultLabel(failedLoop)).toBe("failed");
+  const stepList = run.stepList.map((s) => (s.index === failedLoop.index ? failedLoop : s));
+  const patched = { ...run, stepList };
+  const html = toFlowHtmlReport(patched);
+  expect(html).not.toContain('<span class="out">done</span>');
+  const csv = toFlowCsvReport(patched).replace(/^﻿/, "").trim().split("\r\n");
+  const records = parseRecords(csv.join("\r\n"), ",");
+  const header = records[0];
+  const row = records.find((r) => r.includes("Each row"))!;
+  expect(row[header.indexOf("output")]).toBe("");
+  // A loop that passed still reports done.
+  expect(stepResultLabel({ ...failedLoop, status: "passed" })).toBe("done");
 });
 
 it("redacts report data before search indexes, CSV and nested srcdoc encoding without changing the run", async () => {

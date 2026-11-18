@@ -21,7 +21,7 @@ Flows are saved automatically as you edit. Like the other modes, Flows stays ali
 - **Wire steps:** drag from an output dot on the right of a step to the input dot on the left of another. Dragging a new wire from an output that already has one replaces the old wire.
 - **Select** a step to edit it on the right. **Delete** or **Backspace** removes the selected step or wire; so does **Delete step** in its settings. Nothing asks first; use [undo](#undo).
 - **Move around:** drag the background to pan, scroll or pinch to zoom, and use the buttons at the bottom left to zoom or fit the flow. The small map at the bottom right also pans and zooms.
-- **Opening view:** a flow opens at a readable size: the whole flow when it fits at 70% zoom or more, otherwise 100% zoom centred on Start. The fit button does the same. Manual zoom goes down to 30%; below 60% each card shows just its colour and name.
+- **Opening view:** a flow opens at a readable size: the whole flow when it fits at 70% zoom or more, otherwise 100% zoom with Start near the left edge and vertically centred, so the flow runs to the right into view. The fit button does the same. Manual zoom goes down to 30%; below 60% each card shows just its colour and name.
 - **Tidy layout** (top right of the canvas) arranges the steps left to right with 80 px between columns and 40 px between rows, in the order of their wires. Start stays where it is and sticky notes move with the step they sit closest to. You can undo it.
 
 ### Undo

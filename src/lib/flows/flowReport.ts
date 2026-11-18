@@ -23,9 +23,18 @@ export function singleCall(step: FlowStep): CaseResult | undefined {
   return step.child?.results.length === 1 ? step.child.results[0] : undefined;
 }
 
+/**
+ * The output a step left by, or undefined when it left by none. A Loop over CSV with a failed row
+ * records "done" but never continues to it, so it has no output to show.
+ */
+export function stepOutputName(step: FlowStep): string | undefined {
+  if (step.nodeType === "loop" && step.status === "failed") return undefined;
+  return step.output;
+}
+
 /** "passed · 200" style label for the steps list: the step result with the HTTP status when it has one. */
 export function stepResultLabel(step: FlowStep): string {
-  const base = step.output ?? step.status;
+  const base = stepOutputName(step) ?? step.status;
   const code = stepStatusCode(step);
   return typeof code === "number" ? `${base} · ${code}` : base;
 }
@@ -123,7 +132,7 @@ export function toFlowCsvReport(run: FlowRun, options?: CsvOptions): string {
       s.label,
       NODE_TYPE_LABELS[s.nodeType],
       s.status.toUpperCase(),
-      s.output ?? "",
+      stepOutputName(s) ?? "",
       s.durationMs,
       s.attempts?.length ?? "",
       s.notes.join("\n"),
@@ -163,9 +172,9 @@ function stepHtml(s: FlowStep, secrets: readonly string[]): string {
   const changes = varChanges(s.varsBefore, s.varsAfter);
   const child = s.child;
   const call = singleCall(s);
-  const search = `${s.label} ${NODE_TYPE_LABELS[s.nodeType]} ${s.status} ${s.output ?? ""} ${s.notes.join(" ")}`.toLowerCase();
+  const search = `${s.label} ${NODE_TYPE_LABELS[s.nodeType]} ${s.status} ${stepOutputName(s) ?? ""} ${s.notes.join(" ")}`.toLowerCase();
   return `<details class="step ${s.status}" data-search="${esc(search)}">
-<summary><span class="n">${s.index + 1}</span><span class="mark ${tone}">${mark}</span><span class="name">${esc(s.label)}</span><span class="type">${esc(NODE_TYPE_LABELS[s.nodeType])}</span><span class="where">${esc(where)}</span><span class="out">${esc(s.child ? stepResultLabel(s) : (s.output ?? ""))}</span><span class="ms">${esc(formatDuration(s.durationMs))}</span></summary>
+<summary><span class="n">${s.index + 1}</span><span class="mark ${tone}">${mark}</span><span class="name">${esc(s.label)}</span><span class="type">${esc(NODE_TYPE_LABELS[s.nodeType])}</span><span class="where">${esc(where)}</span><span class="out">${esc(s.child ? stepResultLabel(s) : (stepOutputName(s) ?? ""))}</span><span class="ms">${esc(formatDuration(s.durationMs))}</span></summary>
 <div class="step-body">
 ${s.notes.length ? `<ul class="notes">${s.notes.map((n) => `<li>${esc(n)}</li>`).join("")}</ul>` : ""}
 ${

@@ -29,3 +29,25 @@ it("terminates an active worker on cancellation", async () => {
     expect(terminated).toBe(true);
   } finally { globalThis.Worker = original; }
 });
+
+describe("recyclable runner (StrictMode remount)", () => {
+  it("works again after detach then attach", async () => {
+    const { createRecyclableScriptRunner } = await import("./useScriptRunner");
+    const made: string[] = [];
+    const disposed: string[] = [];
+    const out = (error?: string) => ({ tests: [], logs: [], vars: {}, error, durationMs: 0 });
+    const runner = createRecyclableScriptRunner(() => {
+      const id = `r${made.length + 1}`;
+      made.push(id);
+      return { run: async () => out(), dispose: () => { disposed.push(id); } };
+    });
+    runner.attach();
+    runner.detach(); // StrictMode cleanup
+    expect((await runner.run("1", ctx, 100)).error).toMatch(/unavailable/);
+    runner.attach(); // StrictMode second mount
+    expect((await runner.run("1", ctx, 100)).error).toBeUndefined();
+    expect(disposed).toEqual(["r1"]);
+    runner.detach(); // real unmount
+    expect(disposed).toEqual(["r1", "r2"]);
+  });
+});

@@ -10,10 +10,10 @@ describe("chooseView", () => {
     expect(chooseView(bounds, view, { x: 0, y: 0, width: 220, height: 80 })).toEqual({ kind: "fit" });
   });
 
-  it("opens a big flow at zoom 1 centred on Start", () => {
+  it("opens a big flow at zoom 1 with Start near the left edge", () => {
     const bounds = { x: 0, y: 0, width: 3000, height: 1200 };
     expect(fitZoom(bounds, view)).toBeLessThan(0.7);
-    expect(chooseView(bounds, view, { x: 100, y: 200, width: 220, height: 80 })).toEqual({ kind: "centre", x: 210, y: 240, zoom: 1 });
+    expect(chooseView(bounds, view, { x: 100, y: 200, width: 220, height: 80 })).toEqual({ kind: "centre", x: 100 + 500 - 48, y: 240, zoom: 1 });
   });
 
   it("centres on the flow itself when there is no Start", () => {

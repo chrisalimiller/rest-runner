@@ -16,11 +16,6 @@ import type { Attempt, Flow, FlowNode, FlowOutput, FlowRun, FlowRunEnd, FlowStep
 /** A flow that keeps going round a loop stops after this many steps. */
 export const MAX_FLOW_STEPS = 1000;
 
-/**
- * A saved request runs as a one-off case with no assertions, so it passes when a
- * response comes back and every rr.test in its scripts passes. A 4xx/5xx alone does not fail it.
- */
-
 export interface FlowRunContext {
   /** The suites as they are now. Run nodes point at them by id. */
   suites: TestSuite[];
