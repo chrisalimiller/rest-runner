@@ -13,6 +13,7 @@ import { sendRequest } from "../../lib/http";
 import { newId } from "../../lib/ids";
 import { saveTextFile } from "../../lib/saveFile";
 import { isString, load, save } from "../../lib/storage";
+import { plannedCases } from "../../lib/testing/plan";
 import { planIterations, runCase, runUpTo, runSuite } from "../../lib/testing/runner";
 import { useScriptRunner } from "../../lib/testing/useScriptRunner";
 import { cleanSuites, newSuite } from "../../lib/testing/suites";
@@ -20,7 +21,7 @@ import { buildTestRun, type TestRunSummary } from "../../lib/testing/testRun";
 import { flowsUsingSuiteOrItsCases, usedByLabel } from "../../lib/flows/usedBy";
 import type { Flow } from "../../lib/flows/types";
 import { resolveOpenTarget } from "../../lib/testing/openTarget";
-import { ensureScheduleFlow } from "../../lib/flows/suiteSchedule";
+import { ensureScheduleFlow, flowsEnvironmentId } from "../../lib/flows/suiteSchedule";
 import { loadFlows, saveFlows } from "../../lib/flows/flows";
 import { deleteTestRun, listTestRuns, saveTestRun } from "../../lib/testing/testRunStore";
 import { importSuitesFile, toSuitesFile } from "../../lib/testing/suiteFile";
@@ -187,7 +188,7 @@ export function TestingApp({ active, shell, command }: Props) {
     const snapshot = structuredClone(s);
     const { rows, columns } = rowsFor(snapshot);
     const iterations = planIterations(rows, snapshot.options.repeat).length;
-    const planned = snapshot.cases.filter((c) => c.enabled).length * iterations;
+    const planned = plannedCases(snapshot.cases, iterations);
     const controller = new AbortController();
     abortRef.current = controller;
     bufferRef.current = [];
@@ -341,7 +342,7 @@ export function TestingApp({ active, shell, command }: Props) {
 
   /** Suite ⋯ › Schedule…: open the suite's schedule flow in Flows, making a switched-off one first when there is none. */
   const scheduleSuite = (s: TestSuite) => {
-    const made = ensureScheduleFlow(loadFlows(), s);
+    const made = ensureScheduleFlow(loadFlows(), s, flowsEnvironmentId());
     if (made.created) {
       if (!saveFlows(made.flows)) {
         setNotice("Could not save the schedule: local storage is full.");

@@ -33,6 +33,8 @@ Each case card has:
 - A **⋯** menu with **Move up**, **Move down**, **Duplicate**, **Delete case**, and (if it was made from a saved request) **Update from saved request**, which replaces the case's request (including the request's own scripts) with the current saved version, after a confirmation. The case's own Pre-request and Post-response scripts and its assertions are kept. When the saved request has changed since the case copied it, **changed since copied** appears next to "from saved request"; click it for the same confirmation and update. Nothing shows when the saved request is gone.
 - A request summary line (method, URL, "Params 1 · Bearer · Headers 3 · JSON body") and **Edit request**, which opens the same request editor as Requests mode in a dialog (params, auth, headers, body, and the request's own scripts). Changes apply to this case only. The request's scripts run before the case's own (see [Scripting](scripting.md#when-scripts-run)).
 - Tabs: **Assertions**, **Pre-request** and **Post-response**. A bullet marks scripts that have content, and the Assertions tab shows how many are enabled.
+- **Runs**: whether the case runs **for every row** (the default), **once before the rows** (a setup case) or **once after the rows** (a teardown case). See [Setup and teardown cases](#setup-and-teardown-cases).
+- **Retry**: how many extra tries the case gets when it fails, and how long to wait before each. See [Retrying a case](#retrying-a-case).
 - **Passes on**: below the tabs, lists the variables the case's scripts set with `rr.vars.set("name", …)`, with the expression, and the last value seen.
 
 A new case starts with one assertion, "Status code equals 200".
@@ -74,7 +76,7 @@ The **Last result** column shows each assertion's outcome (✓ or ✕) and the v
 
 ### Planned runs
 
-At the top of the settings a line states what a run will do, for example **12 iterations × 5 cases = 60 case runs**, taking the CSV rows, repeat count and disabled cases into account. **Concurrency** is shown only for the parallel run orders.
+At the top of the settings a line states what a run will do, for example **12 iterations × 5 cases = 60 case runs**, taking the CSV rows, repeat count and disabled cases into account. Setup and teardown cases are counted once. **Concurrency** is shown only for the parallel run orders.
 
 ### Run order
 
@@ -126,9 +128,28 @@ A case **passes when every check passes**: its enabled assertions, every `rr.tes
 
 Each result also gets plain-language notes (placeholders that had no value, an HTTP status that was judged by the case's own assertion, and so on).
 
+### Setup and teardown cases
+
+A suite with a CSV runs every case once per row, so a Login case would log in again for every row. Set a case's **Runs** to **Once, before the rows** to make it a setup case instead:
+
+- Setup cases run first, one at a time, in suite order, using the first CSV row (or no data when the suite has none). Whatever they set with `rr.vars.set` (a token, say) is where every row starts, in all three run orders, including the parallel ones.
+- If a setup case fails, the rows and teardown cases are not run. The run ends as **Stopped after a failure** and its log says **Setup failed**.
+- **Once, after the rows** makes a teardown case. It runs one time after all the rows, starting from the variables setup set, even when rows failed. It does not run when you press **Stop**. It does run after "Stop on first failed case" has stopped the rows, so cleanup still happens.
+- Setup and teardown run once per run, not once per repeat. The planned-runs line counts them: **5 cases planned (1 setup + 4 rows × 1 case × 1 repeat)**.
+- The runbook groups the cases under **Setup · runs once before the rows**, the normal list, and **Teardown · runs once after the rows**. Dragging and Move up / Move down reorder within a group; change **Runs** to move a case to another group.
+- In results they are labelled **Setup** and **Teardown** instead of an iteration number, have no CSV row, and the Grid view gives them their own row at the top and bottom. They count in the totals like any case.
+- **Try up to here** runs the setup cases first, then the cases above the target in the runbook. **Try case** on a single case does not run setup.
+- A flow's **Run suite** step runs a suite's setup and teardown cases too. A **Run case** step runs just that case.
+
+Suites saved before this have no setting, which means every case runs for every row, as before.
+
+### Retrying a case
+
+A case's **Retry** setting tries it again when it fails, up to the number of extra tries you set, waiting a set time before each. Each try starts from the run variables the case started with, so a failed try's `rr.vars.set` calls don't leak into the next. The result is the last try. Its notes say **Passed on try 2 of 3** or **Failed all 3 tries**, and the report shows each try with its time and why it failed. It works the same as Retry on a flow's Run step. Retry is off unless you turn it on.
+
 ### Reordering cases
 
-The numbered circle at the left of each case is its drag handle. Drag it up or down, or focus it and press **Space** to pick the case up, **↑ / ↓** to move it, **Space** to drop it (**Esc** puts it back). A screen reader announces the position as it moves. **Move up** and **Move down** in the ⋯ menu do the same one step at a time.
+The numbered circle at the left of each case is its drag handle (within its Setup, normal or Teardown group). Drag it up or down, or focus it and press **Space** to pick the case up, **↑ / ↓** to move it, **Space** to drop it (**Esc** puts it back). A screen reader announces the position as it moves. **Move up** and **Move down** in the ⋯ menu do the same one step at a time.
 
 ### While a run is going
 
@@ -136,7 +157,7 @@ The suite header reads **Running · iteration 3 of 12** (or **Running · 2 of 5*
 
 ### Try case
 
-**Try case** sends one case on its own using the suite's settings, so you can build a case without running everything. It uses the first CSV row (if the suite has data) and starts with no run variables, so values that earlier cases would have set are missing. The result appears under the case ("Last try") and fills the **Last result** column. The **▾** next to Try case opens **Try up to here**: it runs the enabled cases before this one, then this one, once each, using the first CSV row. Variables set by earlier cases carry forward, as in a sequential run, so a case that needs a token from a login case can be tried without running the whole suite. Disabled cases are skipped (the case you pressed it on always runs), and it stops at the first failure when the suite is set to stop on failure. Each case shows its own try result. Starting a suite run clears the try results of that suite's cases, so Last result then reflects the run.
+**Try case** sends one case on its own using the suite's settings, so you can build a case without running everything. It uses the first CSV row (if the suite has data) and starts with no run variables, so values that earlier cases would have set are missing. The result appears under the case ("Last try") and fills the **Last result** column. The **▾** next to Try case opens **Try up to here**: it runs the enabled cases before this one, then this one, once each, using the first CSV row. Setup cases run first when the target is below them in the runbook. Variables set by earlier cases carry forward, as in a sequential run, so a case that needs a token from a login case can be tried without running the whole suite. Disabled cases are skipped (the case you pressed it on always runs), and it stops at the first failure when the suite is set to stop on failure. Each case shows its own try result. Starting a suite run clears the try results of that suite's cases, so Last result then reflects the run.
 
 ## Reports
 
@@ -160,7 +181,7 @@ A run that a flow started (a **Run suite** step) is saved here too, as its own c
 
 ## Scheduling a suite
 
-Open the suite's **⋯** menu and choose **Schedule…**. REST Runner opens the flow that runs this suite on a schedule: a Schedule step wired to a Run suite step. If there is none yet it makes one named "<suite name> schedule" (Weekdays at 07:30) and **switches it off**, so nothing runs by surprise. Turn it on and pick the days and time in Flows. Choosing **Schedule…** again opens the same flow. Scheduled runs only happen while the app is open. See [Schedules](flows.md#schedules).
+Open the suite's **⋯** menu and choose **Schedule…**. REST Runner opens the flow that runs this suite on a schedule: a Schedule step wired to a Run suite step. If there is none yet it makes one named "<suite name> schedule" (Weekdays at 07:30) and **switches it off**, so nothing runs by surprise. The new schedule pins the environment selected in Flows at that moment; change it in the Schedule step's settings. Turn it on and pick the days and time in Flows. Choosing **Schedule…** again opens the same flow. Scheduled runs only happen while the app is open. See [Schedules](flows.md#schedules).
 
 ## Exporting suites
 

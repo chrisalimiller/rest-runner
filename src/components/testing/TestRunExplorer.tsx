@@ -4,6 +4,7 @@ import { storedSecrets } from "../../lib/secrets";
 import { useEffect, useMemo, useState } from "react";
 import { saveTextFile } from "../../lib/saveFile";
 import { describeMode } from "../../lib/testing/describe";
+import { iterationText } from "../../lib/testing/caseStatus";
 import { buildGrid } from "../../lib/testing/grid";
 import { failureCheckNames, testReportFileName, toTestCsvReport, toTestHtmlReport } from "../../lib/testing/testReport";
 import { caseStats, iterationsLabel, sourceLabel, testRunTimes, type TestRun } from "../../lib/testing/testRun";
@@ -88,7 +89,7 @@ export function TestRunExplorer({ runId, preloaded, onBack, onOpenFlowRun, backL
         if (caseFilter && r.caseId !== caseFilter) return false;
         if (checkFilter && !failureCheckNames(r).includes(checkFilter)) return false;
         if (!q) return true;
-        const hay = `${r.iteration + 1} ${r.caseName} ${resultStatus(r).label} ${r.outcome?.request.url ?? ""} ${Object.values(r.vars).join(" ")} ${r.checks
+        const hay = `${iterationText(r)} ${r.caseName} ${resultStatus(r).label} ${r.outcome?.request.url ?? ""} ${Object.values(r.vars).join(" ")} ${r.checks
           .map((c) => `${c.name} ${c.message ?? ""}`)
           .join(" ")} ${r.notes.join(" ")}`;
         return hay.toLowerCase().includes(q);
@@ -378,7 +379,7 @@ export function TestRunExplorer({ runId, preloaded, onBack, onOpenFlowRun, backL
         )}
         <div className="result-detail">
           {picked ? (
-            <CaseResultView key={selected} result={picked} title={`${picked.caseName} · iteration ${picked.iteration + 1}${picked.rowIndex !== null ? ` (row ${picked.rowIndex + 1})` : ""}`} />
+            <CaseResultView key={selected} result={picked} title={`${picked.caseName} · ${picked.phase ? (picked.phase === "before" ? "setup" : "teardown") : `iteration ${picked.iteration + 1}${picked.rowIndex !== null ? ` (row ${picked.rowIndex + 1})` : ""}`}`} />
           ) : (
             <p className="muted small">Select a result to see its details.</p>
           )}

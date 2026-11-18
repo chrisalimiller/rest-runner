@@ -2,9 +2,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { checkCsvFile, parseCsv } from "../../lib/csv";
 import { CONDITION_SOURCE_LABELS, OPS_FOR_CONDITION } from "../../lib/flows/conditions";
 import { formatMs, NODE_TYPE_LABELS, nodeLabel } from "../../lib/flows/flows";
+import { NumberField, RetryEditor } from "../testing/RetryEditor";
 import type { FlowItems } from "../../lib/flows/items";
 import { nextDueAfter, scheduleProblem, WEEKDAY_NAMES, type Schedule, type ScheduleState } from "../../lib/flows/schedule";
-import type { ConditionSource, FlowCondition, FlowNode, LoopNode, RetrySettings, ScheduleNode } from "../../lib/flows/types";
+import type { ConditionSource, FlowCondition, FlowNode, LoopNode, ScheduleNode } from "../../lib/flows/types";
 import type { FlowProblem } from "../../lib/flows/validate";
 import { OP_LABELS, opNeedsValue } from "../../lib/testing/assertions";
 import type { Assertion } from "../../lib/testing/types";
@@ -53,18 +54,6 @@ const EXPECTED_HINT: Partial<Record<ConditionSource, string>> = {
   "last-result": "passed or failed",
 };
 
-function NumberField({ label, value, onChange, min = 0, suffix }: { label: string; value: number; onChange: (n: number) => void; min?: number; suffix?: string }) {
-  return (
-    <label className="flow-field">
-      <span>{label}</span>
-      <span className="flow-field-row">
-        <input type="number" min={min} value={value} onChange={(e) => onChange(Math.max(min, Math.floor(Number(e.target.value) || 0)))} />
-        {suffix && <span className="muted small">{suffix}</span>}
-      </span>
-    </label>
-  );
-}
-
 /** No-code checks on a Run request step, with the value each one saw in the latest run. */
 function ChecksEditor({ assertions, lastCall, onChange }: { assertions: Assertion[]; lastCall?: CaseResult | null; onChange: (a: Assertion[]) => void }) {
   const [results, setResults] = useState<Map<string, AssertionResult>>(new Map());
@@ -81,17 +70,6 @@ function ChecksEditor({ assertions, lastCall, onChange }: { assertions: Assertio
       <legend className="section-title">Checks</legend>
       <AssertionEditor assertions={assertions} onChange={onChange} results={results} />
       <p className="muted small">The step fails when an enabled check does. A status code check replaces the 4xx/5xx switch.</p>
-    </fieldset>
-  );
-}
-
-function RetryEditor({ retry, onChange }: { retry: RetrySettings; onChange: (r: RetrySettings) => void }) {
-  return (
-    <fieldset className="flow-fieldset">
-      <legend className="section-title">Retry</legend>
-      <NumberField label="Extra tries" value={retry.times} onChange={(times) => onChange({ ...retry, times: Math.min(100, times) })} suffix={retry.times === 0 ? "off" : undefined} />
-      {retry.times > 0 && <NumberField label="Wait between tries" value={retry.delayMs} onChange={(delayMs) => onChange({ ...retry, delayMs })} suffix={`ms (${formatMs(retry.delayMs)})`} />}
-      <p className="muted small">When this step fails it is tried again, up to this many more times. Each try starts from the variables the step started with.</p>
     </fieldset>
   );
 }

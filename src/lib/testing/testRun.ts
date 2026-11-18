@@ -1,6 +1,7 @@
 import { durationOf, MAX_SAVED_BODY, type RunLogLine } from "../run";
 import type { SendOutcome } from "../types";
 import { describeMode } from "./describe";
+import { plannedCases, splitCases } from "./plan";
 import type { CaseResult, SuiteRunEnd, SuiteRunOptions, TestSuite } from "./types";
 
 /** Where a saved test run came from, when it was not started from the Testing section. */
@@ -71,7 +72,7 @@ function trimOutcome(outcome: SendOutcome | undefined): SendOutcome | undefined 
 
 /** "3", or "1 of 3" when the run stopped before every planned iteration had a result. */
 export function iterationsLabel(run: Pick<TestRun, "iterations" | "results">): string {
-  const ran = new Set(run.results.map((r) => r.iteration)).size;
+  const ran = new Set(run.results.filter((r) => !r.phase).map((r) => r.iteration)).size;
   return ran < run.iterations ? `${ran} of ${run.iterations}` : String(run.iterations);
 }
 
@@ -120,7 +121,10 @@ export interface TestRunInput {
 /** Turns raw case results into a saved test run with a summary and a run log. */
 export function buildTestRun(input: TestRunInput): TestRun {
   const results = sortResults(input.results).map((r) => ({ ...r, outcome: trimOutcome(r.outcome) }));
-  const enabled = input.suite.cases.filter((c) => c.enabled).length;
+  const { before, each, after } = splitCases(input.suite.cases, true);
+  const enabled = each.length;
+  const planned = plannedCases(input.suite.cases, input.iterations);
+  const setupFailed = results.some((r) => r.phase === "before" && !r.passed);
   const passed = results.filter((r) => r.passed).length;
   const checks = results.flatMap((r) => r.checks);
   const checksPassed = checks.filter((c) => c.passed).length;
@@ -129,7 +133,7 @@ export function buildTestRun(input: TestRunInput): TestRun {
   const log: RunLogLine[] = [
     {
       at: input.startedAt,
-      message: `Started suite "${input.suite.name}": ${enabled} case${enabled === 1 ? "" : "s"} × ${input.iterations} iteration${input.iterations === 1 ? "" : "s"}${input.csvName ? ` from ${input.csvName}` : ""}.`,
+      message: `Started suite "${input.suite.name}": ${enabled} case${enabled === 1 ? "" : "s"} × ${input.iterations} iteration${input.iterations === 1 ? "" : "s"}${input.csvName ? ` from ${input.csvName}` : ""}${before.length ? `, after ${before.length} setup case${before.length === 1 ? "" : "s"}` : ""}${after.length ? `, then ${after.length} teardown case${after.length === 1 ? "" : "s"}` : ""}.`,
     },
     { at: input.startedAt, message: `Run order: ${describeMode(o)}.` },
     { at: input.startedAt, message: input.environmentName ? `Environment: ${input.environmentName}.` : "No environment selected." },
@@ -139,7 +143,7 @@ export function buildTestRun(input: TestRunInput): TestRun {
     const why = firstFail.checks.find((c) => !c.passed);
     log.push({
       at: firstFail.startedAt,
-      message: `First failure: "${firstFail.caseName}" in iteration ${firstFail.iteration + 1}${why ? ` (${why.name}${why.message ? `: ${why.message}` : ""})` : ""}.`,
+      message: `First failure: "${firstFail.caseName}" ${firstFail.phase ? (firstFail.phase === "before" ? "in setup" : "in teardown") : `in iteration ${firstFail.iteration + 1}`}${why ? ` (${why.name}${why.message ? `: ${why.message}` : ""})` : ""}.`,
     });
   }
   log.push({
@@ -147,13 +151,15 @@ export function buildTestRun(input: TestRunInput): TestRun {
     message:
       input.end === "cancelled"
         ? "Stopped by you before every case ran."
-        : input.end === "stopped-on-failure"
+        : input.end === "stopped-on-failure" && setupFailed
+          ? "Setup failed, so the rows and teardown cases were not run."
+          : input.end === "stopped-on-failure"
           ? 'Stopped after a failed case ("Stop on first failure" was on).'
           : "Every case ran.",
   });
   log.push({
     at: input.finishedAt,
-    message: `Finished: ${results.length} of ${enabled * input.iterations} cases ran, ${passed} passed, ${results.length - passed} failed; ${checksPassed} of ${checks.length} checks passed.`,
+    message: `Finished: ${results.length} of ${planned} cases ran, ${passed} passed, ${results.length - passed} failed; ${checksPassed} of ${checks.length} checks passed.`,
   });
 
   return {
@@ -168,7 +174,7 @@ export function buildTestRun(input: TestRunInput): TestRun {
     end: input.end,
     options: o,
     iterations: input.iterations,
-    plannedCases: enabled * input.iterations,
+    plannedCases: planned,
     completed: results.length,
     passed,
     failed: results.length - passed,
