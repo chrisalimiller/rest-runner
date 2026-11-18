@@ -31,6 +31,26 @@ export interface Assertion {
   expected: string;
 }
 
+/** Try a case or Run step again when it fails: up to `times` more tries, waiting `delayMs` before each. */
+export interface RetrySettings {
+  times: number;
+  delayMs: number;
+}
+
+export const NO_RETRY: RetrySettings = { times: 0, delayMs: 1000 };
+
+/** One try of a case or Run step. */
+export interface Attempt {
+  passed: boolean;
+  startedAt: string;
+  durationMs: number;
+  /** The first failed check, or why it could not run. */
+  reason?: string;
+}
+
+/** When a case runs: once per iteration (CSV row / repeat), once before all of them, or once after all of them. */
+export type CaseRuns = "each" | "before" | "after";
+
 export interface TestCase {
   id: string;
   name: string;
@@ -44,6 +64,10 @@ export interface TestCase {
   /** JavaScript run after the response arrives. */
   postScript: string;
   assertions: Assertion[];
+  /** Missing (suites saved before this) means "each". */
+  runs?: CaseRuns;
+  /** Tries again when the case fails. Missing means no retry. */
+  retry?: RetrySettings;
 }
 
 /**
@@ -123,6 +147,10 @@ export interface CaseResult {
   caseName: string;
   /** Position of the case in the suite. */
   caseIndex: number;
+  /** Set for a setup ("before") or teardown ("after") case, which runs once per run and has no CSV row. */
+  phase?: "before" | "after";
+  /** One entry per try, when the case has retries and needed more than one try. */
+  attempts?: Attempt[];
   /** Variables the request was prepared with (environment, CSV row and run variables combined). */
   vars: Vars;
   /** Missing when the request was not sent (for example the pre-script failed). */

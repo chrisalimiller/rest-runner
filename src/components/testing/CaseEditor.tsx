@@ -3,7 +3,8 @@ import { requestSummaryLine } from "../../lib/requestSummary";
 import type { Vars } from "../../lib/template";
 import { assertionResults, failureLine } from "../../lib/testing/caseStatus";
 import { detectVarSets } from "../../lib/testing/varsDetect";
-import type { CaseResult, TestCase } from "../../lib/testing/types";
+import { caseRuns } from "../../lib/testing/plan";
+import { NO_RETRY, type CaseResult, type CaseRuns, type TestCase } from "../../lib/testing/types";
 import type { RequestDef } from "../../lib/types";
 import { RequestEditor, WithPlaceholders } from "../request/RequestEditor";
 import { ArrowDownIcon, CopyIcon, PlayFilledIcon, TrashIcon } from "../shell/Icons";
@@ -11,14 +12,18 @@ import { Modal } from "../shell/Modal";
 import { OverflowMenu } from "../shell/OverflowMenu";
 import { AssertionEditor } from "./AssertionEditor";
 import { CaseResultView } from "./CaseResultView";
+import { RetryEditor } from "./RetryEditor";
 import { ScriptEditor } from "./ScriptEditor";
 
 type Tab = "assertions" | "pre" | "post";
 
 interface Props {
   testCase: TestCase;
+  /** Position among the cases that run at the same time (setup, the normal list or teardown), and how many there are. */
   index: number;
   count: number;
+  /** The first case shown in the runbook: nothing runs before it, so "Try up to here" is off. */
+  first: boolean;
   onChange: (tc: TestCase) => void;
   onMove: (by: number) => void;
   onDuplicate: () => void;
@@ -104,7 +109,7 @@ export function CaseEditor(props: Props) {
               triggerTitle="More ways to try"
               triggerClass="secondary split-caret"
               trigger={<span aria-hidden>▾</span>}
-              disabled={props.trying || props.index === 0}
+              disabled={props.trying || props.first}
               items={[
                 { label: "Try up to here", onSelect: props.onTryUpTo, title: "Run the enabled cases before this one, then this one, so variables they set are available" },
               ]}
@@ -132,6 +137,25 @@ export function CaseEditor(props: Props) {
           </button>
         </div>
 
+        <label className="case-runs small">
+          <span>Runs</span>
+          <select
+            value={caseRuns(tc)}
+            onChange={(e) => {
+              const runs = e.target.value as CaseRuns;
+              const { runs: _old, ...rest } = tc;
+              onChange(runs === "each" ? rest : { ...rest, runs });
+            }}
+            aria-label="When this case runs"
+          >
+            <option value="each">For every row</option>
+            <option value="before">Once, before the rows (setup)</option>
+            <option value="after">Once, after the rows (teardown)</option>
+          </select>
+          {caseRuns(tc) === "before" && <span className="muted">Runs one time. Variables it sets (like a token) are passed to every row. If it fails, the rows are not run.</span>}
+          {caseRuns(tc) === "after" && <span className="muted">Runs one time, after the last row, even if rows failed. It starts from the variables setup set.</span>}
+        </label>
+
         <div className="case-tabs" role="tablist" aria-label="Case parts">
           <button role="tab" aria-selected={tab === "assertions"} className={tab === "assertions" ? "active" : ""} onClick={() => setTab("assertions")}>
             Assertions {activeAssertions || ""}
@@ -149,6 +173,15 @@ export function CaseEditor(props: Props) {
           {tab === "pre" && <ScriptEditor phase="pre" value={tc.preScript} onChange={(preScript) => onChange({ ...tc, preScript })} />}
           {tab === "post" && <ScriptEditor phase="post" value={tc.postScript} onChange={(postScript) => onChange({ ...tc, postScript })} />}
         </div>
+
+        <RetryEditor
+          what="case"
+          retry={tc.retry ?? NO_RETRY}
+          onChange={(retry) => {
+            const { retry: _old, ...rest } = tc;
+            onChange(retry.times > 0 ? { ...rest, retry } : rest);
+          }}
+        />
 
         {varSets.length > 0 && (
           <div className="passes-on">

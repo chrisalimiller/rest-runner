@@ -3,7 +3,8 @@ import { prepareRequest } from "../request";
 import { combineScripts } from "../requestScripts";
 import { findPlaceholders, type Vars } from "../template";
 import { evaluateAssertionAsync } from "./assertions";
-import { clampRepeat } from "./plan";
+import { clampRepeat, splitCases, type CaseSlot } from "./plan";
+import { replaceVars, retryNote, runWithRetry, sleep } from "./retry";
 import type { ScriptContext } from "./sandbox";
 import type { ScriptRunner } from "./scriptRunner";
 import type { CaseResult, Check, ScriptOutput, SuiteRunEnd, SuiteRunOptions, TestCase, TestSuite } from "./types";
@@ -41,19 +42,6 @@ export interface SuiteRunContext {
   onIterationDone?: (iteration: Iteration, runVars: Vars) => void;
 }
 
-function sleep(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve) => {
-    if (ms <= 0 || signal.aborted) return resolve();
-    const t = setTimeout(done, ms);
-    function done() {
-      clearTimeout(t);
-      signal.removeEventListener("abort", done);
-      resolve();
-    }
-    signal.addEventListener("abort", done);
-  });
-}
-
 /** Runs fn over items with at most `concurrency` at once. Stops handing out items once shouldStop() is true. */
 async function pool<T>(
   items: T[],
@@ -67,11 +55,6 @@ async function pool<T>(
     while (!shouldStop() && next < items.length) await fn(items[next++], w);
   };
   await Promise.all(Array.from({ length: workers }, worker));
-}
-
-function replaceVars(target: Vars, source: Vars): void {
-  for (const k of Object.keys(target)) delete target[k];
-  Object.assign(target, source);
 }
 
 function scriptChecks(output: ScriptOutput | undefined, source: "pre-script" | "post-script"): Check[] {
@@ -91,8 +74,32 @@ interface CaseRun {
   runVars: Vars;
 }
 
-/** Runs one case: pre-script, request, assertions, post-script. Returns null when Stop cut the request off. */
+/**
+ * Runs one case, trying again when the case has retries: each try starts from the run variables the case started with,
+ * and the result is the last try. Returns null when Stop cut the request off.
+ */
 export async function runCase(run: CaseRun, options: SuiteRunOptions, ctx: Omit<SuiteRunContext, "rows" | "onResult">): Promise<CaseResult | null> {
+  const retry = run.testCase.retry;
+  if (!retry || retry.times <= 0) return runCaseOnce(run, options, ctx);
+  const { last, attempts } = await runWithRetry(retry, run.runVars, ctx.signal, async () => {
+    const result = await runCaseOnce(run, options, ctx);
+    const failed = result?.checks.find((c) => !c.passed);
+    return {
+      result,
+      passed: !!result?.passed,
+      cancelled: !result,
+      reason: result?.passed ? undefined : failed ? `${failed.name}${failed.message ? `: ${failed.message}` : ""}` : result?.notes[0],
+    };
+  });
+  const result = last?.result;
+  if (!result) return null;
+  const note = retryNote(attempts, result.passed, retry.times);
+  if (!note) return result;
+  return { ...result, attempts, notes: [...result.notes, note] };
+}
+
+/** Runs one case once: pre-script, request, assertions, post-script. Returns null when Stop cut the request off. */
+async function runCaseOnce(run: CaseRun, options: SuiteRunOptions, ctx: Omit<SuiteRunContext, "rows" | "onResult">): Promise<CaseResult | null> {
   const { testCase: tc, iter, runVars } = run;
   const startedAt = new Date().toISOString();
   const start = Date.now();
@@ -210,20 +217,49 @@ export async function runCase(run: CaseRun, options: SuiteRunOptions, ctx: Omit<
   };
 }
 
+/** The iteration a setup or teardown case runs in: no CSV row of its own, sorted before (-1) or after all the others. */
+function phaseIteration(phase: "before" | "after", rows: Vars[] | null, iterations: number): Iteration {
+  return { iteration: phase === "before" ? -1 : iterations, rowIndex: null, repeatIndex: 0, data: rows && rows.length ? rows[0] : {} };
+}
+
 /** Runs every enabled case for every iteration, in the order the run mode asks for. */
 export async function runSuite(suite: TestSuite, ctx: SuiteRunContext): Promise<SuiteRunEnd> {
   const options = suite.options;
-  const cases = suite.cases.map((testCase, caseIndex) => ({ testCase, caseIndex })).filter((c) => c.testCase.enabled);
+  const { before, each: cases, after } = splitCases(suite.cases, true);
   const iterations = planIterations(ctx.rows, options.repeat);
   let stopped = false;
   const shouldStop = () => ctx.signal.aborted || stopped;
 
-  const runOne = async (c: (typeof cases)[number], iter: Iteration, runVars: Vars) => {
+  const runOne = async (c: CaseSlot, iter: Iteration, runVars: Vars) => {
     const result = await runCase({ ...c, iter, runVars }, options, ctx);
     if (!result) return;
     if (!result.passed && options.stopOnFailure) stopped = true;
     ctx.onResult(result);
   };
+
+  /** Setup or teardown: once, in suite order, one at a time. Returns false when a case failed or Stop was pressed. */
+  const runOnce = async (slots: CaseSlot[], phase: "before" | "after", runVars: Vars): Promise<boolean> => {
+    const iter = phaseIteration(phase, ctx.rows, iterations.length);
+    let ok = true;
+    for (const c of slots) {
+      if (ctx.signal.aborted) return false;
+      const result = await runCase({ ...c, iter, runVars }, options, ctx);
+      if (!result) return false;
+      ctx.onResult({ ...result, phase });
+      if (!result.passed) ok = false;
+      if (!ok && phase === "before") return false;
+    }
+    return ok;
+  };
+
+  // Setup runs first. What it sets is what every iteration (and teardown) starts with.
+  const startVars: Vars = { ...ctx.startVars };
+  if (before.length) {
+    const ok = await runOnce(before, "before", startVars);
+    if (ctx.signal.aborted) return "cancelled";
+    if (!ok) return "stopped-on-failure";
+  }
+  const setupVars: Vars = { ...startVars };
 
   /** A worker's chain of cases, pausing between them when a delay is set. */
   const makeChain = () => {
@@ -242,7 +278,7 @@ export async function runSuite(suite: TestSuite, ctx: SuiteRunContext): Promise<
       await pool(cases, options.concurrency, shouldStop, async (c, w) => {
         chains[w] ??= makeChain();
         // Cases running at the same time cannot pass variables to each other, so each starts from the start values.
-        await chains[w](() => runOne(c, iter, { ...ctx.startVars }));
+        await chains[w](() => runOne(c, iter, { ...setupVars }));
       });
     }
   } else {
@@ -251,7 +287,7 @@ export async function runSuite(suite: TestSuite, ctx: SuiteRunContext): Promise<
     await pool(iterations, concurrency, shouldStop, async (iter, w) => {
       chains[w] ??= makeChain();
       // Variables carry from case to case within an iteration; each iteration starts from the same start values.
-      const runVars: Vars = { ...ctx.startVars };
+      const runVars: Vars = { ...setupVars };
       for (const c of cases) {
         if (shouldStop()) break;
         await chains[w](() => runOne(c, iter, runVars));
@@ -259,6 +295,9 @@ export async function runSuite(suite: TestSuite, ctx: SuiteRunContext): Promise<
       ctx.onIterationDone?.(iter, runVars);
     });
   }
+
+  // Teardown runs even when rows failed (and after "stop on first failure"), but not after Stop.
+  if (!ctx.signal.aborted && after.length) await runOnce(after, "after", { ...setupVars });
 
   if (ctx.signal.aborted) return "cancelled";
   if (stopped) return "stopped-on-failure";
@@ -274,15 +313,21 @@ export async function runUpTo(suite: TestSuite, upToIndex: number, ctx: Omit<Sui
   const iter = planIterations(ctx.rows, 1)[0];
   const runVars: Vars = { ...ctx.startVars };
   const results: CaseResult[] = [];
-  for (let i = 0; i <= upToIndex && i < suite.cases.length; i++) {
-    const tc = suite.cases[i];
-    if (!tc.enabled && i !== upToIndex) continue;
+  // The order the runbook shows: setup, then the normal list, then teardown.
+  const { before, each, after } = splitCases(suite.cases);
+  const order = [...before, ...each, ...after];
+  const last = order.findIndex((c) => c.caseIndex === upToIndex);
+  for (let pos = 0; pos <= last; pos++) {
+    const { testCase: tc, caseIndex } = order[pos];
+    if (!tc.enabled && caseIndex !== upToIndex) continue;
     if (ctx.signal.aborted) break;
-    const result = await runCase({ testCase: tc, caseIndex: i, iter, runVars }, suite.options, ctx);
+    const phase = tc.runs === "before" || tc.runs === "after" ? tc.runs : undefined;
+    const result = await runCase({ testCase: tc, caseIndex, iter: phase ? phaseIteration(phase, ctx.rows, 1) : iter, runVars }, suite.options, ctx);
     if (!result) break;
-    results.push(result);
-    ctx.onResult?.(result);
-    if (!result.passed && suite.options.stopOnFailure) break;
+    const done = phase ? { ...result, phase } : result;
+    results.push(done);
+    ctx.onResult?.(done);
+    if (!result.passed && (suite.options.stopOnFailure || phase === "before")) break;
   }
   return results;
 }

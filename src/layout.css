@@ -3852,3 +3852,16 @@ select:focus-visible,
 .inspector .code-view-frame {
   background: var(--bg);
 }
+
+/* Runs control on a test case (setup / every row / teardown) and the group titles in the runbook. */
+.case-runs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin: 12px 0 4px;
+}
+
+.step-group-title {
+  margin: 18px 0 8px;
+}

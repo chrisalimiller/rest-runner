@@ -2,6 +2,7 @@ import type { SendFn } from "../batch";
 import { parseCsv } from "../csv";
 import { newId } from "../ids";
 import { applyTemplate, type Vars } from "../template";
+import { replaceVars, retryNote, runWithRetry, sleep } from "../testing/retry";
 import { planIterations, runCase, runSuite } from "../testing/runner";
 import type { ScriptRunner } from "../testing/scriptRunner";
 import { buildTestRun, type TestRun } from "../testing/testRun";
@@ -38,24 +39,6 @@ export interface FlowRunContext {
 
 export class FlowNotRunnableError extends Error {}
 
-function sleep(ms: number, signal: AbortSignal): Promise<void> {
-  return new Promise((resolve) => {
-    if (ms <= 0 || signal.aborted) return resolve();
-    const t = setTimeout(done, ms);
-    function done() {
-      clearTimeout(t);
-      signal.removeEventListener("abort", done);
-      resolve();
-    }
-    signal.addEventListener("abort", done);
-  });
-}
-
-
-function replaceVars(target: Vars, source: Vars): void {
-  for (const k of Object.keys(target)) delete target[k];
-  Object.assign(target, source);
-}
 
 function firstFailure(results: CaseResult[], end: SuiteRunEnd): string | undefined {
   const failed = results.find((r) => !r.passed);
@@ -269,30 +252,13 @@ async function runSimpleNode(e: Engine, lane: Lane, node: FlowNode): Promise<Ste
     case "run-case":
     case "run-suite":
     case "run-request": {
-      const attempts: Attempt[] = [];
-      const before = { ...lane.vars };
       const notes: string[] = [];
-      let last: TryResult | null = null;
-      for (let i = 0; i <= node.retry.times; i++) {
-        if (i > 0) {
-          await sleep(node.retry.delayMs, e.ctx.signal);
-          if (e.ctx.signal.aborted) break;
-          // Each try starts from the variables the step started with.
-          replaceVars(lane.vars, before);
-        }
-        const start = Date.now();
-        const startedAt = new Date(start).toISOString();
-        last = await tryRunNode(e, lane, node);
-        if (last.cancelled) break;
-        attempts.push({ passed: last.passed, startedAt, durationMs: Date.now() - start, reason: last.reason });
-        if (last.passed) break;
-      }
+      const { last, attempts } = await runWithRetry(node.retry, lane.vars, e.ctx.signal, () => tryRunNode(e, lane, node));
       if (e.ctx.signal.aborted || !last || last.cancelled) {
         return { status: "cancelled", notes: ["Stopped before this step finished."], attempts, child: last?.child };
       }
-      if (attempts.length > 1) {
-        notes.push(last.passed ? `Passed on try ${attempts.length} of ${node.retry.times + 1}.` : `Failed all ${attempts.length} tries.`);
-      }
+      const note = retryNote(attempts, last.passed, node.retry.times);
+      if (note) notes.push(note);
       if (!last.passed && last.reason) notes.push(last.reason + ".");
       lane.lastResult = last.passed ? "passed" : "failed";
       lane.lastResponse = last.lastResponse;

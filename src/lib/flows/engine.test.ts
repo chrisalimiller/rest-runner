@@ -280,6 +280,30 @@ describe("runFlow", () => {
     expect(child.passed).toBe(3);
   });
 
+  it("runs a suite's setup case once and gives the child run its Setup result", async () => {
+    const server = fakeServer(() => ({ status: 200 }));
+    const login = makeCase("Login", "https://{{host}}/login", { runs: "before", postScript: `rr.vars.set("token", "tok")` });
+    const get = makeCase("Get", "https://{{host}}/u/{{id}}?t={{token}}");
+    const suite = suiteOf([login, get], { data: { name: "users.csv", text: "id\n1\n2" } });
+    const node: FlowNode = { ...newNode("run-suite"), type: "run-suite", suiteId: suite.id, retry: { times: 0, delayMs: 0 } };
+    const run = await runFlow(flowOf([node], []), ctxOf(server.send, [suite]));
+    expect(server.urls()).toEqual(["https://api.test/login", "https://api.test/u/1?t=tok", "https://api.test/u/2?t=tok"]);
+    const child = run.stepList[1].child!;
+    expect(child.plannedCases).toBe(3);
+    expect(child.results[0].phase).toBe("before");
+    expect(run.vars.token).toBe("tok");
+  });
+
+  it("a Run case step uses the case's own retry too", async () => {
+    let calls = 0;
+    const server = fakeServer(() => (++calls < 2 ? { status: 500 } : { status: 200 }));
+    const tc = makeCase("Flaky", "https://{{host}}/f", { retry: { times: 1, delayMs: 0 } });
+    const suite = suiteOf([tc]);
+    const run = await runFlow(flowOf([runCaseNode(suite, tc)], []), ctxOf(server.send, [suite]));
+    expect(run.stepList[1].status).toBe("passed");
+    expect(server.sent).toHaveLength(2);
+  });
+
   it("uses the live suite as it is when the run starts", async () => {
     const server = fakeServer(() => ({ status: 200 }));
     const tc = makeCase("Old", "https://{{host}}/old");

@@ -1,6 +1,7 @@
 import { newRequest } from "../defaults";
 import { newId } from "../ids";
 import { clampRepeat } from "./plan";
+import { cleanRetry } from "./retry";
 import { isHttpMethod, type RequestDef } from "../types";
 import { ASSERTION_OPS, DEFAULT_SUITE_OPTIONS, type Assertion, type TestCase, type TestSuite } from "./types";
 
@@ -67,6 +68,8 @@ export function cleanSuites(input: unknown): TestSuite[] {
           preScript: typeof c.preScript === "string" ? c.preScript : "",
           postScript: typeof c.postScript === "string" ? c.postScript : "",
           assertions: cleanAssertions(c.assertions),
+          ...(c.runs === "before" || c.runs === "after" ? { runs: c.runs } : {}),
+          ...(c.retry && cleanRetry(c.retry).times > 0 ? { retry: cleanRetry(c.retry) } : {}),
         })),
     }));
 }

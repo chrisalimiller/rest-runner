@@ -1,5 +1,6 @@
 import { redactReport } from "../secrets";
 import { CALL_COLUMNS, callCells, csvFile, emptyCallCells, type CsvOptions } from "../reportCsv";
+import { iterationText } from "../testing/caseStatus";
 import { caseBodyHtml, scriptLog, toTestHtmlReport } from "../testing/testReport";
 import type { Vars } from "../template";
 import type { CaseResult } from "../testing/types";
@@ -143,7 +144,7 @@ export function toFlowCsvReport(run: FlowRun, options?: CsvOptions): string {
       rows.push([
         ...stepCells,
         r.caseName,
-        r.iteration + 1,
+        iterationText(r),
         r.passed ? "PASS" : "FAIL",
         r.checks
           .filter((c) => !c.passed)

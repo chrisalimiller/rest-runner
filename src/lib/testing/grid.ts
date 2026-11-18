@@ -13,6 +13,8 @@ export interface GridRow {
   iteration: number;
   /** 0-based CSV row, or null without data. */
   rowIndex: number | null;
+  /** Set on the row of setup ("before") or teardown ("after") cases, which have no CSV row. */
+  phase?: "before" | "after";
   /** A short identifier for the row from its data: the first column's value. */
   title: string;
   /** One entry per column; null when that case has no result in this iteration (the run stopped first). */
@@ -41,12 +43,16 @@ export function buildGrid(run: Pick<TestRun, "results">, failuresFirst = true): 
     let row = byIteration.get(r.iteration);
     if (!row) {
       const first = Object.values(r.vars)[0];
-      row = { iteration: r.iteration, rowIndex: r.rowIndex, title: r.rowIndex !== null ? `Row ${r.rowIndex + 1}${first ? ` · ${first}` : ""}` : `Iteration ${r.iteration + 1}`, cells: cols.map(() => null), failed: false };
+      row = { iteration: r.iteration, rowIndex: r.rowIndex, ...(r.phase ? { phase: r.phase } : {}), title: r.phase ? (r.phase === "before" ? "Setup" : "Teardown") : r.rowIndex !== null ? `Row ${r.rowIndex + 1}${first ? ` · ${first}` : ""}` : `Iteration ${r.iteration + 1}`, cells: cols.map(() => null), failed: false };
       byIteration.set(r.iteration, row);
     }
     row.cells[cols.findIndex((c) => c.caseId === r.caseId)] = { resultIndex, passed: r.passed, label: cellLabel(r) };
     if (!r.passed) row.failed = true;
   });
-  const rows = [...byIteration.values()].sort((a, b) => a.iteration - b.iteration);
-  return { columns: cols, rows: failuresFirst ? [...rows.filter((r) => r.failed), ...rows.filter((r) => !r.failed)] : rows };
+  const all = [...byIteration.values()].sort((a, b) => a.iteration - b.iteration);
+  // Setup stays at the top and teardown at the bottom, whatever the order of the rows between.
+  const setup = all.filter((r) => r.phase === "before");
+  const teardown = all.filter((r) => r.phase === "after");
+  const rows = all.filter((r) => !r.phase);
+  return { columns: cols, rows: [...setup, ...(failuresFirst ? [...rows.filter((r) => r.failed), ...rows.filter((r) => !r.failed)] : rows), ...teardown] };
 }
