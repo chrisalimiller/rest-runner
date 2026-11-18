@@ -1,7 +1,7 @@
 import type { Vars } from "../template";
 import type { Schedule } from "./schedule";
 import type { TestRun } from "../testing/testRun";
-import type { AssertionOp, AssertionSource, Check } from "../testing/types";
+import type { Assertion, AssertionOp, AssertionSource, Check } from "../testing/types";
 
 /** The name of a node's output, which is also the handle a wire leaves from. */
 export type FlowOutput = "next" | "passed" | "failed" | "true" | "false" | "branches" | "row" | "done";
@@ -79,6 +79,8 @@ export interface RunRequestNode extends NodeBase {
   retry: RetrySettings;
   /** A 4xx/5xx response fails the step. Missing (flows saved before this) means true. */
   httpErrorsFail?: boolean;
+  /** No-code checks on the response, as in a test case. Missing (flows saved before this) means none. */
+  assertions?: Assertion[];
 }
 
 export interface IfNode extends NodeBase {

@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { checkCsvFile, parseCsv } from "../../lib/csv";
 import { CONDITION_SOURCE_LABELS, OPS_FOR_CONDITION } from "../../lib/flows/conditions";
 import { formatMs, NODE_TYPE_LABELS, nodeLabel } from "../../lib/flows/flows";
@@ -7,6 +7,10 @@ import { nextDueAfter, scheduleProblem, WEEKDAY_NAMES, type Schedule, type Sched
 import type { ConditionSource, FlowCondition, FlowNode, LoopNode, RetrySettings, ScheduleNode } from "../../lib/flows/types";
 import type { FlowProblem } from "../../lib/flows/validate";
 import { OP_LABELS, opNeedsValue } from "../../lib/testing/assertions";
+import type { Assertion } from "../../lib/testing/types";
+import { assertionResults, type AssertionResult } from "../../lib/testing/caseStatus";
+import type { CaseResult } from "../../lib/testing/types";
+import { AssertionEditor } from "../testing/AssertionEditor";
 import { useEscape } from "../useEscape";
 import { EnvPicker } from "../shell/EnvPicker";
 import type { Environment } from "../../lib/environments";
@@ -21,6 +25,8 @@ interface Props {
   /** Environments to pick from, and the one the Flows top bar shows (what an unpinned schedule follows). */
   environments: Environment[];
   switchEnvId: string | null;
+  /** Run request steps: the call this step made in the run being shown, for the Last result column. */
+  lastCall?: CaseResult | null;
   onChange: (node: FlowNode) => void;
   onDelete: () => void;
   onClose: () => void;
@@ -52,6 +58,26 @@ function NumberField({ label, value, onChange, min = 0, suffix }: { label: strin
         {suffix && <span className="muted small">{suffix}</span>}
       </span>
     </label>
+  );
+}
+
+/** No-code checks on a Run request step, with the value each one saw in the latest run. */
+function ChecksEditor({ assertions, lastCall, onChange }: { assertions: Assertion[]; lastCall?: CaseResult | null; onChange: (a: Assertion[]) => void }) {
+  const [results, setResults] = useState<Map<string, AssertionResult>>(new Map());
+  useEffect(() => {
+    const controller = new AbortController();
+    setResults(new Map());
+    void assertionResults(assertions, lastCall ?? null, controller.signal).then((next) => {
+      if (!controller.signal.aborted) setResults(next);
+    });
+    return () => controller.abort();
+  }, [assertions, lastCall]);
+  return (
+    <fieldset className="flow-fieldset">
+      <legend className="section-title">Checks</legend>
+      <AssertionEditor assertions={assertions} onChange={onChange} results={results} />
+      <p className="muted small">The step fails when an enabled check does. A status code check replaces the 4xx/5xx switch.</p>
+    </fieldset>
   );
 }
 
@@ -308,7 +334,7 @@ function ScheduleEditor({ node, state, environments, switchEnvId, onChange }: { 
 const MAX_LOOP_CSV = 2 * 1024 * 1024;
 
 /** Settings for the selected node, in the right-hand panel. */
-export function NodeSettings({ node, items, problems, scheduleState, environments, switchEnvId, onChange, onDelete, onClose, locked = false }: Props) {
+export function NodeSettings({ node, items, problems, scheduleState, environments, switchEnvId, lastCall, onChange, onDelete, onClose, locked = false }: Props) {
   useEscape(onClose);
   const mine = problems.filter((p) => p.nodeId === node.id);
   const autoLabel = nodeLabel({ ...node, label: "" }, items.suites, items.findRequest);
@@ -394,6 +420,8 @@ export function NodeSettings({ node, items, problems, scheduleState, environment
           </p>
         </>
       )}
+
+      {node.type === "run-request" && <ChecksEditor assertions={node.assertions ?? []} lastCall={lastCall} onChange={(assertions) => onChange({ ...node, assertions })} />}
 
       {(node.type === "run-case" || node.type === "run-suite" || node.type === "run-request") && <RetryEditor retry={node.retry} onChange={(retry) => onChange({ ...node, retry })} />}
 

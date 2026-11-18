@@ -12,6 +12,8 @@ import { FlowNotRunnableError, runFlow } from "../../lib/flows/engine";
 import { stepStatusCode } from "../../lib/flows/flowReport";
 import { activeEdgeIds } from "../../lib/flows/progress";
 import { describeImport, importFlowsFile, toFlowsFile } from "../../lib/flows/flowFile";
+import { testRunsFromFlowRun } from "../../lib/flows/shareRuns";
+import { saveTestRun } from "../../lib/testing/testRunStore";
 import { deleteFlowRun, getFlowRun, listFlowRuns, saveFlowRun } from "../../lib/flows/flowRunStore";
 import { loadFlows, newFlow, nodeLabel, saveFlows } from "../../lib/flows/flows";
 import { readFlowItems, type FlowItems } from "../../lib/flows/items";
@@ -23,6 +25,7 @@ import { newId } from "../../lib/ids";
 import { saveTextFile } from "../../lib/saveFile";
 import { isPlainObject, isString, load, save } from "../../lib/storage";
 import { useScriptRunner } from "../../lib/testing/useScriptRunner";
+import type { CaseResult } from "../../lib/testing/types";
 import type { ShellCommand, ShellProps } from "../../Root";
 import { CopyIcon, TrashIcon } from "../shell/Icons";
 import { OverflowMenu } from "../shell/OverflowMenu";
@@ -81,6 +84,12 @@ function runStateOf(view: FlowRunView | null): Map<string, NodeRunState> {
   for (const s of [...view.steps].sort((a, b) => a.index - b.index)) map.set(s.nodeId, { status: s.status, runs: (map.get(s.nodeId)?.runs ?? 0) + 1, statusCode: stepStatusCode(s) });
   if (view.running) for (const id of view.runningNodeIds) map.set(id, { status: "running", runs: map.get(id)?.runs ?? 0 });
   return map;
+}
+
+/** The call a Run request step made the last time it ran in the shown run. */
+function lastCallOf(view: FlowRunView | null, nodeId: string): CaseResult | null {
+  const steps = (view?.steps ?? []).filter((s) => s.nodeId === nodeId).sort((a, b) => b.index - a.index);
+  return steps[0]?.child?.results[0] ?? null;
 }
 
 function timeLabel(iso: string): string {
@@ -289,6 +298,16 @@ export function FlowsApp({ active, shell, command }: Props) {
         await saveFlowRun(result);
         setLive(f.id, (l) => ({ ...l, runId: result.id }));
         refreshRuns();
+        // A Run suite step's report is also a test run: copy it to Testing, tagged with this flow run.
+        const shared = testRunsFromFlowRun(result, newId);
+        if (shared.length) {
+          try {
+            for (const t of shared) await saveTestRun(t);
+            shell.onDataChanged(["test-runs"]);
+          } catch (e) {
+            setNotice(`The flow run was saved, but its suite reports could not be copied to Testing: ${e instanceof Error ? e.message : String(e)}`);
+          }
+        }
       } catch (e) {
         setLive(f.id, (l) => ({ ...l, saveError: e instanceof Error ? e.message : String(e) }));
       }
@@ -473,6 +492,24 @@ export function FlowsApp({ active, shell, command }: Props) {
       setEnvironments(loadEnvironments());
       setEnvId(load<string | null>(FLOW_ENV_KEY, null, isString));
       setItems(readFlowItems());
+      return;
+    }
+    if (command.type === "open-flow") {
+      // Testing may have just saved the flow: read storage first, then open it with the step selected.
+      const fresh = loadFlows();
+      setFlows(fresh);
+      setEnvironments(loadEnvironments());
+      setItems(readFlowItems());
+      const target = fresh.find((f) => f.id === command.flowId);
+      if (!target) {
+        setNotice("That flow no longer exists.");
+        return;
+      }
+      openFlow(target.id);
+      if (command.nodeId && target.nodes.some((n) => n.id === command.nodeId)) {
+        setSelectedId(command.nodeId);
+        focusNode(command.nodeId);
+      }
       return;
     }
     if (command.type !== "open") return;
@@ -680,6 +717,7 @@ export function FlowsApp({ active, shell, command }: Props) {
                 scheduleState={selected.type === "schedule" ? schedules[selected.id] : undefined}
                 environments={environments}
                 switchEnvId={envId}
+                lastCall={selected.type === "run-request" ? lastCallOf(shownRun, selected.id) : undefined}
                 onChange={updateNode}
                 onDelete={() => deleteNode(selected.id)}
                 onClose={closeSettings}

@@ -148,6 +148,15 @@ export function EyeOffIcon({ size = 14 }: IconProps) {
   );
 }
 
+export function ClockIcon({ size = 14 }: IconProps) {
+  return (
+    <svg {...base(size)} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 2" />
+    </svg>
+  );
+}
+
 export function TrashIcon({ size = 14 }: IconProps) {
   return (
     <svg {...base(size)} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">

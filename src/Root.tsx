@@ -49,7 +49,11 @@ export type ShellCommand =
   /** Another mode's Variables panel asked for the environment editor, which only Requests has. */
   | { type: "edit-environments"; nonce: number; varId?: string }
   /** A palette command for Requests (send, new request, switch environment and so on). */
-  | { type: "action"; nonce: number; action: RequestsAction };
+  | { type: "action"; nonce: number; action: RequestsAction }
+  /** Flows: read flows from storage, open one, and select a step (its settings open). */
+  | { type: "open-flow"; nonce: number; flowId: string; nodeId?: string }
+  /** Testing: test runs were saved elsewhere (a flow's Run suite step), so read the list again. */
+  | { type: "runs-changed"; nonce: number };
 
 function modeFor(item: QuickItem): Mode {
   if (item.kind === "flow" || item.kind === "flow-run") return "flows";
@@ -182,8 +186,17 @@ export default function Root() {
       setSection("requests");
       send("requests", { type: "open", item: { kind: "request", id, title: "", detail: "" }, nonce: Date.now(), permanent: true });
     },
+    onOpenFlow: (flowId, nodeId) => {
+      setSection("flows");
+      send("flows", { type: "open-flow", nonce: Date.now(), flowId, nodeId });
+    },
+    onOpenFlowRun: (id) => {
+      setSection("flows");
+      send("flows", { type: "open", item: { kind: "flow-run", id, title: "", detail: "" }, nonce: Date.now(), permanent: true });
+    },
     onDataChanged: (what) => {
       const nonce = Date.now();
+      if (what.includes("test-runs")) send("testing", { type: "runs-changed", nonce });
       if (what.includes("collections"))
         send("requests", { type: "reload", nonce });
       if (what.includes("suites")) send("testing", { type: "reload", nonce });
@@ -301,6 +314,10 @@ export interface ShellProps {
   onQuickOpen: () => void;
   /** Switches to Requests with this saved request open (Tools: "Open request"). */
   onOpenRequest: (id: string) => void;
+  /** Switches to Flows, reads flows from storage, opens one and selects a step. */
+  onOpenFlow: (flowId: string, nodeId?: string) => void;
+  /** Switches to Flows and opens a saved flow run's report. */
+  onOpenFlowRun: (runId: string) => void;
   /** A mode wrote saved data that another mode holds in memory (Flows importing suites or requests). */
-  onDataChanged: (what: ("suites" | "collections" | "flows" | "tools")[]) => void;
+  onDataChanged: (what: ("suites" | "collections" | "flows" | "tools" | "test-runs")[]) => void;
 }

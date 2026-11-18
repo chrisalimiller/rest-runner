@@ -2,7 +2,7 @@ import { redactReport } from "../secrets";
 import { certificateLabel } from "../certificates";
 import { CALL_COLUMNS, callCells, csvFile, reportBody, type CsvOptions } from "../reportCsv";
 import { describeMode } from "./describe";
-import { caseStats, iterationsLabel, requestMs, testRunTimes, type TestRun } from "./testRun";
+import { caseStats, iterationsLabel, requestMs, sourceLabel, testRunTimes, type TestRun } from "./testRun";
 import type { CaseResult, ScriptOutput } from "./types";
 
 /* ---------- failure groups ---------- */
@@ -297,6 +297,7 @@ ${run.suite.description ? `<p>${esc(run.suite.description)}</p>` : ""}
 <tr><th>Iterations</th><td>${iterationsLabel(run)}</td></tr>
 <tr><th>Data file</th><td>${run.csvName ? `${esc(run.csvName)} (columns: ${esc(run.columns.join(", "))})` : '<span class="muted">None</span>'}</td></tr>
 <tr><th>Environment</th><td>${run.environmentName ? esc(run.environmentName) : '<span class="muted">None</span>'}</td></tr>
+${run.source ? `<tr><th>Started by</th><td>${esc(sourceLabel(run.source) ?? "")}${run.source.triggerLabel ? esc(` (${run.source.triggerLabel})`) : ""}</td></tr>` : ""}
 <tr><th>Run order</th><td>${esc(describeMode(run.options))}</td></tr>
 <tr><th>Started</th><td>${esc(formatTime(run.startedAt))}</td></tr>
 <tr><th>Finished</th><td>${esc(formatTime(run.finishedAt))}</td></tr>
