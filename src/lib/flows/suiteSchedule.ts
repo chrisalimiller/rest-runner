@@ -1,3 +1,5 @@
+import { loadEnvironments } from "../environments";
+import { isString, load } from "../storage";
 import type { TestSuite } from "../testing/types";
 import { newEdge, newNode, newFlow } from "./flows";
 import { tidyFlow } from "./layout";
@@ -19,8 +21,9 @@ export function findScheduleFlow(flows: Flow[], suiteId: string): { flow: Flow; 
 }
 
 /** A new, switched-off "<suite> schedule" flow: Schedule (weekdays 07:30) → Run suite. Nothing runs until the person turns it on. */
-export function buildScheduleFlow(suite: TestSuite): { flow: Flow; scheduleNodeId: string } {
-  const schedule = newNode("schedule");
+export function buildScheduleFlow(suite: TestSuite, environmentId?: string | null): { flow: Flow; scheduleNodeId: string } {
+  // Pins the environment selected in Flows now, like any new Schedule step.
+  const schedule = newNode("schedule", undefined, environmentId);
   const run = newNode("run-suite");
   if (schedule.type !== "schedule" || run.type !== "run-suite") throw new Error("unexpected node types");
   schedule.schedule = { kind: "weekdays", time: "07:30", days: [1, 2, 3, 4, 5] };
@@ -32,9 +35,15 @@ export function buildScheduleFlow(suite: TestSuite): { flow: Flow; scheduleNodeI
 }
 
 /** The existing schedule flow for the suite, or a new one added to the list. */
-export function ensureScheduleFlow(flows: Flow[], suite: TestSuite): { flows: Flow[]; flow: Flow; scheduleNodeId: string; created: boolean } {
+export function ensureScheduleFlow(flows: Flow[], suite: TestSuite, environmentId?: string | null): { flows: Flow[]; flow: Flow; scheduleNodeId: string; created: boolean } {
   const found = findScheduleFlow(flows, suite.id);
   if (found) return { flows, ...found, created: false };
-  const made = buildScheduleFlow(suite);
+  const made = buildScheduleFlow(suite, environmentId);
   return { flows: [...flows, made.flow], ...made, created: true };
+}
+
+/** The environment selected in Flows (where its switch keeps it), or null when none is selected or it no longer exists. */
+export function flowsEnvironmentId(): string | null {
+  const id = load<string | null>("rest-runner.flow-environment", null, isString);
+  return id && loadEnvironments().some((e) => e.id === id) ? id : null;
 }

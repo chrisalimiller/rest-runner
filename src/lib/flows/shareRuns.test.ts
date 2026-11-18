@@ -106,3 +106,13 @@ describe("Schedule… for a suite", () => {
     expect(findScheduleFlow([withNote], suite.id)?.flow.id).toBe(mine.flow.id);
   });
 });
+
+describe("schedule flow environment", () => {
+  it("pins the given environment on the Schedule step", () => {
+    const suite = { ...newSuite("Users") };
+    const { flow, scheduleNodeId } = buildScheduleFlow(suite, "local");
+    const node = flow.nodes.find((n) => n.id === scheduleNodeId);
+    expect(node && node.type === "schedule" && node.environmentId).toBe("local");
+    expect(ensureScheduleFlow([], suite, null).flow.nodes.some((n) => n.type === "schedule" && n.environmentId === null)).toBe(true);
+  });
+});
