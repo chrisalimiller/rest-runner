@@ -9,6 +9,9 @@ export const COMPACT_ZOOM = 0.6;
 /** Padding around a fitted flow, as a share of the view. */
 export const FIT_PADDING = 0.15;
 
+/** Gap between the left edge of the view and Start when a big flow opens at zoom 1. */
+export const START_LEFT_MARGIN = 48;
+
 export interface Box {
   x: number;
   y: number;
@@ -26,11 +29,12 @@ export function fitZoom(bounds: Box, view: { width: number; height: number }): n
 }
 
 /**
- * Fit the whole flow when it stays readable (zoom 0.7 or more), otherwise zoom 1 centred on Start
- * (or on the flow when it has no Start).
+ * Fit the whole flow when it stays readable (zoom 0.7 or more), otherwise zoom 1 with Start near the left edge,
+ * vertically centred (or centred on the flow when it has no Start).
  */
 export function chooseView(bounds: Box, view: { width: number; height: number }, start: Box | null): InitialView {
   if (fitZoom(bounds, view) >= READABLE_ZOOM) return { kind: "fit" };
-  const focus = start ?? bounds;
-  return { kind: "centre", x: focus.x + focus.width / 2, y: focus.y + focus.height / 2, zoom: 1 };
+  if (!start) return { kind: "centre", x: bounds.x + bounds.width / 2, y: bounds.y + bounds.height / 2, zoom: 1 };
+  // Start sits near the left edge, so the flow runs to the right into view.
+  return { kind: "centre", x: start.x + view.width / 2 - START_LEFT_MARGIN, y: start.y + start.height / 2, zoom: 1 };
 }

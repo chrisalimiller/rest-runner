@@ -14,7 +14,7 @@ import { newId } from "../../lib/ids";
 import { saveTextFile } from "../../lib/saveFile";
 import { isString, load, save } from "../../lib/storage";
 import { planIterations, runCase, runUpTo, runSuite } from "../../lib/testing/runner";
-import { createWorkerScriptRunner } from "../../lib/testing/scriptRunner";
+import { useScriptRunner } from "../../lib/testing/useScriptRunner";
 import { cleanSuites, newSuite } from "../../lib/testing/suites";
 import { buildTestRun, type TestRunSummary } from "../../lib/testing/testRun";
 import { deleteTestRun, listTestRuns, saveTestRun } from "../../lib/testing/testRunStore";
@@ -94,8 +94,7 @@ export function TestingApp({ active, shell, command }: Props) {
   const bufferRef = useRef<CaseResult[]>([]);
   useEffect(() => setBusy("testing", !!live?.running), [live?.running]);
   useEffect(() => setSectionStatus("testing", { running: !!live?.running }), [live?.running]);
-  const scripts = useMemo(() => createWorkerScriptRunner(), []);
-  useEffect(() => () => scripts.dispose(), [scripts]);
+  const scripts = useScriptRunner();
 
   useEffect(() => {
     if (!persistSuites(suites)) setNotice("Could not save suites: local storage is full. Try removing large CSV files from suites.");

@@ -10,7 +10,7 @@ import { setSectionStatus } from "../../lib/sectionStatus";
 import { omitIds, reinsert, removeById } from "../../lib/listUndo";
 import { isString, load, save } from "../../lib/storage";
 import { setLeaveGuard } from "../../lib/unsavedWork";
-import { createWorkerScriptRunner } from "../../lib/testing/scriptRunner";
+import { useScriptRunner } from "../../lib/testing/useScriptRunner";
 import { listPickableRequests } from "../../lib/testing/requestSources";
 import { isDirty, saveBlockers, tidyTool } from "../../lib/tools/builder";
 import { canRetryAlone } from "../../lib/tools/engine";
@@ -85,8 +85,7 @@ export function ToolsApp({ active, shell, command }: Props) {
   const [asking, setAsking] = useState<{ action: string; request: string; guard: { name: string; cssColor: string } | null; text?: string; answer: (ok: boolean) => void } | null>(null);
   const activeRef = useRef(active);
   activeRef.current = active;
-  const scripts = useMemo(() => createWorkerScriptRunner(), []);
-  useEffect(() => () => scripts.dispose(), [scripts]);
+  const scripts = useScriptRunner();
   const toast = useToast();
 
   useEffect(() => {

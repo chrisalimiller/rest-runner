@@ -21,7 +21,7 @@ import { sendRequest } from "../../lib/http";
 import { newId } from "../../lib/ids";
 import { saveTextFile } from "../../lib/saveFile";
 import { isPlainObject, isString, load, save } from "../../lib/storage";
-import { createWorkerScriptRunner } from "../../lib/testing/scriptRunner";
+import { useScriptRunner } from "../../lib/testing/useScriptRunner";
 import type { ShellCommand, ShellProps } from "../../Root";
 import { CopyIcon, TrashIcon } from "../shell/Icons";
 import { OverflowMenu } from "../shell/OverflowMenu";
@@ -121,8 +121,7 @@ export function FlowsApp({ active, shell, command }: Props) {
   const [notice, setNotice] = useState<string | null>(null);
   const [schedules, setSchedules] = useState<SchedulesState>(() => load(SCHEDULE_STATE_KEY, {}, isPlainObject));
   const aborts = useRef(new Map<string, AbortController>());
-  const scripts = useMemo(() => createWorkerScriptRunner(), []);
-  useEffect(() => () => scripts.dispose(), [scripts]);
+  const scripts = useScriptRunner();
 
   useEffect(() => {
     if (!saveFlows(flows)) setNotice("Could not save flows: local storage is full.");
@@ -597,7 +596,7 @@ export function FlowsApp({ active, shell, command }: Props) {
                     {chip && (
                       <label className={`schedule-chip ${chip.enabled ? "on" : "off"}`} title={`${chip.label}${chip.count > 1 ? ` (first of ${chip.count} schedules)` : ""}. Runs only while the app is open.`}>
                         <span aria-hidden>⏱</span>
-                        <span>
+                        <span className="schedule-text">
                           {chip.label}
                           {chip.next ? ` · ${chip.next}` : ""}
                         </span>

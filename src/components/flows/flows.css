@@ -27,6 +27,9 @@
 
 .flow-head .send {
   height: calc(30px * var(--ui-scale));
+  /* The Run button keeps its size; the title and the schedule chip give way instead. */
+  flex: none;
+  white-space: nowrap;
 }
 
 .flow-head .secondary {
@@ -1007,8 +1010,16 @@ table.results.flow-report-steps td {
   white-space: nowrap;
   color: var(--text-soft);
   max-width: 260px;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+/* The ellipsis goes on the text, not the flex container, so it shows when the chip shrinks. */
+.schedule-chip .schedule-text {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .schedule-chip.on {
