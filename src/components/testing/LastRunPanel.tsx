@@ -4,7 +4,7 @@ import { formatMs, whenLabel } from "../../lib/earlierSends";
 import { saveTextFile } from "../../lib/saveFile";
 import { groupFailures, type FailureGroup } from "../../lib/testing/testReport";
 import { testReportFileName, toTestCsvReport, toTestHtmlReport } from "../../lib/testing/testReport";
-import { iterationsLabel, testRunTimes, type TestRun } from "../../lib/testing/testRun";
+import { iterationsLabel, sourceLabel, testRunTimes, type TestRun } from "../../lib/testing/testRun";
 import { LiveRun, type LiveRunState } from "./LiveRun";
 
 interface Props {
@@ -77,6 +77,9 @@ export function LastRunPanel({ live, run, onOpenReport }: Props) {
           Open report
         </button>
       </div>
+      {(sourceLabel(run.source) || run.environmentName) && (
+        <p className="muted small last-run-source">{[sourceLabel(run.source), run.environmentName].filter(Boolean).join(" · ")}</p>
+      )}
       <div className="last-run-big">
         <span className={`mono big-num ${run.failed ? "tone-bad" : "tone-ok"}`}>{run.passed}</span>
         <span className="muted">

@@ -25,6 +25,8 @@ interface Props {
 
 export interface ScheduleInfo {
   next?: string;
+  /** The environment the next run uses. */
+  environment?: string;
   skipped?: string;
 }
 
@@ -116,7 +118,7 @@ export function FlowsSidebar({ collapsed, onToggleCollapsed, flows, activeFlowId
                   <span className="nav-row-name">{f.name || "(unnamed)"}</span>
                   <span className="nav-row-count">{f.nodes.filter((n) => n.type !== "note" && n.type !== "start" && n.type !== "schedule").length}</span>
                 </button>
-                {info?.next && <p className="flow-nav-note muted small">⏱ Next: {info.next}</p>}
+                {info?.next && <p className="flow-nav-note muted small">⏱ Next: {info.next}{info.environment ? ` · ${info.environment}` : ""}</p>}
                 {info?.skipped && <p className="flow-nav-note tone-warn small">{info.skipped}</p>}
               </div>
             );

@@ -7,7 +7,7 @@ import { describeMode } from "../../lib/testing/describe";
 import { iterationText } from "../../lib/testing/caseStatus";
 import { buildGrid } from "../../lib/testing/grid";
 import { failureCheckNames, testReportFileName, toTestCsvReport, toTestHtmlReport } from "../../lib/testing/testReport";
-import { caseStats, iterationsLabel, testRunTimes, type TestRun } from "../../lib/testing/testRun";
+import { caseStats, iterationsLabel, sourceLabel, testRunTimes, type TestRun } from "../../lib/testing/testRun";
 import { getTestRun } from "../../lib/testing/testRunStore";
 import { keepSelected } from "../../lib/selection";
 import { CaseResultView } from "./CaseResultView";
@@ -19,6 +19,8 @@ interface Props {
   /** Or a run already in hand (a flow step's report). */
   preloaded?: TestRun;
   onBack: () => void;
+  /** For a run a flow started: opens that flow run's report in Flows. */
+  onOpenFlowRun?: (flowRunId: string) => void;
   backLabel?: string;
   /** Missing hides Delete (a flow step's report is part of its flow run). */
   onDelete?: (id: string) => void;
@@ -39,7 +41,7 @@ function formatDuration(ms: number): string {
 }
 
 /** A saved test run: summary, per-case breakdown, run log, and every case result. */
-export function TestRunExplorer({ runId, preloaded, onBack, backLabel = "← Back to suite", onDelete, initialCaseId, initialCheck, initialIndex }: Props) {
+export function TestRunExplorer({ runId, preloaded, onBack, onOpenFlowRun, backLabel = "← Back to suite", onDelete, initialCaseId, initialCheck, initialIndex }: Props) {
   const [run, setRun] = useState<TestRun | null | undefined>(undefined);
   const [filter, setFilter] = useState<Filter>("all");
   const [caseFilter, setCaseFilter] = useState<string | null>(null);
@@ -155,6 +157,20 @@ export function TestRunExplorer({ runId, preloaded, onBack, backLabel = "← Bac
             {run.csvName ? ` from ${run.csvName}` : ""}
             {run.environmentName ? ` · ${run.environmentName}` : ""} · {describeMode(run.options)} · {endLabel}
           </p>
+          {run.source && (
+            <p className="muted small">
+              {sourceLabel(run.source)}
+              {run.source.triggerLabel ? ` · ${run.source.triggerLabel}` : ""}
+              {onOpenFlowRun && (
+                <>
+                  {" · "}
+                  <button className="link-btn" onClick={() => onOpenFlowRun(run.source!.flowRunId)}>
+                    Open flow run
+                  </button>
+                </>
+              )}
+            </p>
+          )}
         </div>
         <div className="explorer-actions">
           <button className="secondary" onClick={() => void exportReport("html")}>

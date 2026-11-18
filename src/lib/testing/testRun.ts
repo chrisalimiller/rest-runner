@@ -4,6 +4,25 @@ import { describeMode } from "./describe";
 import { plannedCases, splitCases } from "./plan";
 import type { CaseResult, SuiteRunEnd, SuiteRunOptions, TestSuite } from "./types";
 
+/** Where a saved test run came from, when it was not started from the Testing section. */
+export interface TestRunSource {
+  kind: "flow";
+  flowId: string;
+  flowName: string;
+  flowRunId: string;
+  /** "manual" for the Run button, or the id of the Schedule step that started the flow run. */
+  trigger: string;
+  /** For scheduled runs: the schedule as text, such as "Weekdays at 07:30". */
+  triggerLabel?: string;
+}
+
+/** "⏱ via flow Nightly regression" for a scheduled flow run, "via flow Nightly regression" for a manual one. Null for runs started in Testing. */
+export function sourceLabel(source: TestRunSource | undefined): string | null {
+  if (!source) return null;
+  const name = source.flowName || "(unnamed)";
+  return `${source.trigger === "manual" ? "" : "⏱ "}via flow ${name}`;
+}
+
 export interface TestRunSummary {
   id: string;
   kind: "test";
@@ -23,6 +42,8 @@ export interface TestRunSummary {
   failed: number;
   checksPassed: number;
   checksFailed: number;
+  /** Set when a flow's Run suite step started the run. Missing for runs started in Testing. */
+  source?: TestRunSource;
 }
 
 export interface TestRun extends TestRunSummary {

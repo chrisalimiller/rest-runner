@@ -50,6 +50,8 @@ export interface ScheduleNode extends NodeBase {
   schedule: Schedule;
   /** Off: the schedule is kept but never starts a run. */
   enabled: boolean;
+  /** The environment this schedule runs in; `null` is "No environment". Missing: follow the Flows top-bar switch. */
+  environmentId?: string | null;
 }
 
 export interface RunCaseNode extends NodeBase {
