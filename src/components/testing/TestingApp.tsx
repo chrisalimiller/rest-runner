@@ -18,6 +18,9 @@ import { planIterations, runCase, runUpTo, runSuite } from "../../lib/testing/ru
 import { useScriptRunner } from "../../lib/testing/useScriptRunner";
 import { cleanSuites, newSuite } from "../../lib/testing/suites";
 import { buildTestRun, type TestRunSummary } from "../../lib/testing/testRun";
+import { flowsUsingSuiteOrItsCases, usedByLabel } from "../../lib/flows/usedBy";
+import type { Flow } from "../../lib/flows/types";
+import { resolveOpenTarget } from "../../lib/testing/openTarget";
 import { ensureScheduleFlow, flowsEnvironmentId } from "../../lib/flows/suiteSchedule";
 import { loadFlows, saveFlows } from "../../lib/flows/flows";
 import { deleteTestRun, listTestRuns, saveTestRun } from "../../lib/testing/testRunStore";
@@ -135,6 +138,11 @@ export function TestingApp({ active, shell, command }: Props) {
     setEnvironments(envs);
     saveEnvironments(envs);
   }, []);
+  // Flows are edited in another section: read them again whenever Testing comes on screen.
+  const [flows, setFlows] = useState<Flow[]>(() => loadFlows());
+  useEffect(() => {
+    if (active) setFlows(loadFlows());
+  }, [active]);
   const suite = suites.find((s) => s.id === openSuiteId) ?? null;
   const usedNames = useMemo(() => (suite ? suitePlaceholders(suite) : []), [suite]);
   const openCaseId = suite ? (suite.id in openCases ? openCases[suite.id] : (suite.cases[0]?.id ?? null)) : null;
@@ -314,6 +322,17 @@ export function TestingApp({ active, shell, command }: Props) {
     lastCommand.current = command.nonce;
     if (command.type === "open") openItem(command.item);
     if (command.type === "runs-changed") refreshRuns();
+    if (command.type === "open-suite") {
+      const target = resolveOpenTarget(suites, command.suiteId, command.caseId);
+      if (!target.ok) {
+        setNotice(target.notice);
+      } else {
+        setOpenSuiteId(target.suiteId);
+        setOpenRunId(null);
+        if (target.caseId) setOpenCases((o) => ({ ...o, [target.suiteId]: target.caseId }));
+        if (target.notice) setNotice(target.notice);
+      }
+    }
     if (command.type === "reload") {
       setSuites(cleanSuites(load(SUITES_KEY, [])));
       setEnvironments(loadEnvironments());
@@ -408,8 +427,9 @@ export function TestingApp({ active, shell, command }: Props) {
                 if (!taken) return;
                 setSuites(taken.list);
                 setOpenSuiteId(null);
+                const uses = flowsUsingSuiteOrItsCases(flows, suite.id);
                 toast.show({
-                  message: `Deleted the suite "${suite.name}"`,
+                  message: `Deleted the suite "${suite.name}"${uses.length ? `. ${usedByLabel(uses)}` : ""}`,
                   onUndo: () => {
                     setSuites((list) => reinsert(list, taken.item, taken.index));
                     setOpenSuiteId(taken.item.id);
@@ -438,6 +458,8 @@ export function TestingApp({ active, shell, command }: Props) {
               envName={env?.name}
               guard={guardFor(env)}
               notice={notice}
+              flows={flows}
+              onOpenFlow={shell.onOpenFlow}
             />
             <LastRunPanel
               live={suiteLive}
@@ -462,6 +484,7 @@ export function TestingApp({ active, shell, command }: Props) {
           <main className="suite-doc testing-empty">
             <div>
               <h2>Testing</h2>
+              <p className="muted">Checks and data-driven suites live here. To run things in order, on a schedule or with branches, use Flows.</p>
               <p className="muted">
                 Build suites of test cases from your saved requests, add assertions and scripts, and run them in order, in parallel, or once per CSV row.
               </p>

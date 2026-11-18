@@ -6,6 +6,7 @@ import { detectVarSets } from "../../lib/testing/varsDetect";
 import { caseRuns } from "../../lib/testing/plan";
 import { NO_RETRY, type CaseResult, type CaseRuns, type TestCase } from "../../lib/testing/types";
 import type { RequestDef } from "../../lib/types";
+import type { FlowUse } from "../../lib/flows/usedBy";
 import { RequestEditor, WithPlaceholders } from "../request/RequestEditor";
 import { ArrowDownIcon, CopyIcon, PlayFilledIcon, TrashIcon } from "../shell/Icons";
 import { Modal } from "../shell/Modal";
@@ -40,6 +41,11 @@ interface Props {
   /** Name of the saved request this case was copied from, when it still exists. */
   sourceName?: string;
   onRefreshFromSource?: () => void;
+  /** The saved request has changed since this case copied it. */
+  sourceChanged?: boolean;
+  /** Flows with a Run case step for this case. */
+  usedBy?: FlowUse[];
+  onOpenFlow?: (flowId: string, nodeId: string) => void;
   envVars: Vars;
   envName?: string;
   /** A run is in progress: the case can be read but not changed until it ends. */
@@ -63,6 +69,9 @@ export function CaseEditor(props: Props) {
     });
     return () => controller.abort();
   }, [tc.assertions, latest]);
+  const refreshFromSource = () => {
+    if (window.confirm(`Replace this case's request with the current version of "${props.sourceName}"? Scripts and assertions are kept.`)) props.onRefreshFromSource?.();
+  };
   const varSets = useMemo(() => detectVarSets(tc.postScript), [tc.postScript]);
   const lastVars = latest?.postScript?.vars;
 
@@ -75,6 +84,11 @@ export function CaseEditor(props: Props) {
           <span className="muted small case-source" title={`Copied from ${props.sourceName}. This case has its own copy; changes here do not change the saved request.`}>
             from saved request
           </span>
+        )}
+        {props.sourceName && props.sourceChanged && props.onRefreshFromSource && (
+          <button className="link-btn small case-source" onClick={refreshFromSource} title={`"${props.sourceName}" has changed since this case copied it. Click to update the case from it; scripts and assertions are kept.`}>
+            changed since copied
+          </button>
         )}
         <span className="flex-gap" />
         <div className="case-actions-group">
@@ -90,12 +104,17 @@ export function CaseEditor(props: Props) {
                       label: "Update from saved request",
                       icon: "↻",
                       title: `Replace this case's request with the current version of "${props.sourceName}". Scripts and assertions are kept.`,
-                      onSelect: () => {
-                        if (window.confirm(`Replace this case's request with the current version of "${props.sourceName}"? Scripts and assertions are kept.`)) props.onRefreshFromSource?.();
-                      },
+                      onSelect: refreshFromSource,
                     },
                   ]
                 : []),
+              ...(props.usedBy ?? []).map((u, i) => ({
+                label: `Open flow “${u.flowName}”`,
+                icon: "→",
+                title: "This case is a Run case step in that flow",
+                separated: i === 0,
+                onSelect: () => props.onOpenFlow?.(u.flowId, u.nodeId),
+              })),
               { label: "Delete case", icon: <TrashIcon />, onSelect: props.onDelete, danger: true, separated: true },
             ]}
           />

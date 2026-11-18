@@ -15,7 +15,10 @@ Testing mode (the **Testing** tab at the top right) runs **test suites**. A suit
 - **New** (left) creates a suite. Click a suite in the list to open it.
 - The suite header has its **name** and **description** (edit in place), a summary line (cases, run order, CSV, repeat, script limit), **Run settings & data**, and **Run suite** (**Stop** while running).
 - In the ⋯ menu of the suite header: **Duplicate suite** and **Delete suite**. Deleting does not ask; an **Undo** toast appears for 8 seconds. Saved test runs are kept either way.
+- **Used by N flows** appears in the header when flows have a Run suite step for this suite (hidden when none). Click it to list them; each opens in Flows with that step selected. A case's **⋯** menu lists the flows that have a Run case step for it the same way.
+- Deleting a suite or case that flows use says so in the Undo toast ("Used by Login then data", or "Used by 2 flows"). Nothing is asked first; Undo puts it back.
 - Suites are saved automatically as you edit.
+- With no suite open, the page says what belongs here: checks and data-driven suites in Testing; running things in order, on a schedule or with branches in [Flows](flows.md).
 
 ## Test cases
 
@@ -27,7 +30,7 @@ Add cases at the bottom of the suite:
 Each case card has:
 
 - A header with a checkbox to include or skip it in runs, its name, "from saved request" when it was copied from one, **Try case** (sends this one case now, with its scripts and assertions; see [Try case](#try-case)), and a collapse button.
-- A **⋯** menu with **Move up**, **Move down**, **Duplicate**, **Delete case**, and (if it was made from a saved request) **Update from saved request**, which replaces the case's request (including the request's own scripts) with the current saved version, after a confirmation. The case's own Pre-request and Post-response scripts and its assertions are kept.
+- A **⋯** menu with **Move up**, **Move down**, **Duplicate**, **Delete case**, and (if it was made from a saved request) **Update from saved request**, which replaces the case's request (including the request's own scripts) with the current saved version, after a confirmation. The case's own Pre-request and Post-response scripts and its assertions are kept. When the saved request has changed since the case copied it, **changed since copied** appears next to "from saved request"; click it for the same confirmation and update. Nothing shows when the saved request is gone.
 - A request summary line (method, URL, "Params 1 · Bearer · Headers 3 · JSON body") and **Edit request**, which opens the same request editor as Requests mode in a dialog (params, auth, headers, body, and the request's own scripts). Changes apply to this case only. The request's scripts run before the case's own (see [Scripting](scripting.md#when-scripts-run)).
 - Tabs: **Assertions**, **Pre-request** and **Post-response**. A bullet marks scripts that have content, and the Assertions tab shows how many are enabled.
 - **Runs**: whether the case runs **for every row** (the default), **once before the rows** (a setup case) or **once after the rows** (a teardown case). See [Setup and teardown cases](#setup-and-teardown-cases).

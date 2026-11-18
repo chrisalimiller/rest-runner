@@ -58,6 +58,8 @@ Different flows can run at the same time (for example, a scheduled flow while yo
 | **Wait** | Pauses for a set time. **Stop** cuts it short. | next |
 | **Set variable** | Sets a flow variable. The value can use `{{placeholders}}` from the environment and earlier steps. | next |
 
+In a Run case or Run suite step's settings, **Open in Testing** switches to Testing with that suite open, and that case when the step has one. In a Run request step's settings, **Open in Requests** opens the saved request. Testing shows the other direction: **Used by N flows** on a suite, and in a case's ⋯ menu.
+
 Run steps point at the **live** case, suite or request, by id. They do not copy it, so editing a case in Testing changes what the flow runs. A step whose item was deleted shows a warning, and the flow won't start until it is fixed. Each run uses the items as they are when the run starts.
 
 ## Wires and order

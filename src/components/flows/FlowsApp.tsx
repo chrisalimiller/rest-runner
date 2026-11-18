@@ -721,6 +721,8 @@ export function FlowsApp({ active, shell, command }: Props) {
                 onChange={updateNode}
                 onDelete={() => deleteNode(selected.id)}
                 onClose={closeSettings}
+                onOpenSuite={shell.onOpenSuite}
+                onOpenRequest={shell.onOpenRequest}
                 locked={flowRunning}
               />
             ) : (
@@ -737,6 +739,7 @@ export function FlowsApp({ active, shell, command }: Props) {
           <main className="suite-doc testing-empty">
             <div>
               <h2>Flows</h2>
+              <p className="muted">Order, branching and schedules live here. Checks live in Testing suites, or on a Run request step.</p>
               <p className="muted">
                 Chain test cases, whole suites and saved requests on a canvas. Branch on pass or fail, run steps in parallel, loop over CSV rows, retry, and run it all at once or on a schedule.
               </p>
