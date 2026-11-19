@@ -81,3 +81,7 @@ brand/               Logo and app icon sources (see BRAND.md)
 docs/                User guide (start at docs/README.md)
 .github/workflows/   Test and build pipeline
 ```
+
+## License
+
+[MIT](LICENSE) © 2026 Chris Miller
