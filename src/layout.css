@@ -1957,17 +1957,17 @@ button.unfilled-dot:hover {
   font-size: var(--fs-xs);
 }
 
-/* Batch pane inside the response column. The flat pane has no card around it, so it brings its own 12px inset
-   (the same as the bands above it). */
+/* Batch pane inside the response column. The flat pane has no card around it, so it brings its own 16px inset
+   (the bands above it use 12px, so the options read as set inside the pane). */
 .batch-main .batch {
   min-height: 0;
-  padding: 12px;
+  padding: 16px;
   box-sizing: border-box;
 }
 
 /* Folded to full width, the pane sits under the request summary bar, whose text starts 24px in. Match it. */
 .inspector.request-folded .batch-main .batch {
-  padding: 12px 24px 16px;
+  padding: 16px 24px;
 }
 
 .inspector.request-folded .pane-switch,
