@@ -1,6 +1,6 @@
 import type { RequestLookup } from "../flows/flows";
 import { redactReport } from "../secrets";
-import { callView, fieldRows, inputsSummary, jsonText, numberView, rawResponseText, requestLine, statusBadgeView, statusLabel, tableView } from "./view";
+import { type RowDetail, callView, fieldRows, inputsSummary, jsonText, numberView, rawResponseText, requestLine, statusBadgeView, statusLabel, tableView } from "./view";
 import type { CallResult, Tool, ToolBlock } from "./types";
 
 /** "Save as HTML": one self-contained page with the blocks as they look, to send to someone. Pure; every value is escaped. */
@@ -70,7 +70,7 @@ function blockHtml(block: ToolBlock, input: SnapshotInput): string {
       case "table": {
         const t = tableView(block, call, result);
         body = t.rows.length
-          ? `<table><thead><tr>${t.columns.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r, i) => `<tr${t.pickedIndex === i ? ' class="picked"' : ""}>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>`
+          ? `<table><thead><tr>${t.columns.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r, i) => `<tr${t.pickedIndex === i ? ' class="picked"' : ""}>${r.map((c, ci) => `<td>${ci === 0 && t.details?.[i] ? detailsHtml(t.details[i], c) : esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>`
           : `<p class="muted">No rows.</p>`;
         break;
       }
@@ -144,4 +144,14 @@ export function snapshotFileName(tool: Pick<Tool, "name">, inputs: Record<string
   const clean = (s: string) => s.replace(/[\\/:*?"<>|]+/g, " ").replace(/\s+/g, " ").trim();
   const first = Object.values(inputs).find((v) => v !== "") ?? "";
   return `${[clean(tool.name) || "tool", clean(first).slice(0, 40)].filter(Boolean).join(" ")}.html`;
+}
+
+/** The first cell of an expandable row: a closed <details> holding the item's other fields and inner lists. */
+function detailsHtml(d: RowDetail, first: string): string {
+  if (d.pairs.length === 0 && d.tables.length === 0) return esc(first);
+  const pairs = d.pairs.length ? `<dl>${d.pairs.map((p) => `<div><dt>${esc(p.label)}</dt><dd>${esc(p.value)}</dd></div>`).join("")}</dl>` : "";
+  const tables = d.tables
+    .map((t) => `<p><b>${esc(t.name)}</b></p><table><thead><tr>${t.columns.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>${t.more ? `<p class="muted">and ${t.more} more</p>` : ""}`)
+    .join("");
+  return `<details><summary>${esc(first)}</summary>${pairs}${tables}</details>`;
 }

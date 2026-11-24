@@ -199,6 +199,69 @@ export interface TableView {
   pickedIndex: number | null;
   /** Only for a table on a list: "No devices", or why the list could not be read. Null when there are rows. */
   note?: string | null;
+  /** Only for a table with expandable rows: what each row shows when opened (same order as `rows`). */
+  details?: RowDetail[];
+}
+
+export interface RowDetail {
+  /** The item's other fields as label and value pairs. */
+  pairs: FieldRow[];
+  /** Each list inside the item as a small table. */
+  tables: DetailTable[];
+}
+
+export interface DetailTable {
+  name: string;
+  columns: string[];
+  rows: string[][];
+  /** Rows left out because the list is long. */
+  more: number;
+}
+
+/** Most columns and rows of an inner list shown in an opened row. */
+export const DETAIL_MAX_COLUMNS = 8;
+export const DETAIL_MAX_ROWS = 20;
+
+function cellText(v: unknown): string {
+  if (v === undefined || v === null || v === "") return NO_VALUE;
+  if (typeof v === "string") return v;
+  if (typeof v === "object") {
+    const t = JSON.stringify(v);
+    return t.length > 200 ? `${t.slice(0, 200)}…` : t;
+  }
+  return String(v);
+}
+
+/** The top-level key a column path reads ("$.model" and "model" give "model"), or null for deeper or odd paths. */
+function columnKey(path: string): string | null {
+  const m = /^(?:\$\.?)?([A-Za-z_][\w-]*)$/.exec(path.trim());
+  return m ? m[1] : null;
+}
+
+/** What an opened row shows for one item: fields not already in a column, and arrays inside the item as small tables. */
+export function rowDetail(item: unknown, columnPaths: string[], innerNames: Record<string, string> = {}): RowDetail {
+  const pairs: FieldRow[] = [];
+  const tables: DetailTable[] = [];
+  if (!item || typeof item !== "object" || Array.isArray(item)) return { pairs: item === undefined ? [] : [{ label: "Value", value: cellText(item) }], tables };
+  const shown = new Set(columnPaths.map(columnKey).filter((k): k is string => k !== null));
+  for (const [key, value] of Object.entries(item as Record<string, unknown>)) {
+    if (shown.has(key)) continue;
+    if (Array.isArray(value)) {
+      const objs = value.filter((x): x is Record<string, unknown> => !!x && typeof x === "object" && !Array.isArray(x));
+      const name = innerNames[key] ?? key;
+      if (objs.length === 0) {
+        tables.push({ name, columns: ["Value"], rows: value.slice(0, DETAIL_MAX_ROWS).map((x) => [cellText(x)]), more: Math.max(0, value.length - DETAIL_MAX_ROWS) });
+        continue;
+      }
+      const cols: string[] = [];
+      for (const o of objs) for (const [k, v] of Object.entries(o)) if (!cols.includes(k) && (v === null || typeof v !== "object")) cols.push(k);
+      const columns = cols.slice(0, DETAIL_MAX_COLUMNS);
+      tables.push({ name, columns, rows: objs.slice(0, DETAIL_MAX_ROWS).map((o) => columns.map((c) => cellText(o[c]))), more: Math.max(0, objs.length - DETAIL_MAX_ROWS) });
+    } else {
+      pairs.push({ label: key, value: cellText(value) });
+    }
+  }
+  return { pairs, tables };
 }
 
 export function tableView(block: ToolBlock, call: ToolCall, result: CallResult | undefined, resolve?: ValueResolver): TableView {
@@ -214,7 +277,14 @@ export function tableView(block: ToolBlock, call: ToolCall, result: CallResult |
     pickedIndex = pick && Number.isInteger(pick.index) && pick.index >= 0 && pick.index < rows.length ? pick.index : chosen.ok ? chosen.index : null;
     note = rows.length === 0 ? listNote(src, block.listId) : null;
   }
-  return { columns: cols.map((c) => c.label || c.path), rows, pickedIndex, ...(block.listId !== undefined ? { note } : {}) };
+  const view: TableView = { columns: cols.map((c) => c.label || c.path), rows, pickedIndex, ...(block.listId !== undefined ? { note } : {}) };
+  if (block.expandable === true) {
+    // Inner lists the call defines under this table's list carry their own names.
+    const innerNames: Record<string, string> = {};
+    for (const l of call.lists ?? []) if (l.parentListId !== undefined && l.parentListId === block.listId) innerNames[l.path.replace(/^\$\.?/, "")] = l.name;
+    view.details = tableRows(call, result, block.listId, resolve).map((row) => rowDetail(row, cols.map((c) => c.path), innerNames));
+  }
+  return view;
 }
 
 export interface NumberView {

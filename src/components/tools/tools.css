@@ -666,3 +666,60 @@
 .confirm-request .method {
   width: auto;
 }
+
+/* Expandable rows */
+.tool-row-first {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.tool-row-toggle,
+.tool-row-toggle-gap {
+  width: 18px;
+  flex: none;
+}
+
+.tool-row-toggle {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 0;
+  font-size: var(--fs-sm);
+}
+
+.tool-row-toggle:hover {
+  color: var(--text);
+}
+
+.tool-row-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  border-radius: 3px;
+}
+
+.tool-table tr.tool-row-detail > td {
+  padding: 4px 8px 10px 22px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.tool-row-pairs {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 2px 12px;
+  margin: 0 0 6px;
+}
+
+.tool-row-pairs dt {
+  color: var(--muted);
+}
+
+.tool-row-pairs dd {
+  margin: 0;
+  word-break: break-word;
+}
+
+.tool-row-inner p {
+  margin: 6px 0 2px;
+}

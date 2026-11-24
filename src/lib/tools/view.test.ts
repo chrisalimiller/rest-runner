@@ -15,6 +15,7 @@ import {
   parseColourMap,
   progressCounts,
   requestLine,
+  rowDetail,
   runsOnEnter,
   statusBadgeView,
   statusLabel,
@@ -217,5 +218,25 @@ describe("runsOnEnter", () => {
     expect(runsOnEnter({ key: "Enter", shiftKey: true })).toBe(false);
     expect(runsOnEnter({ key: "Enter", altKey: true })).toBe(false);
     expect(runsOnEnter({ key: "Enter", isComposing: true })).toBe(false);
+  });
+});
+
+describe("rowDetail", () => {
+  it("lists the fields not already in a column, and arrays as small tables", () => {
+    const d = rowDetail({ model: "A", colour: "red", n: 3, ok: null, features: [{ name: "5G", on: true }, { name: "NFC" }], tags: ["x", "y"], meta: { a: 1 } }, ["$.model"], { features: "Features" });
+    expect(d.pairs).toEqual([
+      { label: "colour", value: "red" },
+      { label: "n", value: "3" },
+      { label: "ok", value: "—" },
+      { label: "meta", value: '{"a":1}' },
+    ]);
+    expect(d.tables[0]).toEqual({ name: "Features", columns: ["name", "on"], rows: [["5G", "true"], ["NFC", "—"]], more: 0 });
+    expect(d.tables[1]).toMatchObject({ name: "tags", columns: ["Value"], rows: [["x"], ["y"]] });
+  });
+
+  it("cuts long inner lists", () => {
+    const d = rowDetail({ items: Array.from({ length: 25 }, (_, i) => ({ id: i })) }, []);
+    expect(d.tables[0].rows).toHaveLength(20);
+    expect(d.tables[0].more).toBe(5);
   });
 });

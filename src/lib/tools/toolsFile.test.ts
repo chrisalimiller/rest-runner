@@ -69,3 +69,17 @@ describe("describeToolsImport wording", () => {
     expect(describeToolsImport("t.json", { tools: [0, 4], requests: [0, 0] }, ["a", "b", "c", "d"])).toBe("Updated 4 tools from t.json.");
   });
 });
+
+describe("expandable rows in a tools file", () => {
+  it("keeps the option on load, and only a tool using it makes a version 2 file", () => {
+    const { collections, tool } = setup();
+    expect(JSON.parse(toToolsFile([tool], collections)).version).toBe(1);
+    const table = tool.blocks.find((b) => b.type === "table");
+    if (!table) return;
+    const withOpt = { ...tool, blocks: tool.blocks.map((b) => (b.id === table.id ? { ...b, expandable: true } : b)) };
+    const file = toToolsFile([withOpt], collections);
+    expect(JSON.parse(file).version).toBe(2);
+    const r = importToolsFile(file, { tools: [], collections: [] });
+    expect(r.tools[0].blocks.find((b) => b.id === table.id)?.expandable).toBe(true);
+  });
+});
