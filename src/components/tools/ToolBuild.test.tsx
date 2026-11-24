@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { addFoundList, findLists, pickMappingPath } from "../../lib/tools/listBuilder";
 import { sampleFindRequest, sampleTool } from "../../lib/tools/sample";
 import type { SessionState } from "../../lib/tools/session";
 import type { CallResult } from "../../lib/tools/types";
@@ -80,6 +81,101 @@ describe("Calls column", () => {
     const out = renderToStaticMarkup(<CallsColumn tool={t} findRequest={find} results={{}} onChange={noop} onEditInputs={noop} onFillIn={noop} onOpenRequest={noop} />);
     expect(out).toContain("$.devices");
     expect(out).toContain("Shown when choosing");
+  });
+});
+
+describe("Lists in the Calls column", () => {
+  const customer = { devices: [{ model: "Pixel 9", imei: "3501", services: [{ id: "s1" }] }, { model: "iPad", imei: "3502", services: [] }], plans: [{ id: "p1" }] };
+  const render = (t: ReturnType<typeof sampleTool>, results: Record<string, CallResult> = {}) =>
+    renderToStaticMarkup(<CallsColumn tool={t} findRequest={find} results={results} onChange={noop} onEditInputs={noop} onFillIn={noop} onOpenRequest={noop} />);
+  const withList = () => addFoundList(sampleTool(), "c-devices", findLists(customer)[0]).tool;
+
+  it("shows a call's list with its size, rule menu and the text that names an item", () => {
+    const out = render(withList(), { "c-devices": done("c-devices", customer) });
+    expect(out).toContain("Lists in Devices");
+    expect(out).toContain('value="Devices"');
+    expect(out).toContain("2 items");
+    for (const label of ["Show only", "Ask me to pick", "First", "Last", "Row number", "First where…"]) expect(out).toContain(label);
+    expect(out).toContain("Shown when choosing");
+    expect(out).toContain('value="$.model"');
+  });
+
+  it("offers the lists found in the sample that are not added yet, including inside an item", () => {
+    const out = render(withList(), { "c-devices": done("c-devices", customer) });
+    expect(out).toContain("Found in the sample");
+    expect(out).toContain("+ Plans (1)");
+    expect(out).toContain("Inside each devices item");
+    expect(out).toContain("+ Services");
+  });
+
+  it("says when a list is not in the sample, and tells how to find lists before a sample run", () => {
+    const out = render(withList());
+    expect(out).toContain("not in sample");
+    expect(render(sampleTool())).toContain("Run with sample to find the lists in the response.");
+  });
+
+  it("keeps the old pick-a-row checkbox off for a call with lists, and shows Use lists instead only for a pick-a-row call", () => {
+    const lists = render(withList());
+    expect(lists).not.toContain("Use lists instead");
+    expect(lists).toMatch(/<input type="checkbox" disabled=""[^>]*\/><span>Ask me to pick a row/);
+    const t = sampleTool();
+    t.calls = t.calls.map((c) => (c.id === "c-devices" ? { ...c, pickRow: { listPath: "$.devices", labelPath: "$.model" } } : c));
+    const legacy = render(t);
+    expect(legacy).toContain("Use lists instead");
+    expect(legacy).not.toContain("Lists in Devices");
+  });
+
+  it("warns when an ask list has no table to pick in, and offers one", () => {
+    const t = addFoundList(sampleTool(), "c-devices", findLists(customer)[0], undefined, { kind: "ask" }).tool;
+    expect(render(t)).toContain("Add a table for Devices");
+    const shown = { ...t, blocks: [...t.blocks, { id: "b-new", type: "table" as const, title: "", fields: [], row: 9, callId: "c-devices", listId: t.calls.find((c) => c.id === "c-devices")!.lists![0].id }] };
+    expect(render(shown)).not.toContain("Add a table for Devices");
+  });
+
+  it("shows what a value reads through a list in Needs, and a removed list in red", () => {
+    const t = pickMappingPath(withList(), "c-account", "accountId", "c-devices", customer, "$.devices[0].imei");
+    expect(render(t)).toContain("Devices › Devices › Show only › imei".replace("Show only", "row you pick"));
+    const gone = { ...t, calls: t.calls.map((c) => (c.id === "c-devices" ? { ...c, lists: [] } : c)) };
+    const out = render(gone);
+    expect(out).toContain("a removed list");
+    expect(out).toContain("call-chip-missing");
+  });
+});
+
+describe("Connect dialog with lists", () => {
+  const customer = { devices: [{ model: "Pixel 9", imei: "3501" }, { model: "iPad", imei: "3502" }] };
+  const readsList = () => {
+    const t = pickMappingPath(sampleTool(), "c-account", "accountId", "c-devices", customer, "$.devices[0].imei");
+    return t;
+  };
+
+  it("asks which item a value reads, with the breadcrumb and what the sample gives", () => {
+    const t = readsList();
+    const listId = t.calls.find((c) => c.id === "c-devices")!.lists![0].id;
+    const state = stateOf([done("c-devices", customer, )]);
+    state.results["c-devices"] = { ...state.results["c-devices"], picks: { [listId]: { index: 1, key: "iPad" } } };
+    const html = renderToStaticMarkup(<ConnectDialog tool={t} target={{ callId: "c-account" }} findRequest={find} state={state} onRunSample={noop} onStop={noop} onCancel={noop} onDone={noop} />);
+    expect(html).toContain("Which devices?");
+    expect(html).toContain("Same as the list (row you pick)");
+    for (const label of ["The row I pick", "First", "Last", "Row number", "First where…", "All, joined", "How many"]) expect(html).toContain(label);
+    expect(html.replace(/<[^>]+>/g, "")).toContain("Devices › Devices › row you pick › imei");
+    expect(html.replace(/<[^>]+>/g, "")).toContain("Sample: 3502");
+    expect(html).toContain("3502");
+    expect(html).toContain('value="$.imei"');
+  });
+
+  it("explains why a value cannot be read yet", () => {
+    const t = readsList();
+    const html = renderToStaticMarkup(<ConnectDialog tool={t} target={{ callId: "c-account" }} findRequest={find} state={stateOf([done("c-devices", customer)])} onRunSample={noop} onStop={noop} onCancel={noop} onDone={noop} />);
+    expect(html).toContain("No row picked in Devices");
+  });
+
+  it("says a list was removed instead of showing a choice", () => {
+    const t = readsList();
+    const gone = { ...t, calls: t.calls.map((c) => (c.id === "c-devices" ? { ...c, lists: [] } : c)) };
+    const html = renderToStaticMarkup(<ConnectDialog tool={gone} target={{ callId: "c-account" }} findRequest={find} state={stateOf([done("c-devices", customer)])} onRunSample={noop} onStop={noop} onCancel={noop} onDone={noop} />);
+    expect(html).toContain("This list was removed");
+    expect(html.replace(/<[^>]+>/g, "")).toContain("a removed list");
   });
 });
 

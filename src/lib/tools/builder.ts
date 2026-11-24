@@ -3,6 +3,7 @@ import { requestPlaceholders } from "../request";
 import { parsePath } from "../testing/jsonPath";
 import type { HttpMethod } from "../types";
 import { callJson, pickRows } from "./engine";
+import { refBreadcrumb } from "./listText";
 import { callDependencies, orderCalls } from "./order";
 import { newBlock, newCall, validateTool } from "./tools";
 import {
@@ -11,6 +12,7 @@ import {
   type BlockType,
   type CallResult,
   type FieldFormat,
+  type ListRef,
   type PickRowSetting,
   type PlaceholderMapping,
   type Tool,
@@ -20,6 +22,7 @@ import {
   type ToolProblem,
 } from "./types";
 import { BADGE_COLOURS, tableRows, type BadgeColour } from "./view";
+import type { ValueResolver } from "./lists";
 
 /**
  * The logic of Build mode as plain functions: every edit takes a tool (or its blocks) and returns a new one,
@@ -249,9 +252,9 @@ export function setCallWrite(tool: Tool, callId: string, write: boolean): Tool {
   return updateCall(tool, callId, { write });
 }
 
-/** Sets or clears "ask me to pick a row". */
+/** Sets or clears "ask me to pick a row". A call with lists keeps them and does not get a pick-a-row setting (a call has one or the other). */
 export function setPickRow(tool: Tool, callId: string, pickRow: PickRowSetting | null): Tool {
-  return { ...tool, calls: tool.calls.map((c) => (c.id !== callId ? c : pickRow ? { ...c, pickRow } : without(c, "pickRow"))) };
+  return { ...tool, calls: tool.calls.map((c) => (c.id !== callId ? c : pickRow ? (c.lists?.length ? c : { ...c, pickRow }) : without(c, "pickRow"))) };
 }
 
 // ---- placeholder mappings ----
@@ -269,7 +272,7 @@ export function mappingSources(m: PlaceholderMapping | undefined): SourceKind[] 
 }
 
 /** Sets one source of a mapping (null removes it). A mapping with no source left is removed, which means the environment. */
-export function setMappingSource(call: ToolCall, placeholder: string, kind: SourceKind, value: string | { callId: string; path: string } | null): ToolCall {
+export function setMappingSource(call: ToolCall, placeholder: string, kind: SourceKind, value: string | { callId: string; path: string; list?: ListRef } | null): ToolCall {
   const current: PlaceholderMapping = { ...(call.mappings[placeholder] ?? {}) };
   if (value === null) delete current[kind];
   else (current as Record<string, unknown>)[kind] = value;
@@ -368,7 +371,9 @@ export function callNeeds(tool: Tool, call: ToolCall, findRequest: RequestLookup
     if (m?.input !== undefined) from.push({ kind: "input", text: toolInputLabel(tool, m.input) });
     if (m?.call) {
       const src = tool.calls.find((c) => c.id === m.call!.callId);
-      from.push({ kind: "call", text: src ? `${src.name}${m.call.path ? ` › ${m.call.path.replace(/^\$\.?/, "")}` : ""}` : "a removed call" });
+      if (!src) from.push({ kind: "call", text: "a removed call" });
+      else if (m.call.list) from.push({ kind: "call", text: refBreadcrumb(tool, src, m.call.list, m.call.path).join(" › ") });
+      else from.push({ kind: "call", text: `${src.name}${m.call.path ? ` › ${m.call.path.replace(/^\$\.?/, "")}` : ""}` });
     }
     if (m?.fixed !== undefined) from.push({ kind: "fixed", text: m.fixed === "" ? "(empty)" : m.fixed });
     if (from.length === 0) from.push({ kind: "environment", text: "environment" });
@@ -382,6 +387,7 @@ export function callGives(tool: Tool, call: ToolCall): string[] {
   for (const b of tool.blocks) {
     if (b.callId !== call.id || b.type === "action") continue;
     for (const f of b.fields) if (f.path.trim() && f.path !== "$") out.push(f.label || labelForPath(f.path));
+    for (const f of b.fields) if (f.list && (!f.path.trim() || f.path === "$")) out.push(f.label || "item");
     if (b.type === "json" && b.fields.length === 0) out.push("whole response");
   }
   for (const c of tool.calls) for (const m of Object.values(c.mappings)) if (m.call?.callId === call.id && m.call.path) out.push(m.call.path.replace(/^\$\.?/, ""));
@@ -679,9 +685,9 @@ export function sampleFor(call: ToolCall, result: CallResult | undefined): unkno
 }
 
 /** What the Connect dialog shows to click on: a table's first row (columns are paths inside a row), else the call's sample. */
-export function blockSample(block: ToolBlock, call: ToolCall | undefined, result: CallResult | undefined): unknown {
+export function blockSample(block: ToolBlock, call: ToolCall | undefined, result: CallResult | undefined, resolve?: ValueResolver): unknown {
   if (!call || !result || result.state !== "done") return undefined;
-  if (block.type === "table") return tableRows(call, result)[0];
+  if (block.type === "table") return tableRows(call, result, block.listId, resolve)[0];
   return sampleFor(call, result);
 }
 

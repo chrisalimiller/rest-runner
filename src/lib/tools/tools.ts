@@ -257,6 +257,36 @@ export function placeholdersForCall(call: ToolCall, findRequest: RequestLookup):
 }
 
 /** Everything wrong with a tool. Errors stop Look up; warnings only describe what will be skipped or ignored. */
+/** Mappings, blocks and rules that read a list their call no longer has (it was removed in Build). */
+function unknownListProblems(tool: Tool): ToolProblem[] {
+  const out: ToolProblem[] = [];
+  const calls = new Map(tool.calls.map((c) => [c.id, c]));
+  const has = (callId: string | undefined, listId: string) => !!callId && !!calls.get(callId)?.lists?.some((l) => l.id === listId);
+  const mappingOk = (m: PlaceholderMapping, depth = 0): boolean => {
+    if (!m.call?.list) return true;
+    const ref = m.call.list;
+    if (!calls.has(m.call.callId)) return true; // reported as a removed call
+    if (!has(m.call.callId, ref.listId)) return false;
+    const c = ref.item;
+    const w = c?.kind === "where" ? c : (c?.kind === "all" || c?.kind === "count") && c.where ? c.where : null;
+    return depth > 8 || !w || mappingOk(w.value, depth + 1);
+  };
+  for (const c of tool.calls) {
+    for (const [placeholder, m] of Object.entries(c.mappings)) {
+      if (!mappingOk(m)) out.push({ level: "warning", code: "unknown-list", message: `${c.name}: {{${placeholder}}} reads a list that was removed.`, callId: c.id });
+    }
+    for (const l of c.lists ?? []) {
+      if (l.choose.kind === "where" && !mappingOk(l.choose.value)) out.push({ level: "warning", code: "unknown-list", message: `${c.name}: the rule of ${l.name} reads a list that was removed.`, callId: c.id });
+    }
+  }
+  for (const b of tool.blocks) {
+    if (!b.callId || !calls.has(b.callId)) continue;
+    const bad = (b.listId !== undefined && !has(b.callId, b.listId)) || b.fields.some((f) => f.list && !has(b.callId, f.list.listId));
+    if (bad) out.push({ level: "warning", code: "unknown-list", message: `${b.title || "A block"} shows a list that was removed.`, blockId: b.id });
+  }
+  return out;
+}
+
 export function validateTool(tool: Tool, findRequest: RequestLookup): ToolProblem[] {
   const problems: ToolProblem[] = [];
   const order = orderCalls(tool.calls, (c) => placeholdersForCall(c, findRequest));
@@ -275,6 +305,7 @@ export function validateTool(tool: Tool, findRequest: RequestLookup): ToolProble
       if (m.call && !callIds.has(m.call.callId)) problems.push({ level: "warning", code: "unknown-call", message: `${c.name}: {{${placeholder}}} uses a call that was removed.`, callId: c.id });
     }
   }
+  problems.push(...unknownListProblems(tool));
   const perRow = new Map<number, number>();
   for (const b of tool.blocks) {
     perRow.set(b.row, (perRow.get(b.row) ?? 0) + 1);

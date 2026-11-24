@@ -328,7 +328,7 @@ export function toolUsesLists(tool: Tool): boolean {
 // ---- pick-a-row to lists ----
 
 /** A name for the list made from a pick-a-row call: the last word of its path ("$.data.devices" is "Devices"). */
-function nameFromPath(path: string): string {
+export function nameFromPath(path: string): string {
   const last = path.split(/[.[\]"']/).filter((p) => p !== "" && p !== "$" && !/^-?\d+$/.test(p)).pop();
   return last ? last.charAt(0).toUpperCase() + last.slice(1) : "Rows";
 }
