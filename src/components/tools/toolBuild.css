@@ -1409,3 +1409,185 @@ button.call-request:hover {
 .add-request-foot {
   font-feature-settings: "tnum" 1;
 }
+
+/* ---- lists (a call's lists, and which item a value reads) ---- */
+
+.call-lists {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-muted);
+}
+
+.call-lists h5 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.list-tree {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.list-card {
+  border: 1px solid var(--border-muted);
+  border-radius: var(--r-sm);
+  padding: 6px 8px;
+  display: grid;
+  gap: 4px;
+}
+
+.list-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.call-lists,
+.list-tree,
+.list-card,
+.list-rule,
+.list-inner {
+  min-width: 0;
+}
+
+.call-lists input,
+.call-lists select {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.list-name {
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+  font-weight: 600;
+}
+
+.list-card .list-label {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 2px;
+}
+
+.list-card .list-label input {
+  width: 100%;
+}
+
+.list-size {
+  flex: none;
+  white-space: nowrap;
+}
+
+.list-path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.list-rule {
+  display: grid;
+  gap: 3px;
+}
+
+.list-inner {
+  margin-top: 4px;
+  padding-left: 6px;
+  border-left: 2px solid var(--border-muted);
+  display: grid;
+  gap: 6px;
+}
+
+.list-found {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.list-add-path {
+  display: flex;
+  gap: 6px;
+}
+
+.list-add-path input {
+  flex: 1 1 0;
+  width: 0;
+  min-width: 0;
+}
+
+.use-lists {
+  justify-self: start;
+}
+
+.lc-rule,
+.lc-choice,
+.lc-where,
+.lc-value {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 6px;
+  min-width: 0;
+}
+
+.lc-rule select,
+.lc-choice select,
+.lc-where select,
+.lc-value select {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.lc-where,
+.lc-value {
+  flex-basis: 100%;
+}
+
+.lc-row-number {
+  width: 64px;
+}
+
+.lc-join {
+  width: 72px;
+}
+
+.cd-list-choice {
+  grid-column: 1 / -1;
+  flex-basis: 100%;
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+  padding: 8px;
+  border-radius: var(--r-sm);
+  background: var(--bg-subtle, rgba(127, 127, 127, 0.08));
+}
+
+.cd-list-choice p {
+  margin: 0;
+}
+
+.cd-picked li.cd-picked-list {
+  flex-wrap: wrap;
+}
+
+.ref-crumbs {
+  overflow-wrap: anywhere;
+}
+
+.cd-table-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.cd-list-rule {
+  display: grid;
+  gap: 4px;
+}

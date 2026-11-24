@@ -208,7 +208,7 @@ export interface LookupRecord extends LookupRun {
 export interface ToolProblem {
   /** "error" means Look up refuses to run. */
   level: "error" | "warning";
-  code: "cycle" | "missing-request" | "unknown-call" | "unknown-input" | "duplicate-input" | "too-many-in-row" | "unknown-block-call";
+  code: "cycle" | "missing-request" | "unknown-call" | "unknown-input" | "duplicate-input" | "too-many-in-row" | "unknown-block-call" | "unknown-list";
   message: string;
   callId?: string;
   blockId?: string;

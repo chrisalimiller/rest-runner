@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import type { RequestLookup } from "../../lib/flows/flows";
 import { addCall, callGives, callGroups, callNeeds, guessLabelPath, listPathOptions, removeCall, renameCall, setCallWrite, setPickRow } from "../../lib/tools/builder";
 import { callJson } from "../../lib/tools/engine";
+import { convertPickRow } from "../../lib/tools/lists";
 import { listPickableRequests, type PickableRequest } from "../../lib/testing/requestSources";
 import type { CallResult, Tool, ToolCall } from "../../lib/tools/types";
 import { requestLine } from "../../lib/tools/view";
@@ -9,6 +10,7 @@ import { defaultIsWrite } from "../../lib/tools/tools";
 import { Collapse } from "../Collapse";
 import { ChevronDownIcon, TrashIcon } from "../shell/Icons";
 import { AddRequestFlyout, REQUEST_DRAG_TYPE } from "./AddRequestFlyout";
+import { ListsSection } from "./ListsSection";
 
 export { REQUEST_DRAG_TYPE };
 
@@ -142,7 +144,8 @@ function CallCard({ stepOf, tool, call, findRequest, result, onChange, onFillIn,
   const usedBy = tool.blocks.filter((b) => b.callId === call.id).length;
   const [optionsOpen, setOptionsOpen] = useState(false);
   // The options stay visible whenever either differs from its default, so the card never hides a state.
-  const nonDefault = !!call.pickRow || (def ? call.write !== defaultIsWrite(def.method) : call.write);
+  const hasLists = (call.lists?.length ?? 0) > 0;
+  const nonDefault = !!call.pickRow || hasLists || (def ? call.write !== defaultIsWrite(def.method) : call.write);
   const showOptions = optionsOpen || nonDefault;
   const rowList = result?.state === "done" ? listPathOptions(callJson(result)) : [];
 
@@ -185,7 +188,7 @@ function CallCard({ stepOf, tool, call, findRequest, result, onChange, onFillIn,
                 <span className="muted">
                   ←{" "}
                   {n.from.map((f, i) => (
-                    <span key={i} className={f.text === "a removed call" ? "call-chip-missing" : undefined}>
+                    <span key={i} className={f.text === "a removed call" || f.text.includes("a removed list") ? "call-chip-missing" : undefined}>
                       {i > 0 && " / "}
                       <span className="call-chip-kind">{kindPrefix(f.kind, call.mappings[n.placeholder]?.call?.callId, stepOf)}</span> {f.text}
                     </span>
@@ -227,10 +230,11 @@ function CallCard({ stepOf, tool, call, findRequest, result, onChange, onFillIn,
             <input type="checkbox" checked={call.write} onChange={(e) => onChange(setCallWrite(tool, call.id, e.target.checked))} />
             <span>Write call</span>
           </label>
-          <label className="check small" title="When the response is a list, stop and ask which row to use">
-            <input type="checkbox" checked={!!call.pickRow} onChange={(e) => togglePick(e.target.checked)} />
+          <label className="check small" title={hasLists ? "This call has lists. Set \"Ask me to pick\" on a list instead." : "When the response is a list, stop and ask which row to use"}>
+            <input type="checkbox" checked={!!call.pickRow} disabled={hasLists} onChange={(e) => togglePick(e.target.checked)} />
             <span>Ask me to pick a row</span>
           </label>
+          {!call.pickRow && <ListsSection tool={tool} call={call} result={result} onChange={onChange} />}
         </div>
       </Collapse>
       {call.pickRow && (
@@ -248,6 +252,9 @@ function CallCard({ stepOf, tool, call, findRequest, result, onChange, onFillIn,
             Shown when choosing
             <input type="text" className="mono" value={call.pickRow.labelPath} placeholder="$.name" onChange={(e) => onChange(setPickRow(tool, call.id, { ...call.pickRow!, labelPath: e.target.value }))} spellCheck={false} />
           </label>
+          <button type="button" className="secondary use-lists" onClick={() => onChange(convertPickRow(tool, call.id))} title="Turns this into a list set to Ask me to pick. Everything that reads this call keeps giving the same values. Discard undoes it.">
+            Use lists instead
+          </button>
         </div>
       )}
       {call.write && <p className="small muted">Runs only from an Action button.</p>}

@@ -31,12 +31,17 @@ import {
   usesFields,
   type SourceKind,
 } from "../../lib/tools/builder";
+import { listSource, resolveInputs, valueResolver } from "../../lib/tools/engine";
+import { convertPickRow, listItems } from "../../lib/tools/lists";
+import { addFoundList, fieldIsPicked, findLists, listOutline, mappingIsPicked, pickMappingPath, toggleListField, updateList } from "../../lib/tools/listBuilder";
 import type { SessionState } from "../../lib/tools/session";
-import { FIELD_FORMATS, type BlockField, type FieldFormat, type Tool, type ToolBlock, type ToolCall } from "../../lib/tools/types";
+import { FIELD_FORMATS, type BlockField, type CallResult, type FieldFormat, type ListItemChoice, type PlaceholderMapping, type Tool, type ToolBlock, type ToolCall } from "../../lib/tools/types";
 import { BADGE_COLOURS, requestLine, formatFieldValue, type BadgeColour } from "../../lib/tools/view";
 import { listPickableRequests } from "../../lib/testing/requestSources";
 import { Modal } from "../shell/Modal";
 import { JsonTree } from "./JsonTree";
+import { ChoiceEditor, RuleEditor } from "./ListControls";
+import { RefBreadcrumb, RefSample, sampleOfRef } from "./ListValue";
 
 /**
  * The Connect dialog: where a block gets its data, in four steps. 1. the saved request (a call), 2. where each
@@ -389,7 +394,7 @@ function MappingEditor({ work, setWork, call, placeholder, findRequest, state, o
                 placeholder="$.account.id"
                 aria-label={`Field of the other request for ${placeholder}`}
                 spellCheck={false}
-                onChange={(e) => setSource("call", { callId: m!.call!.callId, path: e.target.value })}
+                onChange={(e) => setSource("call", { callId: m!.call!.callId, path: e.target.value, ...(m!.call!.list ? { list: m!.call!.list } : {}) })}
               />
               <button type="button" className="secondary" onClick={() => setPicking(!picking)} aria-expanded={picking}>
                 Pick from sample
@@ -400,9 +405,9 @@ function MappingEditor({ work, setWork, call, placeholder, findRequest, state, o
                     <JsonTree
                       sample={srcSample}
                       label={`Fields of ${srcCall.name}`}
-                      isPicked={(p) => p === m!.call!.path}
+                      isPicked={(p) => mappingIsPicked(srcCall, m!, srcSample, p)}
                       onPick={(p) => {
-                        setSource("call", { callId: srcCall.id, path: p });
+                        setWork((w) => pickMappingPath(w, call.id, placeholder, srcCall.id, srcSample, p));
                         setPicking(false);
                       }}
                     />
@@ -410,6 +415,9 @@ function MappingEditor({ work, setWork, call, placeholder, findRequest, state, o
                     <SampleStatus call={srcCall} state={state} onRunSample={onRunSample} />
                   )}
                 </div>
+              )}
+              {m!.call!.list && srcCall && (
+                <ListChoice work={work} setWork={setWork} source={srcCall} mapping={m!} state={state} placeholder={placeholder} call={call} />
               )}
               <p className="small muted cd-skip-note">If this field has no value, the request is skipped.{srcCall?.pickRow ? " It is read from the row you pick." : ""}</p>
             </div>
@@ -431,11 +439,49 @@ function MappingEditor({ work, setWork, call, placeholder, findRequest, state, o
   );
 }
 
+/** Under a value that reads a list: which item it comes from, the path it takes, and what that reads in the sample. */
+function ListChoice({ work, setWork, source, mapping, state, placeholder, call }: WorkProps & { source: ToolCall; mapping: PlaceholderMapping; state: SessionState; placeholder: string; call: ToolCall }) {
+  const ref = mapping.call!.list!;
+  const list = source.lists?.find((l) => l.id === ref.listId);
+  const result = state.results[source.id];
+  const items = list ? sampleItemsOf(source, list.id, result, work, state) : [];
+  const setItem = (item: ListItemChoice | undefined) =>
+    setWork((w) => ({
+      ...w,
+      calls: w.calls.map((c) => (c.id === call.id ? { ...c, mappings: { ...c.mappings, [placeholder]: { ...c.mappings[placeholder], call: { ...c.mappings[placeholder].call!, list: item ? { listId: ref.listId, item } : { listId: ref.listId } } } } } : c)),
+    }));
+  return (
+    <div className="cd-list-choice">
+      <p className="cd-lead small">
+        Which {list ? list.name.toLowerCase() : "item"}?
+      </p>
+      {list ? (
+        <ChoiceEditor ctx={{ tool: work, callId: source.id, items: items.slice(0, 1) }} listRule={list.choose} choice={ref.item} onChange={setItem} label={`${placeholder} from ${list.name}`} />
+      ) : (
+        <p className="small tone-bad">This list was removed. Pick the value again.</p>
+      )}
+      <p className="cd-crumb">
+        <RefBreadcrumb tool={work} call={source} list={ref} path={mapping.call!.path} />
+      </p>
+      <p className="cd-sample">
+        <RefSample tool={work} call={source} state={state} path={mapping.call!.path} list={ref} />
+      </p>
+    </div>
+  );
+}
+
+function sampleItemsOf(source: ToolCall, listId: string, result: CallResult | undefined, work: Tool, state: SessionState): unknown[] {
+  if (!result || result.state !== "done") return [];
+  const resolve = valueResolver(work, resolveInputs(work, state.inputs), state.results);
+  return listItems(listSource(source, result, resolve), listId);
+}
+
 // ---- 3. the fields ----
 
 function StepFields({ work, setWork, block, setBlock, call, state, onRunSample, onStop }: WorkProps & { block: ToolBlock; setBlock: (b: ToolBlock) => void; call: ToolCall; state: SessionState; onRunSample: () => void; onStop: () => void }) {
   const result = state.results[call.id];
-  const sample = blockSample(block, call, result);
+  const resolve = valueResolver(work, resolveInputs(work, state.inputs), state.results);
+  const sample = blockSample(block, call, result, resolve);
   const [path, setPath] = useState("");
   const pickingRow = state.pending.some((p) => p.callId === call.id);
   const table = block.type === "table";
@@ -460,8 +506,12 @@ function StepFields({ work, setWork, block, setBlock, call, state, onRunSample, 
             label="Sample response"
             rootLabel={table ? "Row" : "Whole response"}
             rootPickable={block.type === "json"}
-            isPicked={(p) => isPicked(block, p)}
-            onPick={(p) => setBlock(togglePath(block, p, sample))}
+            isPicked={(p) => (table || (block.type === "json" && p === "$") ? isPicked(block, p) : fieldIsPicked(call, block, sample, p))}
+            onPick={(p) => {
+              const inList = table ? null : toggleListField(work, block.id, sample, p);
+              if (inList) setWork(inList);
+              else setBlock(togglePath(block, p, sample));
+            }}
           />
         ) : result && result.state !== "done" ? (
           <div className="cd-sample-help">
@@ -495,12 +545,13 @@ function StepFields({ work, setWork, block, setBlock, call, state, onRunSample, 
         {block.type === "json" && block.fields.length === 0 && <p className="small">The whole response.</p>}
         <ul className="cd-picked">
           {block.fields.map((f, i) => (
-            <li key={f.path}>
+            <li key={`${i}:${f.path}`} className={f.list ? "cd-picked-list" : undefined}>
               <code className="mono">{f.path}</code>
-              {sample !== undefined && <span className="muted small cd-picked-val">{formatFieldValue(sampleValue(sample, f.path), f.format)}</span>}
+              {sample !== undefined && !f.list && <span className="muted small cd-picked-val">{formatFieldValue(sampleValue(sample, f.path), f.format)}</span>}
               <button type="button" className="icon-btn" aria-label={`Remove ${f.path}`} onClick={() => setBlock(removeField(block, i))}>
                 ×
               </button>
+              {f.list && <FieldListChoice work={work} setWork={setWork} block={block} index={i} call={call} state={state} />}
             </li>
           ))}
         </ul>
@@ -519,7 +570,8 @@ function StepFields({ work, setWork, block, setBlock, call, state, onRunSample, 
             </button>
           </form>
         )}
-        {table && (
+        {table && !call.pickRow && <TableList work={work} setWork={setWork} block={block} call={call} state={state} />}
+        {table && (call.pickRow || !call.lists?.length) && (
           <div className="cd-rows-setting">
             <label className="check">
               <input type="checkbox" checked={!!call.pickRow} onChange={(e) => toggleAskRow(e.target.checked)} />
@@ -541,6 +593,9 @@ function StepFields({ work, setWork, block, setBlock, call, state, onRunSample, 
                   Shown when choosing
                   <input type="text" className="mono" value={call.pickRow.labelPath} placeholder="$.name" onChange={(e) => setWork(setPickRow(work, call.id, { ...call.pickRow!, labelPath: e.target.value }))} spellCheck={false} />
                 </label>
+                <button type="button" className="secondary use-lists" onClick={() => setWork(convertPickRow(work, call.id))} title="Turns this into a list set to Ask me to pick. Everything that reads this call keeps giving the same values.">
+                  Use lists instead
+                </button>
               </div>
             )}
           </div>
@@ -555,12 +610,103 @@ function StepFields({ work, setWork, block, setBlock, call, state, onRunSample, 
   );
 }
 
+/** A table block's list: which list of the call it shows, and which item that list hands on. */
+function TableList({ work, setWork, block, call, state }: WorkProps & { block: ToolBlock; call: ToolCall; state: SessionState }) {
+  const result = state.results[call.id];
+  const json = result?.state === "done" ? callJson(result) : undefined;
+  const outline = listOutline(call, findLists(json));
+  const list = block.listId !== undefined ? call.lists?.find((l) => l.id === block.listId) : undefined;
+  const items = list ? sampleItemsOf(call, list.id, result, work, state) : [];
+  const setBlockList = (listId: string | undefined) =>
+    setWork((w) => ({ ...w, blocks: w.blocks.map((b) => (b.id === block.id ? withListId(b, listId) : b)) }));
+  const choose = (value: string) => {
+    if (value === "") return setBlockList(undefined);
+    if (value.startsWith("found:")) {
+      const f = outline.suggestions.find((x) => x.path === value.slice(6));
+      if (!f) return;
+      setWork((w) => {
+        const r = addFoundList(w, call.id, f);
+        return r.list ? { ...r.tool, blocks: r.tool.blocks.map((b) => (b.id === block.id ? withListId(b, r.list!.id) : b)) } : w;
+      });
+      return;
+    }
+    setBlockList(value);
+  };
+  if ((call.lists?.length ?? 0) === 0 && outline.suggestions.length === 0) return null;
+  return (
+    <div className="cd-table-list">
+      <label className="field small">
+        List
+        <select value={block.listId !== undefined && list ? block.listId : ""} aria-label="List this table shows" onChange={(e) => choose(e.target.value)}>
+          <option value="">First list in the response (as before)</option>
+          {(call.lists ?? []).map((l) => (
+            <option key={l.id} value={l.id}>
+              {l.name}
+            </option>
+          ))}
+          {outline.suggestions.map((f) => (
+            <option key={f.path} value={`found:${f.path}`}>
+              {f.name} ({f.size}) — add as a list
+            </option>
+          ))}
+        </select>
+      </label>
+      {block.listId !== undefined && !list && <p className="small tone-bad">The list this table showed was removed. Choose another.</p>}
+      {list && (
+        <div className="cd-list-rule">
+          <span className="small muted">Item to use</span>
+          <RuleEditor ctx={{ tool: work, callId: call.id, items: items.slice(0, 1) }} rule={list.choose} label={list.name} onChange={(choose) => setWork((w) => updateList(w, call.id, list.id, { choose }))} />
+          <p className="small muted">Other values can read from the item this picks. Ask me to pick shows a radio button on each row in Use mode.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function withListId(b: ToolBlock, listId: string | undefined): ToolBlock {
+  const copy = { ...b };
+  if (listId === undefined) delete copy.listId;
+  else copy.listId = listId;
+  return copy;
+}
+
+/** Under a field that sits in a list: which item it reads, the path it takes, and what that shows in the sample. */
+function FieldListChoice({ work, setWork, block, index, call, state }: WorkProps & { block: ToolBlock; index: number; call: ToolCall; state: SessionState }) {
+  const f = block.fields[index];
+  const ref = f.list!;
+  const list = call.lists?.find((l) => l.id === ref.listId);
+  const result = state.results[call.id];
+  const items = list ? sampleItemsOf(call, list.id, result, work, state) : [];
+  const setItem = (item: ListItemChoice | undefined) =>
+    setWork((w) => ({
+      ...w,
+      blocks: w.blocks.map((b) => (b.id === block.id ? { ...b, fields: b.fields.map((x, i) => (i === index ? { ...x, list: item ? { listId: ref.listId, item } : { listId: ref.listId } } : x)) } : b)),
+    }));
+  return (
+    <div className="cd-list-choice">
+      {list ? (
+        <ChoiceEditor ctx={{ tool: work, callId: call.id, items: items.slice(0, 1) }} listRule={list.choose} choice={ref.item} onChange={setItem} label={`${f.label || f.path} from ${list.name}`} />
+      ) : (
+        <p className="small tone-bad">This list was removed. Pick the field again.</p>
+      )}
+      <p className="cd-crumb">
+        <RefBreadcrumb tool={work} call={call} list={ref} path={f.path} />
+      </p>
+      <p className="cd-sample">
+        <RefSample tool={work} call={call} state={state} path={f.path} list={ref} format={f.format} />
+      </p>
+    </div>
+  );
+}
+
 // ---- 4. label and format ----
 
 const FORMAT_LABELS: Record<FieldFormat, string> = { text: "Text", number: "Number", money: "Money", date: "Date", "yes-no": "Yes / no" };
 
 function StepFormat({ work, block, setBlock, call, state }: { work: Tool; block: ToolBlock; setBlock: (b: ToolBlock) => void; call: ToolCall | undefined; state: SessionState }) {
-  const sample = blockSample(block, call, call ? state.results[call.id] : undefined);
+  const resolve = valueResolver(work, resolveInputs(work, state.inputs), state.results);
+  const sample = blockSample(block, call, call ? state.results[call.id] : undefined, resolve);
+  const valueOf = (f: BlockField) => (f.list ? (sampleOfRef(work, call, state, f.path, f.list, f.format)?.text ?? "") : formatFieldValue(sampleValue(sample, f.path), f.format));
   const callName = work.calls.find((c) => c.id === block.callId)?.name;
   const action = block.type === "action";
   return (
@@ -588,7 +734,7 @@ function StepFormat({ work, block, setBlock, call, state }: { work: Tool; block:
           {block.fields.length === 0 && <p className="muted">No fields picked yet. Go back to Fields and click the values to show.</p>}
           <ul className="cd-format">
             {block.fields.map((f, i) => (
-              <FieldRow key={f.path} f={f} i={i} count={block.fields.length} sample={sample} block={block} setBlock={setBlock} />
+              <FieldRow key={`${i}:${f.path}`} f={f} i={i} count={block.fields.length} sample={sample} value={valueOf(f)} block={block} setBlock={setBlock} />
             ))}
           </ul>
         </>
@@ -598,8 +744,7 @@ function StepFormat({ work, block, setBlock, call, state }: { work: Tool; block:
   );
 }
 
-function FieldRow({ f, i, count, sample, block, setBlock }: { f: BlockField; i: number; count: number; sample: unknown; block: ToolBlock; setBlock: (b: ToolBlock) => void }) {
-  const value = formatFieldValue(sampleValue(sample, f.path), f.format);
+function FieldRow({ f, i, count, sample, value, block, setBlock }: { f: BlockField; i: number; count: number; sample: unknown; value: string; block: ToolBlock; setBlock: (b: ToolBlock) => void }) {
   const column = block.type === "table";
   return (
     <li className="cd-format-row">
