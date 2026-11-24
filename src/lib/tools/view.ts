@@ -4,7 +4,8 @@ import { prettyBody } from "../format";
 import { requestPlaceholders } from "../request";
 import { readPath } from "../testing/jsonPath";
 import type { RequestDef } from "../types";
-import { callData, callJson, pickRows, readCallField } from "./engine";
+import { callData, callJson, listSource, pickRows, readCallField } from "./engine";
+import { chooseItem, listItems, listNote, type ValueResolver } from "./lists";
 import type { BlockField, CallResult, FieldFormat, Tool, ToolBlock, ToolCall } from "./types";
 
 /** What Use mode shows for tool blocks, worked out as plain data so it can be tested without a screen. */
@@ -168,13 +169,17 @@ export interface FieldRow {
 }
 
 /** Label and formatted value of each field of a "fields" block. */
-export function fieldRows(block: ToolBlock, call: ToolCall, result: CallResult | undefined): FieldRow[] {
-  return block.fields.map((f) => ({ label: f.label || f.path, value: formatFieldValue(readCallField(call, result, f.path), f.format) }));
+export function fieldRows(block: ToolBlock, call: ToolCall, result: CallResult | undefined, resolve?: ValueResolver): FieldRow[] {
+  return block.fields.map((f) => ({ label: f.label || f.path, value: formatFieldValue(readCallField(call, result, f.path, f.list, resolve), f.format) }));
 }
 
-/** The list a table block shows. A pick-a-row call uses its list path; else the response itself, or its first list. */
-export function tableRows(call: ToolCall, result: CallResult | undefined): unknown[] {
+/**
+ * The list a table block shows. With `listId`, that list of the call. Otherwise a pick-a-row call uses its list path;
+ * else the response itself, or its first list.
+ */
+export function tableRows(call: ToolCall, result: CallResult | undefined, listId?: string, resolve?: ValueResolver): unknown[] {
   if (!result || result.state !== "done") return [];
+  if (listId !== undefined) return listItems(listSource(call, result, resolve), listId);
   const picked = pickRows(call, result);
   if (picked) return picked;
   if (call.pickRow) return [];
@@ -190,14 +195,24 @@ export function tableRows(call: ToolCall, result: CallResult | undefined): unkno
 export interface TableView {
   columns: string[];
   rows: string[][];
-  /** The row the lookup used, for a pick-a-row call. */
+  /** The row the lookup used: the picked row of a pick-a-row call, or the item the table's list hands on. */
   pickedIndex: number | null;
+  /** Only for a table on a list: "No devices", or why the list could not be read. Null when there are rows. */
+  note?: string | null;
 }
 
-export function tableView(block: ToolBlock, call: ToolCall, result: CallResult | undefined): TableView {
+export function tableView(block: ToolBlock, call: ToolCall, result: CallResult | undefined, resolve?: ValueResolver): TableView {
   const cols: BlockField[] = block.fields;
-  const rows = tableRows(call, result).map((row) => cols.map((c) => formatFieldValue(readPath(row, c.path), c.format)));
-  return { columns: cols.map((c) => c.label || c.path), rows, pickedIndex: result?.picked?.index ?? null };
+  const rows = tableRows(call, result, block.listId, resolve).map((row) => cols.map((c) => formatFieldValue(readPath(row, c.path), c.format)));
+  let pickedIndex = result?.picked?.index ?? null;
+  let note: string | null = null;
+  if (block.listId !== undefined && result?.state === "done") {
+    const src = listSource(call, result, resolve);
+    const chosen = chooseItem(src, block.listId);
+    pickedIndex = chosen.ok ? chosen.index : null;
+    note = rows.length === 0 ? listNote(src, block.listId) : null;
+  }
+  return { columns: cols.map((c) => c.label || c.path), rows, pickedIndex, ...(block.listId !== undefined ? { note } : {}) };
 }
 
 export interface NumberView {
@@ -206,9 +221,9 @@ export interface NumberView {
 }
 
 /** A number block: the first field, the unit typed in the block's text. */
-export function numberView(block: ToolBlock, call: ToolCall, result: CallResult | undefined): NumberView {
+export function numberView(block: ToolBlock, call: ToolCall, result: CallResult | undefined, resolve?: ValueResolver): NumberView {
   const f = block.fields[0];
-  return { value: f ? formatFieldValue(readCallField(call, result, f.path), f.format === "text" ? "number" : f.format) : NO_VALUE, unit: block.text?.trim() ?? "" };
+  return { value: f ? formatFieldValue(readCallField(call, result, f.path, f.list, resolve), f.format === "text" ? "number" : f.format) : NO_VALUE, unit: block.text?.trim() ?? "" };
 }
 
 export type BadgeColour = "green" | "amber" | "red" | "blue" | "grey";
@@ -236,18 +251,24 @@ export interface StatusView {
   colour: BadgeColour;
 }
 
-export function statusBadgeView(block: ToolBlock, call: ToolCall, result: CallResult | undefined): StatusView {
+export function statusBadgeView(block: ToolBlock, call: ToolCall, result: CallResult | undefined, resolve?: ValueResolver): StatusView {
   const f = block.fields[0];
-  const raw = f ? readCallField(call, result, f.path) : undefined;
+  const raw = f ? readCallField(call, result, f.path, f.list, resolve) : undefined;
   const text = formatFieldValue(raw, f?.format ?? "text");
   const colour = parseColourMap(block.text)[text.toLowerCase()] ?? "grey";
   return { text, colour };
 }
 
 /** The JSON a json block shows: one path of the response, or the whole body (pretty-printed when it is JSON). */
-export function jsonText(block: ToolBlock, call: ToolCall, result: CallResult | undefined): string {
+export function jsonText(block: ToolBlock, call: ToolCall, result: CallResult | undefined, resolve?: ValueResolver): string {
   if (!result?.response) return "";
-  const path = block.fields[0]?.path.trim();
+  const first = block.fields[0];
+  const path = first?.path.trim();
+  if (first?.list) {
+    // A field in a list: no path (or $) is the whole item.
+    const v = readCallField(call, result, path === "$" ? "" : (path ?? ""), first.list, resolve);
+    return v === undefined ? "" : JSON.stringify(v, null, 2);
+  }
   if (path && path !== "$") {
     const v = readCallField(call, result, path);
     return v === undefined ? "" : JSON.stringify(v, null, 2);

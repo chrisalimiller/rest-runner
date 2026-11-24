@@ -10,13 +10,18 @@ import {
   MAX_BLOCKS_PER_ROW,
   type BlockField,
   type BlockType,
+  type ItemRule,
+  type ListItemChoice,
+  type ListRef,
   type PickRowSetting,
   type PlaceholderMapping,
   type Tool,
   type ToolBlock,
   type ToolCall,
   type ToolInput,
+  type ToolList,
   type ToolProblem,
+  type Where,
 } from "./types";
 
 export const TOOLS_KEY = "rest-runner.tools";
@@ -73,9 +78,91 @@ function cleanMapping(v: unknown): PlaceholderMapping | null {
   if (!isObject(v)) return null;
   const m: PlaceholderMapping = {};
   if (typeof v.input === "string" && v.input !== "") m.input = v.input;
-  if (isObject(v.call) && typeof v.call.callId === "string" && v.call.callId !== "") m.call = { callId: v.call.callId, path: str(v.call.path) };
+  if (isObject(v.call) && typeof v.call.callId === "string" && v.call.callId !== "") {
+    const list = cleanListRef(v.call.list);
+    m.call = { callId: v.call.callId, path: str(v.call.path), ...(list ? { list } : {}) };
+  }
   if (typeof v.fixed === "string") m.fixed = v.fixed;
   return Object.keys(m).length > 0 ? m : null;
+}
+
+// ---- lists ----
+
+function cleanWhere(v: unknown): Where | null {
+  if (!isObject(v) || typeof v.field !== "string") return null;
+  return { field: v.field, op: v.op === "ne" ? "ne" : "eq", value: cleanMapping(v.value) ?? {} };
+}
+
+/** A rule for choosing an item. Null for anything that is not one. */
+function cleanRule(v: unknown): ItemRule | null {
+  if (!isObject(v)) return null;
+  switch (v.kind) {
+    case "none":
+      return { kind: "none" };
+    case "ask":
+      return { kind: "ask" };
+    case "index":
+      return typeof v.index === "number" && Number.isInteger(v.index) ? { kind: "index", index: v.index } : null;
+    case "where": {
+      const w = cleanWhere(v);
+      return w ? { kind: "where", ...w } : null;
+    }
+    default:
+      return null;
+  }
+}
+
+function cleanItemChoice(v: unknown): ListItemChoice | null {
+  if (!isObject(v)) return null;
+  if (v.kind === "all") {
+    const where = cleanWhere(v.where);
+    return { kind: "all", join: typeof v.join === "string" ? v.join : ", ", ...(where ? { where } : {}) };
+  }
+  if (v.kind === "count") {
+    const where = cleanWhere(v.where);
+    return { kind: "count", ...(where ? { where } : {}) };
+  }
+  return cleanRule(v);
+}
+
+function cleanListRef(v: unknown): ListRef | null {
+  if (!isObject(v) || typeof v.listId !== "string" || v.listId === "") return null;
+  const item = cleanItemChoice(v.item);
+  return { listId: v.listId, ...(item ? { item } : {}) };
+}
+
+/**
+ * The lists of a call. A list needs an id and a name; one that sits inside a list that is not there (or inside
+ * itself) is dropped, since reading it from the whole response would give other values than were meant.
+ */
+function cleanLists(v: unknown): ToolList[] {
+  const first: ToolList[] = [];
+  const ids = new Set<string>();
+  for (const l of Array.isArray(v) ? v : []) {
+    if (!isObject(l) || typeof l.id !== "string" || l.id === "" || ids.has(l.id)) continue;
+    ids.add(l.id);
+    first.push({
+      id: l.id,
+      name: str(l.name, "List"),
+      path: str(l.path),
+      ...(typeof l.parentListId === "string" && l.parentListId !== "" ? { parentListId: l.parentListId } : {}),
+      labelPath: str(l.labelPath),
+      choose: cleanRule(l.choose) ?? { kind: "none" },
+      ...(typeof l.autoPickSingle === "boolean" ? { autoPickSingle: l.autoPickSingle } : {}),
+    });
+  }
+  const byId = new Map(first.map((l) => [l.id, l]));
+  const sound = (l: ToolList): boolean => {
+    const seen = new Set<string>([l.id]);
+    for (let p = l.parentListId; p !== undefined; ) {
+      const parent = byId.get(p);
+      if (!parent || seen.has(p)) return false;
+      seen.add(p);
+      p = parent.parentListId;
+    }
+    return true;
+  };
+  return first.filter(sound);
 }
 
 function cleanPickRow(v: unknown): PickRowSetting | undefined {
@@ -93,13 +180,16 @@ function cleanCall(v: unknown): ToolCall | null {
     }
   }
   const pickRow = cleanPickRow(v.pickRow);
-  return { id: v.id, name: str(v.name, "Call"), requestId: str(v.requestId), mappings, write: v.write === true, ...(pickRow ? { pickRow } : {}) };
+  // A call has either pickRow or lists, never both: pickRow keeps its meaning.
+  const lists = pickRow ? [] : cleanLists(v.lists);
+  return { id: v.id, name: str(v.name, "Call"), requestId: str(v.requestId), mappings, write: v.write === true, ...(pickRow ? { pickRow } : {}), ...(lists.length > 0 ? { lists } : {}) };
 }
 
 function cleanField(v: unknown): BlockField | null {
   if (!isObject(v)) return null;
   const format = FIELD_FORMATS.includes(v.format as never) ? (v.format as BlockField["format"]) : "text";
-  return { path: str(v.path), label: str(v.label), format };
+  const list = cleanListRef(v.list);
+  return { path: str(v.path), label: str(v.label), format, ...(list ? { list } : {}) };
 }
 
 function cleanBlock(v: unknown, index: number): ToolBlock | null {
@@ -114,6 +204,7 @@ function cleanBlock(v: unknown, index: number): ToolBlock | null {
     ...(typeof v.inputName === "string" && v.inputName !== "" ? { inputName: v.inputName } : {}),
     fields,
     ...(typeof v.text === "string" ? { text: v.text } : {}),
+    ...(typeof v.listId === "string" && v.listId !== "" ? { listId: v.listId } : {}),
     row,
   };
 }

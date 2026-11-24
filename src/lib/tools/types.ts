@@ -25,9 +25,54 @@ export interface ToolInput {
 export interface PlaceholderMapping {
   /** Name of a tool input. */
   input?: string;
-  /** A field (JSON path) of another call's response. For a pick-a-row call, the path is read from the picked row. */
-  call?: { callId: string; path: string };
+  /**
+   * A field (JSON path) of another call's response. For a pick-a-row call, the path is read from the picked row.
+   * With `list`, the path is read from an item of one of that call's lists instead (see ListRef).
+   */
+  call?: { callId: string; path: string; list?: ListRef };
   fixed?: string;
+}
+
+/** A condition on the items of a list: the item's field (JSON path inside the item) equals, or does not equal, a value. */
+export interface Where {
+  field: string;
+  op: "eq" | "ne";
+  value: PlaceholderMapping;
+}
+
+/**
+ * Which item of a list a value comes from (or how the list is reduced to one value).
+ * - none: no item is chosen; the list is only shown
+ * - ask: the row the user picks in the table
+ * - index: 0 is the first item, -1 the last, n the item at that position
+ * - where: the first item that matches
+ */
+export type ItemRule = { kind: "none" } | { kind: "ask" } | { kind: "index"; index: number } | { kind: "where"; field: string; op: "eq" | "ne"; value: PlaceholderMapping };
+
+/** How a value reads a list: a different item rule than the list's own, or all items joined, or how many there are. */
+export type ListItemChoice = ItemRule | { kind: "all"; join: string; where?: Where } | { kind: "count"; where?: Where };
+
+export interface ListRef {
+  listId: string;
+  /** Overrides the list's own rule for this one value. */
+  item?: ListItemChoice;
+}
+
+/** A named list inside one call's response, for example the services or devices of a customer. */
+export interface ToolList {
+  /** Unique within the call. */
+  id: string;
+  name: string;
+  /** JSON path of the list, read from the whole response (or, with parentListId, from the parent's chosen item). Empty or "$" means the response itself. */
+  path: string;
+  /** A list inside an item of another list of the same call: its path is read from that list's chosen item. */
+  parentListId?: string;
+  /** JSON path inside an item of the text that names it (waiting messages, history, remembered picks). Empty uses the whole item. */
+  labelPath: string;
+  /** Which item this list hands on by default. */
+  choose: ItemRule;
+  /** With "ask", a list of one item is picked without asking. Default true. */
+  autoPickSingle?: boolean;
 }
 
 export interface PickRowSetting {
@@ -47,8 +92,10 @@ export interface ToolCall {
   mappings: Record<string, PlaceholderMapping>;
   /** Write calls (POST/PUT/PATCH/DELETE) run only from an Action button, never in Look up. */
   write: boolean;
-  /** Ask which row to use when the response is a list. */
+  /** Ask which row to use when the response is a list. A call has either pickRow or lists, never both. */
   pickRow?: PickRowSetting;
+  /** Named lists inside the response. Fields that name no list read the whole response, as before. */
+  lists?: ToolList[];
 }
 
 export const BLOCK_TYPES = ["input", "fields", "table", "number", "status", "json", "note", "action"] as const;
@@ -61,6 +108,8 @@ export interface BlockField {
   path: string;
   label: string;
   format: FieldFormat;
+  /** Reads the path from an item of a list of the block's call. Without it the path is read as before. */
+  list?: ListRef;
 }
 
 export const MAX_BLOCKS_PER_ROW = 3;
@@ -76,6 +125,8 @@ export interface ToolBlock {
   fields: BlockField[];
   /** Heading or note text. */
   text?: string;
+  /** For a table block, which list of the call it shows. Without it: the pick-a-row list, else the response if it is a list, else its first list. */
+  listId?: string;
   /** Row of the page, counted from 0. Up to MAX_BLOCKS_PER_ROW blocks share a row, in array order. */
   row: number;
 }
@@ -128,6 +179,13 @@ export interface CallResult {
   /** For a pick-a-row call: how many rows the list had, and the row chosen. */
   rowCount?: number;
   picked?: { index: number };
+  /** For a call with lists: the item picked in each list, by list id. `key` is the item's label, to recognise the same row in a later lookup. */
+  picks?: Record<string, ListPick>;
+}
+
+export interface ListPick {
+  index: number;
+  key?: string;
 }
 
 export interface LookupRun {

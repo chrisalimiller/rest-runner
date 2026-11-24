@@ -306,12 +306,13 @@ export function dependentCallIds(tool: Tool, callId: string, findRequest?: Reque
     return def ? requestPlaceholders(def) : null;
   };
   const out = new Set<string>();
+  const byId = new Map(tool.calls.map((c) => [c.id, c]));
   let grew = true;
   while (grew) {
     grew = false;
     for (const c of tool.calls) {
       if (out.has(c.id) || c.id === callId) continue;
-      const deps = callDependencies(c, placeholders(c));
+      const deps = callDependencies(c, placeholders(c), byId);
       if (deps.includes(callId) || deps.some((d) => out.has(d))) {
         out.add(c.id);
         grew = true;
