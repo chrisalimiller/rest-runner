@@ -1965,6 +1965,16 @@ button.unfilled-dot:hover {
   box-sizing: border-box;
 }
 
+/* Folded to full width, the pane sits under the request summary bar, whose text starts 24px in. Match it. */
+.inspector.request-folded .batch-main .batch {
+  padding: 12px 24px 16px;
+}
+
+.inspector.request-folded .pane-switch,
+.inspector.request-folded .pane-spacer {
+  padding: 0 24px;
+}
+
 /* Stack by the room the Requests area has, not the window, since a side panel can take 320px of it. */
 @container requests-main (max-width: 1000px) {
   .inspector {
