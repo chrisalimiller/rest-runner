@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { Fragment, useRef, useState } from "react";
 import { requestPlaceholders } from "../../lib/request";
 import { formatMs } from "../../lib/earlierSends";
 import type { RequestLookup } from "../../lib/flows/flows";
@@ -18,6 +18,7 @@ import {
   statusTone,
   tableView,
   type CallView,
+  type RowDetail,
 } from "../../lib/tools/view";
 import { BodyView } from "../BodyView";
 import { RainbowText } from "../RainbowText";
@@ -492,6 +493,15 @@ function TableBody({ block, tool, call, result, state, actions }: { block: ToolB
   const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
   const [focusAt, setFocusAt] = useState<number | null>(null);
   const [query, setQuery] = useState("");
+  const [open, setOpen] = useState<Set<number>>(new Set());
+  const toggle = (ri: number, to?: boolean) =>
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (to ?? !next.has(ri)) next.add(ri);
+      else next.delete(ri);
+      return next;
+    });
+  const expandable = block.expandable === true && t.details !== undefined;
   const filterable = block.listId !== undefined && t.rows.length > FILTER_ROWS_ABOVE;
   const q = filterable ? query.trim().toLowerCase() : "";
   // Row numbers stay those of the whole list, so picking a row of a filtered table picks the right one.
@@ -504,6 +514,8 @@ function TableBody({ block, tool, call, result, state, actions }: { block: ToolB
   const wanted = focusAt ?? t.pickedIndex ?? 0;
   const tabStop = visible.includes(wanted) ? wanted : (visible[0] ?? 0);
   const onKeyDown = (e: React.KeyboardEvent, ri: number) => {
+    // Keys pressed on the row's own button belong to the button.
+    if (e.target !== e.currentTarget) return;
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       choose(ri);
@@ -540,26 +552,70 @@ function TableBody({ block, tool, call, result, state, actions }: { block: ToolB
           </tr>
         </thead>
         <tbody>
-          {visible.map((ri) => (
-            <tr
-              key={ri}
-              ref={(el) => {
-                rowRefs.current[ri] = el;
-              }}
-              className={t.pickedIndex === ri ? "picked" : undefined}
-              role={isPick ? "radio" : undefined}
-              aria-checked={isPick ? t.pickedIndex === ri : undefined}
-              aria-disabled={isPick && !selectable ? true : undefined}
-              tabIndex={selectable ? (ri === tabStop ? 0 : -1) : undefined}
-              onClick={selectable ? () => choose(ri) : undefined}
-              onFocus={selectable ? () => setFocusAt(ri) : undefined}
-              onKeyDown={selectable ? (e) => onKeyDown(e, ri) : undefined}
-            >
-              {t.rows[ri].map((cell, ci) => (
-                <td key={ci}>{cell}</td>
-              ))}
-            </tr>
-          ))}
+          {visible.map((ri) => {
+            const detail = expandable ? t.details![ri] : undefined;
+            const hasDetail = !!detail && (detail.pairs.length > 0 || detail.tables.length > 0);
+            const isOpen = hasDetail && open.has(ri);
+            return (
+              <Fragment key={ri}>
+                <tr
+                  ref={(el) => {
+                    rowRefs.current[ri] = el;
+                  }}
+                  className={t.pickedIndex === ri ? "picked" : undefined}
+                  role={isPick ? "radio" : undefined}
+                  aria-checked={isPick ? t.pickedIndex === ri : undefined}
+                  aria-disabled={isPick && !selectable ? true : undefined}
+                  tabIndex={selectable ? (ri === tabStop ? 0 : -1) : undefined}
+                  onClick={selectable ? () => choose(ri) : undefined}
+                  onFocus={selectable ? () => setFocusAt(ri) : undefined}
+                  onKeyDown={selectable ? (e) => onKeyDown(e, ri) : undefined}
+                >
+                  {t.rows[ri].map((cell, ci) => (
+                    <td key={ci}>
+                      {ci === 0 && expandable ? (
+                        <span className="tool-row-first">
+                          {hasDetail ? (
+                            <button
+                              type="button"
+                              className="tool-row-toggle"
+                              aria-expanded={isOpen}
+                              aria-label={`${isOpen ? "Hide" : "Show"} details of ${cell}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggle(ri);
+                              }}
+                              onKeyDown={(e) => {
+                                if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  toggle(ri, e.key === "ArrowRight");
+                                } else if (e.key === "Enter" || e.key === " ") e.stopPropagation();
+                              }}
+                            >
+                              <span aria-hidden="true">{isOpen ? "▾" : "▸"}</span>
+                            </button>
+                          ) : (
+                            <span className="tool-row-toggle-gap" aria-hidden="true" />
+                          )}
+                          {cell}
+                        </span>
+                      ) : (
+                        cell
+                      )}
+                    </td>
+                  ))}
+                </tr>
+                {isOpen && detail && (
+                  <tr className="tool-row-detail" role={isPick ? "presentation" : undefined}>
+                    <td colSpan={Math.max(1, t.columns.length)} role={isPick ? "presentation" : undefined}>
+                      <RowDetails detail={detail} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            );
+          })}
         </tbody>
       </table>
       {visible.length === 0 && <p className="muted small">No rows match "{query.trim()}".</p>}
@@ -568,6 +624,50 @@ function TableBody({ block, tool, call, result, state, actions }: { block: ToolB
           Use none
         </button>
       )}
+    </div>
+  );
+}
+
+/** The inside of an opened table row: the item's other fields, then each list inside it. */
+function RowDetails({ detail }: { detail: RowDetail }) {
+  return (
+    <div className="tool-row-detail-body">
+      {detail.pairs.length > 0 && (
+        <dl className="tool-row-pairs">
+          {detail.pairs.map((p, i) => (
+            <Fragment key={i}>
+              <dt>{p.label}</dt>
+              <dd>{p.value}</dd>
+            </Fragment>
+          ))}
+        </dl>
+      )}
+      {detail.tables.map((t, i) => (
+        <div key={i} className="tool-row-inner">
+          <p className="small muted">{t.name}</p>
+          <table className="tool-table">
+            <thead>
+              <tr>
+                {t.columns.map((c, ci) => (
+                  <th key={ci} scope="col">
+                    {c}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {t.rows.map((r, ri) => (
+                <tr key={ri}>
+                  {r.map((c, ci) => (
+                    <td key={ci}>{c}</td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {t.more > 0 && <p className="small muted">and {t.more} more</p>}
+        </div>
+      ))}
     </div>
   );
 }

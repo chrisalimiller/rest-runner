@@ -127,6 +127,8 @@ export interface ToolBlock {
   text?: string;
   /** For a table block, which list of the call it shows. Without it: the pick-a-row list, else the response if it is a list, else its first list. */
   listId?: string;
+  /** For a table block: each row opens to show the item's other fields and the lists inside it. Off when missing. */
+  expandable?: boolean;
   /** Row of the page, counted from 0. Up to MAX_BLOCKS_PER_ROW blocks share a row, in array order. */
   row: number;
 }

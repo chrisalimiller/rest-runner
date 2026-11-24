@@ -571,6 +571,19 @@ function StepFields({ work, setWork, block, setBlock, call, state, onRunSample, 
           </form>
         )}
         {table && !call.pickRow && <TableList work={work} setWork={setWork} block={block} call={call} state={state} />}
+        {table && (
+          <label className="check small">
+            <input
+              type="checkbox"
+              checked={block.expandable === true}
+              onChange={(e) =>
+                setWork((w) => ({ ...w, blocks: w.blocks.map((b) => (b.id === block.id ? withExpandable(b, e.target.checked) : b)) }))
+              }
+            />
+            Rows expand
+            <span className="muted"> Each row opens to show its other fields and the lists inside it.</span>
+          </label>
+        )}
         {table && (call.pickRow || !call.lists?.length) && (
           <div className="cd-rows-setting">
             <label className="check">
@@ -661,6 +674,13 @@ function TableList({ work, setWork, block, call, state }: WorkProps & { block: T
       )}
     </div>
   );
+}
+
+function withExpandable(b: ToolBlock, on: boolean): ToolBlock {
+  const copy = { ...b };
+  if (on) copy.expandable = true;
+  else delete copy.expandable;
+  return copy;
 }
 
 function withListId(b: ToolBlock, listId: string | undefined): ToolBlock {

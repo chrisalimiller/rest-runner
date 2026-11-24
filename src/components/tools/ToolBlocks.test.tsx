@@ -357,6 +357,25 @@ describe("tables on lists you pick in", () => {
     const legacy = { ...tool, calls: tool.calls.map((c) => (c.id === "c-devices" ? { ...c, pickRow: { listPath: "$.devices", labelPath: "$.model" } } : c)) };
     expect(card("b-devices", stateOf([done("c-devices", many)]), legacy)).not.toContain('type="search"');
   });
+
+  const expandBody = { devices: [{ model: "iPhone", imei: "1", colour: "black", features: [{ name: "5G", on: true }] }, { model: "Pixel" }], services: [] };
+  const expandTool = (on: boolean) => {
+    const t = listTool();
+    return { ...t, blocks: t.blocks.map((b) => (b.id === "b-devices" ? { ...b, ...(on ? { expandable: true } : {}) } : b)) };
+  };
+
+  it("expandable rows show a closed disclosure button on rows that have more to show", () => {
+    const html = card("b-devices", stateOf([done("c-devices", expandBody)]), expandTool(true));
+    expect(html).toContain('class="tool-row-toggle"');
+    expect(html).toContain('aria-expanded="false"');
+    expect(html).toContain("Show details of iPhone");
+    expect(html.match(/class="tool-row-toggle"/g)).toHaveLength(1);
+    expect(html).not.toContain("tool-row-detail");
+  });
+
+  it("without the option the table is as before", () => {
+    expect(card("b-devices", stateOf([done("c-devices", expandBody)]), expandTool(false))).not.toContain("tool-row-toggle");
+  });
 });
 
 describe("the board", () => {

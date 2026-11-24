@@ -321,7 +321,7 @@ export function listsToAsk(tool: Tool, call: ToolCall): string[] {
 export function toolUsesLists(tool: Tool): boolean {
   return (
     tool.calls.some((c) => (c.lists?.length ?? 0) > 0 || Object.values(c.mappings).some((m) => m.call?.list !== undefined)) ||
-    tool.blocks.some((b) => b.listId !== undefined || b.fields.some((f) => f.list !== undefined))
+    tool.blocks.some((b) => b.listId !== undefined || b.expandable === true || b.fields.some((f) => f.list !== undefined))
   );
 }
 

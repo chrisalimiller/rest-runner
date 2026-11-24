@@ -80,3 +80,20 @@ describe("toToolSnapshot: tables on lists", () => {
     expect(html.match(/class="picked"/g)).toHaveLength(2);
   });
 });
+
+describe("toToolSnapshot: expandable rows", () => {
+  it("writes a closed details element for a row with more to show, and leaves other tables alone", () => {
+    const t = sampleTool();
+    t.calls = t.calls.map((c) => (c.id === "c-devices" ? { ...c, lists: [{ id: "devices", name: "Devices", path: "$.devices", labelPath: "$.model", choose: { kind: "none" as const } }] } : c));
+    t.blocks = [newBlock("table", 0, { callId: "c-devices", listId: "devices", title: "Devices", expandable: true, fields: [{ path: "$.model", label: "Model", format: "text" }] })];
+    const r = done("c-devices", { devices: [{ model: "<A>", colour: "red", features: [{ name: "5G" }] }, { model: "B" }] });
+    const html = toToolSnapshot({ tool: t, results: { "c-devices": r }, inputs: {}, findRequest: sampleFindRequest() });
+    expect(html).toContain("<details><summary>&lt;A&gt;</summary>");
+    expect(html).toContain("<dt>colour</dt><dd>red</dd>");
+    expect(html).toContain("<th>name</th>");
+    expect(html).not.toContain("<details open");
+    expect(html.match(/<details>/g)).toHaveLength(1);
+    t.blocks[0].expandable = false;
+    expect(toToolSnapshot({ tool: t, results: { "c-devices": r }, inputs: {}, findRequest: sampleFindRequest() })).not.toContain("<details");
+  });
+});

@@ -205,6 +205,7 @@ function cleanBlock(v: unknown, index: number): ToolBlock | null {
     fields,
     ...(typeof v.text === "string" ? { text: v.text } : {}),
     ...(typeof v.listId === "string" && v.listId !== "" ? { listId: v.listId } : {}),
+    ...(v.expandable === true && v.type === "table" ? { expandable: true } : {}),
     row,
   };
 }
