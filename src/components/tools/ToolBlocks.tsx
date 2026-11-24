@@ -1,7 +1,9 @@
 import { useRef, useState } from "react";
+import { requestPlaceholders } from "../../lib/request";
 import { formatMs } from "../../lib/earlierSends";
 import type { RequestLookup } from "../../lib/flows/flows";
-import { pendingRows, type SessionState } from "../../lib/tools/session";
+import { callNeeds, findList, listsToAsk } from "../../lib/tools/lists";
+import { pendingRows, type PendingPick, type SessionState } from "../../lib/tools/session";
 import type { CallResult, Tool, ToolBlock, ToolCall } from "../../lib/tools/types";
 import {
   callView,
@@ -30,13 +32,14 @@ export interface BoardActions {
   onRetry: (callId: string) => void;
   onOpenRequest: (requestId: string) => void;
   onCopy: (text: string) => void;
-  onPick: (callId: string, index: number | null) => void;
+  /** The user chose a row (or, with `listId`, an item of one of the call's lists) while a lookup waits for it. Null for none. */
+  onPick: (callId: string, index: number | null, listId?: string) => void;
   /** An Action button was pressed: run this write call. */
   onRunAction: (callId: string) => void;
   /** The coloured (production-marked) environment in use, when there is one. Action buttons say so and ask first. */
   guard?: { name: string; cssColor: string } | null;
   /** Change the row picked in a pick-a-row call after the lookup finished; only the calls that read from it run again. Without this the picked row is read-only. */
-  onChangeRow?: (callId: string, index: number | null) => void;
+  onChangeRow?: (callId: string, index: number | null, listId?: string) => void;
   /** A block's request is gone: switch to Build with this block selected so another request can be chosen. */
   onChooseRequest?: (blockId: string) => void;
   /** Whether Retry on this call runs only that call (true) or the whole lookup (false). Default false. */
@@ -144,7 +147,7 @@ export function BlockCard({ block, tool, state, findRequest, actions }: CardProp
         {menu}
       </header>
       <div className="tool-block-body">
-        <BlockBody block={block} tool={tool} call={call} result={result} view={view} state={state} actions={actions} hasRequest={!!def} />
+        <BlockBody block={block} tool={tool} call={call} result={result} view={view} state={state} actions={actions} hasRequest={!!def} findRequest={findRequest} />
         {raw && result && (
           <div className="tool-raw">
             <BodyView body={rawResponseText(result)} />
@@ -187,18 +190,19 @@ export function nextRowIndex(key: string, current: number, count: number): numbe
   }
 }
 
-/** The pick-a-row call this call is waiting on (directly or through other calls), when a pick is open. */
-export function pickBlocking(tool: Tool, call: ToolCall, state: SessionState): string | null {
+/** The pick (of a pick-a-row call, or of one list) this call is waiting on, directly or through other calls, when a pick is open. */
+export function pickWaitingFor(tool: Tool, call: ToolCall, state: SessionState, findRequest?: RequestLookup): PendingPick | null {
   if (state.pending.length === 0) return null;
-  const pending = new Set(state.pending.map((p) => p.callId));
+  const byId = new Map(tool.calls.map((c) => [c.id, c]));
   const seen = new Set<string>();
-  const walk = (c: ToolCall): string | null => {
-    for (const m of Object.values(c.mappings)) {
-      const id = m?.call?.callId;
-      if (!id || seen.has(id)) continue;
-      seen.add(id);
-      if (pending.has(id)) return id;
-      const next = tool.calls.find((x) => x.id === id);
+  const walk = (c: ToolCall): PendingPick | null => {
+    const def = findRequest?.(c.requestId);
+    for (const n of callNeeds(c, def ? requestPlaceholders(def) : null, byId)) {
+      const hit = state.pending.find((p) => p.callId === n.callId && (p.listId === undefined || n.lists.includes(p.listId)));
+      if (hit) return hit;
+      if (seen.has(n.callId)) continue;
+      seen.add(n.callId);
+      const next = byId.get(n.callId);
       const found = next ? walk(next) : null;
       if (found) return found;
     }
@@ -207,8 +211,51 @@ export function pickBlocking(tool: Tool, call: ToolCall, state: SessionState): s
   return walk(call);
 }
 
-function focusPickTable(callId: string) {
-  const el = document.querySelector<HTMLElement>(`[data-pick-call="${CSS.escape(callId)}"]`);
+/** The pick-a-row call this call is waiting on (directly or through other calls), when a pick is open. */
+export function pickBlocking(tool: Tool, call: ToolCall, state: SessionState, findRequest?: RequestLookup): string | null {
+  return pickWaitingFor(tool, call, state, findRequest)?.callId ?? null;
+}
+
+/** An open list pick that one of this block's fields reads with the "ask" rule. */
+function fieldWaitsForPick(block: ToolBlock, call: ToolCall, state: SessionState): PendingPick | null {
+  if (state.pending.length === 0) return null;
+  return (
+    state.pending.find(
+      (p) =>
+        p.callId === call.id &&
+        p.listId !== undefined &&
+        block.fields.some((f) => {
+          const ref = f.list;
+          if (!ref || ref.listId !== p.listId) return false;
+          const rule = ref.item ?? findList(call, p.listId!)?.choose;
+          return rule?.kind === "ask";
+        }),
+    ) ?? null
+  );
+}
+
+function PickWait({ name, callId, listId }: { name: string; callId: string; listId?: string }) {
+  return (
+    <p className="small tool-waiting-pick" role="status">
+      Waiting for a row in {name}.{" "}
+      <button type="button" className="link-btn" onClick={() => focusPickTable(callId, listId)}>
+        Go to the table
+      </button>
+    </p>
+  );
+}
+
+/** What a waiting pick is called: the list's name, or for a pick-a-row call its table's title (else the call's name). */
+function pickName(tool: Tool, pick: PendingPick): string {
+  const call = tool.calls.find((c) => c.id === pick.callId);
+  if (pick.listId !== undefined) return (call && findList(call, pick.listId)?.name) || "the list";
+  const table = tool.blocks.find((b) => b.type === "table" && b.callId === pick.callId);
+  return table?.title || call?.name || "the list";
+}
+
+function focusPickTable(callId: string, listId?: string) {
+  const list = listId === undefined ? "" : `[data-pick-list="${CSS.escape(listId)}"]`;
+  const el = document.querySelector<HTMLElement>(`[data-pick-call="${CSS.escape(callId)}"]${list}`);
   if (!el) return;
   el.scrollIntoView({ block: "center", behavior: "smooth" });
   el.querySelector<HTMLElement>('[tabindex="0"]')?.focus({ preventScroll: true });
@@ -293,9 +340,10 @@ interface BodyProps {
   state: SessionState;
   actions: BoardActions;
   hasRequest: boolean;
+  findRequest: RequestLookup;
 }
 
-function BlockBody({ block, tool, call, result, view, state, actions, hasRequest }: BodyProps) {
+function BlockBody({ block, tool, call, result, view, state, actions, hasRequest, findRequest }: BodyProps) {
   if (!call) return <p className="muted small">{NEEDS_CALL.includes(block.type) ? "No request chosen for this block." : ""}</p>;
   switch (view.kind) {
     case "idle":
@@ -306,19 +354,8 @@ function BlockBody({ block, tool, call, result, view, state, actions, hasRequest
       );
     case "waiting":
     case "running": {
-      const blocking = view.kind === "waiting" ? pickBlocking(tool, call, state) : null;
-      if (blocking) {
-        const table = tool.blocks.find((b) => b.type === "table" && b.callId === blocking);
-        const name = table?.title || tool.calls.find((c) => c.id === blocking)?.name || "the list";
-        return (
-          <p className="small tool-waiting-pick" role="status">
-            Waiting for a row in {name}.{" "}
-            <button type="button" className="link-btn" onClick={() => focusPickTable(blocking)}>
-              Go to the table
-            </button>
-          </p>
-        );
-      }
+      const blocking = view.kind === "waiting" ? pickWaitingFor(tool, call, state, findRequest) : null;
+      if (blocking) return <PickWait name={pickName(tool, blocking)} callId={blocking.callId} listId={blocking.listId} />;
       return (
         <div className="tool-skeleton" role="status" aria-label={view.kind === "running" ? "Loading" : "Waiting for another call"}>
           <span />
@@ -370,7 +407,7 @@ function BlockBody({ block, tool, call, result, view, state, actions, hasRequest
       );
     }
     case "ok":
-      return <OkBody block={block} call={call} result={result} state={state} actions={actions} />;
+      return <OkBody block={block} tool={tool} call={call} result={result} state={state} actions={actions} />;
   }
 }
 
@@ -389,7 +426,10 @@ function RetryButton({ call, actions, disabled }: { call: ToolCall; actions: Boa
   );
 }
 
-function OkBody({ block, call, result, state, actions }: { block: ToolBlock; call: ToolCall; result: CallResult | undefined; state: SessionState; actions: BoardActions }) {
+function OkBody({ block, tool, call, result, state, actions }: { block: ToolBlock; tool: Tool; call: ToolCall; result: CallResult | undefined; state: SessionState; actions: BoardActions }) {
+  // A value that reads an item you have not picked yet says so, instead of showing a dash.
+  const waiting = block.type !== "table" ? fieldWaitsForPick(block, call, state) : null;
+  if (waiting) return <PickWait name={pickName(tool, waiting)} callId={waiting.callId} listId={waiting.listId} />;
   switch (block.type) {
     case "fields": {
       const rows = fieldRows(block, call, result);
@@ -432,43 +472,66 @@ function OkBody({ block, call, result, state, actions }: { block: ToolBlock; cal
       );
     }
     case "table":
-      return <TableBody block={block} call={call} result={result} state={state} actions={actions} />;
+      return <TableBody block={block} tool={tool} call={call} result={result} state={state} actions={actions} />;
     default:
       return null;
   }
 }
 
-function TableBody({ block, call, result, state, actions }: { block: ToolBlock; call: ToolCall; result: CallResult | undefined; state: SessionState; actions: BoardActions }) {
+/** Tables on a list with more rows than this get a filter box. */
+export const FILTER_ROWS_ABOVE = 50;
+
+function TableBody({ block, tool, call, result, state, actions }: { block: ToolBlock; tool: Tool; call: ToolCall; result: CallResult | undefined; state: SessionState; actions: BoardActions }) {
   const t = tableView(block, call, result);
-  const picking = pendingRows(state, call.id) !== null;
-  const canChange = !picking && !state.running && !!actions.onChangeRow && t.pickedIndex !== null;
-  const selectable = !!call.pickRow && (picking || canChange);
+  // A table on a list the lookup asks about is its radio group; a pick-a-row call's table is one as before.
+  const listId = block.listId !== undefined && listsToAsk(tool, call).includes(block.listId) ? block.listId : undefined;
+  const isPick = !!call.pickRow || listId !== undefined;
+  const picking = pendingRows(state, call.id, listId) !== null;
+  const canChange = !picking && !state.running && !!actions.onChangeRow && (listId !== undefined || t.pickedIndex !== null);
+  const selectable = isPick && (picking || canChange);
   const rowRefs = useRef<(HTMLTableRowElement | null)[]>([]);
   const [focusAt, setFocusAt] = useState<number | null>(null);
-  if (t.rows.length === 0) return <p className="muted small">No rows.</p>;
+  const [query, setQuery] = useState("");
+  const filterable = block.listId !== undefined && t.rows.length > FILTER_ROWS_ABOVE;
+  const q = filterable ? query.trim().toLowerCase() : "";
+  // Row numbers stay those of the whole list, so picking a row of a filtered table picks the right one.
+  const visible = t.rows.map((_, i) => i).filter((i) => q === "" || t.rows[i].some((cell) => cell.toLowerCase().includes(q)));
+  if (t.rows.length === 0) return <p className="muted small">{t.note ?? "No rows."}</p>;
   const choose = (ri: number) => {
-    if (picking) actions.onPick(call.id, ri);
-    else if (canChange && ri !== t.pickedIndex) actions.onChangeRow?.(call.id, ri);
+    if (picking) actions.onPick(call.id, ri, listId);
+    else if (canChange && ri !== t.pickedIndex) actions.onChangeRow?.(call.id, ri, listId);
   };
-  const tabStop = focusAt ?? t.pickedIndex ?? 0;
+  const wanted = focusAt ?? t.pickedIndex ?? 0;
+  const tabStop = visible.includes(wanted) ? wanted : (visible[0] ?? 0);
   const onKeyDown = (e: React.KeyboardEvent, ri: number) => {
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       choose(ri);
       return;
     }
-    const to = nextRowIndex(e.key, ri, t.rows.length);
+    const to = nextRowIndex(e.key, visible.indexOf(ri), visible.length);
     if (to === null) return;
     e.preventDefault();
-    setFocusAt(to);
-    rowRefs.current[to]?.focus();
+    setFocusAt(visible[to]);
+    rowRefs.current[visible[to]]?.focus();
   };
+  const label = block.title || call.name;
   return (
-    <div className="tool-table-wrap" data-pick-call={call.pickRow ? call.id : undefined}>
+    <div className="tool-table-wrap" data-pick-call={isPick ? call.id : undefined} data-pick-list={listId}>
       {picking && <p className="small tool-pick-note">Pick a row. The calls that need it are waiting.</p>}
-      <table className={`tool-table${selectable ? " selectable" : ""}`} role={call.pickRow ? "radiogroup" : undefined} aria-label={call.pickRow ? `${block.title || call.name}: choose a row` : undefined}>
+      {filterable && (
+        <div className="tool-table-filter">
+          <input className="search" type="search" placeholder="Filter rows" aria-label={`Filter ${label} rows`} value={query} onChange={(e) => setQuery(e.target.value)} />
+          {q !== "" && (
+            <span className="muted small" role="status">
+              {visible.length} of {t.rows.length}
+            </span>
+          )}
+        </div>
+      )}
+      <table className={`tool-table${selectable ? " selectable" : ""}`} role={isPick ? "radiogroup" : undefined} aria-label={isPick ? `${label}: choose a row` : undefined}>
         <thead>
-          <tr role={call.pickRow ? "presentation" : undefined}>
+          <tr role={isPick ? "presentation" : undefined}>
             {t.columns.map((c, i) => (
               <th key={i} scope="col">
                 {c}
@@ -477,30 +540,31 @@ function TableBody({ block, call, result, state, actions }: { block: ToolBlock; 
           </tr>
         </thead>
         <tbody>
-          {t.rows.map((row, ri) => (
+          {visible.map((ri) => (
             <tr
               key={ri}
               ref={(el) => {
                 rowRefs.current[ri] = el;
               }}
               className={t.pickedIndex === ri ? "picked" : undefined}
-              role={call.pickRow ? "radio" : undefined}
-              aria-checked={call.pickRow ? t.pickedIndex === ri : undefined}
-              aria-disabled={call.pickRow && !selectable ? true : undefined}
+              role={isPick ? "radio" : undefined}
+              aria-checked={isPick ? t.pickedIndex === ri : undefined}
+              aria-disabled={isPick && !selectable ? true : undefined}
               tabIndex={selectable ? (ri === tabStop ? 0 : -1) : undefined}
               onClick={selectable ? () => choose(ri) : undefined}
               onFocus={selectable ? () => setFocusAt(ri) : undefined}
               onKeyDown={selectable ? (e) => onKeyDown(e, ri) : undefined}
             >
-              {row.map((cell, ci) => (
+              {t.rows[ri].map((cell, ci) => (
                 <td key={ci}>{cell}</td>
               ))}
             </tr>
           ))}
         </tbody>
       </table>
+      {visible.length === 0 && <p className="muted small">No rows match "{query.trim()}".</p>}
       {picking && (
-        <button type="button" className="secondary tool-pick-none" onClick={() => actions.onPick(call.id, null)}>
+        <button type="button" className="secondary tool-pick-none" onClick={() => actions.onPick(call.id, null, listId)}>
           Use none
         </button>
       )}

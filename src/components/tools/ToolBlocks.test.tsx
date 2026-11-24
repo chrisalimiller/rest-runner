@@ -2,8 +2,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { sampleFindRequest, sampleTool } from "../../lib/tools/sample";
 import type { SessionState } from "../../lib/tools/session";
-import type { CallResult } from "../../lib/tools/types";
-import { BlockCard, ToolBoard, blockRows, headerStatus, nextRowIndex, pickBlocking, type BoardActions } from "./ToolBlocks";
+import type { CallResult, Tool, ToolList } from "../../lib/tools/types";
+import { BlockCard, ToolBoard, blockRows, headerStatus, nextRowIndex, pickBlocking, pickWaitingFor, type BoardActions } from "./ToolBlocks";
 import { InputControl } from "./InputControl";
 
 const tool = sampleTool();
@@ -259,6 +259,103 @@ describe("block states", () => {
     expect(html).toContain(">Go to the table<");
     expect(pickBlocking(t, t.calls.find((c) => c.id === "c-plan")!, state)).toBe("c-devices");
     expect(pickBlocking(t, t.calls.find((c) => c.id === "c-account")!, state)).toBeNull();
+  });
+});
+
+describe("tables on lists you pick in", () => {
+  const listTool = (): Tool => {
+    const lists: ToolList[] = [
+      { id: "devices", name: "Devices", path: "$.devices", labelPath: "$.model", choose: { kind: "ask" } },
+      { id: "services", name: "Services", path: "$.services", labelPath: "$.name", choose: { kind: "ask" } },
+    ];
+    const cols = [{ path: "$.model", label: "Model", format: "text" as const }];
+    return {
+      ...tool,
+      calls: tool.calls.map((c) =>
+        c.id === "c-devices"
+          ? { ...c, lists }
+          : c.id === "c-plan"
+            ? { ...c, mappings: { planId: { call: { callId: "c-devices", path: "$.imei", list: { listId: "devices" } } } } }
+            : c.id === "c-usage"
+              ? { ...c, mappings: { accountId: { call: { callId: "c-devices", path: "$.id", list: { listId: "services" } } } } }
+              : c,
+      ),
+      blocks: [
+        ...tool.blocks.filter((b) => b.id !== "b-devices"),
+        { id: "b-devices", type: "table", title: "Devices", callId: "c-devices", listId: "devices", fields: cols, row: 9 },
+        { id: "b-services", type: "table", title: "Services", callId: "c-devices", listId: "services", fields: [{ path: "$.name", label: "Name", format: "text" }], row: 9 },
+        { id: "b-first", type: "fields", title: "Chosen", callId: "c-devices", fields: [{ path: "$.model", label: "Model", format: "text", list: { listId: "devices" } }], row: 9 },
+      ],
+    };
+  };
+  const body = { devices: [{ model: "Pixel 9", imei: "1" }, { model: "iPad", imei: "2" }], services: [{ name: "Mobile", id: "m" }, { name: "TV", id: "t" }, { name: "Net", id: "n" }] };
+  const answer = (extra: Partial<CallResult> = {}) => ({ ...done("c-devices", body), ...extra });
+  const open = [{ callId: "c-devices", listId: "devices", rows: body.devices }, { callId: "c-devices", listId: "services", rows: body.services }];
+
+  it("each list's table is its own radio group while its pick is open, and says which list it is for", () => {
+    const state = stateOf([answer()], { running: true, pending: open });
+    const devices = card("b-devices", state, listTool());
+    expect(devices).toContain('role="radiogroup"');
+    expect(devices).toContain('data-pick-list="devices"');
+    expect(devices.match(/role="radio"/g)).toHaveLength(2);
+    expect(devices).toContain("Pick a row");
+    const services = card("b-services", state, listTool());
+    expect(services).toContain('data-pick-list="services"');
+    expect(services.match(/role="radio"/g)).toHaveLength(3);
+    // Answering one list leaves the other open.
+    const half = stateOf([answer({ picks: { devices: { index: 0, key: "Pixel 9" } } })], { running: true, pending: [open[1]] });
+    expect(card("b-devices", half, listTool())).not.toContain("Pick a row");
+    expect(card("b-devices", half, listTool())).toContain('aria-checked="true"');
+    expect(card("b-services", half, listTool())).toContain("Pick a row");
+  });
+
+  it("a value that reads the list you have not picked in says it is waiting, and links to that table", () => {
+    const state = stateOf([answer()], { running: true, pending: open });
+    const html = card("b-first", state, listTool());
+    expect(html).toContain("Waiting for a row in Devices");
+    expect(html).toContain(">Go to the table<");
+  });
+
+  it("calls that read a list wait for that list only, and name it", () => {
+    const t = listTool();
+    const state = stateOf([answer()], { running: true, pending: [open[1]] });
+    // The plan call reads devices (no open pick); the usage call reads services.
+    expect(pickWaitingFor(t, t.calls.find((c) => c.id === "c-plan")!, state)).toBeNull();
+    expect(pickWaitingFor(t, t.calls.find((c) => c.id === "c-usage")!, state)).toMatchObject({ callId: "c-devices", listId: "services" });
+    const html = card("b-usage", stateOf([answer()], { running: true, pending: [open[1]] }), t);
+    expect(html).toContain("Waiting for a row in Services");
+  });
+
+  it("after the lookup the picked item is checked, and can be changed when the page can change it", () => {
+    const state = stateOf([answer({ picks: { devices: { index: 1, key: "iPad" }, services: { index: 0, key: "Mobile" } } })]);
+    const readOnly = card("b-devices", state, listTool());
+    expect(readOnly).toContain('aria-checked="true"');
+    expect(readOnly).not.toContain("tabindex");
+    const changeable = card("b-devices", state, listTool(), { onChangeRow: () => {} });
+    expect(changeable).toContain('tabindex="0"');
+    expect(changeable).not.toContain("Use none");
+    // A list nobody picks in is only a table.
+    const plain = listTool();
+    plain.calls = plain.calls.map((c) => (c.id === "c-devices" ? { ...c, lists: c.lists!.map((l) => ({ ...l, choose: { kind: "none" as const } })) } : c));
+    plain.calls = plain.calls.map((c) => (c.id === "c-plan" || c.id === "c-usage" ? { ...c, mappings: {} } : c));
+    expect(card("b-devices", state, plain, { onChangeRow: () => {} })).not.toContain("radiogroup");
+  });
+
+  it("a list with nothing in it says so", () => {
+    const html = card("b-devices", stateOf([done("c-devices", { devices: [], services: [] })]), listTool());
+    expect(html).toContain("No devices");
+  });
+
+  it("tables of more than 50 rows on a list get a filter box; shorter ones and pick-a-row tables do not", () => {
+    const many = { devices: Array.from({ length: 51 }, (_, i) => ({ model: `Phone ${i}`, imei: String(i) })), services: [] };
+    const html = card("b-devices", stateOf([done("c-devices", many)]), listTool());
+    expect(html).toContain('type="search"');
+    expect(html).toContain("Filter Devices rows");
+    expect(card("b-devices", stateOf([answer()]), listTool())).not.toContain('type="search"');
+    const fifty = { devices: many.devices.slice(0, 50), services: [] };
+    expect(card("b-devices", stateOf([done("c-devices", fifty)]), listTool())).not.toContain('type="search"');
+    const legacy = { ...tool, calls: tool.calls.map((c) => (c.id === "c-devices" ? { ...c, pickRow: { listPath: "$.devices", labelPath: "$.model" } } : c)) };
+    expect(card("b-devices", stateOf([done("c-devices", many)]), legacy)).not.toContain('type="search"');
   });
 });
 

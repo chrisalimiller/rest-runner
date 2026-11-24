@@ -160,6 +160,34 @@ export function pickOf(list: ToolList, items: readonly unknown[], index: number)
 }
 
 /**
+ * The item of `items` that an earlier pick (from another lookup) points at: the one with the same label, preferring
+ * the same position. Null when there was no pick, it has no label to go by, or no item has that label now.
+ */
+export function rememberedIndex(list: ToolList, items: readonly unknown[], prev: ListPick | undefined): number | null {
+  const key = prev?.key;
+  if (!prev || !key) return null;
+  if (Number.isInteger(prev.index) && prev.index >= 0 && prev.index < items.length && itemLabel(list, items[prev.index]) === key) return prev.index;
+  const i = items.findIndex((it) => itemLabel(list, it) === key);
+  return i >= 0 ? i : null;
+}
+
+/** The ids of the lists that sit inside `listId`, at any depth. */
+export function descendantListIds(call: ToolCall, listId: string): string[] {
+  const out: string[] = [];
+  const queue = [listId];
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    for (const l of call.lists ?? []) {
+      if (l.parentListId === id && !out.includes(l.id) && l.id !== listId) {
+        out.push(l.id);
+        queue.push(l.id);
+      }
+    }
+  }
+  return out;
+}
+
+/**
  * Reads `path` through a list reference: from the item the reference (or else the list) chooses, or from all
  * items joined, or the number of items. `ok` with an undefined value means the item has nothing at that path.
  */
