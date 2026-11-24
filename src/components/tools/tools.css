@@ -499,6 +499,18 @@
   border: 1px solid var(--btn-border);
 }
 
+.tool-table-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 6px;
+}
+
+.tool-table-filter .search {
+  flex: 1;
+  min-width: 0;
+}
+
 .tool-pick-note {
   margin: 0 0 6px;
   color: var(--accent-fg);

@@ -208,8 +208,10 @@ export function tableView(block: ToolBlock, call: ToolCall, result: CallResult |
   let note: string | null = null;
   if (block.listId !== undefined && result?.state === "done") {
     const src = listSource(call, result, resolve);
+    // The item the user picked in this list's table, else the one the list's own rule hands on.
+    const pick = src.picks?.[block.listId];
     const chosen = chooseItem(src, block.listId);
-    pickedIndex = chosen.ok ? chosen.index : null;
+    pickedIndex = pick && Number.isInteger(pick.index) && pick.index >= 0 && pick.index < rows.length ? pick.index : chosen.ok ? chosen.index : null;
     note = rows.length === 0 ? listNote(src, block.listId) : null;
   }
   return { columns: cols.map((c) => c.label || c.path), rows, pickedIndex, ...(block.listId !== undefined ? { note } : {}) };
@@ -305,9 +307,21 @@ export function lookupAsText(tool: Tool, results: Record<string, CallResult>, fi
     const line = requestLine(findRequest(call.requestId));
     const head = `${call.name}${line ? ` (${line.method} ${line.path})` : ""} · ${statusLabel(callView({ result: r, sending: false, lookingUp: false }))}`;
     const body = r.state === "skipped" ? (r.message ?? "") : rawResponseText(r);
-    parts.push(body ? `${head}\n${body}` : head);
+    const picked = picksText(call, r);
+    const top = picked ? `${head}\nPicked ${picked}` : head;
+    parts.push(body ? `${top}\n${body}` : top);
   }
   return parts.join("\n\n");
+}
+
+/** What was picked in each list of a call, as "Devices: iPhone 15; Services: Mobile". Empty when nothing was picked in a list. Pick-a-row calls are not covered. */
+export function picksText(call: ToolCall, result: CallResult): string {
+  const picks = result.picks;
+  if (!picks) return "";
+  return (call.lists ?? [])
+    .filter((l) => picks[l.id])
+    .map((l) => `${l.name}: ${picks[l.id].key ?? `row ${picks[l.id].index + 1}`}`)
+    .join("; ");
 }
 
 /** The inputs of a saved lookup on one line: "subscriberId: 100234". */

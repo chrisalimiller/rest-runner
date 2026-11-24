@@ -54,6 +54,18 @@ Calls that read from another call run after it; Build mode lists them as Input, 
 
 When a call's response is a list (for example "the subscriber's devices"), tick **Ask me to pick a row** in Build mode. In Use mode the table block's rows are a radio group: click a row, or move with the arrow keys (Home and End too) and press Enter or Space. The calls that need a field of the chosen row wait until you pick, and say "Waiting for a row in …" with a link that scrolls to the table; calls that do not need it carry on. **Use none** (one button under the table) skips them. The chosen row is highlighted afterwards, and you can choose a different one: only the calls that read from that row run again, and the rest of the page stays as it is. Without a table block for that call, the first row is used.
 
+### Picking in a list (Use mode)
+
+A table block set to one list of a call (a list whose rule is **ask**, or that a value reads with the ask rule) is that list's radio group, the same as for **Ask me to pick a row**: click a row, or move with the arrow keys (Home and End too) and press Enter or Space. A call can have several such lists and they are asked at once, each in its own table. A value that reads the list shows "Waiting for a row in Devices" with **Go to the table** (the list's name, not the call's) until you pick; calls that read a different list carry on. **Use none** under a table skips what reads that list. A list of one item is picked for you, and a list with no table block uses its first item.
+
+After the lookup you can click another row in a list's table: only the calls that read that list (or a list inside it) run again, and the rest of the page stays as it is. A different row in a list that holds other lists (the services that hold features) clears the picks inside it, so you pick those again. Picking again does not change the saved lookup.
+
+Looking up again with the same inputs keeps your picks: if a row with the same label (the list's label path) comes back, it is picked again without asking. With other inputs, or when the row is gone, you are asked again.
+
+A table on a list with more than 50 rows has a **Filter rows** box above it; filtering does not change which row is picked. A table on an empty list says "No devices".
+
+Recent lookups remember the picks: opening one marks the picked row in each table. **Copy all** adds a line under each call that has them (`Picked Devices: iPhone 15; Services: Mobile`), and **Save as HTML** marks the picked row in each list's table.
+
 ### Lists inside a response (engine)
 
 A response can hold several lists at once, such as a customer's `services` and `devices`. A call can name each of them (a **list**: its path, a label for its items, and a rule for which item it hands on) and a value can say which item it reads. Build mode does not set this up yet; the engine and the file format come first, and tools saved before this keep working exactly as they were.

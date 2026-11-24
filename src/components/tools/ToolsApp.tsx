@@ -276,10 +276,12 @@ export function ToolsApp({ active, shell, command }: Props) {
     const env = loadEnvironments().find((e) => e.id === t.settings.environmentId) ?? null;
     await s.retryCall(t, callId, { findRequest: requests, envVars: environmentVars(env), environmentName: env?.name, send: sendRequest, scripts: scripts.run });
   };
-  /** A different row for a pick-a-row call: only the calls that read from it run again. */
-  const changeRow = async (s: ToolSession, t: Tool, callId: string, index: number | null) => {
+  /** A different row for a pick-a-row call, or a different item of one list: only the calls that read from it run again. */
+  const changeRow = async (s: ToolSession, t: Tool, callId: string, index: number | null, listId?: string) => {
     const env = loadEnvironments().find((e) => e.id === t.settings.environmentId) ?? null;
-    await s.changePick(t, callId, index, { findRequest: readRequests(), envVars: environmentVars(env), environmentName: env?.name, send: sendRequest, scripts: scripts.run });
+    const deps = { findRequest: readRequests(), envVars: environmentVars(env), environmentName: env?.name, send: sendRequest, scripts: scripts.run };
+    if (listId !== undefined) await s.changeListPick(t, callId, listId, index, deps);
+    else await s.changePick(t, callId, index, deps);
   };
   const lookUpRef = useRef(lookUp);
   lookUpRef.current = lookUp;
@@ -571,7 +573,7 @@ export function ToolsApp({ active, shell, command }: Props) {
                   onInput: (name, value) => buildSession.setInput(name, value),
                   onOpenRequest: (id) => guarded(() => shell.onOpenRequest(id)),
                   onCopy: copy,
-                  onPick: (callId, index) => buildSession.choosePick(callId, index),
+                  onPick: (callId, index, listId) => buildSession.choosePick(callId, index, listId),
                   onRetry: (callId) => void retry(buildSession, draft ?? tool, callId, () => void runSample(draft ?? tool)),
                   onRunAction: (callId) => void runAction(buildSession, draft ?? tool, callId),
                   guard,
@@ -599,8 +601,8 @@ export function ToolsApp({ active, shell, command }: Props) {
                   retryAlone: (callId) => canRetryAlone(tool, callId, findRequest),
                   onOpenRequest: shell.onOpenRequest,
                   onCopy: copy,
-                  onPick: (callId, index) => session.choosePick(callId, index),
-                  onChangeRow: (callId, index) => void changeRow(session, tool, callId, index),
+                  onPick: (callId, index, listId) => session.choosePick(callId, index, listId),
+                  onChangeRow: (callId, index, listId) => void changeRow(session, tool, callId, index, listId),
                   onChooseRequest: (blockId) => {
                     setBuildSelect(blockId);
                     setMode("build");

@@ -4,7 +4,8 @@ import type { ScriptRunner } from "../testing/scriptRunner";
 import type { Vars } from "../template";
 import { requestPlaceholders } from "../request";
 import type { Environment } from "../environments";
-import { dependentCalls, resolveInputs, runLookup, runLookupCall, runWriteCall, ToolNotRunnableError, writeCallGuard } from "./engine";
+import { dependentCalls, listSource, resolveInputs, runLookup, runLookupCall, runWriteCall, ToolNotRunnableError, valueResolver, withPicks, writeCallGuard } from "./engine";
+import { callNeeds, descendantListIds, findList, pickOf, readList, rememberedIndex } from "./lists";
 import { saveLookup } from "./lookupStore";
 import { orderCalls } from "./order";
 import type { CallResult, LookupRecord, Tool } from "./types";
@@ -17,7 +18,20 @@ import type { CallResult, LookupRecord, Tool } from "./types";
 
 export interface PendingPick {
   callId: string;
+  /** Set when the pick is an item of one of the call's lists; absent for a pick-a-row call. */
+  listId?: string;
   rows: unknown[];
+}
+
+/** The key one waiting pick is kept under: the call, and its list when it is a list pick. */
+function pickKey(callId: string, listId?: string): string {
+  return listId === undefined ? callId : `${callId}\u0001${listId}`;
+}
+
+function sameInputs(a: Record<string, string> | null, b: Record<string, string>): boolean {
+  if (!a) return false;
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  return [...keys].every((k) => (a[k] ?? "") === (b[k] ?? ""));
 }
 
 export interface SessionState {
@@ -91,6 +105,8 @@ export class ToolSession {
   private listeners = new Set<() => void>();
   private abort: AbortController | null = null;
   private picks = new Map<string, (index: number | null) => void>();
+  /** The inputs the answers on screen were made with (a lookup made now, or a saved one being viewed). */
+  private shownInputs: Record<string, string> | null = null;
 
   constructor(readonly toolId: string) {}
 
@@ -122,6 +138,7 @@ export class ToolSession {
     if (this.state.running) return;
     const results: Record<string, CallResult> = {};
     for (const r of record.results) results[r.callId] = r;
+    this.shownInputs = { ...record.inputs };
     this.set({ inputs: { ...record.inputs }, results, sending: [], writes: {}, writing: [], startedAt: record.startedAt, viewing: record, recordId: record.id, pending: [], error: null, stopped: record.stopped });
   }
 
@@ -130,9 +147,9 @@ export class ToolSession {
     this.abort?.abort();
   }
 
-  /** The user chose a row for a pick-a-row call (null for none). */
-  choosePick(callId: string, index: number | null) {
-    this.picks.get(callId)?.(index);
+  /** The user chose a row for a pick-a-row call, or (with `listId`) an item of one of a call's lists. Null for none. */
+  choosePick(callId: string, index: number | null, listId?: string) {
+    this.picks.get(pickKey(callId, listId))?.(index);
   }
 
   /**
@@ -176,12 +193,49 @@ export class ToolSession {
     if (this.state.running || !prev || prev.state !== "done") return;
     const { picked: _old, ...rest } = prev;
     const next: CallResult = index === null ? rest : { ...rest, picked: { index } };
-    const affected = new Set<string>();
-    const queue = [callId];
+    const seeds = dependentCalls(tool, callId, deps.findRequest).filter((c) => !c.write).map((c) => c.id);
+    await this.refresh(tool, callId, next, seeds, deps);
+  }
+
+  /**
+   * Changes the item picked in one list of a finished call (null for none) and runs again only the calls that read from
+   * that list (or from a list inside it), directly or through other calls. Picks in lists inside this one are dropped,
+   * since their items belong to the old choice; the user picks them again in their tables. Not while a lookup runs.
+   * The saved lookup is not changed.
+   */
+  async changeListPick(tool: Tool, callId: string, listId: string, index: number | null, deps: Omit<LookupDeps, "save">): Promise<void> {
+    const prev = this.state.results[callId];
+    const call = tool.calls.find((c) => c.id === callId);
+    const list = call ? findList(call, listId) : undefined;
+    if (this.state.running || !prev || prev.state !== "done" || !call || !list) return;
+    const resolve = valueResolver(tool, resolveInputs(tool, this.state.inputs), this.state.results);
+    const read = readList(listSource(call, prev, resolve), listId);
+    if (!read.ok) return;
+    if (index !== null && !(Number.isInteger(index) && index >= 0 && index < read.items.length)) return;
+    const picks = { ...prev.picks };
+    delete picks[listId];
+    if (index !== null) picks[listId] = pickOf(list, read.items, index);
+    const changed = new Set([listId, ...descendantListIds(call, listId)]);
+    for (const id of changed) if (id !== listId) delete picks[id];
+    const byId = new Map(tool.calls.map((c) => [c.id, c]));
+    const seeds = tool.calls
+      .filter((c) => {
+        if (c.id === callId || c.write) return false;
+        const def = deps.findRequest(c.requestId);
+        return callNeeds(c, def ? requestPlaceholders(def) : null, byId).some((n) => n.callId === callId && n.lists.some((l) => changed.has(l)));
+      })
+      .map((c) => c.id);
+    await this.refresh(tool, callId, withPicks(prev, picks), seeds, deps);
+  }
+
+  /** Puts `next` in place of a call's answer, clears the answers of `seeds` and of the calls that read from them, and runs those again in order. */
+  private async refresh(tool: Tool, callId: string, next: CallResult, seeds: string[], deps: Omit<LookupDeps, "save">): Promise<void> {
+    const affected = new Set<string>(seeds);
+    const queue = [...seeds];
     while (queue.length > 0) {
       const id = queue.shift()!;
       for (const c of dependentCalls(tool, id, deps.findRequest)) {
-        if (!affected.has(c.id) && !c.write) {
+        if (!affected.has(c.id) && !c.write && c.id !== callId) {
           affected.add(c.id);
           queue.push(c.id);
         }
@@ -228,6 +282,9 @@ export class ToolSession {
     const controller = new AbortController();
     this.abort = controller;
     const inputs = resolveInputs(tool, rawInputs);
+    // Looking up again with the same inputs: an item picked before is picked again when a row with the same label comes back.
+    const earlier = sameInputs(this.shownInputs, inputs) ? this.state.results : {};
+    this.shownInputs = inputs;
     this.picks.clear();
     this.set({ results: {}, sending: [], writes: {}, running: true, startedAt: new Date().toISOString(), viewing: null, recordId: null, pending: [], error: null, stopped: false });
     try {
@@ -246,7 +303,22 @@ export class ToolSession {
           return new Promise<number | null>((resolve) => {
             this.picks.set(call.id, (i) => {
               this.picks.delete(call.id);
-              this.set({ pending: this.state.pending.filter((p) => p.callId !== call.id) });
+              this.set({ pending: this.state.pending.filter((p) => p.callId !== call.id || p.listId !== undefined) });
+              resolve(i);
+            });
+          });
+        },
+        pickItem: ({ call, list, items }) => {
+          const again = rememberedIndex(list, items, earlier[call.id]?.picks?.[list.id]);
+          if (again !== null) return Promise.resolve(again);
+          // Only a table block on this list can show the items to choose from; without one the first item is used.
+          if (!tool.blocks.some((b) => b.type === "table" && b.callId === call.id && b.listId === list.id)) return Promise.resolve(0);
+          this.set({ pending: [...this.state.pending, { callId: call.id, listId: list.id, rows: items }] });
+          return new Promise<number | null>((resolve) => {
+            const key = pickKey(call.id, list.id);
+            this.picks.set(key, (i) => {
+              this.picks.delete(key);
+              this.set({ pending: this.state.pending.filter((p) => !(p.callId === call.id && p.listId === list.id)) });
               resolve(i);
             });
           });
@@ -310,7 +382,7 @@ export class SessionRegistry {
   }
 }
 
-/** The table rows a pending pick-a-row call is offering, if any. */
-export function pendingRows(state: SessionState, callId: string): unknown[] | null {
-  return state.pending.find((p) => p.callId === callId)?.rows ?? null;
+/** The rows a pending pick-a-row call (or, with `listId`, one list of a call) is offering, if any. */
+export function pendingRows(state: SessionState, callId: string, listId?: string): unknown[] | null {
+  return state.pending.find((p) => p.callId === callId && p.listId === listId)?.rows ?? null;
 }

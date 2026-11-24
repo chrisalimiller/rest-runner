@@ -129,7 +129,13 @@ export function callData(call: ToolCall, result: CallResult | undefined): unknow
 
 /** The same result with one more list pick. The parsed body is kept, so it is not parsed again. */
 export function withPick(result: CallResult, listId: string, pick: ListPick): CallResult {
-  const next: CallResult = { ...result, picks: { ...result.picks, [listId]: pick } };
+  return withPicks(result, { ...result.picks, [listId]: pick });
+}
+
+/** The same result with exactly these list picks (none removes the field). The parsed body is kept. */
+export function withPicks(result: CallResult, picks: Record<string, ListPick>): CallResult {
+  const { picks: _old, ...rest } = result;
+  const next: CallResult = Object.keys(picks).length > 0 ? { ...rest, picks } : rest;
   if (jsonCache.has(result)) jsonCache.set(next, jsonCache.get(result));
   return next;
 }

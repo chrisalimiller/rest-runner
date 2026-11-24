@@ -57,3 +57,26 @@ describe("snapshotFileName", () => {
     expect(snapshotFileName({ name: "" }, {})).toBe("tool.html");
   });
 });
+
+describe("toToolSnapshot: tables on lists", () => {
+  it("marks the picked row in each list's table", () => {
+    const t = sampleTool();
+    const call = {
+      ...t.calls.find((c) => c.id === "c-devices")!,
+      lists: [
+        { id: "devices", name: "Devices", path: "$.devices", labelPath: "$.model", choose: { kind: "ask" as const } },
+        { id: "services", name: "Services", path: "$.services", labelPath: "$.name", choose: { kind: "ask" as const } },
+      ],
+    };
+    t.calls = t.calls.map((c) => (c.id === "c-devices" ? call : c));
+    t.blocks = [
+      newBlock("table", 0, { callId: "c-devices", listId: "devices", title: "Devices", fields: [{ path: "$.model", label: "Model", format: "text" }] }),
+      newBlock("table", 0, { callId: "c-devices", listId: "services", title: "Services", fields: [{ path: "$.name", label: "Name", format: "text" }] }),
+    ];
+    const r = { ...done("c-devices", { devices: [{ model: "A" }, { model: "B" }], services: [{ name: "X" }, { name: "Y" }, { name: "Z" }] }), picks: { devices: { index: 1, key: "B" }, services: { index: 2, key: "Z" } } };
+    const html = toToolSnapshot({ tool: t, results: { "c-devices": r }, inputs: {}, findRequest: sampleFindRequest() });
+    expect(html).toContain('<tr class="picked"><td>B</td></tr>');
+    expect(html).toContain('<tr class="picked"><td>Z</td></tr>');
+    expect(html.match(/class="picked"/g)).toHaveLength(2);
+  });
+});
