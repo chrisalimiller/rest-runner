@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { MAX_HISTORY_BODY } from "../history";
-import { expiredLookupIds, lookupForStorage, MAX_LOOKUPS_PER_TOOL, trimLookup } from "./lookupStore";
+import { BODY_DROPPED, expiredLookupIds, lookupForStorage, MAX_LOOKUP_BODIES, MAX_LOOKUPS_PER_TOOL, trimLookup } from "./lookupStore";
 import type { LookupRecord } from "./types";
 
 function record(overrides: Partial<LookupRecord> = {}, body = "{}"): LookupRecord {
@@ -43,6 +43,45 @@ describe("lookup history limits", () => {
     const live = record({}, "x".repeat(MAX_HISTORY_BODY + 1));
     lookupForStorage(live, ["supersecret"]);
     expect(live.results[0].response!.body).toHaveLength(MAX_HISTORY_BODY + 1);
+  });
+});
+
+describe("lookups of a call that runs once per item", () => {
+  const res = (body: string) => ({ status: 200, statusText: "OK", headers: [] as [string, string][], body, sizeBytes: body.length, durationMs: 1 });
+  const perItem = (n: number, body: string): LookupRecord =>
+    record({
+      results: [
+        {
+          callId: "w",
+          name: "W",
+          state: "done",
+          eachTotal: n,
+          each: Array.from({ length: n }, (_, i) => ({ index: i, key: `d${i}`, state: "done" as const, status: 200, response: res(body), sentAt: new Date(2026, 0, 1, 0, 0, i).toISOString() })),
+        },
+      ],
+    });
+
+  it("cuts the body of every item like any other", () => {
+    const r = trimLookup(perItem(2, "x".repeat(MAX_HISTORY_BODY + 5)));
+    expect(r.results[0].each!.map((e) => e.response!.body.length)).toEqual([MAX_HISTORY_BODY, MAX_HISTORY_BODY]);
+  });
+
+  it("drops the oldest bodies first when the whole lookup is too large, and keeps everything else", () => {
+    const body = "y".repeat(MAX_HISTORY_BODY);
+    const n = Math.ceil(MAX_LOOKUP_BODIES / MAX_HISTORY_BODY) + 4;
+    const r = trimLookup(perItem(n, body));
+    const each = r.results[0].each!;
+    expect(each[0].response!.body).toBe(BODY_DROPPED);
+    expect(each.at(-1)!.response!.body).toBe(body);
+    const kept = each.reduce((total, e) => total + e.response!.body.length, 0);
+    expect(kept).toBeLessThanOrEqual(MAX_LOOKUP_BODIES);
+    expect(each.map((e) => e.key)).toEqual(Array.from({ length: n }, (_, i) => `d${i}`));
+    expect(each.every((e) => e.status === 200 && e.state === "done")).toBe(true);
+  });
+
+  it("leaves a lookup under the limit as it is", () => {
+    const live = perItem(3, "ok");
+    expect(trimLookup(live)).toEqual(live);
   });
 });
 

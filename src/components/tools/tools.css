@@ -492,6 +492,25 @@
   background: var(--bg-hover);
 }
 
+/* Columns from a call that runs once per item: what an item is doing shows in place of its value. */
+.tool-item-cell.item-running,
+.tool-item-cell.item-waiting,
+.tool-item-cell.item-notrun,
+.tool-item-cell.item-skipped,
+.tool-item-cell.item-stopped {
+  color: var(--muted);
+}
+
+.tool-item-failed {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.tool-each-note {
+  margin: 8px 0 0;
+}
+
 .tool-pick-none {
   margin-top: 8px;
   height: calc(28px * var(--ui-scale));

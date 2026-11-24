@@ -3,6 +3,7 @@ import { newId } from "../ids";
 import { requestPlaceholders } from "../request";
 import { isArray, load, save } from "../storage";
 import type { HttpMethod } from "../types";
+import { eachPlaceholders, eachPlan, findList, itemNoun, mappingsIn } from "./lists";
 import { orderCalls } from "./order";
 import {
   BLOCK_TYPES,
@@ -74,12 +75,13 @@ function cleanInput(v: unknown): ToolInput | null {
   return out;
 }
 
-function cleanMapping(v: unknown): PlaceholderMapping | null {
+/** `allowEach`: the mapping is a call's own value, the only place that may read "each item" (a "where" value or a block field may not). */
+function cleanMapping(v: unknown, allowEach = false): PlaceholderMapping | null {
   if (!isObject(v)) return null;
   const m: PlaceholderMapping = {};
   if (typeof v.input === "string" && v.input !== "") m.input = v.input;
   if (isObject(v.call) && typeof v.call.callId === "string" && v.call.callId !== "") {
-    const list = cleanListRef(v.call.list);
+    const list = cleanListRef(v.call.list, allowEach);
     m.call = { callId: v.call.callId, path: str(v.call.path), ...(list ? { list } : {}) };
   }
   if (typeof v.fixed === "string") m.fixed = v.fixed;
@@ -112,8 +114,9 @@ function cleanRule(v: unknown): ItemRule | null {
   }
 }
 
-function cleanItemChoice(v: unknown): ListItemChoice | null {
+function cleanItemChoice(v: unknown, allowEach = false): ListItemChoice | null {
   if (!isObject(v)) return null;
+  if (v.kind === "each") return allowEach ? { kind: "each" } : null;
   if (v.kind === "all") {
     const where = cleanWhere(v.where);
     return { kind: "all", join: typeof v.join === "string" ? v.join : ", ", ...(where ? { where } : {}) };
@@ -125,9 +128,9 @@ function cleanItemChoice(v: unknown): ListItemChoice | null {
   return cleanRule(v);
 }
 
-function cleanListRef(v: unknown): ListRef | null {
+function cleanListRef(v: unknown, allowEach = false): ListRef | null {
   if (!isObject(v) || typeof v.listId !== "string" || v.listId === "") return null;
-  const item = cleanItemChoice(v.item);
+  const item = cleanItemChoice(v.item, allowEach);
   return { listId: v.listId, ...(item ? { item } : {}) };
 }
 
@@ -175,7 +178,7 @@ function cleanCall(v: unknown): ToolCall | null {
   const mappings: Record<string, PlaceholderMapping> = {};
   if (isObject(v.mappings)) {
     for (const [k, m] of Object.entries(v.mappings)) {
-      const c = cleanMapping(m);
+      const c = cleanMapping(m, true);
       if (c) mappings[k] = c;
     }
   }
@@ -189,7 +192,7 @@ function cleanField(v: unknown): BlockField | null {
   if (!isObject(v)) return null;
   const format = FIELD_FORMATS.includes(v.format as never) ? (v.format as BlockField["format"]) : "text";
   const list = cleanListRef(v.list);
-  return { path: str(v.path), label: str(v.label), format, ...(list ? { list } : {}) };
+  return { path: str(v.path), label: str(v.label), format, ...(list ? { list } : {}), ...(typeof v.callId === "string" && v.callId !== "" ? { callId: v.callId } : {}) };
 }
 
 function cleanBlock(v: unknown, index: number): ToolBlock | null {
@@ -288,6 +291,48 @@ function unknownListProblems(tool: Tool): ToolProblem[] {
   return out;
 }
 
+/** "device" for a call that runs once per item of a Devices list. */
+function perItemNoun(tool: Tool, call: ToolCall): string {
+  const plan = eachPlan(call);
+  const list = plan ? findList(tool.calls.find((c) => c.id === plan.sourceId) ?? call, plan.listId) : undefined;
+  return list ? itemNoun(list) : "item";
+}
+
+/** Calls that run once per item: only one value may do that, not a write call, nothing else reads them, and their answers belong in table columns. */
+function perItemProblems(tool: Tool): ToolProblem[] {
+  const out: ToolProblem[] = [];
+  const perItem = new Map(tool.calls.filter((c) => eachPlan(c)).map((c) => [c.id, c]));
+  for (const c of tool.calls) {
+    if (eachPlaceholders(c).length > 1) out.push({ level: "error", code: "per-item-twice", message: `${c.name}: only one value can run it once per item, but ${eachPlaceholders(c).map((p) => `{{${p}}}`).join(" and ")} both do.`, callId: c.id });
+    if (c.write && eachPlan(c)) out.push({ level: "error", code: "per-item-write", message: `${c.name} is a write call, so it cannot run once per ${perItemNoun(tool, c)}. Action buttons send one request.`, callId: c.id });
+    const reads = new Set<string>();
+    const consider = (m: PlaceholderMapping) => {
+      for (const x of mappingsIn(m)) if (x.call && perItem.has(x.call.callId) && x.call.callId !== c.id) reads.add(x.call.callId);
+    };
+    Object.values(c.mappings).forEach(consider);
+    for (const l of c.lists ?? []) if (l.choose.kind === "where") consider(l.choose.value);
+    for (const id of reads) {
+      const src = perItem.get(id)!;
+      out.push({ level: "error", code: "reads-per-item", message: `${src.name} runs once per ${perItemNoun(tool, src)}; other calls can't read from it yet`, callId: c.id });
+    }
+  }
+  for (const b of tool.blocks) {
+    const call = b.callId ? tool.calls.find((c) => c.id === b.callId) : undefined;
+    for (const f of b.fields) {
+      if (f.callId === undefined) continue;
+      const col = tool.calls.find((c) => c.id === f.callId);
+      const plan = col ? eachPlan(col) : null;
+      if (col && !(b.type === "table" && plan && plan.sourceId === b.callId && plan.listId === b.listId)) {
+        out.push({ level: "warning", code: "per-item-column", message: `${b.title || "A table"} shows a column from ${col.name}, which does not run once per item of this table's list.`, blockId: b.id });
+      }
+    }
+    if (call && eachPlan(call) && ["fields", "number", "status", "json"].includes(b.type)) {
+      out.push({ level: "warning", code: "per-item-block", message: `${call.name} runs once per ${perItemNoun(tool, call)}, so this block has no single answer to show. Add its answers as columns to a table of that list instead.`, blockId: b.id });
+    }
+  }
+  return out;
+}
+
 export function validateTool(tool: Tool, findRequest: RequestLookup): ToolProblem[] {
   const problems: ToolProblem[] = [];
   const order = orderCalls(tool.calls, (c) => placeholdersForCall(c, findRequest));
@@ -307,6 +352,7 @@ export function validateTool(tool: Tool, findRequest: RequestLookup): ToolProble
     }
   }
   problems.push(...unknownListProblems(tool));
+  problems.push(...perItemProblems(tool));
   const perRow = new Map<number, number>();
   for (const b of tool.blocks) {
     perRow.set(b.row, (perRow.get(b.row) ?? 0) + 1);

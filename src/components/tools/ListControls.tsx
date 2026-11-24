@@ -154,10 +154,11 @@ export function RuleEditor({ ctx, rule, onChange, label }: { ctx: ListCtx; rule:
 }
 
 /** One value's choice of item: the list's own rule, a different rule, all items joined, or how many. */
-export function ChoiceEditor({ ctx, listRule, choice, onChange, label, depth = 0 }: { ctx: ListCtx; listRule: ItemRule | undefined; choice: ListItemChoice | undefined; onChange: (c: ListItemChoice | undefined) => void; label: string; depth?: number }) {
+export function ChoiceEditor({ ctx, listRule, choice, onChange, label, depth = 0, eachAllowed }: { ctx: ListCtx; listRule: ItemRule | undefined; choice: ListItemChoice | undefined; onChange: (c: ListItemChoice | undefined) => void; label: string; depth?: number; eachAllowed?: boolean }) {
   const kind = choiceKind(choice);
   const field = itemFieldOptions(ctx.items[0])[0] ?? "";
-  const kinds = CHOICE_KINDS.filter((k) => (k !== "where" && k !== "all" && k !== "count") || depth < 1 || k === "where");
+  // "Each item" is offered only for a request's own value, and only where no other value of that request already runs it once per item.
+  const kinds = CHOICE_KINDS.filter((k) => (k !== "each" || eachAllowed || choice?.kind === "each") && ((k !== "where" && k !== "all" && k !== "count") || depth < 1 || k === "where"));
   const inList = listRule ? `Same as the list (${choiceText(listRule, ctx.tool)})` : CHOICE_LABELS.list;
   const where = choice?.kind === "where" ? choice : (choice?.kind === "all" || choice?.kind === "count") && choice.where ? choice.where : null;
   return (

@@ -193,6 +193,11 @@ export function descendantListIds(call: ToolCall, listId: string): string[] {
  */
 export function readListValue(src: ListSource, path: string, ref: ListRef): ValueRead {
   const choice: ListItemChoice | undefined = ref.item;
+  if (choice?.kind === "each") {
+    // The engine runs the call once per item and fills this value itself; reading it any other way has no single item to give.
+    const list = findList(src.call, ref.listId);
+    return fail("no-item", `${list?.name ?? "The list"} is read once for each item`);
+  }
   if (choice?.kind === "all" || choice?.kind === "count") {
     const list = findList(src.call, ref.listId);
     const read = filtered(src, ref.listId, choice.where);
@@ -204,6 +209,53 @@ export function readListValue(src: ListSource, path: string, ref: ListRef): Valu
   }
   const chosen = chooseItem(src, ref.listId, choice);
   return chosen.ok ? { ok: true, value: readPath(chosen.item, path) } : chosen;
+}
+
+// ---- a call that runs once per item ----
+
+/** Calls run once for every item, at most this many items. */
+export const MAX_EACH_ITEMS = 25;
+
+/** The one value of a call that runs it once per item of a list. */
+export interface EachPlan {
+  /** The `{{placeholder}}` filled with each item's value. */
+  placeholder: string;
+  /** The call that owns the list. */
+  sourceId: string;
+  listId: string;
+  /** Read from each item. */
+  path: string;
+}
+
+/** Whether a mapping reads "each item" of a list. */
+export function isEachMapping(m: PlaceholderMapping | undefined): boolean {
+  return m?.call?.list?.item?.kind === "each";
+}
+
+/** How a call runs per item, or null for a call that runs once. The first such value counts; Build allows only one. */
+export function eachPlan(call: ToolCall): EachPlan | null {
+  for (const [placeholder, m] of Object.entries(call.mappings)) {
+    if (m.call?.list?.item?.kind === "each") return { placeholder, sourceId: m.call.callId, listId: m.call.list.listId, path: m.call.path };
+  }
+  return null;
+}
+
+/** Placeholders of a call that read "each item". More than one is a mistake Build reports. */
+export function eachPlaceholders(call: ToolCall): string[] {
+  return Object.entries(call.mappings).filter(([, m]) => isEachMapping(m)).map(([p]) => p);
+}
+
+/** The items a per-item call runs for: the list's items, or why there are none ("Customer has no devices"). */
+export function readEachItems(src: ListSource, listId: string): ItemsRead {
+  const read = readList(src, listId);
+  if (!read.ok || read.items.length > 0) return read;
+  const list = findList(src.call, listId);
+  return list ? emptyFailure(src.call, list) : read;
+}
+
+/** The name of one item of a list for a sentence ("device"). */
+export function itemNoun(list: ToolList): string {
+  return singular(list.name);
 }
 
 /** What a table shows under or instead of its rows: "No devices", or why the list could not be read. Null when there are rows. */
@@ -266,7 +318,7 @@ export function mappingNeeds(m: PlaceholderMapping, calls: ReadonlyMap<string, T
   const list = source && ref ? findList(source, ref.listId) : undefined;
   if (source && ref && list) {
     const choice = ref.item;
-    const rule = choice === undefined ? list.choose : choice.kind === "all" || choice.kind === "count" ? choice.where : choice;
+    const rule = choice === undefined ? list.choose : choice.kind === "all" || choice.kind === "count" ? choice.where : choice.kind === "each" ? undefined : choice;
     out.push(...ruleNeeds(source, list, rule, calls, depth), ...chainNeeds(source, list, calls, depth));
   }
   return merge(out);
@@ -288,7 +340,7 @@ export function listAskNeeds(call: ToolCall, listId: string, calls: ReadonlyMap<
   return list ? merge(chainNeeds(call, list, calls, 0)) : [];
 }
 
-function* mappingsIn(m: PlaceholderMapping): Generator<PlaceholderMapping> {
+export function* mappingsIn(m: PlaceholderMapping): Generator<PlaceholderMapping> {
   yield m;
   const choice = m.call?.list?.item;
   if (choice && (choice.kind === "where" || ((choice.kind === "all" || choice.kind === "count") && choice.where))) {
@@ -321,7 +373,7 @@ export function listsToAsk(tool: Tool, call: ToolCall): string[] {
 export function toolUsesLists(tool: Tool): boolean {
   return (
     tool.calls.some((c) => (c.lists?.length ?? 0) > 0 || Object.values(c.mappings).some((m) => m.call?.list !== undefined)) ||
-    tool.blocks.some((b) => b.listId !== undefined || b.expandable === true || b.fields.some((f) => f.list !== undefined))
+    tool.blocks.some((b) => b.listId !== undefined || b.expandable === true || b.fields.some((f) => f.list !== undefined || f.callId !== undefined))
   );
 }
 

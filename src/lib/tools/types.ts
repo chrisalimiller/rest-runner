@@ -50,7 +50,15 @@ export interface Where {
 export type ItemRule = { kind: "none" } | { kind: "ask" } | { kind: "index"; index: number } | { kind: "where"; field: string; op: "eq" | "ne"; value: PlaceholderMapping };
 
 /** How a value reads a list: a different item rule than the list's own, or all items joined, or how many there are. */
-export type ListItemChoice = ItemRule | { kind: "all"; join: string; where?: Where } | { kind: "count"; where?: Where };
+export type ListItemChoice = ItemRule | { kind: "all"; join: string; where?: Where } | { kind: "count"; where?: Where } | EachChoice;
+
+/**
+ * Runs the call once for every item of the list, each time with that item's value. Only a value of a call's own
+ * `{{placeholder}}` may use it, and a call has at most one such value. The answers go in `CallResult.each`.
+ */
+export interface EachChoice {
+  kind: "each";
+}
 
 export interface ListRef {
   listId: string;
@@ -110,6 +118,11 @@ export interface BlockField {
   format: FieldFormat;
   /** Reads the path from an item of a list of the block's call. Without it the path is read as before. */
   list?: ListRef;
+  /**
+   * For a column of a table on a list: the call that runs once per item of that list. The cell shows that item's
+   * answer, read at `path` of its response, or the item's error status.
+   */
+  callId?: string;
 }
 
 export const MAX_BLOCKS_PER_ROW = 3;
@@ -183,6 +196,28 @@ export interface CallResult {
   picked?: { index: number };
   /** For a call with lists: the item picked in each list, by list id. `key` is the item's label, to recognise the same row in a later lookup. */
   picks?: Record<string, ListPick>;
+  /** For a call that runs once per item of a list: one answer per item, in the list's order (at most MAX_EACH_ITEMS). The call's own state, status and response are not used. */
+  each?: EachResult[];
+  /** The number of items the list had, which can be more than `each` holds. */
+  eachTotal?: number;
+}
+
+/** The answer for one item of a call that runs once per item. Same fields as a call's own answer. */
+export interface EachResult {
+  /** The item's position in its list. */
+  index: number;
+  /** The item's label (the list's label path), to name it in history and copied text. */
+  key?: string;
+  /** "pending": not finished yet (waiting for a free slot, or sent). */
+  state: CallState | "pending";
+  reason?: SkipReason;
+  message?: string;
+  status?: number;
+  response?: ResponseResult;
+  error?: string;
+  request?: { method: string; url: string };
+  sentAt?: string;
+  durationMs?: number;
 }
 
 export interface ListPick {
@@ -210,7 +245,7 @@ export interface LookupRecord extends LookupRun {
 export interface ToolProblem {
   /** "error" means Look up refuses to run. */
   level: "error" | "warning";
-  code: "cycle" | "missing-request" | "unknown-call" | "unknown-input" | "duplicate-input" | "too-many-in-row" | "unknown-block-call" | "unknown-list";
+  code: "cycle" | "missing-request" | "unknown-call" | "unknown-input" | "duplicate-input" | "too-many-in-row" | "unknown-block-call" | "unknown-list" | "per-item-twice" | "per-item-write" | "reads-per-item" | "per-item-column" | "per-item-block";
   message: string;
   callId?: string;
   blockId?: string;

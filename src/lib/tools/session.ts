@@ -4,7 +4,7 @@ import type { ScriptRunner } from "../testing/scriptRunner";
 import type { Vars } from "../template";
 import { requestPlaceholders } from "../request";
 import type { Environment } from "../environments";
-import { dependentCalls, listSource, resolveInputs, runLookup, runLookupCall, runWriteCall, ToolNotRunnableError, valueResolver, withPicks, writeCallGuard } from "./engine";
+import { dependentCalls, listSource, resolveInputs, runEachItem, runLookup, runLookupCall, runWriteCall, ToolNotRunnableError, valueResolver, withEachResult, withPicks, writeCallGuard } from "./engine";
 import { callNeeds, descendantListIds, findList, pickOf, readList, rememberedIndex } from "./lists";
 import { saveLookup } from "./lookupStore";
 import { orderCalls } from "./order";
@@ -271,6 +271,27 @@ export class ToolSession {
       this.set({ sending: this.state.sending.filter((id) => id !== callId) });
       return null;
     }
+  }
+
+  /**
+   * Sends one item of a call that runs once per item again (Retry in a table cell) and puts its answer in place. The
+   * item shows as running meanwhile. Not while a lookup runs, and not twice at once for the same item. The saved lookup is not changed.
+   */
+  async retryItem(tool: Tool, callId: string, index: number, deps: Omit<LookupDeps, "save">): Promise<void> {
+    const prev = this.state.results[callId];
+    const old = prev?.each?.find((e) => e.index === index);
+    if (this.state.running || !prev || !old || old.state === "pending") return;
+    const waiting = { index, ...(old.key ? { key: old.key } : {}), state: "pending" as const };
+    this.set({ results: { ...this.state.results, [callId]: withEachResult(prev, waiting) } });
+    let entry;
+    try {
+      entry = await runEachItem(tool, callId, index, this.state.inputs, { findRequest: deps.findRequest, envVars: deps.envVars, send: deps.send, scripts: deps.scripts, prior: this.state.results });
+    } catch (e) {
+      entry = { ...old, state: "network-error" as const, error: e instanceof Error ? e.message : String(e) };
+    }
+    const now = this.state.results[callId];
+    if (!now) return;
+    this.set({ results: { ...this.state.results, [callId]: withEachResult(now, entry) } });
   }
 
   /**

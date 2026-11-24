@@ -8,11 +8,12 @@ import type { Vars } from "../template";
 import { readPath } from "../testing/jsonPath";
 import type { ScriptRunner } from "../testing/scriptRunner";
 import type { RequestDef } from "../types";
-import { callNeeds, findList, listAskNeeds, listsToAsk, pickOf, readList, readListValue, valueText, type ListSource, type Need, type ValueResolver } from "./lists";
+import { callNeeds, eachPlan, findList, isEachMapping, itemLabel, itemNoun, listAskNeeds, listsToAsk, MAX_EACH_ITEMS, pickOf, readEachItems, readList, readListValue, valueText, type EachPlan, type ListSource, type Need, type ValueResolver } from "./lists";
 import { orderCalls } from "./order";
-import type { CallResult, ListPick, ListRef, LookupRun, PlaceholderMapping, Tool, ToolCall, ToolList } from "./types";
+import type { CallResult, EachResult, ListPick, ListRef, LookupRun, PlaceholderMapping, Tool, ToolCall, ToolList } from "./types";
 
 export { valueText };
+export { MAX_EACH_ITEMS };
 
 /** At most this many calls are in flight at once. */
 export const MAX_CONCURRENT_CALLS = 6;
@@ -237,6 +238,8 @@ export function resolvePlaceholders(
   for (const placeholder of requestPlaceholders(def)) {
     const m = call.mappings[placeholder];
     if (!m) continue;
+    // A value that reads "each item" is filled one item at a time by the engine.
+    if (isEachMapping(m)) continue;
     const r = readMapping(m, env);
     if (r.value !== null) {
       data[placeholder] = r.value;
@@ -261,9 +264,9 @@ function needsMessage(r: Resolution): string {
   return [...new Set(r.missing.map((m) => m.reason ?? `Needs ${m.placeholder} from ${m.callName}`))].join("; ");
 }
 
-/** Sends one call whose values are ready. Never throws. */
-async function sendCall(call: ToolCall, def: RequestDef, data: Vars, ctx: ToolRunContext): Promise<CallResult> {
-  ctx.onCallStart?.(call.id);
+/** Sends one call whose values are ready. Never throws. `announce` false: the caller reports the start itself (a call that runs once per item announces once). */
+async function sendCall(call: ToolCall, def: RequestDef, data: Vars, ctx: ToolRunContext, announce = true): Promise<CallResult> {
+  if (announce) ctx.onCallStart?.(call.id);
   try {
     const sent = await sendWithScripts({ def, env: ctx.envVars, data, vars: {}, iteration: 0, send: ctx.send, scripts: ctx.scripts, signal: ctx.signal });
     if (sent === null || (ctx.signal?.aborted && !sent.outcome.ok)) return stopped(call);
@@ -277,6 +280,122 @@ async function sendCall(call: ToolCall, def: RequestDef, data: Vars, ctx: ToolRu
     if (ctx.signal?.aborted) return stopped(call);
     return { callId: call.id, name: call.name, state: "network-error", error: e instanceof Error ? e.message : String(e) };
   }
+}
+
+// ---- a call that runs once per item ----
+
+/** One item a per-item call runs for: its place in the list, its label, and the value for the call's placeholder (null: the item has none). */
+interface EachEntry {
+  index: number;
+  key?: string;
+  value: string | null;
+}
+
+type EachPrep = { ok: true; entries: EachEntry[]; total: number; plan: EachPlan; noun: string } | { ok: false; message: string };
+
+/** The items a per-item call runs for, read from the finished call that owns the list. At most MAX_EACH_ITEMS. */
+function prepareEach(plan: EachPlan, calls: ReadonlyMap<string, ToolCall>, get: (id: string) => CallResult | undefined, resolve: ValueResolver): EachPrep {
+  const source = calls.get(plan.sourceId);
+  const result = get(plan.sourceId);
+  if (!source) return { ok: false, message: `Needs ${plan.placeholder} from a removed call` };
+  if (!result || result.state !== "done") return { ok: false, message: `Needs ${plan.placeholder} from ${source.name}` };
+  const list = findList(source, plan.listId);
+  if (!list) return { ok: false, message: `${source.name}: a list that was removed is still used` };
+  const read = readEachItems(listSource(source, result, resolve), plan.listId);
+  if (!read.ok) return { ok: false, message: read.message };
+  const entries = read.items.slice(0, MAX_EACH_ITEMS).map((item, index): EachEntry => {
+    const key = itemLabel(list, item);
+    return { index, ...(key ? { key } : {}), value: valueText(readPath(item, plan.path)) };
+  });
+  return { ok: true, entries, total: read.items.length, plan, noun: itemNoun(list) };
+}
+
+function pendingEach(e: EachEntry, plan: EachPlan, noun: string): EachResult {
+  const base = { index: e.index, ...(e.key ? { key: e.key } : {}) };
+  if (e.value === null) return { ...base, state: "skipped", reason: "needs-value", message: `No value for {{${plan.placeholder}}} in this ${noun}` };
+  return { ...base, state: "pending" };
+}
+
+function eachFrom(e: EachEntry, r: CallResult): EachResult {
+  const { callId: _id, name: _name, picks: _p, each: _e, eachTotal: _t, rowCount: _r, picked: _pk, ...rest } = r;
+  return { ...rest, index: e.index, ...(e.key ? { key: e.key } : {}) };
+}
+
+function stoppedEach(e: EachEntry): EachResult {
+  return { index: e.index, ...(e.key ? { key: e.key } : {}), state: "stopped", message: "Stopped before this item was sent." };
+}
+
+/**
+ * The answer of a call that runs once per item: one entry per item. The call's own state says whether anything was
+ * answered ("done" when at least one item got a response), so the lookup carries on; the entries hold the detail.
+ */
+function eachAnswer(call: ToolCall, results: EachResult[], total: number, sentAt: string, startedMs: number): CallResult {
+  return withEachState({ callId: call.id, name: call.name, state: "skipped", each: results, eachTotal: total, sentAt, durationMs: Math.max(0, Date.now() - startedMs) });
+}
+
+/** The same per-item answer with its own state, error and message worked out again from its items. */
+function withEachState(r: CallResult): CallResult {
+  const results = r.each ?? [];
+  const sentOnes = results.filter((x) => x.state === "done" || x.state === "network-error");
+  const state: CallResult["state"] = results.some((x) => x.state === "done") ? "done" : results.some((x) => x.state === "stopped") ? "stopped" : sentOnes.length > 0 ? "network-error" : "skipped";
+  const { error: _e, message: _m, ...rest } = r;
+  const out: CallResult = { ...rest, state };
+  if (state === "network-error") out.error = "No response for any item";
+  if (state === "skipped") out.message = results[0]?.message ?? "Nothing to send";
+  if (state === "stopped") out.message = "Stopped.";
+  return out;
+}
+
+/** The same per-item answer with one item's answer put in its place. */
+export function withEachResult(result: CallResult, entry: EachResult): CallResult {
+  const each = [...(result.each ?? []).filter((e) => e.index !== entry.index), entry].sort((a, b) => a.index - b.index);
+  return withEachState({ ...result, each });
+}
+
+/** Whether an item's answer is a failure (no response, or an error status). */
+export function eachFailed(r: EachResult): boolean {
+  return r.state === "network-error" || (r.state === "done" && (r.status ?? r.response?.status ?? 0) >= 400);
+}
+
+/** Runs a per-item call for every item, a few at a time, when it runs on its own (Retry), not inside a lookup. */
+async function runEachAlone(call: ToolCall, def: RequestDef, plan: EachPlan, base: Vars, prep: Extract<EachPrep, { ok: true }>, ctx: ToolRunContext): Promise<CallResult> {
+  const sentAt = new Date().toISOString();
+  const startedMs = Date.now();
+  const results = prep.entries.map((e) => pendingEach(e, plan, prep.noun));
+  let next = 0;
+  const worker = async () => {
+    for (;;) {
+      const i = next++;
+      if (i >= prep.entries.length) return;
+      const e = prep.entries[i];
+      if (e.value === null) continue;
+      if (ctx.signal?.aborted) {
+        results[i] = stoppedEach(e);
+        continue;
+      }
+      results[i] = eachFrom(e, await sendCall(call, def, { ...base, [plan.placeholder]: e.value }, ctx, false));
+    }
+  };
+  ctx.onCallStart?.(call.id);
+  await Promise.all(Array.from({ length: Math.max(1, Math.min(ctx.maxConcurrent ?? MAX_CONCURRENT_CALLS, prep.entries.length)) }, worker));
+  return eachAnswer(call, results, prep.total, sentAt, startedMs);
+}
+
+/** The state a pending item is shown in while its call is still running. */
+interface EachRun {
+  call: ToolCall;
+  def: RequestDef;
+  plan: EachPlan;
+  base: Vars;
+  entries: EachEntry[];
+  results: EachResult[];
+  total: number;
+  /** The next entry to send. */
+  next: number;
+  inflight: number;
+  announced: boolean;
+  sentAt: string;
+  startedMs: number;
 }
 
 function abortPromise(signal: AbortSignal | undefined): { promise: Promise<"aborted">; dispose: () => void } {
@@ -332,6 +451,8 @@ export async function runLookup(tool: Tool, rawInputs: Record<string, string>, c
 
   const env: MappingEnv = { inputs, calls: byId, get: (id) => results.get(id) };
   const resolve: ValueResolver = (m) => readMapping(m, env, 1).value;
+  /** Calls that run once per item and still have items to send or answers to wait for. */
+  const eachRuns = new Map<string, EachRun>();
 
   return new Promise<LookupRun>((resolveRun) => {
     const settle = (callId: string, listId: string) => {
@@ -353,6 +474,70 @@ export async function runLookup(tool: Tool, rawInputs: Record<string, string>, c
         openAsks += lists.length;
         if (result?.state === "done") unasked.set(call.id, new Set(lists));
         else lists.forEach((l) => settle(call.id, l));
+      }
+    };
+
+    const emitEach = (run: EachRun) => {
+      const partial = eachAnswer(run.call, [...run.results], run.total, run.sentAt, run.startedMs);
+      // Not finished while an item waits: the call shows as running, and a failure of the whole call is not reported yet.
+      results.set(run.call.id, { ...partial, state: "done" });
+      ctx.onCall?.(results.get(run.call.id)!);
+    };
+
+    /** Starts a per-item call: the items are read, and each is sent as a slot becomes free (they share the limit with every other call). */
+    const startEach = (call: ToolCall, def: RequestDef, plan: EachPlan, base: Vars): boolean => {
+      const prep = prepareEach(plan, byId, (id) => results.get(id), resolve);
+      if (!prep.ok) {
+        finish(call, skipped(call, "needs-value", prep.message));
+        return false;
+      }
+      started.add(call.id);
+      const run: EachRun = { call, def, plan, base, entries: prep.entries, results: prep.entries.map((e) => pendingEach(e, plan, prep.noun)), total: prep.total, next: 0, inflight: 0, announced: false, sentAt: new Date().toISOString(), startedMs: Date.now() };
+      eachRuns.set(call.id, run);
+      if (prep.entries.some((e) => e.value !== null)) emitEach(run);
+      return true;
+    };
+
+    const launchItem = (run: EachRun, pos: number) => {
+      const e = run.entries[pos];
+      running++;
+      run.inflight++;
+      const announce = !run.announced;
+      run.announced = true;
+      void (async () => {
+        const r = await sendCall(run.call, run.def, { ...run.base, [run.plan.placeholder]: e.value! }, ctx, announce);
+        running--;
+        run.inflight--;
+        run.results[pos] = eachFrom(e, r);
+        if (r.state === "stopped") wasStopped = true;
+        if (run.next < run.entries.length || run.inflight > 0) emitEach(run);
+        pump();
+      })();
+    };
+
+    /** Sends the next items of every running per-item call while there are free slots, and finishes the calls that have nothing left. */
+    const pumpEach = () => {
+      for (const run of [...eachRuns.values()]) {
+        while (run.next < run.entries.length) {
+          const pos = run.next;
+          const e = run.entries[pos];
+          if (e.value === null) {
+            run.next++;
+            continue;
+          }
+          if (ctx.signal?.aborted) {
+            run.results[pos] = stoppedEach(e);
+            run.next++;
+            continue;
+          }
+          if (running >= max) break;
+          run.next++;
+          launchItem(run, pos);
+        }
+        if (run.next >= run.entries.length && run.inflight === 0) {
+          eachRuns.delete(run.call.id);
+          finish(run.call, eachAnswer(run.call, run.results, run.total, run.sentAt, run.startedMs));
+        }
       }
     };
 
@@ -468,9 +653,17 @@ export async function runLookup(tool: Tool, rawInputs: Record<string, string>, c
             again = true;
             continue;
           }
+          const plan = eachPlan(call);
+          if (plan) {
+            if (!startEach(call, def, plan, r.data)) again = true;
+            continue;
+          }
           if (running >= max) continue;
           startCall(call, def, r.data);
         }
+        const before = finished.size;
+        pumpEach();
+        if (finished.size > before) again = true;
         // Every call is finished but some pick could never be asked (its rule waits on a pick that waits on it): give those up.
         if (finished.size === tool.calls.length && askingNow === 0 && unasked.size > 0) {
           for (const [callId, pending] of unasked) pending.forEach((l) => settle(callId, l));
@@ -506,6 +699,7 @@ export async function runWriteCall(tool: Tool, callId: string, rawInputs: Record
   if (!call.write) throw new ToolNotRunnableError(`${call.name} is a lookup call; it runs from Look up.`);
   const def = ctx.findRequest(call.requestId);
   if (!def) return skipped(call, "missing-request", "Request missing");
+  if (eachPlan(call)) return skipped(call, "invalid", `${call.name} reads each item of a list, so it cannot run from an Action button.`);
   const byId = new Map(tool.calls.map((c) => [c.id, c]));
   const r = resolvePlaceholders(call, def, resolveInputs(tool, rawInputs), byId, ctx.prior ?? {});
   if (r.missing.length > 0) return skipped(call, "needs-value", needsMessage(r));
@@ -546,7 +740,39 @@ export async function runLookupCall(tool: Tool, callId: string, rawInputs: Recor
   const byId = new Map(tool.calls.map((c) => [c.id, c]));
   const r = resolvePlaceholders(call, def, resolveInputs(tool, rawInputs), byId, ctx.prior ?? {});
   if (r.missing.length > 0) return skipped(call, "needs-value", needsMessage(r));
+  const plan = eachPlan(call);
+  if (plan) {
+    const inputs = resolveInputs(tool, rawInputs);
+    const prior = ctx.prior ?? {};
+    const prep = prepareEach(plan, byId, (id) => prior[id], valueResolver(tool, inputs, prior));
+    const answer = prep.ok ? await runEachAlone(call, def, plan, r.data, prep, ctx) : skipped(call, "needs-value", prep.message);
+    ctx.onCall?.(answer);
+    return answer;
+  }
   const result = await sendCall(call, def, r.data, ctx);
   ctx.onCall?.(result);
   return result;
+}
+
+/**
+ * Sends one item of a per-item call again (the Retry of a table cell). Reads the item from `prior`, the answers on
+ * screen. Never throws except for a call that is not a per-item lookup call.
+ */
+export async function runEachItem(tool: Tool, callId: string, index: number, rawInputs: Record<string, string>, ctx: ToolRunContext & { prior?: Record<string, CallResult> }): Promise<EachResult> {
+  const call = tool.calls.find((c) => c.id === callId);
+  const plan = call ? eachPlan(call) : null;
+  if (!call || !plan || call.write) throw new ToolNotRunnableError("That call does not run once per item.");
+  const def = ctx.findRequest(call.requestId);
+  const byId = new Map(tool.calls.map((c) => [c.id, c]));
+  const prior = ctx.prior ?? {};
+  const inputs = resolveInputs(tool, rawInputs);
+  const prep = prepareEach(plan, byId, (id) => prior[id], valueResolver(tool, inputs, prior));
+  const entry = prep.ok ? prep.entries.find((e) => e.index === index) : undefined;
+  const base = { index, ...(entry?.key ? { key: entry.key } : {}) };
+  if (!def) return { ...base, state: "skipped", reason: "missing-request", message: "Request missing" };
+  if (!prep.ok || !entry) return { ...base, state: "skipped", reason: "needs-value", message: prep.ok ? "This item is no longer in the list" : prep.message };
+  const r = resolvePlaceholders(call, def, inputs, byId, prior);
+  if (r.missing.length > 0) return { ...base, state: "skipped", reason: "needs-value", message: needsMessage(r) };
+  if (entry.value === null) return pendingEach(entry, plan, prep.noun);
+  return eachFrom(entry, await sendCall(call, def, { ...r.data, [plan.placeholder]: entry.value }, ctx, false));
 }

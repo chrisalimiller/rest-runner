@@ -34,6 +34,7 @@ There is no pass or fail; each block shows how its call ended.
 | No response | The reason (for example "connection refused") and **Retry** |
 | Skipped | Why: "Needs accountId from Subscriber" (a value is missing) or "Request missing", which also offers **Choose another request** (opens Build with that block selected) |
 | Stopped | "Stopped." |
+| Runs once per item | The header says `3 requests` or `1 of 3 failed`; each item has its own answer (see **Run a call for each item**) |
 
 The button says what it reruns. **Retry** sends just that call again, when no other call reads its answer. **Run lookup again** appears when another call depends on it (or it is a pick-a-row call): the whole lookup runs again, so what depends on it is refreshed too.
 
@@ -84,7 +85,20 @@ A call with lists finishes as soon as its response is in. Only the calls that re
 
 Fields and mappings with no list keep reading the whole response, as before. A call with **Ask me to pick a row** keeps working as it did; a call has either that or lists.
 
-**Export files.** A tools file that uses lists is written as `version: 2`; a file without them stays `version: 1`. This version refuses a file with a newer version ("This file needs a newer REST Runner"). Earlier versions ignore `version` and would drop the list fields on import, so update before importing a file that uses lists.
+**Export files.** A tools file that uses lists, or a request that runs once per item, is written as `version: 2`; a file without them stays `version: 1`. This version refuses a file with a newer version ("This file needs a newer REST Runner"). Earlier versions ignore `version` and would drop the list fields on import, so update before importing a file that uses lists.
+
+### Run a call for each item
+
+Some APIs take one id per request, so "the warranty of every device" needs one request per device. In Build mode, set a value of that request to **Each item (one request per item)** (Connect, Fill step, after clicking a field inside a list). The request then runs once for every item of that list, each time with that item's value.
+
+- **One value per request.** A request has at most one value that runs it once per item; Build says so if a second is tried. An input or fixed text on that same value is not used. A write call cannot run once per item: Action buttons send one request.
+- **Up to 25 items**, one request each. They share the limit of 6 requests at a time with the rest of the lookup. When the list is longer the table says "Ran for the first 25 of 40 devices". An empty list skips the request with "Customer has no devices". An item with no value at the path is skipped on its own and the others still go out.
+- **Show the answers as columns.** In a Table block on that list, the Fields step offers **Columns from Warranty, one request per device**: click a value in the sample answer. Each cell shows that device's value; while its request is out the cell says **Running**, and if it failed the cell says **HTTP 503** or **No response** with a **Retry** that sends that one item again. A block shown on the per-item request itself lists one line per item with its status and the same Retry. The block's header says how many requests ran and how many failed (`2 of 3 failed`).
+- **Other requests cannot read from a per-item request yet.** Build blocks saving with "Warranty runs once per device; other calls can't read from it yet".
+- **Stop** ends the items not yet sent as Stopped.
+- **History and copies.** A saved lookup keeps each item's answer. Each item's body is cut like any other response body, and the bodies of one lookup together are kept under 1 MB, oldest dropped first, so 25 items cannot fill the history. **Copy all** and **Save as HTML** list one entry per item (in the page each is a closed section under the table).
+
+Tools without this setting, saved lookups and export files are not changed by it. A tools file that uses it is written as `version: 2`, like one that uses lists.
 
 ### Action buttons and the production confirm
 
