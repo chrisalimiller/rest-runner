@@ -8,8 +8,11 @@ import type { Vars } from "../template";
 import { readPath } from "../testing/jsonPath";
 import type { ScriptRunner } from "../testing/scriptRunner";
 import type { RequestDef } from "../types";
+import { callNeeds, findList, listAskNeeds, listsToAsk, pickOf, readList, readListValue, valueText, type ListSource, type Need, type ValueResolver } from "./lists";
 import { orderCalls } from "./order";
-import type { CallResult, LookupRun, Tool, ToolCall } from "./types";
+import type { CallResult, ListPick, ListRef, LookupRun, PlaceholderMapping, Tool, ToolCall, ToolList } from "./types";
+
+export { valueText };
 
 /** At most this many calls are in flight at once. */
 export const MAX_CONCURRENT_CALLS = 6;
@@ -22,6 +25,14 @@ export interface PickRowRequest {
   /** The finished call, with the response the rows came from. */
   result: CallResult;
   rows: unknown[];
+}
+
+export interface PickItemRequest {
+  call: ToolCall;
+  list: ToolList;
+  /** The finished call, with the response the items came from and the picks made so far. */
+  result: CallResult;
+  items: unknown[];
 }
 
 export interface ToolRunContext {
@@ -45,6 +56,12 @@ export interface LookupContext extends ToolRunContext {
    * Resolve with the chosen index, or null for none (the calls that need it are skipped). Without this, the first row is used.
    */
   pickRow?: (request: PickRowRequest) => Promise<number | null>;
+  /**
+   * Asked for each list of a call whose rule is "ask" (all lists of one call at once). A call with lists finishes as soon
+   * as its response is in; only the calls that read an asked list wait for the answer. Resolve with the chosen index, or
+   * null for none (the calls that need it are skipped). Without this, the first item is used.
+   */
+  pickItem?: (request: PickItemRequest) => Promise<number | null>;
 }
 
 export interface WriteCallContext extends ToolRunContext {
@@ -110,17 +127,34 @@ export function callData(call: ToolCall, result: CallResult | undefined): unknow
   return pickRows(call, result)?.[result.picked.index];
 }
 
-/** A field of a finished call, or undefined. Blocks read their fields with this. */
-export function readCallField(call: ToolCall, result: CallResult | undefined, path: string): unknown {
-  return readPath(callData(call, result), path);
+/** The same result with one more list pick. The parsed body is kept, so it is not parsed again. */
+export function withPick(result: CallResult, listId: string, pick: ListPick): CallResult {
+  const next: CallResult = { ...result, picks: { ...result.picks, [listId]: pick } };
+  if (jsonCache.has(result)) jsonCache.set(next, jsonCache.get(result));
+  return next;
 }
 
-/** A value as the text that goes into a request. Null for nothing there (missing, null, empty text). */
-export function valueText(v: unknown): string | null {
-  if (v === undefined || v === null || v === "") return null;
-  if (typeof v === "string") return v;
-  if (typeof v === "number" || typeof v === "boolean" || typeof v === "bigint") return String(v);
-  return JSON.stringify(v);
+/** A "where" value that knows only fixed text. What a view uses when it has no inputs or other calls to look at. */
+export const FIXED_ONLY: ValueResolver = (m) => (m.fixed !== undefined && m.fixed !== "" ? m.fixed : null);
+
+/** What list functions need to read a finished call's lists. */
+export function listSource(call: ToolCall, result: CallResult, resolve: ValueResolver = FIXED_ONLY): ListSource {
+  // A pick-a-row call that was converted to one list keeps its old lookups readable: its saved `picked` is that list's pick.
+  const picks = result.picks ?? (result.picked && call.lists?.length === 1 ? { [call.lists[0].id]: { index: result.picked.index } } : undefined);
+  return { call, json: callJson(result), picks, resolve };
+}
+
+/**
+ * A field of a finished call, or undefined. Blocks read their fields with this.
+ * With `list`, the path is read from an item of one of the call's lists (`resolve` supplies the value a "where" rule compares with).
+ */
+export function readCallField(call: ToolCall, result: CallResult | undefined, path: string, list?: ListRef, resolve?: ValueResolver): unknown {
+  if (list) {
+    if (!result || result.state !== "done") return undefined;
+    const r = readListValue(listSource(call, result, resolve), path, list);
+    return r.ok ? r.value : undefined;
+  }
+  return readPath(callData(call, result), path);
 }
 
 // ---- placeholders ----
@@ -128,8 +162,56 @@ export function valueText(v: unknown): string | null {
 export interface Resolution {
   /** Values for the mapped placeholders. Unmapped ones are left to the environment. */
   data: Vars;
-  /** Placeholders that map to a call field with no value. */
-  missing: { placeholder: string; callName: string }[];
+  /** Placeholders that map to a call field with no value. `reason` says why when a list could not give one ("Customer has no devices"). */
+  missing: { placeholder: string; callName: string; reason?: string }[];
+}
+
+type Results = ReadonlyMap<string, CallResult> | Record<string, CallResult>;
+
+function resultGetter(results: Results): (id: string) => CallResult | undefined {
+  return (id) => (results instanceof Map ? results.get(id) : (results as Record<string, CallResult>)[id]);
+}
+
+/** Where values come from while resolving one mapping. */
+interface MappingEnv {
+  inputs: Record<string, string>;
+  calls: ReadonlyMap<string, ToolCall>;
+  get: (id: string) => CallResult | undefined;
+}
+
+const MAX_MAPPING_DEPTH = 8;
+
+/** One mapping's text, in the order: the input (when it has text), another call's field, the fixed value. Null when none gives one. */
+function readMapping(m: PlaceholderMapping, env: MappingEnv, depth = 0): { value: string | null; reason?: string } {
+  if (depth > MAX_MAPPING_DEPTH) return { value: null };
+  const fromInput = m.input !== undefined ? valueText(env.inputs[m.input]) : null;
+  if (fromInput !== null) return { value: fromInput };
+  let reason: string | undefined;
+  if (m.call) {
+    const source = env.calls.get(m.call.callId);
+    const result = env.get(m.call.callId);
+    if (source && m.call.list) {
+      if (result && result.state === "done") {
+        const resolve: ValueResolver = (inner) => readMapping(inner, env, depth + 1).value;
+        const r = readListValue(listSource(source, result, resolve), m.call.path, m.call.list);
+        if (r.ok) {
+          const v = valueText(r.value);
+          if (v !== null) return { value: v };
+        } else reason = r.message;
+      }
+    } else if (source) {
+      const v = valueText(readCallField(source, result, m.call.path));
+      if (v !== null) return { value: v };
+    }
+  }
+  if (m.fixed !== undefined && m.fixed !== "") return { value: m.fixed };
+  return { value: null, ...(reason ? { reason } : {}) };
+}
+
+/** What a "where" rule compares with: resolved the way a placeholder is, from the typed inputs and the finished calls. */
+export function valueResolver(tool: Tool, inputs: Record<string, string>, results: Results): ValueResolver {
+  const env: MappingEnv = { inputs, calls: new Map(tool.calls.map((c) => [c.id, c])), get: resultGetter(results) };
+  return (m) => readMapping(m, env, 1).value;
 }
 
 /**
@@ -141,32 +223,20 @@ export function resolvePlaceholders(
   def: RequestDef,
   inputs: Record<string, string>,
   calls: Map<string, ToolCall>,
-  results: ReadonlyMap<string, CallResult> | Record<string, CallResult>,
+  results: Results,
 ): Resolution {
-  const get = (id: string) => (results instanceof Map ? results.get(id) : (results as Record<string, CallResult>)[id]);
+  const env: MappingEnv = { inputs, calls, get: resultGetter(results) };
   const data: Vars = {};
   const missing: Resolution["missing"] = [];
   for (const placeholder of requestPlaceholders(def)) {
     const m = call.mappings[placeholder];
     if (!m) continue;
-    const fromInput = m.input !== undefined ? valueText(inputs[m.input]) : null;
-    if (fromInput !== null) {
-      data[placeholder] = fromInput;
+    const r = readMapping(m, env);
+    if (r.value !== null) {
+      data[placeholder] = r.value;
       continue;
     }
-    if (m.call) {
-      const source = calls.get(m.call.callId);
-      const v = source ? valueText(readCallField(source, get(m.call.callId), m.call.path)) : null;
-      if (v !== null) {
-        data[placeholder] = v;
-        continue;
-      }
-    }
-    if (m.fixed !== undefined && m.fixed !== "") {
-      data[placeholder] = m.fixed;
-      continue;
-    }
-    if (m.call) missing.push({ placeholder, callName: calls.get(m.call.callId)?.name || "a removed call" });
+    if (m.call) missing.push({ placeholder, callName: calls.get(m.call.callId)?.name || "a removed call", ...(r.reason ? { reason: r.reason } : {}) });
   }
   return { data, missing };
 }
@@ -182,7 +252,7 @@ function stopped(call: ToolCall, message = "Stopped."): CallResult {
 }
 
 function needsMessage(r: Resolution): string {
-  return r.missing.map((m) => `Needs ${m.placeholder} from ${m.callName}`).join("; ");
+  return [...new Set(r.missing.map((m) => m.reason ?? `Needs ${m.placeholder} from ${m.callName}`))].join("; ");
 }
 
 /** Sends one call whose values are ready. Never throws. */
@@ -237,13 +307,34 @@ export async function runLookup(tool: Tool, rawInputs: Record<string, string>, c
   let wasStopped = false;
   let over = false;
 
-  const depsOf = (call: ToolCall): string[] => {
+  const needsOf = (call: ToolCall): Need[] => {
     const def = ctx.findRequest(call.requestId);
-    const used = def ? requestPlaceholders(def) : [];
-    return [...new Set(used.map((p) => call.mappings[p]?.call?.callId).filter((id): id is string => !!id && byId.has(id)))];
+    return callNeeds(call, def ? requestPlaceholders(def) : [], byId).filter((n) => byId.has(n.callId));
   };
 
+  // Calls with lists finish as soon as their response is in. The lists the user is asked to pick in settle later,
+  // one at a time, and only the calls that read such a list wait for it.
+  const asking = new Map(tool.calls.filter((c) => !c.write && c.lists?.length).map((c) => [c.id, listsToAsk(tool, c)]));
+  const settled = new Set<string>();
+  const settledKey = (callId: string, listId: string) => `${callId}\u0001${listId}`;
+  const isSettled = (callId: string, listId: string) => settled.has(settledKey(callId, listId)) || !asking.get(callId)?.includes(listId);
+  const needsMet = (needs: Need[]) => needs.every((n) => !byId.has(n.callId) || (finished.has(n.callId) && n.lists.every((l) => isSettled(n.callId, l))));
+  /** Lists of finished calls not yet asked about (call id to list ids). */
+  const unasked = new Map<string, Set<string>>();
+  let openAsks = 0;
+  let askingNow = 0;
+
+  const env: MappingEnv = { inputs, calls: byId, get: (id) => results.get(id) };
+  const resolve: ValueResolver = (m) => readMapping(m, env, 1).value;
+
   return new Promise<LookupRun>((resolveRun) => {
+    const settle = (callId: string, listId: string) => {
+      const key = settledKey(callId, listId);
+      if (settled.has(key)) return;
+      settled.add(key);
+      openAsks--;
+    };
+
     const finish = (call: ToolCall, result: CallResult | null) => {
       if (result) {
         results.set(call.id, result);
@@ -251,6 +342,12 @@ export async function runLookup(tool: Tool, rawInputs: Record<string, string>, c
         ctx.onCall?.(result);
       }
       finished.add(call.id);
+      const lists = asking.get(call.id) ?? [];
+      if (lists.length > 0) {
+        openAsks += lists.length;
+        if (result?.state === "done") unasked.set(call.id, new Set(lists));
+        else lists.forEach((l) => settle(call.id, l));
+      }
     };
 
     const startCall = (call: ToolCall, def: RequestDef, data: Vars) => {
@@ -287,13 +384,62 @@ export async function runLookup(tool: Tool, rawInputs: Record<string, string>, c
       return { ...withCount, picked: { index } };
     };
 
+    /** Picks an item of one list: asks the user (a list of one item is picked without asking), then lets the calls waiting for it go on. */
+    const ask = async (call: ToolCall, listId: string) => {
+      askingNow++;
+      try {
+        // Never run inside pump itself.
+        await Promise.resolve();
+        const list = findList(call, listId);
+        const current = results.get(call.id);
+        if (!list || !current) return;
+        const read = readList(listSource(call, current, resolve), listId);
+        if (!read.ok || read.items.length === 0) return;
+        let index: number | null = 0;
+        if (ctx.pickItem && !(read.items.length === 1 && list.autoPickSingle !== false)) {
+          const abort = abortPromise(ctx.signal);
+          try {
+            index = await Promise.race([ctx.pickItem({ call, list, result: current, items: read.items }), abort.promise.then(() => null)]);
+          } catch {
+            index = null;
+          } finally {
+            abort.dispose();
+          }
+        }
+        if (index === null || !Number.isInteger(index) || index < 0 || index >= read.items.length) return;
+        const next = withPick(results.get(call.id) ?? current, listId, pickOf(list, read.items, index));
+        results.set(call.id, next);
+        ctx.onCall?.(next);
+      } finally {
+        askingNow--;
+        settle(call.id, listId);
+        pump();
+      }
+    };
+
+    /** Starts the picks that can be asked now: a list inside another list waits for its parent's choice. */
+    const askReady = () => {
+      for (const [callId, pending] of unasked) {
+        const call = byId.get(callId)!;
+        for (const listId of [...pending]) {
+          const aborted = !!ctx.signal?.aborted;
+          if (!aborted && !needsMet(listAskNeeds(call, listId, byId))) continue;
+          pending.delete(listId);
+          if (aborted) settle(callId, listId);
+          else void ask(call, listId);
+        }
+        if (pending.size === 0) unasked.delete(callId);
+      }
+    };
+
     const pump = () => {
       let again = true;
       while (again) {
         again = false;
+        askReady();
         for (const call of order.order) {
           if (started.has(call.id) || finished.has(call.id)) continue;
-          if (!depsOf(call).every((d) => finished.has(d))) continue;
+          if (!needsMet(needsOf(call))) continue;
           if (ctx.signal?.aborted) {
             finish(call, call.write ? null : stopped(call, "Stopped before this call started."));
             again = true;
@@ -319,8 +465,13 @@ export async function runLookup(tool: Tool, rawInputs: Record<string, string>, c
           if (running >= max) continue;
           startCall(call, def, r.data);
         }
+        // Every call is finished but some pick could never be asked (its rule waits on a pick that waits on it): give those up.
+        if (finished.size === tool.calls.length && askingNow === 0 && unasked.size > 0) {
+          for (const [callId, pending] of unasked) pending.forEach((l) => settle(callId, l));
+          unasked.clear();
+        }
       }
-      if (!over && finished.size === tool.calls.length) {
+      if (!over && finished.size === tool.calls.length && openAsks === 0) {
         over = true;
         ctx.signal?.removeEventListener("abort", pump);
         resolveRun({
@@ -365,17 +516,18 @@ export async function runWriteCall(tool: Tool, callId: string, rawInputs: Record
 
 /** Calls whose values come from this call's response (so a retry of it would leave them out of date). */
 export function dependentCalls(tool: Tool, callId: string, findRequest: RequestLookup): ToolCall[] {
+  const byId = new Map(tool.calls.map((c) => [c.id, c]));
   return tool.calls.filter((c) => {
     if (c.id === callId) return false;
     const def = findRequest(c.requestId);
-    return (def ? requestPlaceholders(def) : []).some((p) => c.mappings[p]?.call?.callId === callId);
+    return callNeeds(c, def ? requestPlaceholders(def) : [], byId).some((n) => n.callId === callId);
   });
 }
 
 /** Whether Retry can run this one call alone: nothing reads its answer and it is not a pick-a-row call. Otherwise the whole lookup runs again. */
 export function canRetryAlone(tool: Tool, callId: string, findRequest: RequestLookup): boolean {
   const call = tool.calls.find((c) => c.id === callId);
-  return !!call && !call.write && !call.pickRow && dependentCalls(tool, callId, findRequest).length === 0;
+  return !!call && !call.write && !call.pickRow && !call.lists?.length && dependentCalls(tool, callId, findRequest).length === 0;
 }
 
 /** Runs one lookup call again, reading what it needs from `prior` (the answers on screen). Never throws except for a call that is not a lookup call. */

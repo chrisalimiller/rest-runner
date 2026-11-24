@@ -1,7 +1,13 @@
+import { callNeeds } from "./lists";
 import type { ToolCall } from "./types";
 
-/** The calls whose fields `call` maps a placeholder to. Only placeholders in `only` count when given. */
-export function callDependencies(call: ToolCall, only?: readonly string[] | null): string[] {
+/**
+ * The calls whose fields `call` maps a placeholder to. Only placeholders in `only` count when given.
+ * With `calls` (all the calls of the tool), the calls a list rule compares with count too: a value read from
+ * the first service where status = {{x}} also waits for the call {{x}} comes from.
+ */
+export function callDependencies(call: ToolCall, only?: readonly string[] | null, calls?: ReadonlyMap<string, ToolCall>): string[] {
+  if (calls) return callNeeds(call, only, calls).map((n) => n.callId).filter((id) => id !== "");
   const out = new Set<string>();
   for (const [placeholder, m] of Object.entries(call.mappings)) {
     if (only && !only.includes(placeholder)) continue;
@@ -29,7 +35,7 @@ export type CallOrder =
 export function orderCalls(calls: readonly ToolCall[], placeholdersOf?: (call: ToolCall) => readonly string[] | null): CallOrder {
   const byId = new Map(calls.map((c) => [c.id, c]));
   const deps = new Map<string, string[]>();
-  for (const c of calls) deps.set(c.id, callDependencies(c, placeholdersOf?.(c)).filter((d) => byId.has(d)));
+  for (const c of calls) deps.set(c.id, callDependencies(c, placeholdersOf?.(c), byId).filter((d) => byId.has(d)));
 
   const level = new Set<string>();
   const remaining = new Set(calls.map((c) => c.id));

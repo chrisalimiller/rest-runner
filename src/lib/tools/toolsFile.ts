@@ -1,14 +1,18 @@
 import { cleanCollections, locate, type Collection } from "../collections";
 import { addByPath, mergeById, replaceNode, type ExportedRequest } from "../flows/flowFile";
 import { validateImportedMethods } from "../importMethods";
+import { toolUsesLists } from "./lists";
 import { cleanTools } from "./tools";
 import type { Tool } from "./types";
+
+/** The newest tools file this version of the app reads. Version 2 is a file with a tool that uses lists. */
+export const TOOLS_FILE_VERSION = 2;
 
 /** File format for exporting tools together with the saved requests they use. Same shape and rules as the flows file. */
 export interface ToolsFile {
   app: "rest-runner";
   kind: "tools";
-  version: 1;
+  version: 1 | 2;
   exportedAt: string;
   tools: Tool[];
   requests: ExportedRequest[];
@@ -28,7 +32,9 @@ export function requestsUsedBy(tools: Tool[], collections: Collection[]): Export
 }
 
 export function toToolsFile(tools: Tool[], collections: Collection[]): string {
-  const file: ToolsFile = { app: "rest-runner", kind: "tools", version: 1, exportedAt: new Date().toISOString(), tools, requests: requestsUsedBy(tools, collections) };
+  // Stays version 1, byte for byte the same shape as before, unless a tool uses something only version 2 knows.
+  const version = tools.some(toolUsesLists) ? 2 : 1;
+  const file: ToolsFile = { app: "rest-runner", kind: "tools", version, exportedAt: new Date().toISOString(), tools, requests: requestsUsedBy(tools, collections) };
   return JSON.stringify(file, null, 2);
 }
 
@@ -83,6 +89,7 @@ export function importToolsFile(text: string, current: { tools: Tool[]; collecti
     throw new Error("The file is not valid JSON.");
   }
   if (!data || data.app !== "rest-runner" || data.kind !== "tools") throw new Error("This is not a REST Runner tools file.");
+  if (typeof data.version === "number" && data.version > TOOLS_FILE_VERSION) throw new Error("This file needs a newer REST Runner.");
   validateImportedMethods([data.requests]);
   return mergeToolsAndRequests(data.tools, data.requests, current);
 }

@@ -54,6 +54,26 @@ Calls that read from another call run after it; Build mode lists them as Input, 
 
 When a call's response is a list (for example "the subscriber's devices"), tick **Ask me to pick a row** in Build mode. In Use mode the table block's rows are a radio group: click a row, or move with the arrow keys (Home and End too) and press Enter or Space. The calls that need a field of the chosen row wait until you pick, and say "Waiting for a row in …" with a link that scrolls to the table; calls that do not need it carry on. **Use none** (one button under the table) skips them. The chosen row is highlighted afterwards, and you can choose a different one: only the calls that read from that row run again, and the rest of the page stays as it is. Without a table block for that call, the first row is used.
 
+### Lists inside a response (engine)
+
+A response can hold several lists at once, such as a customer's `services` and `devices`. A call can name each of them (a **list**: its path, a label for its items, and a rule for which item it hands on) and a value can say which item it reads. Build mode does not set this up yet; the engine and the file format come first, and tools saved before this keep working exactly as they were.
+
+A list's rule, or the rule of one value that reads it, is one of:
+
+- **none**: the list is only shown.
+- **ask**: the row picked in the table. A list of one item is picked without asking, unless the list turns that off.
+- **index**: `0` is the first item, `-1` the last, `n` the item at that position.
+- **where**: the first item whose field equals (or does not equal) a value. The value is mapped like a placeholder: an input, another call's field, or fixed text. A call that supplies it runs first.
+- On a value only: **all** (every item's field, joined, optionally only items that match) and **count** (how many items).
+
+A list can sit inside another list (the features of a service): its path is read from the parent's chosen item.
+
+A call with lists finishes as soon as its response is in. Only the calls that read a list wait for its pick, and a call that reads one list does not wait for the pick in another. When an item cannot be chosen the call is skipped with the reason: "Customer has no devices", "No service where status = active in Customer", "No row picked in Devices", "Devices is not a list in this response".
+
+Fields and mappings with no list keep reading the whole response, as before. A call with **Ask me to pick a row** keeps working as it did; a call has either that or lists.
+
+**Export files.** A tools file that uses lists is written as `version: 2`; a file without them stays `version: 1`. This version refuses a file with a newer version ("This file needs a newer REST Runner"). Earlier versions ignore `version` and would drop the list fields on import, so update before importing a file that uses lists.
+
 ### Action buttons and the production confirm
 
 An **Action** block is a button that runs a **write** call (a POST, PUT, PATCH or DELETE request) with the values on screen: inputs and the answers of the last lookup. Write calls never run in Look up, only from their button. After pressing it, the block shows the status and response body, or the error.
