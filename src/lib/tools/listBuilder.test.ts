@@ -25,6 +25,8 @@ import {
   setListShow,
   splitListPath,
   toggleListEntry,
+  rowColumnOptions,
+  defaultRowColumns,
   toggleListField,
   updateList,
 } from "./listBuilder";
@@ -416,12 +418,45 @@ describe("clicking a list row of a Fields block", () => {
   const blockOf = (t: Tool) => t.blocks.find((b) => b.id === "b-subscriber")!;
   const callOf = (t: Tool) => t.calls.find((c) => c.id === "c-devices")!;
 
-  it("adds a how-many entry for a list of records, on a list that only shows (so nothing waits for a pick)", () => {
+  it("adds a Table entry for a list of records, on a list that only shows (so nothing waits for a pick)", () => {
     const t = toggleListEntry(base(), "b-subscriber", sample, "$.servItems")!;
     const list = callOf(t).lists![0];
     expect(list).toMatchObject({ path: "$.servItems", name: "Serv items", choose: { kind: "none" }, labelPath: "$.name" });
-    expect(blockOf(t).fields).toEqual([{ path: "$", label: "Serv items", format: "text", list: { listId: list.id, item: { kind: "count" } } }]);
-    expect(listEntryOf(callOf(t), blockOf(t).fields[0], sample)).toMatchObject({ show: "count" });
+    expect(blockOf(t).fields).toEqual([
+      { path: "$", label: "Serv items", format: "text", list: { listId: list.id, item: { kind: "rows", columns: [{ path: "$.name", label: "Name", format: "text" }, { path: "$.id", label: "Id", format: "text" }] } } },
+    ]);
+    expect(listEntryOf(callOf(t), blockOf(t).fields[0], sample)).toMatchObject({ show: "table" });
+  });
+
+  it("adds a how-many entry in a Number block, which has no Table", () => {
+    const t = toggleListEntry(base("number"), "b-subscriber", sample, "$.servItems")!;
+    expect(blockOf(t).fields[0].list!.item).toEqual({ kind: "count" });
+    expect(setListShow(t, "b-subscriber", 0, sample, "table")).toBe(t);
+  });
+
+  it("switches between Table, Joined and How many, keeping the filter and the columns", () => {
+    const where = { field: "$.id", op: "eq" as const, value: { fixed: "1" } };
+    let t = toggleListEntry(base(), "b-subscriber", sample, "$.servItems")!;
+    t = setEntryChoice(t, "b-subscriber", 0, { item: { kind: "rows", columns: [{ path: "$.name", label: "Service", format: "text" }], max: 2, where } });
+    const counted = setListShow(t, "b-subscriber", 0, sample, "count");
+    expect(blockOf(counted).fields[0].list!.item).toEqual({ kind: "count", where });
+    const back = setListShow(counted, "b-subscriber", 0, sample, "table");
+    expect(blockOf(back).fields[0].list!.item).toMatchObject({ kind: "rows", where });
+    expect(setListShow(t, "b-subscriber", 0, sample, "table")).toBe(t);
+  });
+
+  it("Its own Table block from a Table entry turns the entry into How many", () => {
+    const t = toggleListEntry(base(), "b-subscriber", sample, "$.servItems")!;
+    const r = addTableBesideEntry(t, "b-subscriber", 0, sample)!;
+    expect(r.tool.blocks.find((b) => b.id === "b-subscriber")!.fields[0].list!.item).toEqual({ kind: "count" });
+  });
+
+  it("columns: keys across all items, the first three plain ones on; one Value column for plain values", () => {
+    const items = [{ a: 1, b: "x", c: [1] }, { a: 2, d: "y", e: "z" }];
+    expect(rowColumnOptions(items)).toEqual(["$.a", "$.b", "$.c", "$.d", "$.e"]);
+    expect(defaultRowColumns(items).map((c) => c.path)).toEqual(["$.a", "$.b", "$.d"]);
+    expect(defaultRowColumns(["CID", "VM"])).toEqual([{ path: "$", label: "Value", format: "text" }]);
+    expect(defaultRowColumns([])).toEqual([{ path: "$", label: "Value", format: "text" }]);
   });
 
   it("adds a joined entry for a list of plain values", () => {

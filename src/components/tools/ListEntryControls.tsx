@@ -1,8 +1,8 @@
-import { useId } from "react";
-import { addTableBesideEntry, itemFieldOptions, listEntryOf, openItemFields, setEntryChoice, setListShow, takesListEntries, type ListShow } from "../../lib/tools/listBuilder";
+import { useId, useState } from "react";
+import { addTableBesideEntry, columnFor, itemFieldOptions, listEntryOf, openItemFields, rowColumnOptions, setEntryChoice, setListShow, takesListEntries, type ListShow } from "../../lib/tools/listBuilder";
 import { sampleValue } from "../../lib/tools/builder";
 import type { SessionState } from "../../lib/tools/session";
-import type { ListItemChoice, Tool, ToolBlock, ToolCall } from "../../lib/tools/types";
+import { DEFAULT_ROWS_MAX, type ListItemChoice, type RowsChoice, type Tool, type ToolBlock, type ToolCall } from "../../lib/tools/types";
 import { WhereEditor } from "./ListControls";
 import { RefSample } from "./ListValue";
 
@@ -27,7 +27,7 @@ interface Props {
   onTableAdded: (blockId: string, title: string) => void;
 }
 
-const SHOW_LABELS: Record<ListShow, string> = { joined: "Joined values", count: "How many", json: "JSON" };
+const SHOW_LABELS: Record<ListShow, string> = { joined: "Joined values", count: "How many", table: "Table in this block", json: "JSON" };
 
 /** Whether this field of this block gets the Show as control. */
 export function hasShowAs(call: ToolCall | undefined, block: ToolBlock, index: number, sample: unknown): boolean {
@@ -46,11 +46,13 @@ export function ListEntryControls({ work, setWork, block, index, call, state, sa
   const single = block.type !== "fields";
   const label = f.label || f.path;
   const item = f.list?.item;
-  const filtered = item?.kind === "all" || item?.kind === "count" ? item : null;
-  const setItem = (next: Extract<ListItemChoice, { kind: "all" | "count" }>) => setWork(setEntryChoice(work, block.id, index, { item: next }));
+  const filtered = item?.kind === "all" || item?.kind === "count" || item?.kind === "rows" ? item : null;
+  const rows: RowsChoice | null = item?.kind === "rows" ? item : null;
+  const [typed, setTyped] = useState("");
+  const setItem = (next: Extract<ListItemChoice, { kind: "all" | "count" | "rows" }>) => setWork(setEntryChoice(work, block.id, index, { item: next }));
 
   const choose = (v: string) => {
-    if (v === "joined" || v === "count" || v === "json") return setWork(setListShow(work, block.id, index, sample, v));
+    if (v === "joined" || v === "count" || v === "table" || v === "json") return setWork(setListShow(work, block.id, index, sample, v));
     if (v === "__table") {
       const added = addTableBesideEntry(work, block.id, index, sample);
       if (!added) return;
@@ -76,6 +78,7 @@ export function ListEntryControls({ work, setWork, block, index, call, state, sa
         <label className="small cd-entry-show">
           Show as
           <select value={entry.show} aria-label={`Show ${label} as`} onChange={(e) => choose(e.target.value)}>
+            {!single && <option value="table">{SHOW_LABELS.table}</option>}
             <option value="joined">{SHOW_LABELS.joined}</option>
             <option value="count">{SHOW_LABELS.count}</option>
             {!single && <option value="__table">Its own Table block</option>}
@@ -101,7 +104,22 @@ export function ListEntryControls({ work, setWork, block, index, call, state, sa
           </>
         )}
       </div>
-      {f.list && (
+      {rows && (
+        <RowsControls
+          label={label}
+          rows={rows}
+          items={items}
+          typed={typed}
+          setTyped={setTyped}
+          onChange={(next) => setItem(next)}
+        />
+      )}
+      {rows && (
+        <p className="small muted cd-sample">
+          Shows the first {Math.min(items.length, rows.max ?? DEFAULT_ROWS_MAX)} of {items.length} {items.length === 1 ? "item" : "items"}; Save as HTML keeps all of them.
+        </p>
+      )}
+      {f.list && !rows && (
         <p className="cd-sample">
           <RefSample tool={work} call={call} state={state} path={f.path} list={f.list} format={f.format} />
         </p>
@@ -115,7 +133,8 @@ export function ListEntryControls({ work, setWork, block, index, call, state, sa
               onChange={(e) => {
                 const field = itemFieldOptions(items[0])[0] ?? "";
                 const withWhere = { ...filtered, where: { field, op: "eq" as const, value: { fixed: "" } } };
-                const without = filtered.kind === "all" ? { kind: "all" as const, join: filtered.join } : { kind: "count" as const };
+                const { where: _dropped, ...without } = filtered;
+                void _dropped;
                 setItem(e.target.checked ? withWhere : without);
               }}
             />
@@ -125,5 +144,50 @@ export function ListEntryControls({ work, setWork, block, index, call, state, sa
         </div>
       )}
     </div>
+  );
+}
+
+/** Columns of the Table choice: one checkbox per key found in the sample items, a way to type another path, and the row cap. */
+function RowsControls({ label, rows, items, typed, setTyped, onChange }: { label: string; rows: RowsChoice; items: unknown[]; typed: string; setTyped: (v: string) => void; onChange: (r: RowsChoice) => void }) {
+  const options = rowColumnOptions(items);
+  const chosen = new Set(rows.columns.map((c) => c.path));
+  const extra = rows.columns.filter((c) => !options.includes(c.path)).map((c) => c.path);
+  const make = (path: string) => columnFor(items, path);
+  const toggle = (path: string, on: boolean) => {
+    if (on) return onChange({ ...rows, columns: [...rows.columns, make(path)] });
+    if (rows.columns.length <= 1) return;
+    onChange({ ...rows, columns: rows.columns.filter((c) => c.path !== path) });
+  };
+  const addTyped = () => {
+    const path = typed.trim();
+    if (!path || chosen.has(path)) return setTyped("");
+    onChange({ ...rows, columns: [...rows.columns, make(path.startsWith("$") ? path : `$.${path}`)] });
+    setTyped("");
+  };
+  return (
+    <fieldset className="cd-entry-columns">
+      <legend className="small">Columns</legend>
+      <div className="cd-entry-chips">
+        {[...options, ...extra].map((o) => (
+          <label key={o} className="check small cd-entry-chip">
+            <input type="checkbox" checked={chosen.has(o)} disabled={chosen.has(o) && rows.columns.length <= 1} onChange={(e) => toggle(o, e.target.checked)} aria-label={`Column ${o} of ${label}`} />
+            <span className="mono">{o === "$" ? "Value" : o.replace(/^\$\./, "")}</span>
+          </label>
+        ))}
+      </div>
+      <div className="cd-entry-row">
+        <label className="small cd-entry-key">
+          Another column
+          <input type="text" className="mono" value={typed} placeholder="$.name" aria-label={`Type a column path for ${label}`} spellCheck={false} onChange={(e) => setTyped(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTyped())} />
+        </label>
+        <button type="button" className="secondary" disabled={!typed.trim()} onClick={addTyped}>
+          Add
+        </button>
+        <label className="small cd-entry-max">
+          Rows shown
+          <input type="number" min={1} max={100} value={rows.max ?? DEFAULT_ROWS_MAX} aria-label={`Rows shown for ${label}`} onChange={(e) => onChange({ ...rows, max: Math.min(100, Math.max(1, Math.floor(Number(e.target.value)) || DEFAULT_ROWS_MAX)) })} />
+        </label>
+      </div>
+    </fieldset>
   );
 }

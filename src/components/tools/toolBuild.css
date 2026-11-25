@@ -1616,6 +1616,7 @@ button.call-request:hover {
 
 .cd-entry-show,
 .cd-entry-key,
+.cd-entry-max,
 .cd-entry-join {
   display: grid;
   gap: 2px;
@@ -1623,4 +1624,35 @@ button.call-request:hover {
 
 .cd-entry-key input {
   min-width: 120px;
+}
+
+.cd-entry-columns {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.cd-entry-columns legend {
+  padding: 0;
+  margin-bottom: 2px;
+}
+
+.cd-entry-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.cd-entry-max input {
+  width: 72px;
+}
+
+.cd-format-columns {
+  margin: 6px 0 0 12px;
+  padding-left: 10px;
+  border-left: 2px solid var(--border, rgba(127, 127, 127, 0.25));
+  flex-basis: 100%;
 }

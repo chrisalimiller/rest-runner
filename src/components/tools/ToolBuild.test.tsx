@@ -339,8 +339,28 @@ describe("Show as, under a field that shows a whole list", () => {
   it("offers every way to show the list, with the size of the list", () => {
     const out = render(toggleListEntry(base(), "b-subscriber", sample, "$.servItems")!);
     expect(out).toContain("List · 2 items");
-    for (const label of ["Joined values", "How many", "Its own Table block", "One item&#x27;s fields", "JSON"]) expect(out).toContain(label);
-    expect(out).toMatch(/<option value="count" selected="">How many/);
+    for (const label of ["Table in this block", "Joined values", "How many", "Its own Table block", "One item&#x27;s fields", "JSON"]) expect(out).toContain(label);
+    expect(out).toMatch(/<option value="table" selected="">Table in this block/);
+  });
+
+  it("Table: one checkbox per key found in the items, the first ones on, and the row cap", () => {
+    const mixed = { servItems: [{ name: "Roaming", id: 1, tier: "a" }, { name: "Voicemail", id: 2, extra: true, features: ["x"] }] };
+    const t = base();
+    const made = toggleListEntry(t, "b-subscriber", mixed, "$.servItems")!;
+    const block = made.blocks.find((b) => b.id === "b-subscriber")!;
+    const call = made.calls.find((c) => c.id === "c-devices")!;
+    const out = renderToStaticMarkup(<ListEntryControls work={made} setWork={noop} block={block} index={0} call={call} state={stateOf([done("c-devices", mixed)])} sample={mixed} onReveal={noop} onTableAdded={noop} />);
+    expect(out).toContain("Columns");
+    for (const key of ["name", "id", "tier", "extra", "features"]) expect(out).toContain(`aria-label="Column $.${key} of Serv items"`);
+    expect(out.match(/type="checkbox"[^>]*checked=""/g)).toHaveLength(3);
+    expect(out).toContain("Rows shown");
+    expect(out).toContain('value="5"');
+  });
+
+  it("Table is not offered for a list of plain values by default, but is in the menu", () => {
+    const out = render(toggleListEntry(base(), "b-subscriber", sample, "$.tags")!);
+    expect(out).toMatch(/<option value="joined" selected="">Joined values/);
+    expect(out).toContain('<option value="table">Table in this block');
   });
 
   it("asks which key to join and with what, and offers the filter", () => {
@@ -354,6 +374,7 @@ describe("Show as, under a field that shows a whole list", () => {
   it("has no Table block choice in a single-value block", () => {
     const out = render(toggleListEntry(base("number"), "b-subscriber", sample, "$.tags")!);
     expect(out).not.toContain("Its own Table block");
+    expect(out).not.toContain("Table in this block");
     expect(out).toContain("Joined values");
   });
 
