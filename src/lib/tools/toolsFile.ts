@@ -31,9 +31,19 @@ export function requestsUsedBy(tools: Tool[], collections: Collection[]): Export
   return [...out.values()];
 }
 
+/** The oldest tools file version that can hold these tools: 1 unless a tool uses lists (2) or a list as a table (3). */
+export function toolsVersionNeeded(tools: Tool[]): 1 | 2 | 3 {
+  return tools.some(toolUsesRows) ? 3 : tools.some(toolUsesLists) ? 2 : 1;
+}
+
+/** Throws when a file says it needs a newer tools format than this app reads. */
+export function assertToolsVersionReadable(version: unknown): void {
+  if (typeof version === "number" && version > TOOLS_FILE_VERSION) throw new Error("This file needs a newer REST Runner.");
+}
+
 export function toToolsFile(tools: Tool[], collections: Collection[]): string {
   // Stays version 1 or 2, byte for byte the same shape as before, unless a tool uses something only a newer version knows.
-  const version = tools.some(toolUsesRows) ? 3 : tools.some(toolUsesLists) ? 2 : 1;
+  const version = toolsVersionNeeded(tools);
   const file: ToolsFile = { app: "rest-runner", kind: "tools", version, exportedAt: new Date().toISOString(), tools, requests: requestsUsedBy(tools, collections) };
   return JSON.stringify(file, null, 2);
 }
@@ -89,7 +99,7 @@ export function importToolsFile(text: string, current: { tools: Tool[]; collecti
     throw new Error("The file is not valid JSON.");
   }
   if (!data || data.app !== "rest-runner" || data.kind !== "tools") throw new Error("This is not a REST Runner tools file.");
-  if (typeof data.version === "number" && data.version > TOOLS_FILE_VERSION) throw new Error("This file needs a newer REST Runner.");
+  assertToolsVersionReadable(data.version);
   validateImportedMethods([data.requests]);
   return mergeToolsAndRequests(data.tools, data.requests, current);
 }
