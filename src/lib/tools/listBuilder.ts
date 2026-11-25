@@ -3,7 +3,7 @@ import { parsePath, readPath } from "../testing/jsonPath";
 import { addBlock, childPath, groupRows, guessFormat, guessLabelPath, isSingleField, keyIsPathSafe, labelForPath, normalizeBlocks, sampleValue, uniqueName } from "./builder";
 import { eachPlan, findList, listsToAsk, nameFromPath, readList, type ListSource } from "./lists";
 import { newBlock } from "./tools";
-import { MAX_BLOCKS_PER_ROW, type BlockField, type CallResult, type ItemRule, type ListItemChoice, type ListRef, type PlaceholderMapping, type Tool, type ToolBlock, type ToolCall, type ToolList } from "./types";
+import { MAX_BLOCKS_PER_ROW, type BlockField, type CallResult, type ItemRule, type ListItemChoice, type ListRef, type PlaceholderMapping, type RowsColumn, type Tool, type ToolBlock, type ToolCall, type ToolList } from "./types";
 
 /**
  * The logic of setting up lists in Build mode, as plain functions over a tool: finding the lists in a sample response,
@@ -374,7 +374,7 @@ export function fieldIsPicked(call: ToolCall | undefined, block: ToolBlock, json
 /** A list entry that is about the whole list (how many, or plain values joined), not about one of its items. */
 function showsWholeList(f: BlockField): boolean {
   const item = f.list?.item;
-  return item?.kind === "count" || (item?.kind === "all" && samePath(f.path, "$"));
+  return item?.kind === "count" || item?.kind === "rows" || (item?.kind === "all" && samePath(f.path, "$"));
 }
 
 /**
@@ -479,7 +479,7 @@ export function togglePerItemColumn(block: ToolBlock, callId: string, path: stri
 // ---- a click on a list row of a Fields block: how to show the list ----
 
 /** How a list entry of a Fields block shows its list. "json" is today's plain field, kept as the last choice. */
-export type ListShow = "joined" | "count" | "json";
+export type ListShow = "joined" | "count" | "table" | "json";
 
 /** What a field of a block is when it shows a whole list. Null for a field that shows one value. */
 export interface ListEntry {
@@ -505,6 +505,7 @@ export function listEntryOf(call: ToolCall | undefined, f: BlockField, json: unk
     const list = findList(call, f.list.listId);
     if (!list) return null;
     if (f.list.item?.kind === "count") return { show: "count", list };
+    if (f.list.item?.kind === "rows") return { show: "table", list };
     if (f.list.item?.kind === "all") return { show: "joined", list };
     return null;
   }
@@ -514,8 +515,10 @@ export function listEntryOf(call: ToolCall | undefined, f: BlockField, json: unk
 function entryOfPath(call: ToolCall, block: ToolBlock, path: string): ListEntry | null {
   const list = topList(call, path);
   if (!list) return null;
-  const f = block.fields.find((x) => x.list?.listId === list.id && (x.list.item?.kind === "count" || x.list.item?.kind === "all"));
-  return f ? { show: f.list!.item!.kind === "count" ? "count" : "joined", list } : null;
+  const f = block.fields.find((x) => x.list?.listId === list.id && isEntryItem(x.list.item));
+  if (!f) return null;
+  const kind = f.list!.item!.kind;
+  return { show: kind === "count" ? "count" : kind === "rows" ? "table" : "joined", list };
 }
 
 /** The list of the call at this path of the whole response, if there is one. */
@@ -525,6 +528,11 @@ function topList(call: ToolCall, path: string): ToolList | undefined {
 
 function listPathOf(f: BlockField, entry: ListEntry): string {
   return entry.list ? entry.list.path : f.path;
+}
+
+/** The item choices an entry made by clicking a whole list can have. */
+function isEntryItem(item: ListItemChoice | undefined): item is Extract<ListItemChoice, { kind: "all" | "count" | "rows" }> {
+  return item?.kind === "count" || item?.kind === "all" || item?.kind === "rows";
 }
 
 /** The list at this path of the call, made (set to show only, so nothing waits for a pick) when it is not there yet. */
@@ -561,14 +569,52 @@ function defaultKey(first: unknown): string {
 }
 
 /** What a list is shown as when the click first adds it: joined for plain values, how many for records. */
-export function defaultListShow(value: unknown): ListShow {
+export function defaultListShow(value: unknown, tableAllowed = false): ListShow {
   const first = isList(value) ? value[0] : undefined;
-  return first !== null && typeof first === "object" ? "count" : "joined";
+  if (first !== null && typeof first === "object") return tableAllowed ? "table" : "count";
+  return "joined";
 }
 
-function entryField(list: ToolList, show: Exclude<ListShow, "json">, prev: BlockField | undefined, first: unknown): BlockField {
-  const where = prev?.list?.item?.kind === "count" || prev?.list?.item?.kind === "all" ? prev.list.item.where : undefined;
+/** Most columns a new table starts with. */
+const DEFAULT_COLUMNS = 3;
+
+/** The keys the items of a list have, as paths, over all items, in the order first met: what a table can show as columns. */
+export function rowColumnOptions(items: readonly unknown[]): string[] {
+  if (!items.some((it) => it !== null && typeof it === "object" && !Array.isArray(it))) return ["$"];
+  const keys: string[] = [];
+  for (const it of items) for (const k of itemFieldOptions(it)) if (!keys.includes(k)) keys.push(k);
+  return keys;
+}
+
+/** The columns a new table starts with: the first plain keys (not lists or objects) across the items, or one Value column. */
+export function defaultRowColumns(items: readonly unknown[]): RowsColumn[] {
+  const options = rowColumnOptions(items);
+  if (options[0] === "$") return [{ path: "$", label: "Value", format: "text" }];
+  const plain = options.filter((o) => items.some((it) => {
+    const v = readPath(it, o);
+    return v !== undefined && v !== null && typeof v !== "object";
+  }));
+  return (plain.length > 0 ? plain : options).slice(0, DEFAULT_COLUMNS).map((o) => columnFor(items, o));
+}
+
+/** A column for a path of the items: its heading from the key, and a format guessed from the first value (ids stay text). */
+export function columnFor(items: readonly unknown[], path: string): RowsColumn {
+  if (path === "$") return { path, label: "Value", format: "text" };
+  const sample = items.map((it) => readPath(it, path)).find((v) => v !== undefined && v !== null);
+  const format = /(^|\.)(id|.*Id|.*_id)$/.test(path) ? "text" : guessFormat(sample, path);
+  return { path, label: labelForPath(path), format };
+}
+
+
+function entryField(list: ToolList, show: Exclude<ListShow, "json">, prev: BlockField | undefined, items: readonly unknown[]): BlockField {
+  const first = items[0];
+  const prevItem = prev?.list?.item;
+  const where = prevItem?.kind === "count" || prevItem?.kind === "all" || prevItem?.kind === "rows" ? prevItem.where : undefined;
   const label = prev?.label || labelForPath(list.path);
+  if (show === "table") {
+    const keep = prevItem?.kind === "rows" ? prevItem : undefined;
+    return { path: "$", label, format: "text", list: { listId: list.id, item: { kind: "rows", columns: keep?.columns ?? defaultRowColumns(items), ...(keep?.max !== undefined ? { max: keep.max } : {}), ...(where ? { where } : {}) } } };
+  }
   const keep = prev?.list?.item?.kind === "all" ? prev : undefined;
   if (show === "count") return { path: "$", label, format: "text", list: { listId: list.id, item: { kind: "count", ...(where ? { where } : {}) } } };
   return {
@@ -603,13 +649,13 @@ export function toggleListEntry(tool: Tool, blockId: string, json: unknown, path
   if (block.fields.some((f) => f.path === path && !f.list && f.callId === undefined)) return null;
   const have = entryOfPath(call, block, path);
   if (have?.list) {
-    const at = block.fields.findIndex((f) => f.list?.listId === have.list!.id && (f.list.item?.kind === "count" || f.list.item?.kind === "all"));
+    const at = block.fields.findIndex((f) => f.list?.listId === have.list!.id && isEntryItem(f.list.item));
     return dropListIfUnused(withBlock(tool, putField(block, at, null)), call.id, have.list.id);
   }
   const ensured = ensureShownList(tool, call.id, json, path);
   if (!ensured) return null;
-  const show = defaultListShow(value);
-  return withBlock(ensured.tool, putField(block, -1, entryField(ensured.list, show as Exclude<ListShow, "json">, undefined, value[0])));
+  const show = defaultListShow(value, block.type === "fields");
+  return withBlock(ensured.tool, putField(block, -1, entryField(ensured.list, show as Exclude<ListShow, "json">, undefined, value)));
 }
 
 /** Changes how an entry shows its list: joined, how many, or the plain field it was. Nothing else of the field changes. */
@@ -620,6 +666,7 @@ export function setListShow(tool: Tool, blockId: string, index: number, json: un
   if (!block || !call || !f) return tool;
   const entry = listEntryOf(call, f, json);
   if (!entry || entry.show === show) return tool;
+  if (show === "table" && block.type !== "fields") return tool;
   const path = listPathOf(f, entry);
   if (show === "json") {
     const plain: BlockField = { path, label: f.label, format: "text" };
@@ -628,11 +675,11 @@ export function setListShow(tool: Tool, blockId: string, index: number, json: un
   const ensured = ensureShownList(tool, call.id, json, path);
   if (!ensured) return tool;
   const value = sampleValue(json, path);
-  return withBlock(ensured.tool, putField(block, index, entryField(ensured.list, show, entry.list ? f : { ...f, list: undefined }, isList(value) ? value[0] : undefined)));
+  return withBlock(ensured.tool, putField(block, index, entryField(ensured.list, show, entry.list ? f : { ...f, list: undefined }, isList(value) ? value : [])));
 }
 
 /** Changes the item rule of an entry (the separator, the key it joins, the filter) without touching anything else. */
-export function setEntryChoice(tool: Tool, blockId: string, index: number, patch: { path?: string; item?: Extract<ListItemChoice, { kind: "all" | "count" }> }): Tool {
+export function setEntryChoice(tool: Tool, blockId: string, index: number, patch: { path?: string; item?: Extract<ListItemChoice, { kind: "all" | "count" | "rows" }> }): Tool {
   const block = tool.blocks.find((b) => b.id === blockId);
   const f = block?.fields[index];
   if (!block || !f?.list) return tool;

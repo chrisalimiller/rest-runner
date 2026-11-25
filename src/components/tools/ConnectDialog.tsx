@@ -36,7 +36,7 @@ import { listSource, resolveInputs, valueResolver } from "../../lib/tools/engine
 import { convertPickRow, eachPlaceholders, itemNoun, listItems, MAX_EACH_ITEMS } from "../../lib/tools/lists";
 import { addFoundList, fieldIsPicked, findLists, listOutline, mappingIsPicked, perItemCallsFor, perItemColumnPicked, perItemSample, pickMappingPath, toggleListEntry, toggleListField, togglePerItemColumn, updateList } from "../../lib/tools/listBuilder";
 import type { SessionState } from "../../lib/tools/session";
-import { FIELD_FORMATS, type BlockField, type CallResult, type FieldFormat, type ListItemChoice, type PlaceholderMapping, type Tool, type ToolBlock, type ToolCall } from "../../lib/tools/types";
+import { FIELD_FORMATS, type BlockField, type CallResult, type FieldFormat, type ListItemChoice, type PlaceholderMapping, type RowsColumn, type Tool, type ToolBlock, type ToolCall } from "../../lib/tools/types";
 import { BADGE_COLOURS, requestLine, formatFieldValue, type BadgeColour } from "../../lib/tools/view";
 import { listPickableRequests } from "../../lib/testing/requestSources";
 import { Modal } from "../shell/Modal";
@@ -876,7 +876,36 @@ function FieldRow({ f, i, count, sample, value, block, setBlock, from }: { f: Bl
         <code className="mono">{f.path}</code>
         {sample !== undefined && <span> shows {value}</span>}
       </div>
+      {f.list?.item?.kind === "rows" && <RowsColumnFormat f={f} i={i} block={block} setBlock={setBlock} />}
     </li>
+  );
+}
+
+/** The columns of a field shown as a table: a label and a format for each, like other fields. */
+function RowsColumnFormat({ f, i, block, setBlock }: { f: BlockField; i: number; block: ToolBlock; setBlock: (b: ToolBlock) => void }) {
+  const item = f.list?.item;
+  if (!f.list || item?.kind !== "rows") return null;
+  const change = (at: number, patch: Partial<RowsColumn>) => setBlock(updateField(block, i, { list: { listId: f.list!.listId, item: { ...item, columns: item.columns.map((c, j) => (j === at ? { ...c, ...patch } : c)) } } }));
+  return (
+    <ul className="cd-format cd-format-columns" aria-label={`Columns of ${f.label || f.path}`}>
+      {item.columns.map((c, j) => (
+        <li key={`${j}:${c.path}`} className="cd-format-row">
+          <div className="cd-format-main">
+            <input type="text" value={c.label} aria-label={`Column heading for ${c.path}`} placeholder={c.path === "$" ? "Value" : c.path} onChange={(e) => change(j, { label: e.target.value })} />
+            <select value={c.format} aria-label={`Format of column ${c.path}`} onChange={(e) => change(j, { format: e.target.value as FieldFormat })}>
+              {FIELD_FORMATS.map((fm) => (
+                <option key={fm} value={fm}>
+                  {FORMAT_LABELS[fm]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="cd-format-hint small muted">
+            <code className="mono">{c.path}</code>
+          </div>
+        </li>
+      ))}
+    </ul>
   );
 }
 
