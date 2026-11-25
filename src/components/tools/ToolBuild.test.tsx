@@ -7,6 +7,8 @@ import type { CallResult } from "../../lib/tools/types";
 import { BlockPage } from "./BlockPage";
 import { CallsColumn } from "./CallsColumn";
 import { ConnectDialog, stepsFor } from "./ConnectDialog";
+import { ListEntryControls, hasShowAs } from "./ListEntryControls";
+import { setListShow, toggleListEntry } from "../../lib/tools/listBuilder";
 import { JsonTree } from "./JsonTree";
 import { ToolBuild } from "./ToolBuild";
 import type { BoardActions } from "./ToolBlocks";
@@ -319,5 +321,49 @@ describe("Build page", () => {
     const t = sampleTool();
     t.blocks = t.blocks.filter((b) => b.type !== "input");
     expect(renderToStaticMarkup(<ToolBuild tool={t} dirty={false} state={stateOf()} {...props} />)).toContain("Subscriber ID");
+  });
+});
+
+describe("Show as, under a field that shows a whole list", () => {
+  const sample = { servItems: [{ name: "Roaming", id: 1 }, { name: "Voicemail", id: 2 }], tags: ["CID", "VM"], name: "Ada" };
+  const base = (type: "fields" | "number" = "fields") => {
+    const t = sampleTool();
+    return { ...t, blocks: t.blocks.map((b) => (b.id === "b-subscriber" ? { ...b, type, callId: "c-devices", fields: [] } : b)) };
+  };
+  const render = (t: ReturnType<typeof base>) => {
+    const block = t.blocks.find((b) => b.id === "b-subscriber")!;
+    const call = t.calls.find((c) => c.id === "c-devices")!;
+    return renderToStaticMarkup(<ListEntryControls work={t} setWork={noop} block={block} index={0} call={call} state={stateOf([done("c-devices", sample)])} sample={sample} onReveal={noop} onTableAdded={noop} />);
+  };
+
+  it("offers every way to show the list, with the size of the list", () => {
+    const out = render(toggleListEntry(base(), "b-subscriber", sample, "$.servItems")!);
+    expect(out).toContain("List · 2 items");
+    for (const label of ["Joined values", "How many", "Its own Table block", "One item&#x27;s fields", "JSON"]) expect(out).toContain(label);
+    expect(out).toMatch(/<option value="count" selected="">How many/);
+  });
+
+  it("asks which key to join and with what, and offers the filter", () => {
+    const out = render(setListShow(toggleListEntry(base(), "b-subscriber", sample, "$.servItems")!, "b-subscriber", 0, sample, "joined"));
+    expect(out).toMatch(/<option value="joined" selected="">Joined values/);
+    expect(out).toContain('value="$.name"');
+    expect(out).toContain("Separator");
+    expect(out).toContain("Only where…");
+  });
+
+  it("has no Table block choice in a single-value block", () => {
+    const out = render(toggleListEntry(base("number"), "b-subscriber", sample, "$.tags")!);
+    expect(out).not.toContain("Its own Table block");
+    expect(out).toContain("Joined values");
+  });
+
+  it("is on a saved plain field whose value is a list, as JSON, and not on a plain value", () => {
+    const t = base();
+    t.blocks = t.blocks.map((b) => (b.id === "b-subscriber" ? { ...b, fields: [{ path: "$.servItems", label: "Items", format: "text" as const }, { path: "$.name", label: "Name", format: "text" as const }] } : b));
+    const block = t.blocks.find((b) => b.id === "b-subscriber")!;
+    const call = t.calls.find((c) => c.id === "c-devices")!;
+    expect(hasShowAs(call, block, 0, sample)).toBe(true);
+    expect(hasShowAs(call, block, 1, sample)).toBe(false);
+    expect(render(t)).toMatch(/<option value="json" selected="">JSON/);
   });
 });

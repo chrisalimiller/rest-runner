@@ -1591,3 +1591,36 @@ button.call-request:hover {
   display: grid;
   gap: 4px;
 }
+
+.cd-list-entry {
+  flex-basis: 100%;
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border-radius: var(--r-sm);
+  background: var(--bg-subtle, rgba(127, 127, 127, 0.08));
+}
+
+.cd-list-entry p {
+  margin: 0;
+}
+
+.cd-entry-row,
+.cd-entry-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.cd-entry-show,
+.cd-entry-key,
+.cd-entry-join {
+  display: grid;
+  gap: 2px;
+}
+
+.cd-entry-key input {
+  min-width: 120px;
+}

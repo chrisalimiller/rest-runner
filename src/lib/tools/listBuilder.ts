@@ -1,9 +1,9 @@
 import { newId } from "../ids";
 import { parsePath, readPath } from "../testing/jsonPath";
-import { addBlock, childPath, guessFormat, guessLabelPath, isSingleField, keyIsPathSafe, labelForPath, sampleValue, uniqueName } from "./builder";
-import { eachPlan, listsToAsk, nameFromPath, readList, type ListSource } from "./lists";
+import { addBlock, childPath, groupRows, guessFormat, guessLabelPath, isSingleField, keyIsPathSafe, labelForPath, normalizeBlocks, sampleValue, uniqueName } from "./builder";
+import { eachPlan, findList, listsToAsk, nameFromPath, readList, type ListSource } from "./lists";
 import { newBlock } from "./tools";
-import type { BlockField, CallResult, ItemRule, ListItemChoice, ListRef, PlaceholderMapping, Tool, ToolBlock, ToolCall, ToolList } from "./types";
+import { MAX_BLOCKS_PER_ROW, type BlockField, type CallResult, type ItemRule, type ListItemChoice, type ListRef, type PlaceholderMapping, type Tool, type ToolBlock, type ToolCall, type ToolList } from "./types";
 
 /**
  * The logic of setting up lists in Build mode, as plain functions over a tool: finding the lists in a sample response,
@@ -365,9 +365,15 @@ function sameField(f: BlockField, path: string, ref: ListRef | undefined): boole
 /** Whether a click target is a field a block shows now. */
 export function fieldIsPicked(call: ToolCall | undefined, block: ToolBlock, json: unknown, path: string): boolean {
   const split = clickable(call) ? splitListPath(json, path) : null;
-  if (!split) return block.fields.some((f) => f.path === path && !f.list);
+  if (!split) return block.fields.some((f) => f.path === path && !f.list) || (!!call && !!entryOfPath(call, block, path));
   const list = call ? findListFor(call, split.lists) : undefined;
-  return !!list && block.fields.some((f) => f.list?.listId === list.id && samePath(f.path, split.rest));
+  return !!list && block.fields.some((f) => f.list?.listId === list.id && samePath(f.path, split.rest) && !showsWholeList(f));
+}
+
+/** A list entry that is about the whole list (how many, or plain values joined), not about one of its items. */
+function showsWholeList(f: BlockField): boolean {
+  const item = f.list?.item;
+  return item?.kind === "count" || (item?.kind === "all" && samePath(f.path, "$"));
 }
 
 /**
@@ -467,4 +473,207 @@ export function togglePerItemColumn(block: ToolBlock, callId: string, path: stri
   const at = block.fields.findIndex((f) => f.callId === callId && f.path === path);
   if (at >= 0) return { ...block, fields: block.fields.filter((_, i) => i !== at) };
   return { ...block, fields: [...block.fields, { path, label: labelForPath(path), format: guessFormat(sampleValue(sample, path), path), callId }] };
+}
+
+// ---- a click on a list row of a Fields block: how to show the list ----
+
+/** How a list entry of a Fields block shows its list. "json" is today's plain field, kept as the last choice. */
+export type ListShow = "joined" | "count" | "json";
+
+/** What a field of a block is when it shows a whole list. Null for a field that shows one value. */
+export interface ListEntry {
+  show: ListShow;
+  /** The list of the call. Missing for a plain (JSON) field, which has none. */
+  list?: ToolList;
+}
+
+/** Block types a list entry can sit in: the ones that show fields read from the response (not a table's columns, not a JSON block). */
+export function takesListEntries(type: ToolBlock["type"]): boolean {
+  return type === "fields" || type === "number" || type === "status";
+}
+
+/** Whether a sample value is a list. */
+function isList(v: unknown): v is unknown[] {
+  return Array.isArray(v);
+}
+
+/** The list a field shows as a whole: joined, how many, or (for a saved plain field whose value is a list in the sample) as is. */
+export function listEntryOf(call: ToolCall | undefined, f: BlockField, json: unknown): ListEntry | null {
+  if (!call || f.callId !== undefined) return null;
+  if (f.list) {
+    const list = findList(call, f.list.listId);
+    if (!list) return null;
+    if (f.list.item?.kind === "count") return { show: "count", list };
+    if (f.list.item?.kind === "all") return { show: "joined", list };
+    return null;
+  }
+  return isList(sampleValue(json, f.path)) ? { show: "json" } : null;
+}
+
+function entryOfPath(call: ToolCall, block: ToolBlock, path: string): ListEntry | null {
+  const list = topList(call, path);
+  if (!list) return null;
+  const f = block.fields.find((x) => x.list?.listId === list.id && (x.list.item?.kind === "count" || x.list.item?.kind === "all"));
+  return f ? { show: f.list!.item!.kind === "count" ? "count" : "joined", list } : null;
+}
+
+/** The list of the call at this path of the whole response, if there is one. */
+function topList(call: ToolCall, path: string): ToolList | undefined {
+  return (call.lists ?? []).find((l) => !l.parentListId && samePath(l.path, path));
+}
+
+function listPathOf(f: BlockField, entry: ListEntry): string {
+  return entry.list ? entry.list.path : f.path;
+}
+
+/** The list at this path of the call, made (set to show only, so nothing waits for a pick) when it is not there yet. */
+function ensureShownList(tool: Tool, callId: string, json: unknown, path: string): { tool: Tool; list: ToolList } | null {
+  const call = tool.calls.find((c) => c.id === callId);
+  if (!call || call.pickRow) return null;
+  const have = topList(call, path);
+  if (have) return { tool, list: have };
+  const value = sampleValue(json, path);
+  const first = isList(value) ? value[0] : undefined;
+  const list = listFromFound(call, { path, name: labelForPath(path), size: isList(value) ? value.length : 0, first, children: [] }, undefined, { kind: "none" });
+  return { tool: updateCallLists(tool, callId, (ls) => [...ls, list]), list };
+}
+
+/** Whether anything still reads this list: a field, a table, a value of a request, a list inside it. */
+function listIsUsed(tool: Tool, listId: string): boolean {
+  const text = JSON.stringify(tool);
+  return text.includes(`"listId":"${listId}"`) || text.includes(`"parentListId":"${listId}"`);
+}
+
+/** Takes away a list that was only made to show, and that nothing reads any more. A list the user set a rule on stays. */
+function dropListIfUnused(tool: Tool, callId: string, listId: string | undefined): Tool {
+  if (!listId) return tool;
+  const list = tool.calls.find((c) => c.id === callId)?.lists?.find((l) => l.id === listId);
+  if (!list || list.choose.kind !== "none" || listIsUsed(tool, listId)) return tool;
+  return removeList(tool, callId, listId);
+}
+
+/** The key of an item that names it, as a path, or "$" for a list of plain values. */
+function defaultKey(first: unknown): string {
+  if (first === null || typeof first !== "object") return "$";
+  const label = guessLabelPath(first);
+  return label || itemFieldOptions(first)[0] || "$";
+}
+
+/** What a list is shown as when the click first adds it: joined for plain values, how many for records. */
+export function defaultListShow(value: unknown): ListShow {
+  const first = isList(value) ? value[0] : undefined;
+  return first !== null && typeof first === "object" ? "count" : "joined";
+}
+
+function entryField(list: ToolList, show: Exclude<ListShow, "json">, prev: BlockField | undefined, first: unknown): BlockField {
+  const where = prev?.list?.item?.kind === "count" || prev?.list?.item?.kind === "all" ? prev.list.item.where : undefined;
+  const label = prev?.label || labelForPath(list.path);
+  const keep = prev?.list?.item?.kind === "all" ? prev : undefined;
+  if (show === "count") return { path: "$", label, format: "text", list: { listId: list.id, item: { kind: "count", ...(where ? { where } : {}) } } };
+  return {
+    path: keep?.path ?? defaultKey(first),
+    label,
+    format: "text",
+    list: { listId: list.id, item: { kind: "all", join: keep?.list?.item?.kind === "all" ? keep.list.item.join : ", ", ...(where ? { where } : {}) } },
+  };
+}
+
+function putField(block: ToolBlock, at: number, field: BlockField | null): ToolBlock {
+  if (field === null) return { ...block, fields: block.fields.filter((_, i) => i !== at) };
+  if (at >= 0) return { ...block, fields: block.fields.map((f, i) => (i === at ? field : f)) };
+  return { ...block, fields: isSingleField(block.type) ? [field] : [...block.fields, field] };
+}
+
+function withBlock(tool: Tool, block: ToolBlock): Tool {
+  return { ...tool, blocks: tool.blocks.map((b) => (b.id === block.id ? block : b)) };
+}
+
+/**
+ * A click in the sample on a list row of a Fields, Number or Status block: adds the list as an entry (how many, or joined for
+ * plain values), or takes the entry away when it is there. Null when the click is not on a list at the top of the response, or the
+ * path is already a plain field (the caller does what it did before, so a saved plain field keeps its shape).
+ */
+export function toggleListEntry(tool: Tool, blockId: string, json: unknown, path: string): Tool | null {
+  const block = tool.blocks.find((b) => b.id === blockId);
+  const call = tool.calls.find((c) => c.id === block?.callId);
+  if (!block || !call || call.pickRow || !takesListEntries(block.type)) return null;
+  const value = sampleValue(json, path);
+  if (!isList(value) || splitListPath(json, path)) return null;
+  if (block.fields.some((f) => f.path === path && !f.list && f.callId === undefined)) return null;
+  const have = entryOfPath(call, block, path);
+  if (have?.list) {
+    const at = block.fields.findIndex((f) => f.list?.listId === have.list!.id && (f.list.item?.kind === "count" || f.list.item?.kind === "all"));
+    return dropListIfUnused(withBlock(tool, putField(block, at, null)), call.id, have.list.id);
+  }
+  const ensured = ensureShownList(tool, call.id, json, path);
+  if (!ensured) return null;
+  const show = defaultListShow(value);
+  return withBlock(ensured.tool, putField(block, -1, entryField(ensured.list, show as Exclude<ListShow, "json">, undefined, value[0])));
+}
+
+/** Changes how an entry shows its list: joined, how many, or the plain field it was. Nothing else of the field changes. */
+export function setListShow(tool: Tool, blockId: string, index: number, json: unknown, show: ListShow): Tool {
+  const block = tool.blocks.find((b) => b.id === blockId);
+  const call = tool.calls.find((c) => c.id === block?.callId);
+  const f = block?.fields[index];
+  if (!block || !call || !f) return tool;
+  const entry = listEntryOf(call, f, json);
+  if (!entry || entry.show === show) return tool;
+  const path = listPathOf(f, entry);
+  if (show === "json") {
+    const plain: BlockField = { path, label: f.label, format: "text" };
+    return dropListIfUnused(withBlock(tool, putField(block, index, plain)), call.id, entry.list?.id);
+  }
+  const ensured = ensureShownList(tool, call.id, json, path);
+  if (!ensured) return tool;
+  const value = sampleValue(json, path);
+  return withBlock(ensured.tool, putField(block, index, entryField(ensured.list, show, entry.list ? f : { ...f, list: undefined }, isList(value) ? value[0] : undefined)));
+}
+
+/** Changes the item rule of an entry (the separator, the key it joins, the filter) without touching anything else. */
+export function setEntryChoice(tool: Tool, blockId: string, index: number, patch: { path?: string; item?: Extract<ListItemChoice, { kind: "all" | "count" }> }): Tool {
+  const block = tool.blocks.find((b) => b.id === blockId);
+  const f = block?.fields[index];
+  if (!block || !f?.list) return tool;
+  const next: BlockField = { ...f, ...(patch.path !== undefined ? { path: patch.path } : {}), list: patch.item ? { listId: f.list.listId, item: patch.item } : f.list };
+  return withBlock(tool, putField(block, index, next));
+}
+
+/**
+ * "Its own Table block": adds a Table block on the entry's list, expandable, next to the block (in its row when there is room, else in a
+ * row below). The entry becomes How many. Null when the list cannot be made.
+ */
+export function addTableBesideEntry(tool: Tool, blockId: string, index: number, json: unknown): { tool: Tool; tableId: string } | null {
+  const block = tool.blocks.find((b) => b.id === blockId);
+  const call = tool.calls.find((c) => c.id === block?.callId);
+  const f = block?.fields[index];
+  if (!block || !call || !f) return null;
+  const entry = listEntryOf(call, f, json);
+  if (!entry) return null;
+  const counted = entry.show === "count" ? tool : setListShow(tool, blockId, index, json, "count");
+  const list = (counted.calls.find((c) => c.id === call.id)?.lists ?? []).find((l) => (entry.list ? l.id === entry.list.id : samePath(l.path, f.path)));
+  if (!list) return null;
+  const columns: BlockField[] = list.labelPath.trim() ? [{ path: list.labelPath, label: labelForPath(list.labelPath), format: "text" }] : [];
+  const table = newBlock("table", 0, { title: list.name, callId: call.id, listId: list.id, fields: columns, expandable: true });
+  const rows = groupRows(normalizeBlocks(counted.blocks));
+  const r = rows.findIndex((row) => row.some((b) => b.id === blockId));
+  if (r < 0) return null;
+  if (rows[r].length < MAX_BLOCKS_PER_ROW) rows[r].splice(rows[r].findIndex((b) => b.id === blockId) + 1, 0, table);
+  else rows.splice(r + 1, 0, [table]);
+  return { tool: { ...counted, blocks: rows.flatMap((row, i) => row.map((b) => ({ ...b, row: i }))) }, tableId: table.id };
+}
+
+/**
+ * "One item's fields": takes the entry away, and says which item to open in the sample tree (the first one), so the next click
+ * on a key reads it from an item, as a click inside a list does.
+ */
+export function openItemFields(tool: Tool, blockId: string, index: number, json: unknown): { tool: Tool; reveal: string } | null {
+  const block = tool.blocks.find((b) => b.id === blockId);
+  const call = tool.calls.find((c) => c.id === block?.callId);
+  const f = block?.fields[index];
+  if (!block || !call || !f) return null;
+  const entry = listEntryOf(call, f, json);
+  if (!entry) return null;
+  const path = listPathOf(f, entry);
+  return { tool: dropListIfUnused(withBlock(tool, putField(block, index, null)), call.id, entry.list?.id), reveal: childPath(path === "" ? "$" : path, 0) };
 }
