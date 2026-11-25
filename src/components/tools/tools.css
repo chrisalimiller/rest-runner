@@ -100,9 +100,9 @@
   max-width: 360px;
 }
 
-/* 40px like Send; the width is fixed so "Look up on Prod" does not widen it. */
+/* Same height as the input boxes next to it; the width is fixed so "Look up on Prod" does not widen it. */
 .tool-lookup {
-  height: calc(40px * var(--ui-scale));
+  height: calc(30px * var(--ui-scale));
   min-width: 152px;
   padding: 0 16px;
 }
@@ -160,11 +160,13 @@
 .tool-status {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 4px 12px;
+  flex-wrap: nowrap;
+  gap: 12px;
   flex: 1 1 240px;
   min-width: 0;
-  min-height: calc(30px * var(--ui-scale));
+  height: calc(30px * var(--ui-scale));
+  overflow: hidden;
+  white-space: nowrap;
   font-size: var(--fs-sm);
 }
 
@@ -192,12 +194,15 @@
 }
 
 .tool-counts {
+  flex: none;
   color: var(--muted);
 }
 
 .tool-viewing {
   color: var(--text-soft);
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tool-scroll {

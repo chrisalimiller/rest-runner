@@ -41,6 +41,9 @@ export function ToolUse({ tool, state, findRequest, environment, problems, activ
   const errors = problems.filter((p) => p.level === "error");
   const guard = guardFor(environment);
   const counts = progressCounts(tool, state.results, state.sending);
+  const viewingText = state.viewing
+    ? `Saved lookup · ${whenLabel(state.viewing.startedAt)}${state.viewing.environmentName ? ` · ${state.viewing.environmentName}` : ""}${inputsSummary(state.viewing.inputs) ? ` · ${inputsSummary(state.viewing.inputs)}` : ""} · Nothing was sent`
+    : "";
   const hasAny = Object.keys(state.results).length > 0 || state.running;
   const boardActions: BoardActions = { ...actions, onRunKey: onLookup };
   const formRef = useRef<HTMLFormElement>(null);
@@ -97,12 +100,11 @@ export function ToolUse({ tool, state, findRequest, environment, problems, activ
           >
             {guard ? `Look up on ${guard.name}` : "Look up"}
           </button>
-          <div className={`tool-status ${state.viewing ? "saved" : ""}`} role="status" title={state.viewing ? new Date(state.viewing.startedAt).toLocaleString() : undefined}>
+          <div className={`tool-status ${state.viewing ? "saved" : ""}`} role="status" >
             {state.viewing && (
-              <span className="tool-viewing">
-                <strong>Saved lookup</strong> · {whenLabel(state.viewing.startedAt)}
-                {state.viewing.environmentName ? ` · ${state.viewing.environmentName}` : ""}
-                {inputsSummary(state.viewing.inputs) ? ` · ${inputsSummary(state.viewing.inputs)}` : ""} · Nothing was sent
+              <span className="tool-viewing" title={viewingText}>
+                <strong>Saved lookup</strong>
+                {viewingText.slice("Saved lookup".length)}
               </span>
             )}
             {!state.viewing && state.startedAt && (
