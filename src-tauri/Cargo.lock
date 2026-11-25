@@ -3202,7 +3202,7 @@ dependencies = [
 
 [[package]]
 name = "rest-runner"
-version = "0.3.4"
+version = "0.3.5"
 dependencies = [
  "base64 0.22.1",
  "keyring",
