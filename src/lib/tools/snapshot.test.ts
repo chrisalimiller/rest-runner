@@ -97,3 +97,14 @@ describe("toToolSnapshot: expandable rows", () => {
     expect(toToolSnapshot({ tool: t, results: { "c-devices": r }, inputs: {}, findRequest: sampleFindRequest() })).not.toContain("<details");
   });
 });
+
+describe("toToolSnapshot with a list shown as rows", () => {
+  it("keeps every row, not only the first few shown on screen", () => {
+    const t = tool();
+    t.blocks = [newBlock("fields", 0, { callId: "c-subscriber", title: "Who", fields: [{ path: "$.items", label: "Items", format: "text" }] })];
+    const items = Array.from({ length: 8 }, (_, i) => ({ n: `item-${i}`, v: i }));
+    const html = toToolSnapshot({ tool: t, results: { "c-subscriber": done("c-subscriber", { items }) }, inputs: {}, findRequest: sampleFindRequest(), at: "2026-01-02T03:04:05Z", secrets: [] });
+    expect(html).toContain("<th>n</th>");
+    expect(html).toContain("item-7");
+  });
+});

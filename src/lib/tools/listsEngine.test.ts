@@ -382,11 +382,12 @@ describe("tools with lists: saving and files", () => {
     expect(JSON.parse(toToolsFile([toolOf([mk("c", "customer")])], [])).version).toBe(1);
   });
 
-  it("refuses a file from a newer version, and still reads versions 1 and 2", () => {
+  it("refuses a file from a newer version, and still reads versions 1 to 3", () => {
     const file = (version: number) => JSON.stringify({ app: "rest-runner", kind: "tools", version, tools: [], requests: [] });
-    expect(() => importToolsFile(file(3), { tools: [], collections: [] })).toThrow("This file needs a newer REST Runner");
+    expect(() => importToolsFile(file(4), { tools: [], collections: [] })).toThrow("This file needs a newer REST Runner");
     expect(() => importToolsFile(file(1), { tools: [], collections: [] })).not.toThrow();
     expect(() => importToolsFile(file(2), { tools: [], collections: [] })).not.toThrow();
+    expect(() => importToolsFile(file(3), { tools: [], collections: [] })).not.toThrow();
   });
 });
 

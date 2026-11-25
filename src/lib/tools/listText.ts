@@ -38,6 +38,8 @@ export function choiceText(c: ItemRule | ListItemChoice, tool?: Tool): string {
       return `how many${c.where ? ` where ${whereText(c.where, tool)}` : ""}`;
     case "each":
       return "each item";
+    case "rows":
+      return `table of ${c.columns.length} column${c.columns.length === 1 ? "" : "s"}${c.where ? ` where ${whereText(c.where, tool)}` : ""}`;
   }
 }
 

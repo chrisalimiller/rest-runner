@@ -50,7 +50,28 @@ export interface Where {
 export type ItemRule = { kind: "none" } | { kind: "ask" } | { kind: "index"; index: number } | { kind: "where"; field: string; op: "eq" | "ne"; value: PlaceholderMapping };
 
 /** How a value reads a list: a different item rule than the list's own, or all items joined, or how many there are. */
-export type ListItemChoice = ItemRule | { kind: "all"; join: string; where?: Where } | { kind: "count"; where?: Where } | EachChoice;
+export type ListItemChoice = ItemRule | { kind: "all"; join: string; where?: Where } | { kind: "count"; where?: Where } | EachChoice | RowsChoice;
+
+/** One column of a table made from a list: a path inside one item. */
+export interface RowsColumn {
+  path: string;
+  label: string;
+  format: FieldFormat;
+}
+
+/**
+ * Shows the items of the list as a small table inside a Fields block. Only a field of a Fields block may use it.
+ * Rows past `max` are left out of the page ("and N more"); Save as HTML keeps all of them.
+ */
+export interface RowsChoice {
+  kind: "rows";
+  columns: RowsColumn[];
+  /** Rows shown before "and N more". Default DEFAULT_ROWS_MAX. */
+  max?: number;
+  where?: Where;
+}
+
+export const DEFAULT_ROWS_MAX = 5;
 
 /**
  * Runs the call once for every item of the list, each time with that item's value. Only a value of a call's own

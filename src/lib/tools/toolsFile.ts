@@ -1,18 +1,18 @@
 import { cleanCollections, locate, type Collection } from "../collections";
 import { addByPath, mergeById, replaceNode, type ExportedRequest } from "../flows/flowFile";
 import { validateImportedMethods } from "../importMethods";
-import { toolUsesLists } from "./lists";
+import { toolUsesLists, toolUsesRows } from "./lists";
 import { cleanTools } from "./tools";
 import type { Tool } from "./types";
 
-/** The newest tools file this version of the app reads. Version 2 is a file with a tool that uses lists. */
-export const TOOLS_FILE_VERSION = 2;
+/** The newest tools file this version of the app reads. Version 2 is a file with a tool that uses lists, version 3 one with a Fields block that shows a list as a table. */
+export const TOOLS_FILE_VERSION = 3;
 
 /** File format for exporting tools together with the saved requests they use. Same shape and rules as the flows file. */
 export interface ToolsFile {
   app: "rest-runner";
   kind: "tools";
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   exportedAt: string;
   tools: Tool[];
   requests: ExportedRequest[];
@@ -32,8 +32,8 @@ export function requestsUsedBy(tools: Tool[], collections: Collection[]): Export
 }
 
 export function toToolsFile(tools: Tool[], collections: Collection[]): string {
-  // Stays version 1, byte for byte the same shape as before, unless a tool uses something only version 2 knows.
-  const version = tools.some(toolUsesLists) ? 2 : 1;
+  // Stays version 1 or 2, byte for byte the same shape as before, unless a tool uses something only a newer version knows.
+  const version = tools.some(toolUsesRows) ? 3 : tools.some(toolUsesLists) ? 2 : 1;
   const file: ToolsFile = { app: "rest-runner", kind: "tools", version, exportedAt: new Date().toISOString(), tools, requests: requestsUsedBy(tools, collections) };
   return JSON.stringify(file, null, 2);
 }
