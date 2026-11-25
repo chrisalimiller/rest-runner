@@ -5,7 +5,7 @@ import { environmentVars, newEnvironment, type Environment } from "./environment
 import sample from "../assets/sample-workspace.json";
 import { toFlowsFile } from "./flows/flowFile";
 import { newFlow } from "./flows/flows";
-import { newCall, newTool } from "./tools/tools";
+import { newBlock, newCall, newTool } from "./tools/tools";
 import { toToolsFile } from "./tools/toolsFile";
 import { toSuitesFile } from "./testing/suiteFile";
 import { newSuite, newTestCase } from "./testing/suites";
@@ -157,6 +157,20 @@ describe("combined workspace file", () => {
     expect(r.tools).toHaveLength(1);
     expect(r.counts.requests).toEqual([1, 0]);
     expect(r.collections[0].name).toBe("API");
+  });
+
+  it("marks tools that need a newer tools format, and refuses a mark this app does not know", () => {
+    const call = { ...newCall("r1", "A"), id: "c1", lists: [{ id: "L", name: "Items", path: "$.items", labelPath: "", choose: { kind: "none" as const } }] };
+    const field = { path: "$", label: "Items", format: "text" as const, list: { listId: "L", item: { kind: "rows" as const, columns: [{ path: "$.n", label: "N", format: "text" as const }] } } };
+    const rows = { ...newTool("T"), calls: [call], blocks: [newBlock("fields", 0, { id: "b", callId: "c1", fields: [field] })] };
+    expect(JSON.parse(toWorkspaceFile([], [], { tools: [rows] })).toolsVersion).toBe(3);
+    expect(JSON.parse(toWorkspaceFile([], [], { tools: [newTool("Plain")] }))).not.toHaveProperty("toolsVersion");
+    const back = importWorkspace(toWorkspaceFile([], [], { tools: [rows] }), empty);
+    expect(back.tools[0].blocks[0].fields[0].list?.item?.kind).toBe("rows");
+    const future = JSON.stringify({ app: "rest-runner", kind: "workspace", version: 4, toolsVersion: 4, collections: [], tools: [rows] });
+    expect(() => importWorkspace(future, empty)).toThrow(/newer REST Runner/);
+    const futureTools = JSON.stringify({ app: "rest-runner", kind: "tools", version: 4, tools: [rows], requests: [] });
+    expect(() => importWorkspace(futureTools, empty)).toThrow(/newer REST Runner/);
   });
 
   it("still imports version 2 files, and suites and flows files", () => {

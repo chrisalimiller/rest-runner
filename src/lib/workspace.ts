@@ -16,7 +16,7 @@ import { importFlowsFile } from "./flows/flowFile";
 import { cleanImportedFlows } from "./flows/flows";
 import type { Flow } from "./flows/types";
 import { cleanTools } from "./tools/tools";
-import { mergeToolsAndRequests } from "./tools/toolsFile";
+import { assertToolsVersionReadable, mergeToolsAndRequests, toolsVersionNeeded } from "./tools/toolsFile";
 import type { Tool } from "./tools/types";
 import { importSuitesFile } from "./testing/suiteFile";
 import { cleanSuites } from "./testing/suites";
@@ -43,6 +43,8 @@ export interface WorkspaceFile {
   flows: Flow[];
   /** Tools. Files from before Tools existed have none. */
   tools?: Tool[];
+  /** The tools format the tools need (2 for lists, 3 for lists shown as tables). Missing when they need nothing newer than the first one. */
+  toolsVersion?: 2 | 3;
   /** Certificate rules, without key material unless the export included the files. Version 4 and later. */
   certificates?: ExportedCertificate[];
 }
@@ -86,6 +88,7 @@ export function toWorkspaceFile(
     suites: options.suites ?? [],
     flows: options.flows ?? [],
     ...(options.tools?.length ? { tools: options.tools } : {}),
+    ...(options.tools?.length && toolsVersionNeeded(options.tools) > 1 ? { toolsVersion: toolsVersionNeeded(options.tools) as 2 | 3 } : {}),
     ...(options.certificates?.length ? { certificates: options.certificates } : {}),
   };
   return JSON.stringify(file, null, 2);
@@ -222,6 +225,7 @@ export function importWorkspace(text: string, current: Workspace): WorkspaceImpo
     return { ...current, flows: r.flows, suites: r.suites, collections: r.collections, counts: { ...counts, flows: r.counts.flows, suites: r.counts.suites, requests: r.counts.requests } };
   }
   if (data.kind === "tools") {
+    assertToolsVersionReadable(data.version);
     const r = mergeToolsAndRequests(data.tools, data.requests, current);
     return { ...current, tools: r.tools, collections: r.collections, counts: { ...counts, tools: r.counts.tools, requests: r.counts.requests } };
   }
@@ -232,6 +236,7 @@ export function importWorkspace(text: string, current: Workspace): WorkspaceImpo
   if (!["collections", "savedRequests", "environments", "suites", "flows", "tools"].some((k) => Array.isArray(data[k]))) {
     throw new Error("This REST Runner file has no collections, environments, test suites, flows or tools to import.");
   }
+  assertToolsVersionReadable(data.toolsVersion);
   const base = importCollectionsAndEnvironments(data, current.collections, current.environments);
   const suites = mergeById(current.suites, cleanSuites(data.suites));
   const flows = mergeById(current.flows, cleanImportedFlows(data.flows));

@@ -96,7 +96,7 @@ Some APIs take one id per request, so "the warranty of every device" needs one r
 - **Show the answers as columns.** In a Table block on that list, the Fields step offers **Columns from Warranty, one request per device**: click a value in the sample answer. Each cell shows that device's value; while its request is out the cell says **Running**, and if it failed the cell says **HTTP 503** or **No response** with a **Retry** that sends that one item again. A block shown on the per-item request itself lists one line per item with its status and the same Retry. The block's header says how many requests ran and how many failed (`2 of 3 failed`).
 - **Other requests cannot read from a per-item request yet.** Build blocks saving with "Warranty runs once per device; other calls can't read from it yet".
 - **Stop** ends the items not yet sent as Stopped.
-- **History and copies.** A saved lookup keeps each item's answer. Each item's body is cut at 1 MB like any other response body, and the bodies of one lookup together are kept under 8 MB, oldest dropped first, so 25 items cannot fill the history. **Copy all** and **Save as HTML** list one entry per item (in the page each is a closed section under the table).
+- **History and copies.** A saved lookup keeps each item's answer. In a saved lookup, each item's body is cut at 1 MB (history in Requests cuts at 32 KB), and the bodies of one lookup together are kept under 8 MB, oldest dropped first, so 25 items cannot fill the history. **Copy all** and **Save as HTML** list one entry per item (in the page each is a closed section under the table).
 
 Tools without this setting, saved lookups and export files are not changed by it. A tools file that uses it is written as `version: 2`, like one that uses lists.
 
@@ -149,7 +149,7 @@ Each tool keeps its **last 20 lookups**, listed under **Recent lookups** on the 
 
 - **Export** (in the Tools sidebar for all tools, or **Export tool** in the tool's ⋯ menu) writes a `.json` file with the saved tools **and the saved requests they use**, together with the collection and folder they sat in. Unsaved Build changes are not in the file.
 - **Import** reads such a file. A tool or saved request with the same id **replaces** the one you have; everything else is added, and requests go back into a collection and folder with the same names (made if missing). A toast stays up for a minute (or until dismissed) and says what changed, such as "Added 2 tools and 5 requests; updated 1 tool (Billing)"; replaced tools are named when there are three or fewer. Import is a button in the Tools, Flows and Testing sidebars, so the keyboard reaches it. Unsaved Build edits of a tool that was replaced are discarded, since they were made against the old version. Imports are checked, and anything that cannot be read as a tool is skipped.
-- **Export workspace…** includes tools, and importing a workspace file in the Import dialog lists its tools, and you choose which to bring in and what to do when a name already exists. Older workspace files without tools leave your tools alone.
+- **Export workspace…** includes tools (a workspace whose tools use lists is marked `toolsVersion` 2 or 3, and an older REST Runner refuses it with "This file needs a newer REST Runner" instead of dropping the list fields), and importing a workspace file in the Import dialog lists its tools, and you choose which to bring in and what to do when a name already exists. Older workspace files without tools leave your tools alone.
 
 ## Used by tools
 
