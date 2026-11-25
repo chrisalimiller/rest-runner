@@ -50,6 +50,20 @@ describe("block types", () => {
     expect(html).toContain("<td>No</td>");
   });
 
+  it("fields: a list shown as rows draws a table with the first rows and \"and N more\"", () => {
+    const t: Tool = {
+      ...tool,
+      calls: tool.calls.map((c) => (c.id === "c-subscriber" ? { ...c, lists: [{ id: "L", name: "Items", path: "$.items", labelPath: "", choose: { kind: "none" as const } }] } : c)),
+      blocks: tool.blocks.map((b) => (b.id === "b-subscriber" ? { ...b, fields: [{ path: "$", label: "Items", format: "text" as const, list: { listId: "L", item: { kind: "rows" as const, columns: [{ path: "$.n", label: "Name", format: "text" as const }], max: 2 } } }] } : b)),
+    };
+    const html = card("b-subscriber", stateOf([done("c-subscriber", { items: [{ n: "a" }, { n: "b" }, { n: "c" }, { n: "d" }] })]), t);
+    expect(html).toContain("tool-field-table");
+    expect(html).toContain("<th>Name</th>");
+    expect(html).toContain("<td>b</td>");
+    expect(html).not.toContain("<td>c</td>");
+    expect(html).toContain("and 2 more");
+  });
+
   it("number: the big number with its unit", () => {
     const html = card("b-balance", stateOf([done("c-account", { status: "active", balance: 1250 })]));
     expect(html).toContain("tool-number-value");

@@ -11,11 +11,13 @@ import {
   MAX_BLOCKS_PER_ROW,
   type BlockField,
   type BlockType,
+  type FieldFormat,
   type ItemRule,
   type ListItemChoice,
   type ListRef,
   type PickRowSetting,
   type PlaceholderMapping,
+  type RowsColumn,
   type Tool,
   type ToolBlock,
   type ToolCall,
@@ -114,8 +116,21 @@ function cleanRule(v: unknown): ItemRule | null {
   }
 }
 
-function cleanItemChoice(v: unknown, allowEach = false): ListItemChoice | null {
+function cleanRowsChoice(v: Record<string, unknown>): ListItemChoice | null {
+  const columns: RowsColumn[] = [];
+  for (const c of Array.isArray(v.columns) ? v.columns : []) {
+    if (!isObject(c) || typeof c.path !== "string") continue;
+    columns.push({ path: c.path, label: str(c.label), format: FIELD_FORMATS.includes(c.format as never) ? (c.format as FieldFormat) : "text" });
+  }
+  if (columns.length === 0) return null;
+  const where = cleanWhere(v.where);
+  const max = typeof v.max === "number" && Number.isFinite(v.max) ? Math.min(100, Math.max(1, Math.floor(v.max))) : undefined;
+  return { kind: "rows", columns, ...(max !== undefined ? { max } : {}), ...(where ? { where } : {}) };
+}
+
+function cleanItemChoice(v: unknown, allowEach = false, allowRows = false): ListItemChoice | null {
   if (!isObject(v)) return null;
+  if (v.kind === "rows") return allowRows ? cleanRowsChoice(v) : null;
   if (v.kind === "each") return allowEach ? { kind: "each" } : null;
   if (v.kind === "all") {
     const where = cleanWhere(v.where);
@@ -128,9 +143,9 @@ function cleanItemChoice(v: unknown, allowEach = false): ListItemChoice | null {
   return cleanRule(v);
 }
 
-function cleanListRef(v: unknown, allowEach = false): ListRef | null {
+function cleanListRef(v: unknown, allowEach = false, allowRows = false): ListRef | null {
   if (!isObject(v) || typeof v.listId !== "string" || v.listId === "") return null;
-  const item = cleanItemChoice(v.item, allowEach);
+  const item = cleanItemChoice(v.item, allowEach, allowRows);
   return { listId: v.listId, ...(item ? { item } : {}) };
 }
 
@@ -188,17 +203,18 @@ function cleanCall(v: unknown): ToolCall | null {
   return { id: v.id, name: str(v.name, "Call"), requestId: str(v.requestId), mappings, write: v.write === true, ...(pickRow ? { pickRow } : {}), ...(lists.length > 0 ? { lists } : {}) };
 }
 
-function cleanField(v: unknown): BlockField | null {
+/** `inFieldsBlock`: only a field of a Fields block may show a list as rows. */
+function cleanField(v: unknown, inFieldsBlock = false): BlockField | null {
   if (!isObject(v)) return null;
   const format = FIELD_FORMATS.includes(v.format as never) ? (v.format as BlockField["format"]) : "text";
-  const list = cleanListRef(v.list);
+  const list = cleanListRef(v.list, false, inFieldsBlock);
   return { path: str(v.path), label: str(v.label), format, ...(list ? { list } : {}), ...(typeof v.callId === "string" && v.callId !== "" ? { callId: v.callId } : {}) };
 }
 
 function cleanBlock(v: unknown, index: number): ToolBlock | null {
   if (!isObject(v) || typeof v.id !== "string" || !BLOCK_TYPES.includes(v.type as never)) return null;
   const row = typeof v.row === "number" && Number.isFinite(v.row) ? Math.max(0, Math.floor(v.row)) : index;
-  const fields = (Array.isArray(v.fields) ? v.fields : []).map(cleanField).filter((f): f is BlockField => f !== null);
+  const fields = (Array.isArray(v.fields) ? v.fields : []).map((f) => cleanField(f, v.type === "fields")).filter((f): f is BlockField => f !== null);
   return {
     id: v.id,
     type: v.type as BlockType,

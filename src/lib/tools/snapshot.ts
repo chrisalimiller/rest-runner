@@ -1,7 +1,7 @@
 import type { RequestLookup } from "../flows/flows";
 import { redactReport } from "../secrets";
 import { prettyBody } from "../format";
-import { type RowDetail, callView, eachCapNote, eachLabel, eachStatusText, fieldRows, inputsSummary, jsonText, numberView, perItemListName, rawResponseText, requestLine, statusBadgeView, statusLabel, tableView } from "./view";
+import { type FieldTable, type RowDetail, callView, eachCapNote, eachLabel, eachStatusText, fieldRows, inputsSummary, jsonText, numberView, perItemListName, rawResponseText, requestLine, statusBadgeView, statusLabel, tableView } from "./view";
 import type { CallResult, Tool, ToolBlock, ToolCall } from "./types";
 
 /** "Save as HTML": one self-contained page with the blocks as they look, to send to someone. Pure; every value is escaped. */
@@ -54,7 +54,7 @@ function blockHtml(block: ToolBlock, input: SnapshotInput): string {
   else {
     switch (block.type) {
       case "fields":
-        body = `<dl>${fieldRows(block, call, result).map((r) => `<div><dt>${esc(r.label)}</dt><dd>${esc(r.value)}</dd></div>`).join("")}</dl>`;
+        body = `<dl>${fieldRows(block, call, result).map((r) => `<div><dt>${esc(r.label)}</dt><dd>${r.table ? fieldTableHtml(r.table) : esc(r.value)}</dd></div>`).join("")}</dl>`;
         break;
       case "number": {
         const n = numberView(block, call, result);
@@ -88,6 +88,11 @@ function blockHtml(block: ToolBlock, input: SnapshotInput): string {
     }
   }
   return `<section class="block">${header}${body}</section>`;
+}
+
+/** A list in a Fields block as a table. The saved page keeps every row, not only the first few shown on screen. */
+function fieldTableHtml(t: FieldTable): string {
+  return `<table><thead><tr>${t.columns.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 }
 
 /** A call that ran once per item: one entry per item, each with its own answer (closed, so the page stays short). */

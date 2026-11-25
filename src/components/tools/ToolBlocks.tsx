@@ -9,6 +9,7 @@ import {
   callView,
   canRetry,
   fieldRows,
+  type FieldTable,
   jsonText,
   numberView,
   rawResponseText,
@@ -437,6 +438,35 @@ function RetryButton({ call, actions, disabled }: { call: ToolCall; actions: Boa
   );
 }
 
+/** A list in a Fields block: the first rows, then "and N more". Read-only. */
+function FieldTableView({ table }: { table: FieldTable }) {
+  const shown = table.rows.slice(0, table.max);
+  const more = table.rows.length - shown.length;
+  return (
+    <div className="tool-field-rows">
+      <table>
+        <thead>
+          <tr>
+            {table.columns.map((c, i) => (
+              <th key={i}>{c}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {shown.map((r, ri) => (
+            <tr key={ri}>
+              {r.map((c, ci) => (
+                <td key={ci}>{c}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {more > 0 && <p className="muted small">and {more} more</p>}
+    </div>
+  );
+}
+
 function OkBody({ block, tool, call, result, state, actions }: { block: ToolBlock; tool: Tool; call: ToolCall; result: CallResult | undefined; state: SessionState; actions: BoardActions }) {
   // A value that reads an item you have not picked yet says so, instead of showing a dash.
   const waiting = block.type !== "table" ? fieldWaitsForPick(block, call, state) : null;
@@ -448,9 +478,9 @@ function OkBody({ block, tool, call, result, state, actions }: { block: ToolBloc
       return (
         <dl className="tool-fields">
           {rows.map((r, i) => (
-            <div key={i} className="tool-field">
+            <div key={i} className={r.table ? "tool-field tool-field-table" : "tool-field"}>
               <dt>{r.label}</dt>
-              <dd>{r.value}</dd>
+              <dd>{r.table ? <FieldTableView table={r.table} /> : r.value}</dd>
             </div>
           ))}
         </dl>

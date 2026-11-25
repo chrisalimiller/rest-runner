@@ -366,6 +366,35 @@
   overflow-wrap: anywhere;
 }
 
+.tool-field-table {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.tool-field-rows {
+  overflow-x: auto;
+}
+
+.tool-field-rows table {
+  border-collapse: collapse;
+  font-size: var(--fs-sm);
+}
+
+.tool-field-rows th,
+.tool-field-rows td {
+  text-align: left;
+  padding: 3px 12px 3px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.tool-field-rows th {
+  color: var(--muted);
+  font-weight: 500;
+}
+
+.tool-field-rows p {
+  margin: 4px 0 0;
+}
+
 .tool-number {
   display: flex;
   align-items: baseline;

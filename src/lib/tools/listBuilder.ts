@@ -202,7 +202,8 @@ export function ruleOfKind(kind: RuleKind, prev?: ItemRule, field = ""): ItemRul
 }
 
 export function choiceKind(c: ListItemChoice | undefined): ChoiceKind {
-  if (!c || c.kind === "none") return "list";
+  // A table (rows) is only made by the Show as control of a Fields block entry, never by these editors.
+  if (!c || c.kind === "none" || c.kind === "rows") return "list";
   if (c.kind === "all" || c.kind === "count" || c.kind === "each") return c.kind;
   return ruleKind(c) as ChoiceKind;
 }
@@ -218,7 +219,7 @@ export function choiceOfKind(kind: ChoiceKind, prev: ListItemChoice | undefined,
     case "each":
       return { kind: "each" };
     default:
-      return ruleOfKind(kind as RuleKind, prev && prev.kind !== "all" && prev.kind !== "count" && prev.kind !== "each" ? prev : undefined, field);
+      return ruleOfKind(kind as RuleKind, prev && prev.kind !== "all" && prev.kind !== "count" && prev.kind !== "each" && prev.kind !== "rows" ? prev : undefined, field);
   }
 }
 

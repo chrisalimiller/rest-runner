@@ -5,8 +5,8 @@ import { requestPlaceholders } from "../request";
 import { readPath } from "../testing/jsonPath";
 import type { RequestDef } from "../types";
 import { callData, callJson, eachFailed, listSource, pickRows, readCallField } from "./engine";
-import { chooseItem, eachPlan, listItems, listNote, type ValueResolver } from "./lists";
-import type { BlockField, CallResult, EachResult, FieldFormat, Tool, ToolBlock, ToolCall } from "./types";
+import { chooseItem, eachPlan, filtered, listItems, listNote, type ValueResolver } from "./lists";
+import { DEFAULT_ROWS_MAX, type BlockField, type CallResult, type EachResult, type FieldFormat, type RowsColumn, type Tool, type ToolBlock, type ToolCall } from "./types";
 
 /** What Use mode shows for tool blocks, worked out as plain data so it can be tested without a screen. */
 
@@ -179,11 +179,75 @@ export function canRetry(v: CallView): boolean {
 export interface FieldRow {
   label: string;
   value: string;
+  /** A list shown as a small table (a Fields block entry set to rows, or a saved field that holds a list). The same text is in `value`. */
+  table?: FieldTable;
+}
+
+export interface FieldTable {
+  columns: string[];
+  /** Every row. A screen shows the first `max` and says "and N more"; Save as HTML shows all. */
+  rows: string[][];
+  max: number;
+}
+
+/** How a list in a field reads when it is not a table: "3 items" for a list of records. */
+function itemCount(n: number): string {
+  return `${n} item${n === 1 ? "" : "s"}`;
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === "object" && !Array.isArray(v);
+}
+
+/** One cell of an in-block table: a list inside the item reads "N items", a missing key a dash. */
+function rowsCell(item: unknown, c: RowsColumn): string {
+  const v = c.path.trim() === "" || c.path.trim() === "$" ? item : readPath(item, c.path);
+  return Array.isArray(v) ? itemCount(v.length) : formatFieldValue(v, c.format);
+}
+
+/** Most columns a saved field's list gets when it draws itself as a table. */
+const AUTO_COLUMNS = 3;
+
+/**
+ * What a saved field that holds a list shows, display only: records become a table (the first plain keys found across
+ * the items), plain values are joined. Nothing is written to the tool.
+ */
+function autoRows(items: unknown[]): { columns: RowsColumn[]; joined?: string } {
+  if (!items.some(isRecord)) return { columns: [], joined: items.map((x) => cellText(x)).join(", ") };
+  const keys: string[] = [];
+  for (const it of items) if (isRecord(it)) for (const [k, v] of Object.entries(it)) if (!keys.includes(k) && (v === null || typeof v !== "object")) keys.push(k);
+  return { columns: keys.slice(0, AUTO_COLUMNS).map((k) => ({ path: k, label: k, format: "text" as const })) };
+}
+
+function tableOf(items: unknown[], columns: RowsColumn[], max: number): FieldTable {
+  return { columns: columns.map((c) => c.label || c.path.replace(/^\$\.?/, "") || "Value"), rows: items.map((it) => columns.map((c) => rowsCell(it, c))), max };
+}
+
+function oneFieldRow(f: BlockField, call: ToolCall, result: CallResult | undefined, resolve?: ValueResolver): FieldRow {
+  const label = f.label || f.path;
+  const choice = f.list?.item;
+  if (choice?.kind === "rows") {
+    if (!result || result.state !== "done" || !f.list) return { label, value: NO_VALUE };
+    const read = filtered(listSource(call, result, resolve), f.list.listId, choice.where);
+    if (!read.ok) return { label, value: read.message };
+    if (read.items.length === 0) return { label, value: "No items" };
+    const table = tableOf(read.items, choice.columns, choice.max ?? DEFAULT_ROWS_MAX);
+    return { label, value: itemCount(read.items.length), table };
+  }
+  const raw = readCallField(call, result, f.path, f.list, resolve);
+  if (Array.isArray(raw) && !f.list) {
+    // A saved plain field on a list: shown better, never converted.
+    if (raw.length === 0) return { label, value: "No items" };
+    const auto = autoRows(raw);
+    if (auto.joined !== undefined) return { label, value: auto.joined };
+    return { label, value: itemCount(raw.length), table: tableOf(raw, auto.columns, DEFAULT_ROWS_MAX) };
+  }
+  return { label, value: formatFieldValue(raw, f.format) };
 }
 
 /** Label and formatted value of each field of a "fields" block. */
 export function fieldRows(block: ToolBlock, call: ToolCall, result: CallResult | undefined, resolve?: ValueResolver): FieldRow[] {
-  return block.fields.map((f) => ({ label: f.label || f.path, value: formatFieldValue(readCallField(call, result, f.path, f.list, resolve), f.format) }));
+  return block.fields.map((f) => oneFieldRow(f, call, result, resolve));
 }
 
 /**

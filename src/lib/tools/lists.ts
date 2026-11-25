@@ -138,7 +138,7 @@ export function chooseItem(src: ListSource, listId: string, rule?: ItemRule, dep
 }
 
 /** The items that match a "where" (all of them without one). */
-function filtered(src: ListSource, listId: string, where: Where | undefined): ItemsRead {
+export function filtered(src: ListSource, listId: string, where: Where | undefined): ItemsRead {
   const read = readList(src, listId);
   if (!read.ok || !where) return read;
   const list = findList(src.call, listId)!;
@@ -198,11 +198,12 @@ export function readListValue(src: ListSource, path: string, ref: ListRef): Valu
     const list = findList(src.call, ref.listId);
     return fail("no-item", `${list?.name ?? "The list"} is read once for each item`);
   }
-  if (choice?.kind === "all" || choice?.kind === "count") {
+  if (choice?.kind === "all" || choice?.kind === "count" || choice?.kind === "rows") {
     const list = findList(src.call, ref.listId);
     const read = filtered(src, ref.listId, choice.where);
     if (!read.ok) return read;
-    if (choice.kind === "count") return { ok: true, value: read.items.length };
+    // Rows are drawn by the Fields block itself (fieldRows); anywhere else the list reads as its size.
+    if (choice.kind === "count" || choice.kind === "rows") return { ok: true, value: read.items.length };
     if (read.items.length === 0) return list ? (choice.where ? fail("no-match", whereText(list, choice.where.field, choice.where.op, src.resolve(choice.where.value) ?? "", src.call.name)) : emptyFailure(src.call, list)) : fail("unknown-list", "A list was removed");
     const values = read.items.map((it) => valueText(readPath(it, path))).filter((v): v is string => v !== null);
     return { ok: true, value: values.length > 0 ? values.join(choice.join) : undefined };
@@ -318,7 +319,7 @@ export function mappingNeeds(m: PlaceholderMapping, calls: ReadonlyMap<string, T
   const list = source && ref ? findList(source, ref.listId) : undefined;
   if (source && ref && list) {
     const choice = ref.item;
-    const rule = choice === undefined ? list.choose : choice.kind === "all" || choice.kind === "count" ? choice.where : choice.kind === "each" ? undefined : choice;
+    const rule = choice === undefined ? list.choose : choice.kind === "all" || choice.kind === "count" || choice.kind === "rows" ? choice.where : choice.kind === "each" ? undefined : choice;
     out.push(...ruleNeeds(source, list, rule, calls, depth), ...chainNeeds(source, list, calls, depth));
   }
   return merge(out);
@@ -343,7 +344,7 @@ export function listAskNeeds(call: ToolCall, listId: string, calls: ReadonlyMap<
 export function* mappingsIn(m: PlaceholderMapping): Generator<PlaceholderMapping> {
   yield m;
   const choice = m.call?.list?.item;
-  if (choice && (choice.kind === "where" || ((choice.kind === "all" || choice.kind === "count") && choice.where))) {
+  if (choice && (choice.kind === "where" || ((choice.kind === "all" || choice.kind === "count" || choice.kind === "rows") && choice.where))) {
     const value = choice.kind === "where" ? choice.value : choice.where!.value;
     yield* mappingsIn(value);
   }
@@ -377,6 +378,11 @@ export function toolUsesLists(tool: Tool): boolean {
   );
 }
 
+/** Whether a tool has a Fields block field that shows a list as a table. Only such a tool needs a version 3 file. */
+export function toolUsesRows(tool: Tool): boolean {
+  return tool.blocks.some((b) => b.fields.some((f) => f.list?.item?.kind === "rows"));
+}
+
 // ---- pick-a-row to lists ----
 
 /** A name for the list made from a pick-a-row call: the last word of its path ("$.data.devices" is "Devices"). */
@@ -400,7 +406,7 @@ export function convertPickRow(tool: Tool, callId: string): Tool {
   const rewriteChoice = (c: ListItemChoice | undefined): ListItemChoice | undefined => {
     if (!c) return c;
     if (c.kind === "where") return { ...c, value: rewrite(c.value) };
-    if ((c.kind === "all" || c.kind === "count") && c.where) return { ...c, where: { ...c.where, value: rewrite(c.where.value) } };
+    if ((c.kind === "all" || c.kind === "count" || c.kind === "rows") && c.where) return { ...c, where: { ...c.where, value: rewrite(c.where.value) } };
     return c;
   };
   const rewrite = (m: PlaceholderMapping): PlaceholderMapping => {
