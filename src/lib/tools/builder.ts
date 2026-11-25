@@ -236,7 +236,11 @@ export function removeCall(tool: Tool, callId: string): Tool {
       }
       return changed ? { ...c, mappings } : c;
     });
-  const blocks = tool.blocks.map((b) => (b.callId === callId ? { ...without(b, "callId"), fields: [] } : b));
+  // A table's columns from the removed call go with it.
+  const blocks = tool.blocks.map((b) => {
+    if (b.callId === callId) return { ...without(b, "callId"), fields: [] };
+    return b.fields.some((f) => f.callId === callId) ? { ...b, fields: b.fields.filter((f) => f.callId !== callId) } : b;
+  });
   return { ...tool, calls, blocks };
 }
 
@@ -386,10 +390,13 @@ export function callGives(tool: Tool, call: ToolCall): string[] {
   const out: string[] = [];
   for (const b of tool.blocks) {
     if (b.callId !== call.id || b.type === "action") continue;
-    for (const f of b.fields) if (f.path.trim() && f.path !== "$") out.push(f.label || labelForPath(f.path));
-    for (const f of b.fields) if (f.list && (!f.path.trim() || f.path === "$")) out.push(f.label || "item");
+    // A column from a per-item call is that call's, not this block's call's.
+    for (const f of b.fields) if (f.callId === undefined && f.path.trim() && f.path !== "$") out.push(f.label || labelForPath(f.path));
+    for (const f of b.fields) if (f.callId === undefined && f.list && (!f.path.trim() || f.path === "$")) out.push(f.label || "item");
     if (b.type === "json" && b.fields.length === 0) out.push("whole response");
   }
+  // Columns of a table that show this call's answer for each item.
+  for (const b of tool.blocks) for (const f of b.fields) if (f.callId === call.id) out.push(f.label || labelForPath(f.path));
   for (const c of tool.calls) for (const m of Object.values(c.mappings)) if (m.call?.callId === call.id && m.call.path) out.push(m.call.path.replace(/^\$\.?/, ""));
   return [...new Set(out)];
 }
@@ -615,7 +622,7 @@ export function usesFields(type: BlockType): boolean {
 
 export function isPicked(block: ToolBlock, path: string): boolean {
   if (block.type === "json" && path === "$") return block.fields.length === 0 || block.fields[0].path.trim() === "" || block.fields[0].path === "$";
-  return block.fields.some((f) => f.path === path);
+  return block.fields.some((f) => f.path === path && f.callId === undefined);
 }
 
 function readSample(sample: unknown, path: string): unknown {
@@ -644,7 +651,7 @@ export function togglePath(block: ToolBlock, path: string, sample: unknown): Too
     if (path === "$" || block.fields[0]?.path === path) return { ...block, fields: [] };
     return { ...block, fields: [{ path, label: labelForPath(path), format: "text" }] };
   }
-  const existing = block.fields.findIndex((f) => f.path === path);
+  const existing = block.fields.findIndex((f) => f.path === path && f.callId === undefined);
   if (isSingleField(block.type)) {
     if (existing === 0 && block.fields.length === 1) return { ...block, fields: [] };
     return { ...block, fields: [fieldFor(path, sample)] };
@@ -656,7 +663,7 @@ export function togglePath(block: ToolBlock, path: string, sample: unknown): Too
 /** Adds a field by hand, for a path typed in. Nothing changes for a path that is already there or is empty. */
 export function addFieldByPath(block: ToolBlock, path: string, sample: unknown): ToolBlock {
   const p = path.trim();
-  if (!p || block.fields.some((f) => f.path === p)) return block;
+  if (!p || block.fields.some((f) => f.path === p && f.callId === undefined)) return block;
   return togglePath(block, p, sample);
 }
 

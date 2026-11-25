@@ -276,6 +276,11 @@ export function ToolsApp({ active, shell, command }: Props) {
     const env = loadEnvironments().find((e) => e.id === t.settings.environmentId) ?? null;
     await s.retryCall(t, callId, { findRequest: requests, envVars: environmentVars(env), environmentName: env?.name, send: sendRequest, scripts: scripts.run });
   };
+  /** Retry in a table cell: sends only that item of a call that runs once per item. */
+  const retryItem = async (s: ToolSession, t: Tool, callId: string, index: number) => {
+    const env = loadEnvironments().find((e) => e.id === t.settings.environmentId) ?? null;
+    await s.retryItem(t, callId, index, { findRequest: readRequests(), envVars: environmentVars(env), environmentName: env?.name, send: sendRequest, scripts: scripts.run });
+  };
   /** A different row for a pick-a-row call, or a different item of one list: only the calls that read from it run again. */
   const changeRow = async (s: ToolSession, t: Tool, callId: string, index: number | null, listId?: string) => {
     const env = loadEnvironments().find((e) => e.id === t.settings.environmentId) ?? null;
@@ -575,6 +580,7 @@ export function ToolsApp({ active, shell, command }: Props) {
                   onCopy: copy,
                   onPick: (callId, index, listId) => buildSession.choosePick(callId, index, listId),
                   onRetry: (callId) => void retry(buildSession, draft ?? tool, callId, () => void runSample(draft ?? tool)),
+                  onRetryItem: (callId, index) => void retryItem(buildSession, draft ?? tool, callId, index),
                   onRunAction: (callId) => void runAction(buildSession, draft ?? tool, callId),
                   guard,
                   retryAlone: (callId) => canRetryAlone(draft ?? tool, callId, findRequest),
@@ -596,6 +602,7 @@ export function ToolsApp({ active, shell, command }: Props) {
                   onInput: (name, value) => session.setInput(name, value),
                   // Retry sends just that call when nothing reads its answer; otherwise it runs the whole lookup again.
                   onRetry: (callId) => void retry(session, tool, callId, () => void lookUp(tool)),
+                  onRetryItem: (callId, index) => void retryItem(session, tool, callId, index),
                   onRunAction: (callId) => void runAction(session, tool, callId),
                   guard,
                   retryAlone: (callId) => canRetryAlone(tool, callId, findRequest),

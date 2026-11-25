@@ -36,6 +36,8 @@ export function choiceText(c: ItemRule | ListItemChoice, tool?: Tool): string {
       return `all joined with “${c.join}”${c.where ? ` where ${whereText(c.where, tool)}` : ""}`;
     case "count":
       return `how many${c.where ? ` where ${whereText(c.where, tool)}` : ""}`;
+    case "each":
+      return "each item";
   }
 }
 

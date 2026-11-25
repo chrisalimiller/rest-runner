@@ -17,9 +17,15 @@ import {
   statusLabel,
   statusTone,
   tableView,
+  eachCapNote,
+  eachLabel,
+  eachStatusText,
+  perItemListName,
   type CallView,
+  type CellStatus,
   type RowDetail,
 } from "../../lib/tools/view";
+import { eachFailed } from "../../lib/tools/engine";
 import { BodyView } from "../BodyView";
 import { RainbowText } from "../RainbowText";
 import { OverflowMenu } from "../shell/OverflowMenu";
@@ -31,6 +37,8 @@ export interface BoardActions {
   onInput: (name: string, value: string) => void;
   onRunKey: () => void;
   onRetry: (callId: string) => void;
+  /** Send one item of a call that runs once per item again (Retry in a table cell). */
+  onRetryItem?: (callId: string, index: number) => void;
   onOpenRequest: (requestId: string) => void;
   onCopy: (text: string) => void;
   /** The user chose a row (or, with `listId`, an item of one of the call's lists) while a lookup waits for it. Null for none. */
@@ -409,6 +417,8 @@ function BlockBody({ block, tool, call, result, view, state, actions, hasRequest
     }
     case "ok":
       return <OkBody block={block} tool={tool} call={call} result={result} state={state} actions={actions} />;
+    case "each":
+      return result ? <EachBody tool={tool} call={call} result={result} actions={actions} state={state} /> : null;
   }
 }
 
@@ -483,7 +493,7 @@ function OkBody({ block, tool, call, result, state, actions }: { block: ToolBloc
 export const FILTER_ROWS_ABOVE = 50;
 
 function TableBody({ block, tool, call, result, state, actions }: { block: ToolBlock; tool: Tool; call: ToolCall; result: CallResult | undefined; state: SessionState; actions: BoardActions }) {
-  const t = tableView(block, call, result);
+  const t = tableView(block, call, result, undefined, state.results);
   // A table on a list the lookup asks about is its radio group; a pick-a-row call's table is one as before.
   const listId = block.listId !== undefined && listsToAsk(tool, call).includes(block.listId) ? block.listId : undefined;
   const isPick = !!call.pickRow || listId !== undefined;
@@ -572,7 +582,7 @@ function TableBody({ block, tool, call, result, state, actions }: { block: ToolB
                   onKeyDown={selectable ? (e) => onKeyDown(e, ri) : undefined}
                 >
                   {t.rows[ri].map((cell, ci) => (
-                    <td key={ci}>
+                    <td key={ci} className={t.cellStatus?.[ri]?.[ci] ? `tool-item-cell item-${t.cellStatus[ri][ci]!.kind}` : undefined}>
                       {ci === 0 && expandable ? (
                         <span className="tool-row-first">
                           {hasDetail ? (
@@ -598,10 +608,10 @@ function TableBody({ block, tool, call, result, state, actions }: { block: ToolB
                           ) : (
                             <span className="tool-row-toggle-gap" aria-hidden="true" />
                           )}
-                          {cell}
+                          {cellContent(cell, t.cellStatus?.[ri]?.[ci] ?? null, actions, state.running)}
                         </span>
                       ) : (
-                        cell
+                        cellContent(cell, t.cellStatus?.[ri]?.[ci] ?? null, actions, state.running)
                       )}
                     </td>
                   ))}
@@ -619,11 +629,77 @@ function TableBody({ block, tool, call, result, state, actions }: { block: ToolB
         </tbody>
       </table>
       {visible.length === 0 && <p className="muted small">No rows match "{query.trim()}".</p>}
+      {t.notes?.map((n) => (
+        <p key={n} className="small muted tool-each-note">
+          {n}
+        </p>
+      ))}
       {picking && (
         <button type="button" className="secondary tool-pick-none" onClick={() => actions.onPick(call.id, null, listId)}>
           Use none
         </button>
       )}
+    </div>
+  );
+}
+
+/** A cell of a column from a per-item call: its value, or what the item is doing, with Retry when it failed. */
+function cellContent(cell: string, status: CellStatus | null, actions: BoardActions, lookupRunning: boolean) {
+  if (!status) return cell;
+  if (status.kind !== "failed") return cell;
+  return (
+    <span className="tool-item-failed">
+      <span className="tone-bad">{cell}</span>
+      {actions.onRetryItem && (
+        <button
+          type="button"
+          className="link-btn small"
+          disabled={lookupRunning}
+          title="Sends this item's request again"
+          onClick={(e) => {
+            e.stopPropagation();
+            actions.onRetryItem?.(status.callId, status.index);
+          }}
+          onKeyDown={(e) => e.stopPropagation()}
+        >
+          Retry
+        </button>
+      )}
+    </span>
+  );
+}
+
+/** What a call that runs once per item shows in its own block: one line per item, with its answer and a Retry for the ones that failed. */
+function EachBody({ tool, call, result, actions, state }: { tool: Tool; call: ToolCall; result: CallResult; actions: BoardActions; state: SessionState }) {
+  const items = result.each ?? [];
+  const note = eachCapNote(perItemListName(tool, call), result);
+  return (
+    <div className="tool-each">
+      <table className="tool-table">
+        <thead>
+          <tr>
+            <th scope="col">Item</th>
+            <th scope="col">Result</th>
+            <th scope="col" />
+          </tr>
+        </thead>
+        <tbody>
+          {items.map((e) => (
+            <tr key={e.index}>
+              <td>{eachLabel(e)}</td>
+              <td className={eachFailed(e) ? "tone-bad" : e.state === "done" ? undefined : "muted"}>{eachStatusText(e)}</td>
+              <td>
+                {eachFailed(e) && actions.onRetryItem && (
+                  <button type="button" className="link-btn small" disabled={state.running} onClick={() => actions.onRetryItem?.(call.id, e.index)}>
+                    Retry
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {note && <p className="small muted tool-each-note">{note}</p>}
     </div>
   );
 }

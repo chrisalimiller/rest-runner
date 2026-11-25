@@ -2,7 +2,7 @@ import { useRef, useState } from "react";
 import type { RequestLookup } from "../../lib/flows/flows";
 import { addCall, callGives, callGroups, callNeeds, guessLabelPath, listPathOptions, removeCall, renameCall, setCallWrite, setPickRow } from "../../lib/tools/builder";
 import { callJson } from "../../lib/tools/engine";
-import { convertPickRow } from "../../lib/tools/lists";
+import { convertPickRow, eachPlan, itemNoun, MAX_EACH_ITEMS } from "../../lib/tools/lists";
 import { listPickableRequests, type PickableRequest } from "../../lib/testing/requestSources";
 import type { CallResult, Tool, ToolCall } from "../../lib/tools/types";
 import { requestLine } from "../../lib/tools/view";
@@ -148,6 +148,9 @@ function CallCard({ stepOf, tool, call, findRequest, result, onChange, onFillIn,
   const nonDefault = !!call.pickRow || hasLists || (def ? call.write !== defaultIsWrite(def.method) : call.write);
   const showOptions = optionsOpen || nonDefault;
   const rowList = result?.state === "done" ? listPathOptions(callJson(result)) : [];
+  const plan = eachPlan(call);
+  const planList = plan ? tool.calls.find((c) => c.id === plan.sourceId)?.lists?.find((l) => l.id === plan.listId) : undefined;
+  const perItem = plan && !call.write ? (planList ? itemNoun(planList) : "item") : null;
 
   const togglePick = (on: boolean) => {
     if (!on) return onChange(setPickRow(tool, call.id, null));
@@ -210,6 +213,11 @@ function CallCard({ stepOf, tool, call, findRequest, result, onChange, onFillIn,
             ))}
           </dd>
         </dl>
+      )}
+      {perItem && (
+        <p className="small muted call-each">
+          Runs once for each {perItem}, up to {MAX_EACH_ITEMS}.
+        </p>
       )}
       <div className="call-options">
         <button type="button" className="link-btn small call-options-toggle" aria-expanded={showOptions} aria-controls={`opts-${call.id}`} disabled={nonDefault} onClick={() => setOptionsOpen(!optionsOpen)}>

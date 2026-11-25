@@ -1,5 +1,6 @@
 import { listSource, readCallField, resolveInputs, valueResolver } from "../../lib/tools/engine";
-import { readListValue } from "../../lib/tools/lists";
+import { readEachItems, readListValue, MAX_EACH_ITEMS } from "../../lib/tools/lists";
+import { readPath } from "../../lib/testing/jsonPath";
 import { refBreadcrumb } from "../../lib/tools/listText";
 import type { SessionState } from "../../lib/tools/session";
 import type { FieldFormat, ListRef, Tool, ToolCall } from "../../lib/tools/types";
@@ -26,6 +27,16 @@ export function sampleOfRef(tool: Tool, call: ToolCall | undefined, state: Pick<
   if (!call || !result || result.state !== "done") return null;
   const resolve = valueResolver(tool, resolveInputs(tool, state.inputs), state.results);
   if (!list) return { ok: true, text: formatFieldValue(readCallField(call, result, path, undefined, resolve), format) };
+  if (list.item?.kind === "each") {
+    // One request per item: the sample says how many and what they would send.
+    const src = listSource(call, result, resolve);
+    const read = readEachItems(src, list.listId);
+    if (!read.ok) return { ok: false, text: read.message };
+    const values = read.items.slice(0, MAX_EACH_ITEMS).map((it) => formatFieldValue(readPath(it, path), format));
+    const shown = values.slice(0, 3).join(", ");
+    const n = Math.min(values.length, MAX_EACH_ITEMS);
+    return { ok: true, text: `${n} ${n === 1 ? "request" : "requests"}: ${shown}${values.length > 3 ? ", …" : ""}${read.items.length > MAX_EACH_ITEMS ? ` (first ${MAX_EACH_ITEMS} of ${read.items.length} items)` : ""}` };
+  }
   const r = readListValue(listSource(call, result, resolve), path, list);
   return r.ok ? { ok: true, text: formatFieldValue(r.value, format) } : { ok: false, text: r.message };
 }

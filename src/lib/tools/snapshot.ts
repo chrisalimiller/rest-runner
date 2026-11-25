@@ -1,7 +1,8 @@
 import type { RequestLookup } from "../flows/flows";
 import { redactReport } from "../secrets";
-import { type RowDetail, callView, fieldRows, inputsSummary, jsonText, numberView, rawResponseText, requestLine, statusBadgeView, statusLabel, tableView } from "./view";
-import type { CallResult, Tool, ToolBlock } from "./types";
+import { prettyBody } from "../format";
+import { type RowDetail, callView, eachCapNote, eachLabel, eachStatusText, fieldRows, inputsSummary, jsonText, numberView, perItemListName, rawResponseText, requestLine, statusBadgeView, statusLabel, tableView } from "./view";
+import type { CallResult, Tool, ToolBlock, ToolCall } from "./types";
 
 /** "Save as HTML": one self-contained page with the blocks as they look, to send to someone. Pure; every value is escaped. */
 
@@ -41,13 +42,14 @@ function blockHtml(block: ToolBlock, input: SnapshotInput): string {
   const view = callView({ result, sending: false, lookingUp: false });
   const line = requestLine(findRequest(call.requestId));
   const status = statusLabel(view);
-  const tone = view.kind === "ok" ? "ok" : view.kind === "http-error" || view.kind === "network-error" ? "bad" : "muted";
+  const tone = view.kind === "ok" || (view.kind === "each" && view.failed === 0) ? "ok" : view.kind === "http-error" || view.kind === "network-error" || view.kind === "each" ? "bad" : "muted";
   const header = `<header>${head}${line ? `<span class="req mono">${esc(line.method)} ${esc(line.path)}</span>` : ""}${status ? `<span class="status ${tone}">${esc(status)}</span>` : ""}</header>`;
   let body: string;
   if (!result) body = `<p class="muted">Not looked up.</p>`;
   else if (view.kind === "skipped") body = `<p class="warn">${esc(view.message)}</p>`;
   else if (view.kind === "network-error") body = `<p class="bad">${esc(view.message)}</p>`;
   else if (view.kind === "stopped") body = `<p class="muted">Stopped.</p>`;
+  else if (view.kind === "each") body = eachHtml(tool, call, result);
   else if (view.kind === "http-error") body = `<pre>${esc(rawResponseText(result) || "(empty)")}</pre>`;
   else {
     switch (block.type) {
@@ -68,10 +70,17 @@ function blockHtml(block: ToolBlock, input: SnapshotInput): string {
         body = `<pre>${esc(jsonText(block, call, result) || "(nothing at that path)")}</pre>`;
         break;
       case "table": {
-        const t = tableView(block, call, result);
+        const t = tableView(block, call, result, undefined, results);
         body = t.rows.length
           ? `<table><thead><tr>${t.columns.map((c) => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>${t.rows.map((r, i) => `<tr${t.pickedIndex === i ? ' class="picked"' : ""}>${r.map((c, ci) => `<td>${ci === 0 && t.details?.[i] ? detailsHtml(t.details[i], c) : esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table>`
           : `<p class="muted">No rows.</p>`;
+        if (t.notes?.length) body += t.notes.map((n) => `<p class="muted">${esc(n)}</p>`).join("");
+        // The answers behind a per-item column, one entry per item, closed.
+        for (const id of new Set(block.fields.map((f) => f.callId).filter((x): x is string => x !== undefined))) {
+          const per = tool.calls.find((c) => c.id === id);
+          const answer = results[id];
+          if (per && answer?.each) body += `<details><summary>${esc(per.name)}: one request per ${esc(perItemListName(tool, per).toLowerCase())}</summary>${eachHtml(tool, per, answer)}</details>`;
+        }
         break;
       }
       default:
@@ -79,6 +88,19 @@ function blockHtml(block: ToolBlock, input: SnapshotInput): string {
     }
   }
   return `<section class="block">${header}${body}</section>`;
+}
+
+/** A call that ran once per item: one entry per item, each with its own answer (closed, so the page stays short). */
+function eachHtml(tool: Tool, call: ToolCall, result: CallResult): string {
+  const items = (result.each ?? [])
+    .map((e) => {
+      const head = `<b>${esc(eachLabel(e))}</b> <span class="muted">${esc(eachStatusText(e))}</span>`;
+      const text = e.response ? prettyBody(e.response.body).text : (e.error ?? "");
+      return `<li>${text ? `<details><summary>${head}</summary><pre>${esc(text)}</pre></details>` : head}</li>`;
+    })
+    .join("");
+  const note = eachCapNote(perItemListName(tool, call), result);
+  return `<ul class="each">${items}</ul>${note ? `<p class="muted">${esc(note)}</p>` : ""}`;
 }
 
 /** The blocks of a row side by side, rows in order. */
@@ -106,6 +128,7 @@ h1 { font-size: 22px; margin: 0 0 4px; } h3 { font-size: 14px; margin: 0; }
 dl { margin: 0; } dl div { display: flex; gap: 12px; padding: 3px 0; border-bottom: 1px solid var(--border); } dt { width: 40%; color: var(--muted); } dd { margin: 0; word-break: break-word; }
 table { border-collapse: collapse; width: 100%; } th, td { text-align: left; padding: 3px 8px; border-bottom: 1px solid var(--border); } th { color: var(--muted); font-weight: 600; } tr.picked td { background: var(--soft); font-weight: 600; }
 pre { background: var(--soft); padding: 10px; border-radius: 4px; white-space: pre-wrap; word-break: break-word; max-height: 480px; overflow: auto; margin: 0; }
+ul.each { list-style: none; margin: 0; padding: 0; } ul.each li { padding: 3px 0; border-bottom: 1px solid var(--border); } summary { cursor: pointer; }
 .number { font-size: 24px; font-weight: 700; margin: 0; }
 .badge { padding: 2px 8px; border-radius: 10px; font-weight: 600; background: var(--soft); } .badge.green { color: var(--ok); } .badge.red { color: var(--bad); } .badge.amber { color: var(--accent); } .badge.blue { color: #2563eb; }
 @media print { .block { break-inside: avoid; } }`;

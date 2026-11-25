@@ -32,8 +32,8 @@ import {
   type SourceKind,
 } from "../../lib/tools/builder";
 import { listSource, resolveInputs, valueResolver } from "../../lib/tools/engine";
-import { convertPickRow, listItems } from "../../lib/tools/lists";
-import { addFoundList, fieldIsPicked, findLists, listOutline, mappingIsPicked, pickMappingPath, toggleListField, updateList } from "../../lib/tools/listBuilder";
+import { convertPickRow, eachPlaceholders, itemNoun, listItems, MAX_EACH_ITEMS } from "../../lib/tools/lists";
+import { addFoundList, fieldIsPicked, findLists, listOutline, mappingIsPicked, perItemCallsFor, perItemColumnPicked, perItemSample, pickMappingPath, toggleListField, togglePerItemColumn, updateList } from "../../lib/tools/listBuilder";
 import type { SessionState } from "../../lib/tools/session";
 import { FIELD_FORMATS, type BlockField, type CallResult, type FieldFormat, type ListItemChoice, type PlaceholderMapping, type Tool, type ToolBlock, type ToolCall } from "../../lib/tools/types";
 import { BADGE_COLOURS, requestLine, formatFieldValue, type BadgeColour } from "../../lib/tools/view";
@@ -456,10 +456,16 @@ function ListChoice({ work, setWork, source, mapping, state, placeholder, call }
         Which {list ? list.name.toLowerCase() : "item"}?
       </p>
       {list ? (
-        <ChoiceEditor ctx={{ tool: work, callId: source.id, items: items.slice(0, 1) }} listRule={list.choose} choice={ref.item} onChange={setItem} label={`${placeholder} from ${list.name}`} />
+        <ChoiceEditor ctx={{ tool: work, callId: source.id, items: items.slice(0, 1) }} listRule={list.choose} choice={ref.item} onChange={setItem} label={`${placeholder} from ${list.name}`} eachAllowed={!call.write && eachPlaceholders(call).every((p) => p === placeholder)} />
       ) : (
         <p className="small tone-bad">This list was removed. Pick the value again.</p>
       )}
+      {ref.item?.kind === "each" && list && (
+        <p className="small muted cd-each-note">
+          {call.name} runs once for each {itemNoun(list)}, up to {MAX_EACH_ITEMS}, each time with that {itemNoun(list)}'s value. Show its answers as columns in a table of {list.name.toLowerCase()}. Other requests can't read from it yet, and an input or fixed text on this value is not used.
+        </p>
+      )}
+      {ref.item?.kind !== "each" && list && !call.write && eachPlaceholders(call).some((p) => p !== placeholder) && <p className="small muted cd-each-note">Another value of {call.name} already runs it once per item. A request has at most one.</p>}
       <p className="cd-crumb">
         <RefBreadcrumb tool={work} call={source} list={ref} path={mapping.call!.path} />
       </p>
@@ -545,9 +551,10 @@ function StepFields({ work, setWork, block, setBlock, call, state, onRunSample, 
         {block.type === "json" && block.fields.length === 0 && <p className="small">The whole response.</p>}
         <ul className="cd-picked">
           {block.fields.map((f, i) => (
-            <li key={`${i}:${f.path}`} className={f.list ? "cd-picked-list" : undefined}>
+            <li key={`${i}:${f.callId ?? ""}:${f.path}`} className={f.list ? "cd-picked-list" : undefined}>
               <code className="mono">{f.path}</code>
-              {sample !== undefined && !f.list && <span className="muted small cd-picked-val">{formatFieldValue(sampleValue(sample, f.path), f.format)}</span>}
+              {f.callId !== undefined && <span className="muted small cd-picked-val">{work.calls.find((c) => c.id === f.callId)?.name ?? "a removed request"}: {formatFieldValue(sampleValue(perItemSample(state.results[f.callId]), f.path), f.format)}</span>}
+              {sample !== undefined && !f.list && f.callId === undefined && <span className="muted small cd-picked-val">{formatFieldValue(sampleValue(sample, f.path), f.format)}</span>}
               <button type="button" className="icon-btn" aria-label={`Remove ${f.path}`} onClick={() => setBlock(removeField(block, i))}>
                 ×
               </button>
@@ -571,6 +578,7 @@ function StepFields({ work, setWork, block, setBlock, call, state, onRunSample, 
           </form>
         )}
         {table && !call.pickRow && <TableList work={work} setWork={setWork} block={block} call={call} state={state} />}
+        {table && !call.pickRow && block.listId !== undefined && <PerItemColumns work={work} block={block} setBlock={setBlock} call={call} state={state} onRunSample={onRunSample} />}
         {table && (
           <label className="check small">
             <input
@@ -676,6 +684,45 @@ function TableList({ work, setWork, block, call, state }: WorkProps & { block: T
   );
 }
 
+/** Columns of a table on a list that come from a request that runs once per item of that list ("Each item" in its Fill step). */
+function PerItemColumns({ work, block, setBlock, call, state, onRunSample }: { work: Tool; block: ToolBlock; setBlock: (b: ToolBlock) => void; call: ToolCall; state: SessionState; onRunSample: () => void }) {
+  const list = call.lists?.find((l) => l.id === block.listId);
+  const per = perItemCallsFor(work, call.id, block.listId);
+  if (!list) return null;
+  if (per.length === 0) {
+    return (
+      <p className="small muted cd-per-item-hint">
+        To add a column from another request for every {itemNoun(list)}, set a value of that request to <strong>Each item</strong> in its Fill step.
+      </p>
+    );
+  }
+  return (
+    <div className="cd-per-item">
+      {per.map((c) => {
+        const result = state.results[c.id];
+        const sample = perItemSample(result);
+        return (
+          <div key={c.id} className="cd-per-item-call">
+            <p className="cd-lead small">
+              Columns from <strong>{c.name}</strong>, one request per {itemNoun(list)}
+            </p>
+            {sample !== undefined ? (
+              <JsonTree sample={sample} label={`Sample answer of ${c.name}`} rootLabel="Answer" rootPickable={false} isPicked={(p) => perItemColumnPicked(block, c.id, p)} onPick={(p) => setBlock(togglePerItemColumn(block, c.id, p, sample))} />
+            ) : (
+              <div className="cd-sample-help">
+                <p className="small muted">{state.running ? "Running with sample values…" : result?.each ? "No item got a usable answer yet." : `No sample answer yet. Run with sample to see ${c.name}'s answer for the first item.`}</p>
+                <button className="secondary" onClick={onRunSample} disabled={state.running}>
+                  Run with sample
+                </button>
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function withExpandable(b: ToolBlock, on: boolean): ToolBlock {
   const copy = { ...b };
   if (on) copy.expandable = true;
@@ -726,7 +773,8 @@ const FORMAT_LABELS: Record<FieldFormat, string> = { text: "Text", number: "Numb
 function StepFormat({ work, block, setBlock, call, state }: { work: Tool; block: ToolBlock; setBlock: (b: ToolBlock) => void; call: ToolCall | undefined; state: SessionState }) {
   const resolve = valueResolver(work, resolveInputs(work, state.inputs), state.results);
   const sample = blockSample(block, call, call ? state.results[call.id] : undefined, resolve);
-  const valueOf = (f: BlockField) => (f.list ? (sampleOfRef(work, call, state, f.path, f.list, f.format)?.text ?? "") : formatFieldValue(sampleValue(sample, f.path), f.format));
+  const valueOf = (f: BlockField) =>
+    f.callId !== undefined ? formatFieldValue(sampleValue(perItemSample(state.results[f.callId]), f.path), f.format) : f.list ? (sampleOfRef(work, call, state, f.path, f.list, f.format)?.text ?? "") : formatFieldValue(sampleValue(sample, f.path), f.format);
   const callName = work.calls.find((c) => c.id === block.callId)?.name;
   const action = block.type === "action";
   return (
@@ -754,7 +802,7 @@ function StepFormat({ work, block, setBlock, call, state }: { work: Tool; block:
           {block.fields.length === 0 && <p className="muted">No fields picked yet. Go back to Fields and click the values to show.</p>}
           <ul className="cd-format">
             {block.fields.map((f, i) => (
-              <FieldRow key={`${i}:${f.path}`} f={f} i={i} count={block.fields.length} sample={sample} value={valueOf(f)} block={block} setBlock={setBlock} />
+              <FieldRow key={`${i}:${f.callId ?? ""}:${f.path}`} f={f} i={i} count={block.fields.length} sample={f.callId !== undefined ? perItemSample(state.results[f.callId]) : sample} value={valueOf(f)} block={block} setBlock={setBlock} from={f.callId !== undefined ? (work.calls.find((c) => c.id === f.callId)?.name ?? "a removed request") : undefined} />
             ))}
           </ul>
         </>
@@ -764,7 +812,7 @@ function StepFormat({ work, block, setBlock, call, state }: { work: Tool; block:
   );
 }
 
-function FieldRow({ f, i, count, sample, value, block, setBlock }: { f: BlockField; i: number; count: number; sample: unknown; value: string; block: ToolBlock; setBlock: (b: ToolBlock) => void }) {
+function FieldRow({ f, i, count, sample, value, block, setBlock, from }: { f: BlockField; i: number; count: number; sample: unknown; value: string; block: ToolBlock; setBlock: (b: ToolBlock) => void; from?: string }) {
   const column = block.type === "table";
   return (
     <li className="cd-format-row">
@@ -789,6 +837,7 @@ function FieldRow({ f, i, count, sample, value, block, setBlock }: { f: BlockFie
         )}
       </div>
       <div className="cd-format-hint small muted">
+        {from !== undefined && <span>{from}: </span>}
         <code className="mono">{f.path}</code>
         {sample !== undefined && <span> shows {value}</span>}
       </div>

@@ -1,9 +1,9 @@
 import { newId } from "../ids";
 import { parsePath, readPath } from "../testing/jsonPath";
 import { addBlock, childPath, guessFormat, guessLabelPath, isSingleField, keyIsPathSafe, labelForPath, sampleValue, uniqueName } from "./builder";
-import { listsToAsk, nameFromPath, readList, type ListSource } from "./lists";
+import { eachPlan, listsToAsk, nameFromPath, readList, type ListSource } from "./lists";
 import { newBlock } from "./tools";
-import type { BlockField, ItemRule, ListItemChoice, ListRef, PlaceholderMapping, Tool, ToolBlock, ToolCall, ToolList } from "./types";
+import type { BlockField, CallResult, ItemRule, ListItemChoice, ListRef, PlaceholderMapping, Tool, ToolBlock, ToolCall, ToolList } from "./types";
 
 /**
  * The logic of setting up lists in Build mode, as plain functions over a tool: finding the lists in a sample response,
@@ -153,7 +153,7 @@ export function removeList(tool: Tool, callId: string, listId: string): Tool {
 // ---- rules, in words ----
 
 export type RuleKind = "none" | "ask" | "first" | "last" | "index" | "where";
-export type ChoiceKind = Exclude<RuleKind, "none"> | "list" | "all" | "count";
+export type ChoiceKind = Exclude<RuleKind, "none"> | "list" | "all" | "count" | "each";
 
 export const RULE_LABELS: Record<RuleKind, string> = {
   none: "Show only",
@@ -173,10 +173,11 @@ export const CHOICE_LABELS: Record<ChoiceKind, string> = {
   where: "First where…",
   all: "All, joined",
   count: "How many",
+  each: "Each item (one request per item)",
 };
 
 export const RULE_KINDS: readonly RuleKind[] = ["none", "ask", "first", "last", "index", "where"];
-export const CHOICE_KINDS: readonly ChoiceKind[] = ["list", "ask", "first", "last", "index", "where", "all", "count"];
+export const CHOICE_KINDS: readonly ChoiceKind[] = ["list", "ask", "first", "last", "index", "where", "all", "count", "each"];
 
 export function ruleKind(r: ItemRule): RuleKind {
   if (r.kind === "index") return r.index === 0 ? "first" : r.index === -1 ? "last" : "index";
@@ -202,7 +203,7 @@ export function ruleOfKind(kind: RuleKind, prev?: ItemRule, field = ""): ItemRul
 
 export function choiceKind(c: ListItemChoice | undefined): ChoiceKind {
   if (!c || c.kind === "none") return "list";
-  if (c.kind === "all" || c.kind === "count") return c.kind;
+  if (c.kind === "all" || c.kind === "count" || c.kind === "each") return c.kind;
   return ruleKind(c) as ChoiceKind;
 }
 
@@ -214,8 +215,10 @@ export function choiceOfKind(kind: ChoiceKind, prev: ListItemChoice | undefined,
       return prev?.kind === "all" ? prev : { kind: "all", join: ", " };
     case "count":
       return prev?.kind === "count" ? prev : { kind: "count" };
+    case "each":
+      return { kind: "each" };
     default:
-      return ruleOfKind(kind as RuleKind, prev && prev.kind !== "all" && prev.kind !== "count" ? prev : undefined, field);
+      return ruleOfKind(kind as RuleKind, prev && prev.kind !== "all" && prev.kind !== "count" && prev.kind !== "each" ? prev : undefined, field);
   }
 }
 
@@ -428,4 +431,40 @@ export function addListTable(tool: Tool, callId: string, listId: string): Tool {
   const fields: BlockField[] = list.labelPath.trim() ? [{ path: list.labelPath, label: labelForPath(list.labelPath), format: "text" }] : [];
   const block = newBlock("table", 0, { title: list.name, callId, listId, fields });
   return { ...tool, blocks: addBlock(tool.blocks, block) };
+}
+
+// ---- columns from a call that runs once per item ----
+
+/** The calls that run once per item of one list of `callId`. Their answers can be columns of a table on that list. */
+export function perItemCallsFor(tool: Tool, callId: string, listId: string | undefined): ToolCall[] {
+  if (listId === undefined) return [];
+  return tool.calls.filter((c) => {
+    const plan = eachPlan(c);
+    return !!plan && plan.sourceId === callId && plan.listId === listId;
+  });
+}
+
+/** What to click on to add a column: the first item of a per-item call whose response is JSON. */
+export function perItemSample(result: CallResult | undefined): unknown {
+  for (const e of result?.each ?? []) {
+    if (e.state !== "done" || !e.response) continue;
+    try {
+      return JSON.parse(e.response.body);
+    } catch {
+      // Not JSON: try the next item.
+    }
+  }
+  return undefined;
+}
+
+/** Whether the table already has a column reading this path of this per-item call. */
+export function perItemColumnPicked(block: ToolBlock, callId: string, path: string): boolean {
+  return block.fields.some((f) => f.callId === callId && f.path === path);
+}
+
+/** A click on a value of a per-item call's sample: adds a column from it, or removes the column that is there. */
+export function togglePerItemColumn(block: ToolBlock, callId: string, path: string, sample: unknown): ToolBlock {
+  const at = block.fields.findIndex((f) => f.callId === callId && f.path === path);
+  if (at >= 0) return { ...block, fields: block.fields.filter((_, i) => i !== at) };
+  return { ...block, fields: [...block.fields, { path, label: labelForPath(path), format: guessFormat(sampleValue(sample, path), path), callId }] };
 }

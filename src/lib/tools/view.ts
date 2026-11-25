@@ -4,9 +4,9 @@ import { prettyBody } from "../format";
 import { requestPlaceholders } from "../request";
 import { readPath } from "../testing/jsonPath";
 import type { RequestDef } from "../types";
-import { callData, callJson, listSource, pickRows, readCallField } from "./engine";
-import { chooseItem, listItems, listNote, type ValueResolver } from "./lists";
-import type { BlockField, CallResult, FieldFormat, Tool, ToolBlock, ToolCall } from "./types";
+import { callData, callJson, eachFailed, listSource, pickRows, readCallField } from "./engine";
+import { chooseItem, eachPlan, listItems, listNote, type ValueResolver } from "./lists";
+import type { BlockField, CallResult, EachResult, FieldFormat, Tool, ToolBlock, ToolCall } from "./types";
 
 /** What Use mode shows for tool blocks, worked out as plain data so it can be tested without a screen. */
 
@@ -90,7 +90,9 @@ export type CallView =
   | { kind: "http-error"; status: number; ms?: number }
   | { kind: "skipped"; message: string; missingRequest: boolean }
   | { kind: "network-error"; message: string }
-  | { kind: "stopped" };
+  | { kind: "stopped" }
+  /** A call that runs once per item: how many requests got an answer, and how many of those failed. */
+  | { kind: "each"; sent: number; failed: number; ms?: number };
 
 export interface CallViewInput {
   result: CallResult | undefined;
@@ -102,6 +104,11 @@ export interface CallViewInput {
 
 export function callView({ result, sending, lookingUp }: CallViewInput): CallView {
   if (!result) return sending ? { kind: "running" } : lookingUp ? { kind: "waiting" } : { kind: "idle" };
+  if (result.each) {
+    if (result.each.some((e) => e.state === "pending")) return { kind: "running" };
+    const sent = result.each.filter((e) => e.state === "done" || e.state === "network-error");
+    if (sent.length > 0) return { kind: "each", sent: sent.length, failed: result.each.filter(eachFailed).length, ms: result.durationMs };
+  }
   switch (result.state) {
     case "done": {
       const status = result.status ?? result.response?.status ?? 0;
@@ -123,6 +130,10 @@ export function statusLabel(v: CallView): string {
     case "ok":
     case "http-error":
       return v.ms === undefined ? String(v.status) : `${v.status} · ${formatMs(v.ms)}`;
+    case "each": {
+      const what = v.failed > 0 ? `${v.failed} of ${v.sent} failed` : `${v.sent} ${v.sent === 1 ? "request" : "requests"}`;
+      return v.ms === undefined ? what : `${what} · ${formatMs(v.ms)}`;
+    }
     case "running":
       return "Running";
     case "waiting":
@@ -147,6 +158,8 @@ export function statusTone(v: CallView): StatusTone {
     case "http-error":
     case "network-error":
       return "bad";
+    case "each":
+      return v.failed > 0 ? "bad" : "ok";
     case "skipped":
       return "warn";
     case "running":
@@ -192,9 +205,21 @@ export function tableRows(call: ToolCall, result: CallResult | undefined, listId
   return [];
 }
 
+/** What a cell from a per-item call is waiting on or shows instead of a value. Null cells show their value. */
+export interface CellStatus {
+  kind: "waiting" | "running" | "failed" | "skipped" | "stopped" | "notrun";
+  /** The per-item call the cell reads, and the item it is for (what Retry sends again). */
+  callId: string;
+  index: number;
+}
+
 export interface TableView {
   columns: string[];
   rows: string[][];
+  /** Only for a table with columns from a per-item call: what each cell is doing when it shows no value (same shape as `rows`). */
+  cellStatus?: (CellStatus | null)[][];
+  /** Only for a table with columns from a per-item call that stopped at the item limit: "Ran for the first 25 of 40 devices". */
+  notes?: string[];
   /** The row the lookup used: the picked row of a pick-a-row call, or the item the table's list hands on. */
   pickedIndex: number | null;
   /** Only for a table on a list: "No devices", or why the list could not be read. Null when there are rows. */
@@ -264,9 +289,62 @@ export function rowDetail(item: unknown, columnPaths: string[], innerNames: Reco
   return { pairs, tables };
 }
 
-export function tableView(block: ToolBlock, call: ToolCall, result: CallResult | undefined, resolve?: ValueResolver): TableView {
+const eachJson = new WeakMap<EachResult, unknown>();
+
+function eachBody(e: EachResult): unknown {
+  if (eachJson.has(e)) return eachJson.get(e);
+  let v: unknown;
+  try {
+    v = e.response ? JSON.parse(e.response.body) : undefined;
+  } catch {
+    v = undefined;
+  }
+  eachJson.set(e, v);
+  return v;
+}
+
+/** One cell of a per-item column: the item's value, or what the item is doing (Running, HTTP 500, ...). */
+function eachCell(f: BlockField, index: number, results: Record<string, CallResult> | undefined): { text: string; status: CellStatus | null } {
+  const callId = f.callId!;
+  const r = results?.[callId];
+  if (!r?.each) return r && r.state !== "done" ? { text: r.state === "skipped" ? "Skipped" : r.state === "stopped" ? "Stopped" : "No response", status: { kind: r.state === "stopped" ? "stopped" : r.state === "skipped" ? "skipped" : "failed", callId, index } } : { text: "Waiting", status: { kind: "waiting", callId, index } };
+  const e = r.each.find((x) => x.index === index);
+  if (!e) return { text: "Not run", status: { kind: "notrun", callId, index } };
+  switch (e.state) {
+    case "pending":
+      return { text: "Running", status: { kind: "running", callId, index } };
+    case "skipped":
+      return { text: "Skipped", status: { kind: "skipped", callId, index } };
+    case "stopped":
+      return { text: "Stopped", status: { kind: "stopped", callId, index } };
+    case "network-error":
+      return { text: "No response", status: { kind: "failed", callId, index } };
+    case "done": {
+      const status = e.status ?? e.response?.status ?? 0;
+      if (status >= 400) return { text: `HTTP ${status}`, status: { kind: "failed", callId, index } };
+      return { text: formatFieldValue(readPath(eachBody(e), f.path), f.format), status: null };
+    }
+  }
+}
+
+/** The name of the list a per-item call runs over ("Devices"), or "items". */
+export function perItemListName(tool: Tool, call: ToolCall): string {
+  const plan = eachPlan(call);
+  const source = plan ? tool.calls.find((c) => c.id === plan.sourceId) : undefined;
+  return (plan && source ? source.lists?.find((l) => l.id === plan.listId)?.name : undefined) ?? "items";
+}
+
+/** "Ran for the first 25 of 40 devices", or null when every item ran. */
+export function eachCapNote(listName: string, result: CallResult | undefined): string | null {
+  if (!result?.each || result.eachTotal === undefined || result.eachTotal <= result.each.length) return null;
+  return `Ran for the first ${result.each.length} of ${result.eachTotal} ${listName.trim().toLowerCase()}`;
+}
+
+export function tableView(block: ToolBlock, call: ToolCall, result: CallResult | undefined, resolve?: ValueResolver, results?: Record<string, CallResult>): TableView {
   const cols: BlockField[] = block.fields;
-  const rows = tableRows(call, result, block.listId, resolve).map((row) => cols.map((c) => formatFieldValue(readPath(row, c.path), c.format)));
+  const perItem = cols.some((c) => c.callId !== undefined);
+  const cells = tableRows(call, result, block.listId, resolve).map((row, ri) => cols.map((c) => (c.callId !== undefined ? eachCell(c, ri, results) : { text: formatFieldValue(readPath(row, c.path), c.format), status: null })));
+  const rows = cells.map((r) => r.map((c) => c.text));
   let pickedIndex = result?.picked?.index ?? null;
   let note: string | null = null;
   if (block.listId !== undefined && result?.state === "done") {
@@ -278,6 +356,12 @@ export function tableView(block: ToolBlock, call: ToolCall, result: CallResult |
     note = rows.length === 0 ? listNote(src, block.listId) : null;
   }
   const view: TableView = { columns: cols.map((c) => c.label || c.path), rows, pickedIndex, ...(block.listId !== undefined ? { note } : {}) };
+  if (perItem) {
+    view.cellStatus = cells.map((r) => r.map((c) => c.status));
+    const listName = call.lists?.find((l) => l.id === block.listId)?.name ?? "items";
+    const notes = [...new Set(cols.map((c) => c.callId).filter((id): id is string => id !== undefined))].map((id) => eachCapNote(listName, results?.[id])).filter((n): n is string => n !== null);
+    if (notes.length > 0) view.notes = notes;
+  }
   if (block.expandable === true) {
     // Inner lists the call defines under this table's list carry their own names.
     const innerNames: Record<string, string> = {};
@@ -352,9 +436,33 @@ export function jsonText(block: ToolBlock, call: ToolCall, result: CallResult | 
   return prettyBody(result.response.body).text;
 }
 
+/** The name of one item of a per-item call: its label, else its place in the list. */
+export function eachLabel(e: EachResult): string {
+  return e.key ?? `Item ${e.index + 1}`;
+}
+
+/** What one item of a per-item call came to, in a few words ("200 · 120 ms", "No response", "Running"). */
+export function eachStatusText(e: EachResult): string {
+  switch (e.state) {
+    case "pending":
+      return "Running";
+    case "done": {
+      const status = e.status ?? e.response?.status ?? 0;
+      return e.durationMs === undefined ? String(status) : `${status} · ${formatMs(e.durationMs)}`;
+    }
+    case "network-error":
+      return "No response";
+    case "skipped":
+      return e.message ?? "Skipped";
+    case "stopped":
+      return "Stopped";
+  }
+}
+
 /** The response body as text, for Show raw response and Copy. */
 export function rawResponseText(result: CallResult | undefined): string {
   if (!result) return "";
+  if (result.each) return result.each.map((e) => `${eachLabel(e)}\n${e.response ? prettyBody(e.response.body).text : (e.error ?? e.message ?? "")}`).join("\n\n");
   if (result.response) return prettyBody(result.response.body).text;
   return result.error ?? result.message ?? "";
 }
@@ -364,7 +472,7 @@ export function rawResponseText(result: CallResult | undefined): string {
 /** How many calls are done and how many are running, for the line above the blocks. */
 export function progressCounts(tool: Tool, results: Record<string, CallResult>, sending: readonly string[]): { done: number; running: number; total: number } {
   const lookups = tool.calls.filter((c) => !c.write);
-  return { done: lookups.filter((c) => results[c.id]).length, running: sending.filter((id) => !results[id]).length, total: lookups.length };
+  return { done: lookups.filter((c) => results[c.id] && !results[c.id].each?.some((e) => e.state === "pending")).length, running: sending.filter((id) => !results[id]).length, total: lookups.length };
 }
 
 /** Text for Copy all: each call's request and answer, one after the other. */
@@ -376,6 +484,17 @@ export function lookupAsText(tool: Tool, results: Record<string, CallResult>, fi
     if (!r) continue;
     const line = requestLine(findRequest(call.requestId));
     const head = `${call.name}${line ? ` (${line.method} ${line.path})` : ""} · ${statusLabel(callView({ result: r, sending: false, lookingUp: false }))}`;
+    if (r.each) {
+      // One entry per item, each with its own answer.
+      const note = eachCapNote(perItemListName(tool, call), r);
+      parts.push(note ? `${head}\n${note}` : head);
+      for (const e of r.each) {
+        const entryHead = `${call.name} · ${eachLabel(e)} · ${eachStatusText(e)}`;
+        const entryBody = e.state === "skipped" ? "" : e.response ? prettyBody(e.response.body).text : (e.error ?? "");
+        parts.push(entryBody ? `${entryHead}\n${entryBody}` : entryHead);
+      }
+      continue;
+    }
     const body = r.state === "skipped" ? (r.message ?? "") : rawResponseText(r);
     const picked = picksText(call, r);
     const top = picked ? `${head}\nPicked ${picked}` : head;
