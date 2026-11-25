@@ -96,7 +96,7 @@ Some APIs take one id per request, so "the warranty of every device" needs one r
 - **Show the answers as columns.** In a Table block on that list, the Fields step offers **Columns from Warranty, one request per device**: click a value in the sample answer. Each cell shows that device's value; while its request is out the cell says **Running**, and if it failed the cell says **HTTP 503** or **No response** with a **Retry** that sends that one item again. A block shown on the per-item request itself lists one line per item with its status and the same Retry. The block's header says how many requests ran and how many failed (`2 of 3 failed`).
 - **Other requests cannot read from a per-item request yet.** Build blocks saving with "Warranty runs once per device; other calls can't read from it yet".
 - **Stop** ends the items not yet sent as Stopped.
-- **History and copies.** A saved lookup keeps each item's answer. Each item's body is cut like any other response body, and the bodies of one lookup together are kept under 1 MB, oldest dropped first, so 25 items cannot fill the history. **Copy all** and **Save as HTML** list one entry per item (in the page each is a closed section under the table).
+- **History and copies.** A saved lookup keeps each item's answer. Each item's body is cut at 1 MB like any other response body, and the bodies of one lookup together are kept under 8 MB, oldest dropped first, so 25 items cannot fill the history. **Copy all** and **Save as HTML** list one entry per item (in the page each is a closed section under the table).
 
 Tools without this setting, saved lookups and export files are not changed by it. A tools file that uses it is written as `version: 2`, like one that uses lists.
 

@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MAX_HISTORY_BODY } from "../history";
-import { BODY_DROPPED, expiredLookupIds, lookupForStorage, MAX_LOOKUP_BODIES, MAX_LOOKUPS_PER_TOOL, trimLookup } from "./lookupStore";
+import { BODY_DROPPED, expiredLookupIds, lookupForStorage, MAX_LOOKUP_BODIES, MAX_LOOKUP_BODY, MAX_LOOKUPS_PER_TOOL, trimLookup } from "./lookupStore";
 import type { LookupRecord } from "./types";
 
 function record(overrides: Partial<LookupRecord> = {}, body = "{}"): LookupRecord {
@@ -32,17 +31,17 @@ describe("lookup history limits", () => {
   });
 
   it("cuts long bodies to the size request history keeps, and leaves short ones", () => {
-    const long = "x".repeat(MAX_HISTORY_BODY + 100);
+    const long = "x".repeat(MAX_LOOKUP_BODY + 100);
     const r = trimLookup(record({}, long));
-    expect(r.results[0].response!.body).toHaveLength(MAX_HISTORY_BODY);
+    expect(r.results[0].response!.body).toHaveLength(MAX_LOOKUP_BODY);
     expect(trimLookup(record({}, "short")).results[0].response!.body).toBe("short");
     expect(r.results[1]).toEqual(record().results[1]);
   });
 
   it("does not change the live record", () => {
-    const live = record({}, "x".repeat(MAX_HISTORY_BODY + 1));
+    const live = record({}, "x".repeat(MAX_LOOKUP_BODY + 1));
     lookupForStorage(live, ["supersecret"]);
-    expect(live.results[0].response!.body).toHaveLength(MAX_HISTORY_BODY + 1);
+    expect(live.results[0].response!.body).toHaveLength(MAX_LOOKUP_BODY + 1);
   });
 });
 
@@ -62,13 +61,13 @@ describe("lookups of a call that runs once per item", () => {
     });
 
   it("cuts the body of every item like any other", () => {
-    const r = trimLookup(perItem(2, "x".repeat(MAX_HISTORY_BODY + 5)));
-    expect(r.results[0].each!.map((e) => e.response!.body.length)).toEqual([MAX_HISTORY_BODY, MAX_HISTORY_BODY]);
+    const r = trimLookup(perItem(2, "x".repeat(MAX_LOOKUP_BODY + 5)));
+    expect(r.results[0].each!.map((e) => e.response!.body.length)).toEqual([MAX_LOOKUP_BODY, MAX_LOOKUP_BODY]);
   });
 
   it("drops the oldest bodies first when the whole lookup is too large, and keeps everything else", () => {
-    const body = "y".repeat(MAX_HISTORY_BODY);
-    const n = Math.ceil(MAX_LOOKUP_BODIES / MAX_HISTORY_BODY) + 4;
+    const body = "y".repeat(MAX_LOOKUP_BODY);
+    const n = Math.ceil(MAX_LOOKUP_BODIES / MAX_LOOKUP_BODY) + 4;
     const r = trimLookup(perItem(n, body));
     const each = r.results[0].each!;
     expect(each[0].response!.body).toBe(BODY_DROPPED);
