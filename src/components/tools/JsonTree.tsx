@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { buildTree, type TreeNode } from "../../lib/tools/builder";
 
 interface Props {
@@ -14,14 +14,16 @@ interface Props {
   rootPickable?: boolean;
   /** Names the first line for a screen reader, e.g. "Pick the fields to show". */
   label: string;
+  /** Opens this path and the rows above it. A new object (even for the same path) opens it again. */
+  reveal?: { path: string };
 }
 
 /** A sample response as a tree. Click a value to pick it; the paths it produces are the ones readPath reads. */
-export function JsonTree({ sample, isPicked, onPick, rootLabel = "Whole response", rootPickable = false, label }: Props) {
+export function JsonTree({ sample, isPicked, onPick, rootLabel = "Whole response", rootPickable = false, label, reveal }: Props) {
   const root = useMemo(() => buildTree(sample), [sample]);
   return (
     <div className="json-tree" role="tree" aria-label={label}>
-      <TreeRow node={root} depth={0} isPicked={isPicked} onPick={onPick} rootLabel={rootLabel} rootPickable={rootPickable} />
+      <TreeRow node={root} depth={0} isPicked={isPicked} onPick={onPick} rootLabel={rootLabel} rootPickable={rootPickable} reveal={reveal} />
     </div>
   );
 }
@@ -33,10 +35,19 @@ interface RowProps {
   onPick: (path: string) => void;
   rootLabel: string;
   rootPickable: boolean;
+  reveal?: { path: string };
 }
 
-function TreeRow({ node, depth, isPicked, onPick, rootLabel, rootPickable }: RowProps) {
+/** Whether `path` is this node or inside it. */
+function onTheWayTo(node: string, path: string): boolean {
+  return path === node || path.startsWith(`${node}.`) || path.startsWith(`${node}[`);
+}
+
+function TreeRow({ node, depth, isPicked, onPick, rootLabel, rootPickable, reveal }: RowProps) {
   const [open, setOpen] = useState(depth < 2);
+  useEffect(() => {
+    if (reveal && onTheWayTo(node.path, reveal.path)) setOpen(true);
+  }, [reveal, node.path]);
   const branch = node.kind === "object" || node.kind === "array";
   const isRoot = depth === 0;
   const pickable = node.pickable && (!isRoot || rootPickable || !branch);
@@ -73,7 +84,7 @@ function TreeRow({ node, depth, isPicked, onPick, rootLabel, rootPickable }: Row
       {branch && open && (
         <div role="group">
           {node.children.map((c) => (
-            <TreeRow key={`${c.path}:${c.key}`} node={c} depth={depth + 1} isPicked={isPicked} onPick={onPick} rootLabel={rootLabel} rootPickable={rootPickable} />
+            <TreeRow key={`${c.path}:${c.key}`} node={c} depth={depth + 1} isPicked={isPicked} onPick={onPick} rootLabel={rootLabel} rootPickable={rootPickable} reveal={reveal} />
           ))}
           {hidden > 0 && (
             <div className="json-more muted small" style={{ paddingLeft: (depth + 1) * 14 + 22 }}>

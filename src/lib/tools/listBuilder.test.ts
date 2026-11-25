@@ -4,21 +4,27 @@ import { listSource, readCallField } from "./engine";
 import {
   addFoundList,
   addListByPath,
+  addTableBesideEntry,
   addListTable,
   choiceKind,
   choiceOfKind,
   ensureLists,
   fieldIsPicked,
   findLists,
+  listEntryOf,
   listHasTable,
   listOutline,
   mappingIsPicked,
+  openItemFields,
   pickHasNoTable,
   pickMappingPath,
   removeList,
   ruleKind,
   ruleOfKind,
+  setEntryChoice,
+  setListShow,
   splitListPath,
+  toggleListEntry,
   toggleListField,
   updateList,
 } from "./listBuilder";
@@ -398,5 +404,157 @@ describe("a list you are asked to pick in needs a table", () => {
     expect(block).toMatchObject({ type: "table", title: "Devices", callId, listId: shown.list!.id, fields: [{ path: "$.model", label: "Model", format: "text" }] });
     expect(t.blocks.filter((b) => b.row === block.row)).toHaveLength(1);
     expect(addListTable(sampleTool(), callId, "gone")).toEqual(sampleTool());
+  });
+});
+
+describe("clicking a list row of a Fields block", () => {
+  const sample = { name: "Ada", servItems: [{ name: "Roaming", id: 1, features: ["a", "b"] }, { name: "Voicemail", id: 2, features: [] }], tags: ["CID", "VM"] };
+  const base = (type: "fields" | "number" = "fields"): Tool => {
+    const t = sampleTool();
+    return { ...t, blocks: t.blocks.map((b) => (b.id === "b-subscriber" ? { ...b, type, callId: "c-devices", fields: [] } : b)) };
+  };
+  const blockOf = (t: Tool) => t.blocks.find((b) => b.id === "b-subscriber")!;
+  const callOf = (t: Tool) => t.calls.find((c) => c.id === "c-devices")!;
+
+  it("adds a how-many entry for a list of records, on a list that only shows (so nothing waits for a pick)", () => {
+    const t = toggleListEntry(base(), "b-subscriber", sample, "$.servItems")!;
+    const list = callOf(t).lists![0];
+    expect(list).toMatchObject({ path: "$.servItems", name: "Serv items", choose: { kind: "none" }, labelPath: "$.name" });
+    expect(blockOf(t).fields).toEqual([{ path: "$", label: "Serv items", format: "text", list: { listId: list.id, item: { kind: "count" } } }]);
+    expect(listEntryOf(callOf(t), blockOf(t).fields[0], sample)).toMatchObject({ show: "count" });
+  });
+
+  it("adds a joined entry for a list of plain values", () => {
+    const t = toggleListEntry(base(), "b-subscriber", sample, "$.tags")!;
+    const f = blockOf(t).fields[0];
+    expect(f).toMatchObject({ path: "$", list: { item: { kind: "all", join: ", " } } });
+    const call = callOf(t);
+    expect(readCallField(call, done("c-devices", sample), f.path, f.list, () => null)).toBe("CID, VM");
+  });
+
+  it("reads the entry: how many and joined names", () => {
+    const counted = toggleListEntry(base(), "b-subscriber", sample, "$.servItems")!;
+    const f = blockOf(counted).fields[0];
+    expect(readCallField(callOf(counted), done("c-devices", sample), f.path, f.list, () => null)).toBe(2);
+    const joined = setListShow(counted, "b-subscriber", 0, sample, "joined");
+    const j = blockOf(joined).fields[0];
+    expect(j).toMatchObject({ path: "$.name", list: { item: { kind: "all", join: ", " } } });
+    expect(readCallField(callOf(joined), done("c-devices", sample), j.path, j.list, () => null)).toBe("Roaming, Voicemail");
+  });
+
+  it("is picked while its entry is there, and a second click takes the entry and its list away", () => {
+    const t = toggleListEntry(base(), "b-subscriber", sample, "$.servItems")!;
+    expect(fieldIsPicked(callOf(t), blockOf(t), sample, "$.servItems")).toBe(true);
+    const gone = toggleListEntry(t, "b-subscriber", sample, "$.servItems")!;
+    expect(blockOf(gone).fields).toEqual([]);
+    expect(callOf(gone).lists).toBeUndefined();
+  });
+
+  it("does not mark the items of a list as picked because the whole list is shown", () => {
+    const t = toggleListEntry(base(), "b-subscriber", sample, "$.servItems")!;
+    expect(fieldIsPicked(callOf(t), blockOf(t), sample, "$.servItems[0]")).toBe(false);
+    const tags = toggleListEntry(base(), "b-subscriber", sample, "$.tags")!;
+    expect(fieldIsPicked(callOf(tags), blockOf(tags), sample, "$.tags[0]")).toBe(false);
+  });
+
+  it("keeps a list the user set a rule on when its entry goes", () => {
+    let t = toggleListEntry(base(), "b-subscriber", sample, "$.servItems")!;
+    t = updateList(t, "c-devices", callOf(t).lists![0].id, { choose: { kind: "ask" } });
+    const gone = toggleListEntry(t, "b-subscriber", sample, "$.servItems")!;
+    expect(callOf(gone).lists).toHaveLength(1);
+  });
+
+  it("reuses the call's list for the path", () => {
+    const withList = addFoundList(base(), "c-devices", findLists(sample)[0]).tool;
+    const t = toggleListEntry(withList, "b-subscriber", sample, "$.servItems")!;
+    expect(callOf(t).lists).toHaveLength(1);
+    expect(blockOf(t).fields[0].list!.listId).toBe(callOf(withList).lists![0].id);
+  });
+
+  it("leaves a saved plain field alone: the click removes it as before, and nothing is converted", () => {
+    const saved: Tool = { ...base(), blocks: base().blocks.map((b) => (b.id === "b-subscriber" ? { ...b, fields: [{ path: "$.servItems", label: "Items", format: "text" as const }] } : b)) };
+    expect(toggleListEntry(saved, "b-subscriber", sample, "$.servItems")).toBeNull();
+    expect(listEntryOf(callOf(saved), blockOf(saved).fields[0], sample)).toEqual({ show: "json" });
+    expect(fieldIsPicked(callOf(saved), blockOf(saved), sample, "$.servItems")).toBe(true);
+  });
+
+  it("is null for a value that is not a list, a list inside a list item, a table or JSON block, and a pick-a-row call", () => {
+    expect(toggleListEntry(base(), "b-subscriber", sample, "$.name")).toBeNull();
+    expect(toggleListEntry(base(), "b-subscriber", sample, "$.servItems[0].features")).toBeNull();
+    const t = base();
+    for (const type of ["table", "json"] as const) expect(toggleListEntry({ ...t, blocks: t.blocks.map((b) => (b.id === "b-subscriber" ? { ...b, type } : b)) }, "b-subscriber", sample, "$.servItems")).toBeNull();
+    const pick = { ...t, calls: t.calls.map((c) => (c.id === "c-devices" ? { ...c, pickRow: { listPath: "$.servItems", labelPath: "$.name" } } : c)) };
+    expect(toggleListEntry(pick, "b-subscriber", sample, "$.servItems")).toBeNull();
+  });
+
+  it("keeps the filter and the separator when the entry changes how it shows", () => {
+    let t = setListShow(toggleListEntry(base(), "b-subscriber", sample, "$.servItems")!, "b-subscriber", 0, sample, "joined");
+    t = setEntryChoice(t, "b-subscriber", 0, { item: { kind: "all", join: " | ", where: { field: "$.id", op: "eq", value: { fixed: "1" } } } });
+    t = setEntryChoice(t, "b-subscriber", 0, { path: "$.id" });
+    const counted = setListShow(t, "b-subscriber", 0, sample, "count");
+    expect(blockOf(counted).fields[0].list!.item).toEqual({ kind: "count", where: { field: "$.id", op: "eq", value: { fixed: "1" } } });
+    const back = setListShow(counted, "b-subscriber", 0, sample, "joined");
+    expect(blockOf(back).fields[0].list!.item).toMatchObject({ kind: "all", join: ", " });
+  });
+
+  it("switches to JSON: the plain field again, and the list made for it goes", () => {
+    const t = toggleListEntry(base(), "b-subscriber", sample, "$.servItems")!;
+    const plain = setListShow(t, "b-subscriber", 0, sample, "json");
+    expect(blockOf(plain).fields).toEqual([{ path: "$.servItems", label: "Serv items", format: "text" }]);
+    expect(callOf(plain).lists).toBeUndefined();
+    const again = setListShow(plain, "b-subscriber", 0, sample, "count");
+    expect(blockOf(again).fields[0].list!.item).toEqual({ kind: "count" });
+  });
+
+  it("switches a saved plain field to joined or how many, and only then writes anything", () => {
+    const saved: Tool = { ...base(), blocks: base().blocks.map((b) => (b.id === "b-subscriber" ? { ...b, fields: [{ path: "$.servItems", label: "Items", format: "text" as const }] } : b)) };
+    const t = setListShow(saved, "b-subscriber", 0, sample, "count");
+    expect(blockOf(t).fields[0]).toMatchObject({ path: "$", label: "Items", list: { item: { kind: "count" } } });
+    expect(setListShow(saved, "b-subscriber", 0, sample, "json")).toBe(saved);
+  });
+
+  it("Its own Table block: adds an expandable table on the list in the block's row, and the entry becomes how many", () => {
+    const roomy = base();
+    roomy.blocks = roomy.blocks.filter((b) => b.id !== "b-status");
+    const joined = setListShow(toggleListEntry(roomy, "b-subscriber", sample, "$.servItems")!, "b-subscriber", 0, sample, "joined");
+    const r = addTableBesideEntry(joined, "b-subscriber", 0, sample)!;
+    const table = r.tool.blocks.find((b) => b.id === r.tableId)!;
+    const list = callOf(r.tool).lists![0];
+    expect(table).toMatchObject({ type: "table", title: "Serv items", callId: "c-devices", listId: list.id, expandable: true, fields: [{ path: "$.name" }] });
+    expect(blockOf(r.tool).fields[0].list!.item).toEqual({ kind: "count" });
+    const subscriber = r.tool.blocks.find((b) => b.id === "b-subscriber")!;
+    expect(table.row).toBe(subscriber.row);
+    expect(r.tool.blocks.findIndex((b) => b.id === r.tableId)).toBe(r.tool.blocks.findIndex((b) => b.id === "b-subscriber") + 1);
+    expect(listHasTable(r.tool, "c-devices", list.id)).toBe(true);
+  });
+
+  it("Its own Table block goes in a new row when the row is full, and no row holds more than three blocks", () => {
+    const t = toggleListEntry(base(), "b-subscriber", sample, "$.servItems")!;
+    // Row 1 of the sample page already has three blocks.
+    const r = addTableBesideEntry(t, "b-subscriber", 0, sample)!;
+    const rows = new Map<number, number>();
+    for (const b of r.tool.blocks) rows.set(b.row, (rows.get(b.row) ?? 0) + 1);
+    expect(Math.max(...rows.values())).toBeLessThanOrEqual(3);
+    expect(r.tool.blocks.find((b) => b.id === r.tableId)!.row).toBe(r.tool.blocks.find((b) => b.id === "b-subscriber")!.row + 1);
+  });
+
+  it("One item's fields: takes the entry away and says to open the first item", () => {
+    const t = toggleListEntry(base(), "b-subscriber", sample, "$.servItems")!;
+    const r = openItemFields(t, "b-subscriber", 0, sample)!;
+    expect(r.reveal).toBe("$.servItems[0]");
+    expect(blockOf(r.tool).fields).toEqual([]);
+    expect(callOf(r.tool).lists).toBeUndefined();
+  });
+
+  it("a Number block holds one entry, and a click replaces it", () => {
+    const t = toggleListEntry(base("number"), "b-subscriber", sample, "$.tags")!;
+    const t2 = toggleListEntry(t, "b-subscriber", sample, "$.servItems")!;
+    expect(blockOf(t2).fields).toHaveLength(1);
+    expect(blockOf(t2).fields[0].list!.item).toEqual({ kind: "count" });
+  });
+
+  it("saves and loads unchanged through cleanTools", () => {
+    const t = setListShow(toggleListEntry(base(), "b-subscriber", sample, "$.servItems")!, "b-subscriber", 0, sample, "joined");
+    expect(cleanTools([JSON.parse(JSON.stringify(t))])[0]).toEqual(t);
   });
 });

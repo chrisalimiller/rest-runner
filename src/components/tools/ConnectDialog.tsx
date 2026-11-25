@@ -5,6 +5,7 @@ import { callJson } from "../../lib/tools/engine";
 import {
   addCall,
   addFieldByPath,
+  deleteBlock,
   blockSample,
   blockLabel,
   colourEntries,
@@ -33,13 +34,14 @@ import {
 } from "../../lib/tools/builder";
 import { listSource, resolveInputs, valueResolver } from "../../lib/tools/engine";
 import { convertPickRow, eachPlaceholders, itemNoun, listItems, MAX_EACH_ITEMS } from "../../lib/tools/lists";
-import { addFoundList, fieldIsPicked, findLists, listOutline, mappingIsPicked, perItemCallsFor, perItemColumnPicked, perItemSample, pickMappingPath, toggleListField, togglePerItemColumn, updateList } from "../../lib/tools/listBuilder";
+import { addFoundList, fieldIsPicked, findLists, listOutline, mappingIsPicked, perItemCallsFor, perItemColumnPicked, perItemSample, pickMappingPath, toggleListEntry, toggleListField, togglePerItemColumn, updateList } from "../../lib/tools/listBuilder";
 import type { SessionState } from "../../lib/tools/session";
 import { FIELD_FORMATS, type BlockField, type CallResult, type FieldFormat, type ListItemChoice, type PlaceholderMapping, type Tool, type ToolBlock, type ToolCall } from "../../lib/tools/types";
 import { BADGE_COLOURS, requestLine, formatFieldValue, type BadgeColour } from "../../lib/tools/view";
 import { listPickableRequests } from "../../lib/testing/requestSources";
 import { Modal } from "../shell/Modal";
 import { JsonTree } from "./JsonTree";
+import { ListEntryControls, hasShowAs } from "./ListEntryControls";
 import { ChoiceEditor, RuleEditor } from "./ListControls";
 import { RefBreadcrumb, RefSample, sampleOfRef } from "./ListValue";
 
@@ -489,6 +491,8 @@ function StepFields({ work, setWork, block, setBlock, call, state, onRunSample, 
   const resolve = valueResolver(work, resolveInputs(work, state.inputs), state.results);
   const sample = blockSample(block, call, result, resolve);
   const [path, setPath] = useState("");
+  const [reveal, setReveal] = useState<{ path: string } | undefined>();
+  const [addedTable, setAddedTable] = useState<{ blockId: string; title: string } | null>(null);
   const pickingRow = state.pending.some((p) => p.callId === call.id);
   const table = block.type === "table";
   const lists = result?.state === "done" ? listPathOptions(callJson(result)) : [];
@@ -512,9 +516,11 @@ function StepFields({ work, setWork, block, setBlock, call, state, onRunSample, 
             label="Sample response"
             rootLabel={table ? "Row" : "Whole response"}
             rootPickable={block.type === "json"}
+            reveal={reveal}
             isPicked={(p) => (table || (block.type === "json" && p === "$") ? isPicked(block, p) : fieldIsPicked(call, block, sample, p))}
             onPick={(p) => {
-              const inList = table ? null : toggleListField(work, block.id, sample, p);
+              setReveal(undefined);
+              const inList = table ? null : (toggleListEntry(work, block.id, sample, p) ?? toggleListField(work, block.id, sample, p));
               if (inList) setWork(inList);
               else setBlock(togglePath(block, p, sample));
             }}
@@ -551,17 +557,46 @@ function StepFields({ work, setWork, block, setBlock, call, state, onRunSample, 
         {block.type === "json" && block.fields.length === 0 && <p className="small">The whole response.</p>}
         <ul className="cd-picked">
           {block.fields.map((f, i) => (
-            <li key={`${i}:${f.callId ?? ""}:${f.path}`} className={f.list ? "cd-picked-list" : undefined}>
-              <code className="mono">{f.path}</code>
+            <li key={`${i}:${f.callId ?? ""}:${f.path}`} className={f.list || hasShowAs(call, block, i, sample) ? "cd-picked-list" : undefined}>
+              <code className="mono">{hasShowAs(call, block, i, sample) && f.list ? (call.lists?.find((l) => l.id === f.list!.listId)?.path ?? f.path) : f.path}</code>
               {f.callId !== undefined && <span className="muted small cd-picked-val">{work.calls.find((c) => c.id === f.callId)?.name ?? "a removed request"}: {formatFieldValue(sampleValue(perItemSample(state.results[f.callId]), f.path), f.format)}</span>}
               {sample !== undefined && !f.list && f.callId === undefined && <span className="muted small cd-picked-val">{formatFieldValue(sampleValue(sample, f.path), f.format)}</span>}
               <button type="button" className="icon-btn" aria-label={`Remove ${f.path}`} onClick={() => setBlock(removeField(block, i))}>
                 ×
               </button>
-              {f.list && <FieldListChoice work={work} setWork={setWork} block={block} index={i} call={call} state={state} />}
+              {hasShowAs(call, block, i, sample) ? (
+                <ListEntryControls
+                  work={work}
+                  setWork={setWork}
+                  block={block}
+                  index={i}
+                  call={call}
+                  state={state}
+                  sample={sample}
+                  onReveal={(p) => setReveal({ path: p })}
+                  onTableAdded={(blockId, title) => setAddedTable({ blockId, title })}
+                />
+              ) : (
+                f.list && <FieldListChoice work={work} setWork={setWork} block={block} index={i} call={call} state={state} />
+              )}
             </li>
           ))}
         </ul>
+        {addedTable && work.blocks.some((b) => b.id === addedTable.blockId) && (
+          <p className="small cd-table-added" role="status">
+            Added a Table block{addedTable.title ? ` “${addedTable.title}”` : ""} next to this one.{" "}
+            <button
+              type="button"
+              className="link-btn small"
+              onClick={() => {
+                setWork({ ...work, blocks: deleteBlock(work.blocks, addedTable.blockId) });
+                setAddedTable(null);
+              }}
+            >
+              Undo
+            </button>
+          </p>
+        )}
         {usesFields(block.type) && (
           <form
             className="cd-add-path"
