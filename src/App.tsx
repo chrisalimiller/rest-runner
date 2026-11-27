@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { BatchPane } from "./components/BatchPane";
 import { ExampleDialog, ExportWorkspaceDialog, MoveDialog, SaveRequestDialog, type DestinationChoice } from "./components/CollectionDialogs";
 import { CollectionTree, type TreeAction } from "./components/CollectionTree";
@@ -120,6 +120,7 @@ import { loadConfirmProduction, productionToConfirm } from "./lib/productionGuar
 import { matchesShortcut } from "./lib/shortcuts";
 import { ConfirmProductionDialog } from "./components/shell/ConfirmProductionDialog";
 import type { HistoryEntry, RequestDef, SendOutcome } from "./lib/types";
+import { nextResponseHidden, tabRowNeededWidth, unfoldedRequestWidth } from "./lib/responseFold";
 
 type LowerPane = "response" | "batch";
 
@@ -344,6 +345,8 @@ export default function App({ active = true, shell, command }: Props) {
     const v = load<number>(SPLIT_KEY, 0.55);
     return typeof v === "number" && v > 0.1 && v < 0.9 ? v : 0.55;
   });
+  const splitRef = useRef(split);
+  splitRef.current = split;
   const inspectorRef = useRef<HTMLDivElement>(null);
 
   const applyTabs = useCallback((change: (s: TabsState) => TabsState): TabsState => {
@@ -1116,6 +1119,28 @@ export default function App({ active = true, shell, command }: Props) {
     return () => window.clearTimeout(t);
   }, [unfilledCount, finalUrl, skippedCertificate, certificateList, skipCertificate]);
   const foldRequest = pane === "batch" && batchWide && openRun === null;
+
+  // The request column's tab row must never overlap itself: when the column is too narrow for it, the response column is hidden.
+  const [responseHidden, setResponseHidden] = useState(false);
+  const measureFold = useCallback(() => {
+    const el = inspectorRef.current;
+    const row = el?.querySelector<HTMLElement>(".request-col .req-tabs");
+    if (!el || !row || row.clientWidth === 0) return;
+    const needed = tabRowNeededWidth(row);
+    const shown = unfoldedRequestWidth(el.getBoundingClientRect().width, splitRef.current, MIN_COLUMN);
+    setResponseHidden((hidden) => nextResponseHidden(hidden, needed, row.clientWidth, shown));
+  }, []);
+  // After every render, since the tab, the body type and the certificate chip all change what the row holds.
+  useLayoutEffect(() => {
+    measureFold();
+  });
+  useEffect(() => {
+    const el = inspectorRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(measureFold);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [measureFold]);
   const summaryUrl = foldRequest ? prepareRequest(def, sendVars).url : "";
   const guard = guardFor(activeEnv);
   const curlBanner = curlBanners[activeId];
@@ -1306,8 +1331,13 @@ export default function App({ active = true, shell, command }: Props) {
           </button>
         </div>
       )}
+      {responseHidden && !foldRequest && openRun === null && (
+        <div className="response-hidden-note" role="status">
+          Response hidden: the request needs more room. Widen the window or close a side panel to see it.
+        </div>
+      )}
       <div
-        className={`inspector ${foldRequest ? "request-folded" : ""}`}
+        className={`inspector ${foldRequest ? "request-folded" : ""} ${responseHidden && !foldRequest ? "response-hidden" : ""}`}
         hidden={openRun !== null}
         ref={inspectorRef}
         // Percent-sized factors: with factors below 1, a column held at its minimum width would leave the rest unused.

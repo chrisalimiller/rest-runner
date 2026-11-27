@@ -826,6 +826,24 @@ body.dragging-split {
   display: none;
 }
 
+/* The request's tab row has no room beside the response: the response column steps aside. */
+.inspector.response-hidden {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.inspector.response-hidden .response-col,
+.inspector.response-hidden .splitter {
+  display: none;
+}
+
+.response-hidden-note {
+  flex: none;
+  padding: 6px 24px;
+  background: var(--bg-inset);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+}
+
 .request-summary-bar {
   display: flex;
   align-items: center;
@@ -1280,6 +1298,8 @@ button.unfilled-dot:hover {
   gap: 10px;
   min-width: 0;
   margin-left: auto;
+  /* Whatever cannot fit is cut off here, never drawn over the tabs. */
+  overflow: hidden;
 }
 
 .req-tabs-end > * {
